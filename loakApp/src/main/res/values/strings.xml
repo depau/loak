@@ -1,0 +1,6 @@
+<resources>
+	<!-- Launcher/recents/app-list label. No apostrophe on purpose: launcher search does substring
+	     matching on the label, so "Lo'ak" would not match a search for "Loak". The in-app brand
+	     name (Compose res "app_name") stays "Lo'ak". -->
+	<string name="app_name" translatable="false">Loak</string>
+</resources>

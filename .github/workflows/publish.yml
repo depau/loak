@@ -37,10 +37,10 @@ jobs:
 
           gh release download "$TAG" \
             --repo "${{ github.repository }}" \
-            --pattern "Navic.ipa" \
+            --pattern "Lo'ak.ipa" \
             --dir prepare
         env:
-          GH_TOKEN: ${{ secrets.NAVIC_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.LOAK_GITHUB_TOKEN }}
 
       - name: Setup Certificates
         uses: apple-actions/import-codesign-certs@v5
@@ -63,7 +63,7 @@ jobs:
         run: |
           git clone https://$USERNAME:$API_TOKEN@github.com/${{ github.repository }}.git repo
         env:
-          API_TOKEN: ${{ secrets.NAVIC_GITHUB_TOKEN }}
+          API_TOKEN: ${{ secrets.LOAK_GITHUB_TOKEN }}
           USERNAME: GitHub-Actions
 
       - name: Update app-repo.json
@@ -78,10 +78,10 @@ jobs:
           ASSET_URL=$(echo "$ASSET" | jq -r '.browser_download_url')
           ASSET_SIZE=$(echo "$ASSET" | jq -r '.size')
           VERSION="$(cat iosApp/Configuration/Config.xcconfig \
-            | grep -w 'NAVIC_PROJECT_VERSION'
+            | grep -w 'LOAK_PROJECT_VERSION'
             | cut -d '=' -f2)"
           BUILD_VERSION="$(cat iosApp/Configuration/Config.xcconfig \
-            | grep -w 'NAVIC_PROJECT_BUILD_VERSION'
+            | grep -w 'LOAK_PROJECT_BUILD_VERSION'
             | cut -d '=' -f2)"
 
           jq \
@@ -118,5 +118,5 @@ jobs:
 
           git push --force https://$USERNAME:$API_TOKEN@github.com/${{ github.repository }}.git
         env:
-          API_TOKEN: ${{ secrets.NAVIC_GITHUB_TOKEN }}
+          API_TOKEN: ${{ secrets.LOAK_GITHUB_TOKEN }}
           USERNAME: GitHub-Actions

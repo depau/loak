@@ -1,12 +1,12 @@
 {
-  "name": "Navic Repository",
-  "identifier": "paige.navic.repo",
+  "name": "Lo'ak Repository",
+  "identifier": "eu.depau.loak.repo",
   "website": "https://github.com/ssalggnikool/Navic",
   "iconURL": "https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/icons/ios.png",
   "apps": [
     {
-      "name": "Navic",
-      "bundleIdentifier": "paige.Navic",
+      "name": "Lo'ak",
+      "bundleIdentifier": "eu.depau.loak",
       "developerName": "Paige",
       "localizedDescription": "Subsonic music streaming app for Android and iOS",
       "subtitle": "Subsonic music streaming app",

@@ -3,7 +3,8 @@ name: Build
 on:
   push:
     paths:
-      - composeApp/**
+      - loak/**
+      - loakApp/**
       - gradle/**
       - iosApp/**
       - build.gradle.kts
@@ -16,7 +17,8 @@ on:
       - '*'
   pull_request:
     paths:
-      - composeApp/**
+      - loak/**
+      - loakApp/**
       - gradle/**
       - iosApp/**
       - build.gradle.kts
@@ -57,25 +59,25 @@ jobs:
           SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
-          ./gradlew :androidApp:packageRelease --stacktrace
-          mv androidApp/build/outputs/apk/**/*.apk ./
-          ./gradlew :androidApp:packageRelease -Pfdroid=true --stacktrace
-          mv androidApp/build/outputs/apk/**/*.apk ./
+          ./gradlew :loakApp:packageRelease --stacktrace
+          mv loakApp/build/outputs/apk/**/*.apk ./
+          ./gradlew :loakApp:packageRelease -Pfdroid=true --stacktrace
+          mv loakApp/build/outputs/apk/**/*.apk ./
           rm release.keystore
 
       - name: Build with Gradle (debug)
         id: build_debug
         if: github.event_name == 'pull_request'
         run: |
-          ./gradlew :androidApp:assembleDebug --stacktrace
-          mv androidApp/build/outputs/apk/**/*.apk ./
-          ./gradlew :androidApp:assembleDebug -Pfdroid=true --stacktrace
-          mv androidApp/build/outputs/apk/**/*.apk ./
+          ./gradlew :loakApp:assembleDebug --stacktrace
+          mv loakApp/build/outputs/apk/**/*.apk ./
+          ./gradlew :loakApp:assembleDebug -Pfdroid=true --stacktrace
+          mv loakApp/build/outputs/apk/**/*.apk ./
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v6
         with:
-          name: navic-release-android
+          name: loak-release-android
           path: ./*.apk
           compression-level: 0
           if-no-files-found: ignore
@@ -106,7 +108,7 @@ jobs:
             ${{ runner.os }}-konan-
 
       - name: Run Gradle tasks
-        run: ./gradlew :composeApp:generateValkyrieImageVector
+        run: ./gradlew :loak:generateValkyrieImageVector
 
       - name: Build IPA
         run: |
@@ -126,13 +128,13 @@ jobs:
           APP_PATH=$(find "iosApp.xcarchive/Products/Applications" -name "*.app" | head -n 1)
           cp -r "$APP_PATH" Payload/
 
-          zip -r "Navic.ipa" Payload
+          zip -r "Lo'ak.ipa" Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: navic-release-ios
-          path: Navic.ipa
+          name: loak-release-ios
+          path: Lo'ak.ipa
           compression-level: 0
           if-no-files-found: ignore
 

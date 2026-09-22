@@ -6,7 +6,7 @@
 
 ### What's allowed
 
-* ❌ LLM-assisted contributions are ***not allowed***
+* ✅ All contributions are welcome, including LLM-assisted ones
 * ✅ Typo contributions are **allowed**
 * ✅ Code cleaning/refactoring contributions are **allowed** and welcomed
 

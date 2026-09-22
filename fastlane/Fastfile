@@ -9,19 +9,19 @@ platform :ios do
     )
 
     profile_path = sigh(
-      app_identifier: "paige.Navic",
+      app_identifier: "eu.depau.loak",
       skip_install: true,
       api_key: api_key
     )
 
     resign(
-      ipa: "prepare/Navic.ipa",
+      ipa: "prepare/Lo'ak.ipa",
       signing_identity: ENV["APP_STORE_CONNECT_SIGNING_IDENTITY"],
       provisioning_profile: profile_path
     )
 
     upload_to_testflight(
-      ipa: "prepare/Navic.ipa",
+      ipa: "prepare/Lo'ak.ipa",
       api_key: api_key,
       skip_waiting_for_build_processing: false,
       distribute_external: true,

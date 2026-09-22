@@ -1,0 +1,13 @@
+package eu.depau.loak.domain.models.settings
+
+import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.option_navigation_bar_label_visibility_always
+import eu.depau.loak.generated.resources.option_navigation_bar_label_visibility_never
+import eu.depau.loak.generated.resources.option_navigation_bar_label_visibility_only_selected
+import org.jetbrains.compose.resources.StringResource
+
+enum class NavigationBarLabelVisibility(val displayName: StringResource) {
+	Always(Res.string.option_navigation_bar_label_visibility_always),
+	OnlySelected(Res.string.option_navigation_bar_label_visibility_only_selected),
+	Never(Res.string.option_navigation_bar_label_visibility_never)
+}

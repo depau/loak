@@ -1,11 +1,17 @@
-NAVIC_PRODUCT_NAME=Navic
-NAVIC_PRODUCT_BUNDLE_IDENTIFIER=paige.Navic
+// PRODUCT_NAME = bundle filename (internal; produces "Lo'ak.app"/"Lo'ak.ipa").
+LOAK_PRODUCT_NAME=Lo'ak
+// Home-screen label + Spotlight search name. No apostrophe on purpose: iOS spotlights apps
+// by (sub)string match on the display name, so "Lo'ak" wouldn't match a search for "Loak".
+// The in-app brand name (shared Compose "app_name") stays "Lo'ak".
+LOAK_DISPLAY_NAME=Loak
+LOAK_PRODUCT_BUNDLE_IDENTIFIER=eu.depau.loak
 
-NAVIC_PROJECT_VERSION=1.0.0
-NAVIC_PROJECT_BUILD_VERSION=58
+LOAK_PROJECT_VERSION=1.0.0
+LOAK_PROJECT_BUILD_VERSION=58
 
-// The `NAVIC_DISAMBIGUATOR` configuration is to make it easier to build
+// The `LOAK_DISAMBIGUATOR` configuration is to make it easier to build
 // and run the project. Once you set your project's development team,
 // you'll have a unique bundle identifier. This is because the bundle identifier
-// is derived based on the 'NAVIC_DISAMBIGUATOR' value.
-NAVIC_DISAMBIGUATOR=${DEVELOPMENT_TEAM}
+// is derived based on the 'LOAK_DISAMBIGUATOR' value.
+LOAK_DISAMBIGUATOR=${DEVELOPMENT_TEAM}
+LOAK_PRODUCT_MODULE_NAME=Loak

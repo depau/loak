@@ -1,6 +1,6 @@
 @file:Suppress("UnstableApiUsage")
 
-rootProject.name = "Navic"
+rootProject.name = "LoakMusic"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -33,5 +33,5 @@ dependencyResolutionManagement {
 	}
 }
 
-include(":composeApp")
-include(":androidApp")
+include(":loak")
+include(":loakApp")

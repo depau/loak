@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		0D27DB70D5FA6738EA57803B /* Navic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Navic.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0D27DB70D5FA6738EA57803B /* Lo'ak.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lo'ak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -61,7 +61,7 @@
 		1C5EFF8CA22D5AFA7EE3FD12 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0D27DB70D5FA6738EA57803B /* Navic.app */,
+				0D27DB70D5FA6738EA57803B /* Lo'ak.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -99,7 +99,7 @@
 			packageProductDependencies = (
 			);
 			productName = iosApp;
-			productReference = 0D27DB70D5FA6738EA57803B /* Navic.app */;
+			productReference = 0D27DB70D5FA6738EA57803B /* Lo'ak.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -164,7 +164,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\nCODE_SIGN_IDENTITY=-\n./gradlew :composeApp:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\nCODE_SIGN_IDENTITY=-\n./gradlew :loak:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -190,13 +190,13 @@
 				CODE_SIGN_ENTITLEMENTS = "$(PROJECT_NAME)/entitlements.xml";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = "$(NAVIC_PROJECT_BUILD_VERSION)";
+				CURRENT_PROJECT_VERSION = "$(LOAK_PROJECT_BUILD_VERSION)";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(PROJECT_NAME)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAVIC_PRODUCT_NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(LOAK_DISPLAY_NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -208,10 +208,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = "$(NAVIC_PROJECT_VERSION)";
-				PRODUCT_BUNDLE_IDENTIFIER = "$(NAVIC_PRODUCT_BUNDLE_IDENTIFIER)$(NAVIC_DISAMBIGUATOR)";
-				PRODUCT_MODULE_NAME = "$(NAVIC_PRODUCT_NAME)";
-				PRODUCT_NAME = "$(NAVIC_PRODUCT_NAME)";
+				MARKETING_VERSION = "$(LOAK_PROJECT_VERSION)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(LOAK_PRODUCT_BUNDLE_IDENTIFIER)$(LOAK_DISAMBIGUATOR)";
+				PRODUCT_MODULE_NAME = "$(LOAK_PRODUCT_MODULE_NAME)";
+				PRODUCT_NAME = "$(LOAK_PRODUCT_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -292,13 +292,13 @@
 				CODE_SIGN_ENTITLEMENTS = "$(PROJECT_NAME)/entitlements.xml";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = "$(NAVIC_PROJECT_BUILD_VERSION)";
+				CURRENT_PROJECT_VERSION = "$(LOAK_PROJECT_BUILD_VERSION)";
 				DEVELOPMENT_TEAM = "${TEAM_ID}";
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(PROJECT_NAME)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAVIC_PRODUCT_NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(LOAK_DISPLAY_NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -310,10 +310,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = "$(NAVIC_PROJECT_VERSION)";
-				PRODUCT_BUNDLE_IDENTIFIER = "$(NAVIC_PRODUCT_BUNDLE_IDENTIFIER)$(NAVIC_DISAMBIGUATOR)";
-				PRODUCT_MODULE_NAME = "$(NAVIC_PRODUCT_NAME)";
-				PRODUCT_NAME = "$(NAVIC_PRODUCT_NAME)";
+				MARKETING_VERSION = "$(LOAK_PROJECT_VERSION)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(LOAK_PRODUCT_BUNDLE_IDENTIFIER)$(LOAK_DISAMBIGUATOR)";
+				PRODUCT_MODULE_NAME = "$(LOAK_PRODUCT_MODULE_NAME)";
+				PRODUCT_NAME = "$(LOAK_PRODUCT_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
