@@ -1,9 +1,10 @@
 package eu.depau.loak.domain.repositories
 
+import eu.depau.loak.util.IoDispatcher
+
 import androidx.room3.concurrent.AtomicInt
 import dev.zt64.subsonic.api.model.SubsonicException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -63,7 +64,7 @@ class DbRepository(
 	private val dbChunkSize = 500 // should be enough
 
 	private suspend fun <T> runDbOp(block: suspend () -> T): Result<T> =
-		withContext(Dispatchers.IO) {
+		withContext(IoDispatcher) {
 			try {
 				Result.success(block())
 			} catch (e: Exception) {
@@ -183,7 +184,7 @@ class DbRepository(
 		val albumChannel = Channel<ApiAlbum>(capacity = 100)
 
 		coroutineScope {
-			launch(Dispatchers.IO) {
+			launch(IoDispatcher) {
 				allAlbumSummaries.map { summary ->
 					launch {
 						concurrentRequestLimit.withPermit {
@@ -218,7 +219,7 @@ class DbRepository(
 				albumChannel.close()
 			}
 
-			launch(Dispatchers.IO) {
+			launch(IoDispatcher) {
 				val albumBatch = mutableListOf<AlbumEntity>()
 				val songBatch = mutableListOf<SongEntity>()
 				val summariesMap = allAlbumSummaries.associateBy { it.id }

@@ -35,3 +35,4 @@ dependencyResolutionManagement {
 
 include(":loak")
 include(":loakApp")
+include(":webApp")

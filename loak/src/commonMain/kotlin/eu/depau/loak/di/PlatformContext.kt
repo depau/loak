@@ -21,7 +21,8 @@ fun PlatformContext.isLandscape() = remember(sizeClass) {
 
 enum class PlatformType {
 	Android,
-	IOS
+	IOS,
+	Web
 }
 
 @Composable

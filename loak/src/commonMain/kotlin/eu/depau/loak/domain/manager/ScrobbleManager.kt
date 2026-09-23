@@ -1,8 +1,9 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.util.IoDispatcher
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -94,7 +95,7 @@ class ScrobbleManager(
 	private fun scrobbleSubmission(songId: String?) {
 		if (!preferenceManager.enableScrobbling || songId == null) return
 
-		scope.launch(Dispatchers.IO) {
+		scope.launch(IoDispatcher) {
 			val currentTime = Clock.System.now()
 
 			if (connectivityManager.isOnline.value) {
@@ -114,7 +115,7 @@ class ScrobbleManager(
 
 		if (!connectivityManager.isOnline.value) return
 
-		scope.launch(Dispatchers.IO) {
+		scope.launch(IoDispatcher) {
 			try {
 				sessionManager.api.scrobble(songId, submission = false)
 			} catch (_: Exception) {

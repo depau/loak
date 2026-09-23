@@ -1,5 +1,7 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.util.IoDispatcher
+
 import coil3.ImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -15,7 +17,6 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
@@ -56,7 +57,7 @@ class DownloadManager(
 	private val connectivityManager: ConnectivityManager,
 	private val platformType: PlatformType
 ) {
-	private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+	private val scope = CoroutineScope(IoDispatcher + SupervisorJob())
 	private val client = sessionManager.api.httpClient
 	private val activeDownloadsMutex = Mutex()
 	private val activeDownloads = mutableMapOf<String, Job>()
@@ -97,7 +98,7 @@ class DownloadManager(
 	}
 
 	fun downloadSong(song: DomainSong): Job {
-		val job = scope.launch(Dispatchers.IO) {
+		val job = scope.launch(IoDispatcher) {
 			val alreadyActive =
 				activeDownloadsMutex.withLock { activeDownloads.containsKey(song.id) }
 			if (alreadyActive) return@launch
@@ -124,7 +125,7 @@ class DownloadManager(
 	fun downloadEntireLibrary(songs: List<DomainSong>) {
 		if (isDownloadingLibrary.value) return
 
-		libraryDownloadJob = scope.launch(Dispatchers.IO) {
+		libraryDownloadJob = scope.launch(IoDispatcher) {
 			try {
 				isDownloadingLibrary.value = true
 				libraryDownloadProgress.value = 0f
@@ -175,7 +176,7 @@ class DownloadManager(
 		isDownloadingLibrary.value = false
 		libraryDownloadProgress.value = 0f
 
-		scope.launch(Dispatchers.IO) {
+		scope.launch(IoDispatcher) {
 			val jobsToCancel = activeDownloadsMutex.withLock {
 				val copy = activeDownloads.toMap()
 				activeDownloads.clear()
@@ -193,7 +194,7 @@ class DownloadManager(
 	}
 
 	fun cancelDownload(songId: String) {
-		scope.launch(Dispatchers.IO) {
+		scope.launch(IoDispatcher) {
 			activeDownloadsMutex.withLock {
 				activeDownloads[songId]?.cancel()
 				activeDownloads.remove(songId)
@@ -250,7 +251,7 @@ class DownloadManager(
 	}
 
 	fun clearAllDownloads() {
-		scope.launch(Dispatchers.IO) {
+		scope.launch(IoDispatcher) {
 			cancelAllActiveDownloads()
 			storageManager.clearDownloads()
 			downloadDao.clearAllDownloads()

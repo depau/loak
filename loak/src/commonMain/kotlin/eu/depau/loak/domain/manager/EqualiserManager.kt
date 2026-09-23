@@ -1,45 +1,26 @@
 package eu.depau.loak.domain.manager
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.core.stringPreferencesKey
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.SharingStarted
+import com.russhwolf.settings.Settings
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import eu.depau.loak.domain.models.settings.EqualiserConfig
 import eu.depau.loak.util.Logger
 
 class EqualiserManager(
-	private val preferences: DataStore<Preferences>
+	private val settings: Settings
 ) {
 	private val json = Json
-	private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-	val config = preferenceStateFlow {
-		return@preferenceStateFlow try {
-			json.decodeFromString<EqualiserConfig>(
-				it[KEY_CONFIG] ?: return@preferenceStateFlow EqualiserConfig()
-			)
-		} catch(ex: SerializationException) {
-			Logger.e("EqualiserManager", "failed to deserialise config", ex)
-			EqualiserConfig()
-		} catch(ex: Exception) {
-			Logger.e("EqualiserManager", "failed to read config", ex)
-			EqualiserConfig()
-		}
-	}
+	private val _config = MutableStateFlow(loadConfig())
+	val config: StateFlow<EqualiserConfig> = _config.asStateFlow()
 
 	suspend fun setConfig(value: EqualiserConfig) {
 		try {
-			preferences.edit { it[KEY_CONFIG] = json.encodeToString(value) }
+			settings.putString(KEY_CONFIG, json.encodeToString(value))
+			_config.value = value
 		} catch (ex: SerializationException) {
 			Logger.e("EqualiserManager", "failed to serialise config", ex)
 		} catch (ex: Exception) {
@@ -47,17 +28,20 @@ class EqualiserManager(
 		}
 	}
 
-	private inline fun <T> preferenceStateFlow(crossinline transform: (Preferences) -> T): StateFlow<T> {
-		return preferences.data
-			.map(transform)
-			.stateIn(
-				scope = scope,
-				started = SharingStarted.Eagerly,
-				initialValue = transform(emptyPreferences())
-			)
+	private fun loadConfig(): EqualiserConfig {
+		if (!settings.hasKey(KEY_CONFIG)) return EqualiserConfig()
+		return try {
+			json.decodeFromString<EqualiserConfig>(settings.getString(KEY_CONFIG, ""))
+		} catch (ex: SerializationException) {
+			Logger.e("EqualiserManager", "failed to deserialise config", ex)
+			EqualiserConfig()
+		} catch (ex: Exception) {
+			Logger.e("EqualiserManager", "failed to read config", ex)
+			EqualiserConfig()
+		}
 	}
 
 	private companion object {
-		val KEY_CONFIG = stringPreferencesKey("equaliser_config")
+		const val KEY_CONFIG = "equaliser_config"
 	}
 }

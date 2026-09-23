@@ -1,5 +1,7 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.util.IoDispatcher
+
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
 import dev.zt64.subsonic.api.model.Role
@@ -11,7 +13,6 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.header
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -27,7 +28,7 @@ class SessionManager(
 
 	private var currentUser: User? = null
 	private val mutex = Mutex()
-	private val scope = CoroutineScope(Dispatchers.IO)
+	private val scope = CoroutineScope(IoDispatcher)
 
 	var api: SubsonicClient = createClient(
 		instanceUrl = settings.getString("instanceUrl", ""),

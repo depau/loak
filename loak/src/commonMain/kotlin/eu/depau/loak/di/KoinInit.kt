@@ -11,7 +11,6 @@ fun initKoin(config: KoinAppDeclaration? = null): KoinApplication {
 		modules(
 			appModule,
 			databaseModule,
-			dataStoreModule,
 			managerModule,
 			repositoryModule,
 			viewModelModule,

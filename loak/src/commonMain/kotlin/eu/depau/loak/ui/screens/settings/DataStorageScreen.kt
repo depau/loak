@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.settings
 
+import eu.depau.loak.util.IoDispatcher
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloatAsState
@@ -41,7 +43,6 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import coil3.ImageLoader
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import eu.depau.loak.generated.resources.Res
@@ -185,7 +186,7 @@ fun SettingsDataStorageScreen() {
 	}
 
 	LaunchedEffect(Unit) {
-		withContext(Dispatchers.IO) {
+		withContext(IoDispatcher) {
 			val sizeBytes = imageLoader.diskCache?.size ?: 0L
 			imageCacheSizeMb = "${sizeBytes / (1024 * 1024)} MB"
 		}
@@ -246,7 +247,7 @@ fun SettingsDataStorageScreen() {
 						onChoiceSelected = {
 							preferenceManager.coverArtQuality = it
 							imageLoader.memoryCache?.clear()
-							scope.launch(Dispatchers.IO) {
+							scope.launch(IoDispatcher) {
 								imageLoader.diskCache?.clear()
 								imageCacheSizeMb = "0 MB"
 							}
@@ -415,7 +416,7 @@ fun SettingsDataStorageScreen() {
 					SegmentedListItem(
 						onClick = {
 							imageLoader.memoryCache?.clear()
-							scope.launch(Dispatchers.IO) {
+							scope.launch(IoDispatcher) {
 								imageLoader.diskCache?.clear()
 								imageCacheSizeMb = "0 MB"
 							}

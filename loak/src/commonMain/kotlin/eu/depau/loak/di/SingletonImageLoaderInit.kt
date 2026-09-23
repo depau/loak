@@ -5,26 +5,24 @@ import coil3.disk.DiskCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.serviceLoaderEnabled
-import okio.FileSystem
 import coil3.PlatformContext as CoilPlatformContext
 
-private var sharedDiskCache: DiskCache? = null
-
-private fun getDiskCache(): DiskCache {
-	return sharedDiskCache ?: DiskCache.Builder()
-		.directory(FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "image_cache")
-		.maxSizeBytes(2L shl 30)
-		.build().also { sharedDiskCache = it }
-}
+/**
+ * Disk cache used by the image loaders.
+ *
+ * Returns `null` on platforms with no stable on-disk cache (web), which lets
+ * Coil fall back to a memory-only cache.
+ */
+internal expect fun getImageDiskCache(): DiskCache?
 
 fun initializeSingletonImageLoader(context: CoilPlatformContext): ImageLoader {
-	return ImageLoader.Builder(context)
+	val builder = ImageLoader.Builder(context)
 		.components {
 			add(KtorNetworkFetcherFactory())
 		}
-		.diskCache { getDiskCache() }
 		.crossfade(true)
-		.build()
+	getImageDiskCache()?.let { builder.diskCache(it) }
+	return builder.build()
 }
 
 /**
@@ -33,12 +31,12 @@ fun initializeSingletonImageLoader(context: CoilPlatformContext): ImageLoader {
  * only used in `BlendBackground.kt` right now
  */
 fun getStaticImageLoader(context: CoilPlatformContext): ImageLoader {
-	return ImageLoader.Builder(context)
+	val builder = ImageLoader.Builder(context)
 		.serviceLoaderEnabled(false)
 		.components {
 			add(KtorNetworkFetcherFactory())
 		}
-		.diskCache { getDiskCache() }
 		.crossfade(true)
-		.build()
+	getImageDiskCache()?.let { builder.diskCache(it) }
+	return builder.build()
 }

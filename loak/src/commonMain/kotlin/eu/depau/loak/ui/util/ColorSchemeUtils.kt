@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.Color
 import coil3.ImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import com.kmpalette.rememberDominantColorState
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme

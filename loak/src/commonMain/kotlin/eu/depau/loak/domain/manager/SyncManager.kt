@@ -1,8 +1,9 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.util.IoDispatcher
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -41,7 +42,7 @@ class SyncManager(
 	private val sessionManager: SessionManager,
 	private val preferenceManager: PreferenceManager
 ) {
-	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+	private val scope = CoroutineScope(SupervisorJob() + IoDispatcher)
 	private var syncJob: Job? = null
 	private val syncMutex = Mutex()
 

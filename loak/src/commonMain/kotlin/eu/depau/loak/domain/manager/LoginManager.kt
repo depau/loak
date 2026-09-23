@@ -1,12 +1,13 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.util.IoDispatcher
+
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,7 @@ class LoginManager(
     private val repository: DbRepository,
     private val sessionManager: SessionManager
 ) {
-	val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+	val scope = CoroutineScope(IoDispatcher + SupervisorJob())
 
 	val loginState: StateFlow<LoginUiState>
 		field = MutableStateFlow<LoginUiState>(LoginUiState.Idle)

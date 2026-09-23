@@ -8,8 +8,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_deleted_download
 import eu.depau.loak.generated.resources.notice_download_started
@@ -42,16 +46,7 @@ class CollectionDetailViewModel(
 ) : ViewModel() {
 
 	val collectionState: StateFlow<UiState<DomainSongCollection>>
-		field = MutableStateFlow(
-			runBlocking {
-				try {
-					val data = repository.getLocalData(collectionId)
-					if (data.songs.isEmpty()) UiState.Loading(data) else UiState.Success(data)
-				} catch (_: Exception) {
-					UiState.Loading()
-				}
-			}
-		)
+		field = MutableStateFlow<UiState<DomainSongCollection>>(UiState.Loading())
 
 	val starred: StateFlow<Boolean>
 		field = MutableStateFlow(false)
@@ -92,15 +87,31 @@ class CollectionDetailViewModel(
 			initialValue = emptyList()
 		)
 
-	val otherAlbums = (collectionState.value.data as? DomainAlbum)?.let { album ->
-		repository.getOtherAlbums(album.artistId, album.id)
-	}?.stateIn(
-		scope = viewModelScope,
-		started = SharingStarted.Lazily,
-		initialValue = emptyList()
-	) ?: MutableStateFlow(emptyList())
+	val otherAlbums: StateFlow<List<DomainAlbum>> = collectionState
+		.map { it.data as? DomainAlbum }
+		.distinctUntilChanged()
+		.flatMapLatest { album ->
+			if (album != null) {
+				repository.getOtherAlbums(album.artistId, album.id)
+			} else {
+				flowOf(emptyList())
+			}
+		}
+		.stateIn(
+			scope = viewModelScope,
+			started = SharingStarted.Lazily,
+			initialValue = emptyList()
+		)
 
 	init {
+		viewModelScope.launch(IoDispatcher) {
+			try {
+				val data = repository.getLocalData(collectionId)
+				collectionState.value = if (data.songs.isEmpty()) UiState.Loading(data) else UiState.Success(data)
+			} catch (_: Exception) {
+				collectionState.value = UiState.Loading()
+			}
+		}
 		viewModelScope.launch {
 			sessionManager.isLoggedIn.collect { if (it) refreshCollection(false) }
 		}

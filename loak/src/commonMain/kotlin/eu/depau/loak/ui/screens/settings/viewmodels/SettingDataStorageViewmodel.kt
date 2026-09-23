@@ -3,7 +3,6 @@ package eu.depau.loak.ui.screens.settings.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -51,7 +50,7 @@ class SettingsDataStorageViewModel(
 	}
 
 	private fun loadPendingActions() {
-		viewModelScope.launch(Dispatchers.IO) {
+		viewModelScope.launch(Dispatchers.Default) {
 			pendingActionCount.value = syncDao.getPendingActions().size
 		}
 	}
@@ -61,7 +60,7 @@ class SettingsDataStorageViewModel(
 	}
 
 	fun rebuildDatabase() {
-		viewModelScope.launch(Dispatchers.IO) {
+		viewModelScope.launch(Dispatchers.Default) {
 			dbRepository.removeEverything()
 			syncManager.stopPeriodicSync()
 			pendingActionCount.value = 0
@@ -70,7 +69,7 @@ class SettingsDataStorageViewModel(
 	}
 
 	fun removeAllActions() {
-		viewModelScope.launch(Dispatchers.IO) {
+		viewModelScope.launch(Dispatchers.Default) {
 			syncDao.clearAllActions()
 			pendingActionCount.value = 0
 		}
@@ -81,7 +80,7 @@ class SettingsDataStorageViewModel(
 	}
 
 	fun downloadEntireLibrary() {
-		viewModelScope.launch(Dispatchers.IO) {
+		viewModelScope.launch(Dispatchers.Default) {
 			val allSongs = songRepository.getAllSongs()
 			downloadManager.downloadEntireLibrary(allSongs)
 		}

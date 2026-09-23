@@ -1,9 +1,10 @@
 package eu.depau.loak.domain.repositories
 
+import eu.depau.loak.util.IoDispatcher
+
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -42,5 +43,5 @@ class RadioRepository(
 		} else {
 			emit(UiState.Success(data = localData))
 		}
-	}.flowOn(Dispatchers.IO)
+	}.flowOn(IoDispatcher)
 }

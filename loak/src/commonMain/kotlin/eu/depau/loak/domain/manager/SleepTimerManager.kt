@@ -1,8 +1,9 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.util.IoDispatcher
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -27,7 +28,7 @@ sealed interface SleepTimerMode {
 class SleepTimerManager(
 	private val player: MediaPlayerViewModel
 ) {
-	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+	private val scope = CoroutineScope(SupervisorJob() + IoDispatcher)
 	private var job: Job? = null
 	private var observerJob: Job? = null
 	private var remainingSongs = 0

@@ -131,6 +131,10 @@ kotlin {
 		}
 	}
 
+	wasmJs {
+		browser()
+	}
+
 	android {
 		namespace = "eu.depau.loak"
 		compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -172,8 +176,6 @@ kotlin {
 			implementation(libs.kotlinx.datetime)
 			implementation(libs.kotlinx.serialization.json)
 			implementation(libs.kotlinx.collections.immutable)
-			implementation(libs.androidx.datastore.preferences)
-			implementation(libs.coil.gif)
 
 			implementation(libs.subsonicKotlin)
 		}
@@ -182,10 +184,23 @@ kotlin {
 			implementation(libs.bundles.ktor.android)
 			implementation(libs.bundles.androidx.android)
 			implementation(libs.bundles.media3)
+			implementation(libs.androidx.sqlite.bundled)
+			implementation(libs.coil.gif)
+			implementation(libs.kmpalette.core)
+			implementation(libs.kmpalette.network)
 		}
 
 		iosMain.dependencies {
 			implementation(libs.bundles.ktor.ios)
+			implementation(libs.androidx.sqlite.bundled)
+			implementation(libs.coil.gif)
+			implementation(libs.kmpalette.core)
+			implementation(libs.kmpalette.network)
+		}
+
+		wasmJsMain.dependencies {
+			implementation(libs.androidx.sqlite.web.wasm.js)
+			implementation(libs.kotlinx.browser)
 		}
 	}
 
@@ -202,6 +217,7 @@ dependencies {
 	add("kspAndroid", libs.androidx.room3.compiler)
 	add("kspIosSimulatorArm64", libs.androidx.room3.compiler)
 	add("kspIosArm64", libs.androidx.room3.compiler)
+	add("kspWasmJs", libs.androidx.room3.compiler)
 
 	add("kspCommonMainMetadata", libs.androidx.room3.compiler)
 }
