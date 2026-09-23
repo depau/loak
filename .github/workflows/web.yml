@@ -1,0 +1,56 @@
+name: Web
+
+on:
+  push:
+    paths:
+      - loak/**
+      - webApp/**
+      - gradle/**
+      - build.gradle.kts
+      - settings.gradle.kts
+      - .github/workflows/web.yml
+      - "!**/strings.xml"
+    branches:
+      - '*'
+  pull_request:
+    paths:
+      - loak/**
+      - webApp/**
+      - gradle/**
+      - build.gradle.kts
+      - settings.gradle.kts
+      - .github/workflows/web.yml
+      - "!**/strings.xml"
+  workflow_dispatch:
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-web:
+    name: Kotlin/Wasm bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build web distribution
+        run: ./gradlew :webApp:wasmJsBrowserDistribution --no-daemon
+
+      - name: Upload web bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: lo-web
+          path: webApp/build/dist/wasmJs/productionExecutable/
+          if-no-files-found: error
