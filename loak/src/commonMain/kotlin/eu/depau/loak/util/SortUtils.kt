@@ -45,15 +45,16 @@ fun DomainAlbumListType.toSqlQuery(): RoomRawQuery {
 	when (this) {
 		DomainAlbumListType.AlphabeticalByArtist -> orderBy = "LOWER(artistName) ASC"
 		DomainAlbumListType.AlphabeticalByName -> orderBy = "LOWER(name) ASC"
+		// ponytail: limit overview queries to 30 items so Room does not fetch thousands of song relations across worker RPC
 		DomainAlbumListType.Frequent -> {
 			where = "playCount != 0"
-			orderBy = "playCount DESC"
+			orderBy = "playCount DESC LIMIT 30"
 		}
 
-		DomainAlbumListType.Highest -> orderBy = "userRating DESC"
-		DomainAlbumListType.Newest -> orderBy = "createdAt DESC"
-		DomainAlbumListType.Random -> orderBy = "RANDOM()"
-		DomainAlbumListType.Recent -> orderBy = "lastPlayedAt DESC"
+		DomainAlbumListType.Highest -> orderBy = "userRating DESC LIMIT 30"
+		DomainAlbumListType.Newest -> orderBy = "createdAt DESC LIMIT 30"
+		DomainAlbumListType.Random -> orderBy = "RANDOM() LIMIT 30"
+		DomainAlbumListType.Recent -> orderBy = "COALESCE(lastPlayedAt, createdAt) DESC LIMIT 30"
 
 		DomainAlbumListType.Year -> {
 			orderBy = "year DESC"

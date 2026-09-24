@@ -19,6 +19,7 @@ import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainFilter
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.util.Logger
 import eu.depau.loak.util.toSqlQuery
 import kotlin.time.Clock
 
@@ -40,8 +41,9 @@ class AlbumRepository(
 				.toSet()
 		} else null
 
-		return albumDao
-			.getAlbumsByQuery(listType.toSqlQuery())
+		val rawAlbums = albumDao.getAlbumsByQuery(listType.toSqlQuery())
+		Logger.i("AlbumRepository", "getLocalData ($listType): fetched ${rawAlbums.size} albums")
+		return rawAlbums
 			.map { it.toDomainModel() }
 			.filter { album ->
 				filters.all { filter ->

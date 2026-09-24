@@ -210,7 +210,11 @@ class DbRepository(
 										e
 									)
 								} else {
-									throw e
+									Logger.e(
+										"DbRepository",
+										"could not fetch album ${summary.id} (${summary.name}); skipping it",
+										e
+									)
 								}
 							}
 						}

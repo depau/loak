@@ -24,6 +24,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.domain.manager.LoginManager
+import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainSongCollection
@@ -85,6 +86,9 @@ fun LibraryScreen() {
 	val loginManager = koinInject<LoginManager>()
 	val loginState by loginManager.loginState.collectAsStateWithLifecycle()
 
+	val syncManager = koinInject<SyncManager>()
+	val syncState by syncManager.syncState.collectAsStateWithLifecycle()
+
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 	var playlistDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -94,11 +98,13 @@ fun LibraryScreen() {
 
 	val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-	LaunchedEffect(loginState is LoginUiState.Success) {
-		albumsViewModel.refreshAlbums(false)
-		playlistsViewModel.refreshPlaylists(false)
-		artistsViewModel.refreshArtists(false)
-		genresViewModel.refreshGenres(false)
+	LaunchedEffect(loginState is LoginUiState.Success, syncState.isSyncing) {
+		if (loginState is LoginUiState.Success && !syncState.isSyncing) {
+			albumsViewModel.refreshAlbums(false)
+			playlistsViewModel.refreshPlaylists(false)
+			artistsViewModel.refreshArtists(false)
+			genresViewModel.refreshGenres(false)
+		}
 	}
 
 	val gridState = rememberLazyGridState()
