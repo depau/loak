@@ -12,6 +12,7 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Radio
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.util.loakAnimateItem
 
 fun LazyGridScope.radioListScreenContent(
 	state: UiState<List<DomainRadio>>,
@@ -22,7 +23,7 @@ fun LazyGridScope.radioListScreenContent(
 	if (data.isNotEmpty()) {
 		items(data, key = { it.id }) { radio ->
 			RadioListScreenCard(
-				modifier = Modifier.animateItem(),
+				modifier = loakAnimateItem(),
 				radio = radio,
 				onPlayClick = { onRadioClick(radio) }
 			)

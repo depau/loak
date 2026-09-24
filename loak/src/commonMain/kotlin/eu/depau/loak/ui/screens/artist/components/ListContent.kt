@@ -38,6 +38,7 @@ import eu.depau.loak.ui.components.layouts.ArtGrid
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.screens.artist.ArtistListScreenGridItem
 import eu.depau.loak.ui.util.withoutTop
+import eu.depau.loak.ui.util.loakAnimateItem
 
 @Composable
 fun ArtistListScreenContent(
@@ -134,7 +135,7 @@ fun ArtistListScreenContent(
 					items(artists, { it.id }) { artist ->
 						if (selectedViewMode == ListViewMode.Grid) {
 							ArtistListScreenGridItem(
-								modifier = Modifier.animateItem(),
+								modifier = loakAnimateItem(),
 								tab = "artists",
 								artist = artist,
 								selected = artist == selectedArtist,
@@ -148,7 +149,7 @@ fun ArtistListScreenContent(
 							)
 						} else {
 							ArtistListScreenListItem(
-								modifier = Modifier.animateItem(),
+								modifier = loakAnimateItem(),
 								artist = artist,
 								selected = artist == selectedArtist,
 								selectedArtistAlbums = selectedArtistAlbums,
@@ -166,7 +167,7 @@ fun ArtistListScreenContent(
 				items(data, { it.id }) { artist ->
 					if (selectedViewMode == ListViewMode.Grid) {
 						ArtistListScreenGridItem(
-							modifier = Modifier.animateItem(),
+							modifier = loakAnimateItem(),
 							tab = "artists",
 							artist = artist,
 							selected = artist == selectedArtist,
@@ -180,7 +181,7 @@ fun ArtistListScreenContent(
 						)
 					} else {
 						ArtistListScreenListItem(
-							modifier = Modifier.animateItem(),
+							modifier = loakAnimateItem(),
 							artist = artist,
 							selected = artist == selectedArtist,
 							selectedArtistAlbums = selectedArtistAlbums,

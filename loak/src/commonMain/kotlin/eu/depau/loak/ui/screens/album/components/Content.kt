@@ -23,6 +23,7 @@ import eu.depau.loak.icons.outlined.Album
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.layouts.artGridPlaceholder
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.util.loakAnimateItem
 
 fun LazyGridScope.albumListScreenContent(
 	state: UiState<List<DomainAlbum>>,
@@ -68,7 +69,7 @@ fun LazyGridScope.albumListScreenContent(
 				items(albums, { it.id }) { album ->
 					if (selectedViewMode == ListViewMode.Grid) {
 						AlbumListScreenGridItem(
-							modifier = Modifier.animateItem(),
+							modifier = loakAnimateItem(),
 							tab = "albums",
 							album = album,
 							selected = album == selectedAlbum,
@@ -84,7 +85,7 @@ fun LazyGridScope.albumListScreenContent(
 						)
 					} else {
 						AlbumListScreenListItem(
-							modifier = Modifier.animateItem(),
+							modifier = loakAnimateItem(),
 							album = album,
 							selected = album == selectedAlbum,
 							starred = starred,
@@ -104,7 +105,7 @@ fun LazyGridScope.albumListScreenContent(
 			items(data, { it.id }) { album ->
 				if (selectedViewMode == ListViewMode.Grid) {
 					AlbumListScreenGridItem(
-						modifier = Modifier.animateItem(),
+						modifier = loakAnimateItem(),
 						tab = "albums",
 						album = album,
 						selected = album == selectedAlbum,
@@ -120,7 +121,7 @@ fun LazyGridScope.albumListScreenContent(
 					)
 				} else {
 					AlbumListScreenListItem(
-						modifier = Modifier.animateItem(),
+						modifier = loakAnimateItem(),
 						album = album,
 						selected = album == selectedAlbum,
 						starred = starred,

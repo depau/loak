@@ -12,6 +12,7 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Genre
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.util.loakAnimateItem
 
 fun LazyGridScope.genreListScreenContent(
 	state: UiState<List<DomainGenre>>
@@ -20,7 +21,7 @@ fun LazyGridScope.genreListScreenContent(
 	if (data.isNotEmpty()) {
 		items(data, { it.name }) { genre ->
 			GenreListScreenCard(
-				modifier = Modifier.animateItem(),
+				modifier = loakAnimateItem(),
 				genre = genre
 			)
 		}

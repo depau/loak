@@ -103,6 +103,7 @@ import eu.depau.loak.ui.screens.search.components.SearchScreenTopBar
 import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
 import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.ui.viewmodel.RootViewModel
+import eu.depau.loak.ui.util.loakAnimateItem
 
 enum class SearchCategory(val res: StringResource) {
 	ALL(Res.string.title_all),
@@ -392,7 +393,7 @@ fun SearchScreen(
 								seeAll = false
 							) { album ->
 								AlbumListScreenGridItem(
-									modifier = Modifier.animateItem(fadeInSpec = null)
+									modifier = loakAnimateItem(fadeInSpec = null)
 										.width(150.dp),
 									tab = "search",
 									album = album,
@@ -417,7 +418,7 @@ fun SearchScreen(
 								seeAll = false
 							) { artist ->
 								ArtistListScreenGridItem(
-									modifier = Modifier.animateItem(fadeInSpec = null)
+									modifier = loakAnimateItem(fadeInSpec = null)
 										.width(150.dp),
 									tab = "search",
 									artist = artist,

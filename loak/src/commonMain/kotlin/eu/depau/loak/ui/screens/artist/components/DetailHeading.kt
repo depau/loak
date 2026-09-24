@@ -69,11 +69,9 @@ fun ArtistDetailScreenHeading(
 				modifier = Modifier
 					.fillMaxSize()
 					.background(
-						Brush.linearGradient(
-							0.025f to MaterialTheme.colorScheme.background,
-							1.0f to Color.Transparent,
-							start = Offset(0f, Float.POSITIVE_INFINITY),
-							end = Offset(0f, 0f)
+						Brush.verticalGradient(
+							0.0f to Color.Transparent,
+							0.975f to MaterialTheme.colorScheme.background
 						)
 					)
 			)

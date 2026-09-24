@@ -33,6 +33,7 @@ import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.album.components.AlbumListScreenGridItem
 import eu.depau.loak.ui.util.withoutTop
+import eu.depau.loak.ui.util.loakAnimateItem
 
 @Composable
 fun GenreDetailScreenContent(
@@ -135,7 +136,7 @@ fun GenreDetailScreenContent(
 			seeAll = true
 		) { album ->
 			AlbumListScreenGridItem(
-				modifier = Modifier.animateItem().width(150.dp),
+				modifier = loakAnimateItem().width(150.dp),
 				tab = "genre",
 				album = album,
 				selected = album == selectedAlbum,

@@ -48,6 +48,7 @@ import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.screens.share.components.ShareListScreenItem
 import eu.depau.loak.ui.screens.share.viewmodels.ShareListViewModel
 import eu.depau.loak.ui.util.withoutTop
+import eu.depau.loak.ui.util.loakAnimateItem
 
 @Composable
 fun ShareListScreen() {
@@ -100,7 +101,7 @@ fun ShareListScreen() {
 						is UiState.Success -> {
 							items(stateValue.data, { it.id }) { share ->
 								ShareListScreenItem(
-									modifier = Modifier.animateItem(fadeInSpec = null),
+									modifier = loakAnimateItem(fadeInSpec = null),
 									share = share,
 									onClick = { viewModel.updateSelection(share) },
 									onSwipeToDelete = { deletionId = share.id }

@@ -13,6 +13,7 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Note
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.util.loakAnimateItem
 
 fun LazyListScope.songListScreenContent(
 	state: UiState<ImmutableList<DomainSong>>,
@@ -37,7 +38,7 @@ fun LazyListScope.songListScreenContent(
 		items(data) { song ->
 			val download = allDownloads.find { it.songId == song.id }
 			SongListScreenItem(
-				modifier = Modifier.animateItem(),
+				modifier = loakAnimateItem(),
 				song = song,
 				selected = song == selectedSong,
 				starred = if (song == selectedSong) selectedSongIsStarred else song.starredAt != null,

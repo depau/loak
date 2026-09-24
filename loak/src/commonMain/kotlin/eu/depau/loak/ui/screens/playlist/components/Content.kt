@@ -14,6 +14,7 @@ import eu.depau.loak.icons.outlined.PlaylistRemove
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.layouts.artGridPlaceholder
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.util.loakAnimateItem
 
 fun LazyGridScope.playlistListScreenContent(
 	state: UiState<List<DomainPlaylist>>,
@@ -31,7 +32,7 @@ fun LazyGridScope.playlistListScreenContent(
 		items(data, { it.id }) { playlist ->
 			if (selectedViewMode == ListViewMode.Grid) {
 				PlaylistListScreenGridItem(
-					modifier = Modifier.animateItem(),
+					modifier = loakAnimateItem(),
 					tab = "playlists",
 					playlist = playlist,
 					selected = playlist == selectedPlaylist,
@@ -44,7 +45,7 @@ fun LazyGridScope.playlistListScreenContent(
 				)
 			} else {
 				PlaylistListScreenListItem(
-					modifier = Modifier.animateItem(),
+					modifier = loakAnimateItem(),
 					playlist = playlist,
 					selected = playlist == selectedPlaylist,
 					onSelect = { onUpdateSelection(playlist) },

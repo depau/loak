@@ -40,6 +40,7 @@ import eu.depau.loak.ui.screens.artist.ArtistListScreenGridItem
 import eu.depau.loak.ui.screens.genre.components.GenreListScreenCard
 import eu.depau.loak.ui.screens.playlist.components.PlaylistListScreenGridItem
 import eu.depau.loak.ui.util.withoutTop
+import eu.depau.loak.ui.util.loakAnimateItem
 
 @Composable
 fun LibraryScreenContent(
@@ -124,7 +125,7 @@ fun LibraryScreenContent(
 			seeAll = true
 		) { album ->
 			AlbumListScreenGridItem(
-				modifier = Modifier.animateItem().width(150.dp),
+				modifier = loakAnimateItem().width(150.dp),
 				tab = "library",
 				album = album,
 				selected = album == selectedAlbum,
@@ -148,7 +149,7 @@ fun LibraryScreenContent(
 			seeAll = true
 		) { playlist ->
 			PlaylistListScreenGridItem(
-				modifier = Modifier.animateItem().width(150.dp),
+				modifier = loakAnimateItem().width(150.dp),
 				tab = "library",
 				playlist = playlist,
 				selected = playlist == selectedPlaylist,
@@ -169,7 +170,7 @@ fun LibraryScreenContent(
 			seeAll = true
 		) { artist ->
 			ArtistListScreenGridItem(
-				modifier = Modifier.animateItem().width(150.dp),
+				modifier = loakAnimateItem().width(150.dp),
 				tab = "library",
 				artist = artist,
 				selected = artist == selectedArtist,

@@ -12,6 +12,12 @@ import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.FontOption
 
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.PlatformType
+
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontSynthesis
+
 private val defaultTypography = Typography()
 
 @Composable
@@ -20,6 +26,11 @@ fun googleSans(
 	width: Float = 100f,
 	round: Float = 0f
 ): FontFamily {
+	val platformContext = LocalPlatformContext.current
+	if (platformContext.platformType == PlatformType.Web) {
+		// ponytail: Use system SansSerif on Web to avoid variable font cloning, synthesis, and Skiko crashes
+		return FontFamily.SansSerif
+	}
 	val font = Font(
 		Res.font.google_sans,
 		variationSettings = FontVariation.Settings(
@@ -28,7 +39,7 @@ fun googleSans(
 			FontVariation.Setting("ROND", round)
 		)
 	)
-	return remember { FontFamily(font) }
+	return remember(grade, width, round) { FontFamily(font) }
 }
 
 @Composable
@@ -37,6 +48,11 @@ fun defaultFont(
 	width: Float = 100f,
 	round: Float = 0f
 ): FontFamily {
+	val platformContext = LocalPlatformContext.current
+	if (platformContext.platformType == PlatformType.Web) {
+		// ponytail: Web has no local font files; use system SansSerif
+		return FontFamily.SansSerif
+	}
 	val preferenceManager = koinInject<PreferenceManager>()
 	val googleSans = googleSans(grade, width, round)
 	return remember(preferenceManager.font, preferenceManager.fontPath) {
