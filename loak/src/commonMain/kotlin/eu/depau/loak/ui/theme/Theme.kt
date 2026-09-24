@@ -7,7 +7,6 @@ import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.kyant.capsule.ContinuousRoundedRectangle
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.AnimationStyle
@@ -26,21 +25,22 @@ fun LoakTheme(
 			AnimationStyle.Standard -> MotionScheme.standard()
 		}
 	}
+	val shapes = Shapes(
+		extraSmall = ContinuousRoundedRectangle(ShapeDefaults.ExtraSmall.topStart),
+		small = ContinuousRoundedRectangle(ShapeDefaults.Small.topStart),
+		medium = ContinuousRoundedRectangle(ShapeDefaults.Medium.topStart),
+		large = ContinuousRoundedRectangle(ShapeDefaults.Large.topStart),
+		extraLarge = ContinuousRoundedRectangle(ShapeDefaults.ExtraLarge.topStart),
+		largeIncreased = ContinuousRoundedRectangle(ShapeDefaults.LargeIncreased.topStart),
+		extraLargeIncreased = ContinuousRoundedRectangle(ShapeDefaults.ExtraLargeIncreased.topStart),
+		extraExtraLarge = ContinuousRoundedRectangle(ShapeDefaults.ExtraExtraLarge.topStart)
+	)
 	MaterialExpressiveTheme(
 		colorScheme = colorScheme
 			?: chosenScheme,
 		motionScheme = motionScheme,
 		typography = typography(),
-		shapes = Shapes(
-			extraSmall = ContinuousRoundedRectangle(ShapeDefaults.ExtraSmall.topStart),
-			small = ContinuousRoundedRectangle(ShapeDefaults.Small.topStart),
-			medium = ContinuousRoundedRectangle(ShapeDefaults.Medium.topStart),
-			large = ContinuousRoundedRectangle(ShapeDefaults.Large.topStart),
-			extraLarge = ContinuousRoundedRectangle(ShapeDefaults.ExtraLarge.topStart),
-			largeIncreased = ContinuousRoundedRectangle(ShapeDefaults.LargeIncreased.topStart),
-			extraLargeIncreased = ContinuousRoundedRectangle(ShapeDefaults.ExtraLargeIncreased.topStart),
-			extraExtraLarge = ContinuousRoundedRectangle(ShapeDefaults.ExtraExtraLarge.topStart)
-		),
+		shapes = shapes,
 		content = content
 	)
 }

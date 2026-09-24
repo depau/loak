@@ -22,7 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
-import com.kyant.capsule.ContinuousCapsule
+import eu.depau.loak.ui.theme.ContinuousCapsule
 
 @Composable
 fun SlimSlider(

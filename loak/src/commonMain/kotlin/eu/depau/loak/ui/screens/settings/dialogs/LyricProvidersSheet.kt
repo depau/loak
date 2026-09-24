@@ -29,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import com.kyant.capsule.ContinuousCapsule
+import eu.depau.loak.ui.theme.ContinuousCapsule
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_reorder
 import eu.depau.loak.generated.resources.info_lyric_provider_disclaimer

@@ -28,8 +28,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kyant.capsule.ContinuousCapsule
-import com.kyant.capsule.ContinuousRoundedRectangle
+import eu.depau.loak.ui.theme.ContinuousCapsule
+import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import org.koin.compose.koinInject
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.util.rememberDraggableListState

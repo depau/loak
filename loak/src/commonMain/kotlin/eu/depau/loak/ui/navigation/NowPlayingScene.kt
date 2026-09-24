@@ -29,7 +29,7 @@ import androidx.navigation3.scene.OverlayScene
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
-import com.kyant.capsule.ContinuousRoundedRectangle
+import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import eu.depau.loak.ui.components.sheets.ModalBottomSheet
 import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.di.LocalSheetState

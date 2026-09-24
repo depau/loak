@@ -26,7 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.kyant.capsule.ContinuousRoundedRectangle
+import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.ui.theme.defaultFont
 

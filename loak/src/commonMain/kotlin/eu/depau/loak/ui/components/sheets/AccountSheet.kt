@@ -32,7 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kyant.capsule.ContinuousCapsule
+import eu.depau.loak.ui.theme.ContinuousCapsule
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res

@@ -57,7 +57,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import com.kyant.capsule.ContinuousRoundedRectangle
+import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_next_song
 import eu.depau.loak.generated.resources.action_pause
