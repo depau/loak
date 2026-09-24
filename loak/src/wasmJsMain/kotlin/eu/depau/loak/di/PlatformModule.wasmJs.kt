@@ -21,11 +21,6 @@ import eu.depau.loak.shared.WebMediaPlayerViewModel
 import eu.depau.loak.web.createSqliteWorker
 import coil3.PlatformContext as CoilPlatformContext
 
-/**
- * One shared SQLite web worker backs both databases (SQLite's WASM build,
- * persisted to OPFS). See `sqlite-worker.js` served by the webApp module.
- */
-private val sqliteWorker: Worker by lazy(::createSqliteWorker)
 
 actual val platformModule = module {
 	single { PlatformType.Web }
@@ -60,6 +55,6 @@ actual val platformModule = module {
 
 private inline fun <reified T : RoomDatabase> webDatabase(name: String): T =
 	Room.databaseBuilder<T>(name)
-		.setDriver(WebWorkerSQLiteDriver(sqliteWorker))
+		.setDriver(WebWorkerSQLiteDriver(createSqliteWorker()))
 		.fallbackToDestructiveMigration(true)
 		.build()

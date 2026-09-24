@@ -45,7 +45,9 @@ class WebMediaPlayerViewModel(
 	preferenceManager = preferenceManager
 ) {
 	private val audio: HTMLAudioElement =
-		document.createElement("audio") as HTMLAudioElement
+		(document.createElement("audio") as HTMLAudioElement).apply {
+			document.body?.appendChild(this)
+		}
 
 	private var isTransitioningBetweenTracks = false
 
