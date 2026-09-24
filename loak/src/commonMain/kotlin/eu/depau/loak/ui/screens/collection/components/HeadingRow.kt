@@ -23,7 +23,9 @@ import eu.depau.loak.generated.resources.info_unknown_year
 import eu.depau.loak.generated.resources.subtitle_playlist
 import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.LocalSharedTransitionScope
+import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSongCollection
@@ -48,15 +50,19 @@ fun CollectionDetailScreenHeadingRow(
 				.widthIn(0.dp, 420.dp)
 				.padding(horizontal = 64.dp)
 				.aspectRatio(1f)
-				.sharedElement(
-					sharedContentState = this@with.rememberSharedContentState(sharedTransitionKey),
-					boundsTransform = BoundsTransform { _, _ ->
-						tween(
-							durationMillis = 500,
-							easing = EmphasizedDecelerateEasing
-						)
-					},
-					animatedVisibilityScope = LocalNavAnimatedContentScope.current
+				.then(
+					// ponytail: disable sharedElement on web to avoid Lookahead layout issues
+					if (LocalPlatformContext.current.platformType == PlatformType.Web) Modifier
+					else Modifier.sharedElement(
+						sharedContentState = this@with.rememberSharedContentState(sharedTransitionKey),
+						boundsTransform = BoundsTransform { _, _ ->
+							tween(
+								durationMillis = 500,
+								easing = EmphasizedDecelerateEasing
+							)
+						},
+						animatedVisibilityScope = LocalNavAnimatedContentScope.current
+					)
 				)
 				.alpha(titleAlpha),
 			crossfadeMs = 0,

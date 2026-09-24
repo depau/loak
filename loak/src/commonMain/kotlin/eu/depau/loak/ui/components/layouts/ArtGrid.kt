@@ -40,6 +40,7 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.LocalSharedTransitionScope
+import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.ui.components.common.CoverArt
@@ -47,6 +48,7 @@ import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.util.EmphasizedDecelerateEasing
 import eu.depau.loak.ui.util.shimmerLoading
+import eu.depau.loak.ui.util.loakAnimateItem
 
 @Composable
 fun ArtGrid(
@@ -123,15 +125,19 @@ fun ArtGridItem(
 				contentDescription = title,
 				modifier = Modifier
 					.fillMaxWidth()
-					.sharedElement(
-						sharedContentState = this@with.rememberSharedContentState("${tab}-${id}-cover"),
-						boundsTransform = BoundsTransform { _, _ ->
-							tween(
-								durationMillis = 500,
-								easing = EmphasizedDecelerateEasing
-							)
-						},
-						animatedVisibilityScope = LocalNavAnimatedContentScope.current
+					.then(
+						// ponytail: disable sharedElement on web to avoid Lookahead layout issues
+						if (LocalPlatformContext.current.platformType == PlatformType.Web) Modifier
+						else Modifier.sharedElement(
+							sharedContentState = this@with.rememberSharedContentState("${tab}-${id}-cover"),
+							boundsTransform = BoundsTransform { _, _ ->
+								tween(
+									durationMillis = 500,
+									easing = EmphasizedDecelerateEasing
+								)
+							},
+							animatedVisibilityScope = LocalNavAnimatedContentScope.current
+						)
 					),
 				interactionSource = interactionSource
 			)
@@ -239,7 +245,7 @@ fun <T> LazyGridScope.artGridError(
 ) {
 	item(span = { GridItemSpan(maxLineSpan) }) {
 		ErrorBox(
-			modifier = Modifier.animateItem(fadeInSpec = null),
+			modifier = loakAnimateItem(fadeInSpec = null),
 			error = state
 		)
 	}

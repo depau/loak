@@ -221,18 +221,28 @@ fun App() {
 						entryProvider = entryProvider(backStack),
 						sharedTransitionScope = this@SharedTransitionLayout,
 						transitionSpec = {
-							Material3Transitions.SharedXAxisEnterTransition(
-								density
-							) togetherWith Material3Transitions.SharedXAxisExitTransition(
-								density
-							)
+							if (platformContext.platformType == PlatformType.Web) {
+								// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
+								ContentTransform(EnterTransition.None, ExitTransition.None)
+							} else {
+								Material3Transitions.SharedXAxisEnterTransition(
+									density
+								) togetherWith Material3Transitions.SharedXAxisExitTransition(
+									density
+								)
+							}
 						},
 						popTransitionSpec = {
-							Material3Transitions.SharedXAxisPopEnterTransition(
-								density
-							) togetherWith Material3Transitions.SharedXAxisPopExitTransition(
-								density
-							)
+							if (platformContext.platformType == PlatformType.Web) {
+								// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
+								ContentTransform(EnterTransition.None, ExitTransition.None)
+							} else {
+								Material3Transitions.SharedXAxisPopEnterTransition(
+									density
+								) togetherWith Material3Transitions.SharedXAxisPopExitTransition(
+									density
+								)
+							}
 						},
 						predictivePopTransitionSpec = {
 							if (preferenceManager.enablePredictiveBackAnimations) {
