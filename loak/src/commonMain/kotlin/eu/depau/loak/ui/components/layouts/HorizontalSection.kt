@@ -39,7 +39,8 @@ fun <T> LazyGridScope.horizontalSection(
 	key: (T) -> Any,
 	itemContent: @Composable LazyItemScope.(T) -> Unit,
 ) {
-	val data = state.data.orEmpty()
+	// ponytail: limit preview carousel to 30 items to keep layout nodes and Skiko memory minimal
+	val data = state.data.orEmpty().let { if (seeAll) it.take(30) else it }
 
 	if (data.isEmpty() && state !is UiState.Loading) return
 
@@ -47,8 +48,6 @@ fun <T> LazyGridScope.horizontalSection(
 
 	item(span = { GridItemSpan(maxLineSpan) }) {
 		LazyRow(
-			modifier = Modifier
-				.animateContentSize(animationSpec = MaterialTheme.motionScheme.fastSpatialSpec()),
 			horizontalArrangement = Arrangement.spacedBy(12.dp),
 			contentPadding = PaddingValues(horizontal = 16.dp)
 		) {

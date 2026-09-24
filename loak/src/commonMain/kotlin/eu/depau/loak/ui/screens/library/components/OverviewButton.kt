@@ -71,9 +71,10 @@ fun LazyGridScope.libraryScreenOverviewButton(
 				Spacer(Modifier.width(10.dp))
 				Text(
 					stringResource(label),
+					modifier = Modifier.weight(1f, fill = false),
 					maxLines = 1,
+					fontSize = 14.sp,
 					fontFamily = defaultFont(100, round = 100f),
-					autoSize = TextAutoSize.StepBased(minFontSize = 1.sp, maxFontSize = 14.sp),
 				)
 			}
 		}
