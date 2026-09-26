@@ -66,11 +66,20 @@ class SyncManager(
 		if (syncJob?.isActive == true) return
 
 		scope.launch {
+			// A session must exist before we can sync — without one the API
+			// client has an empty baseUrl and every request 404s against the
+			// page origin (visible on web boot before the user logs in).
+			if (!sessionManager.isLoggedIn.value) return@launch
+
 			if (albumDao.getAlbumCount() == 0
 				|| preferenceManager.lastFullSyncTime <= 0L
 			) {
 				Logger.i("SyncManager", "Syncing now because we haven't synced before")
-				runSyncCycle()
+				// Web keeps the database in memory, so after a reload the
+				// albums are gone while lastFullSyncTime (persisted) is still
+				// recent — without force the recency gate below would skip the
+				// full pull and leave an empty library.
+				runSyncCycle(force = true)
 			}
 		}
 
@@ -103,12 +112,14 @@ class SyncManager(
 		}
 	}
 
-	private suspend fun runSyncCycle() {
+	private suspend fun runSyncCycle(force: Boolean = false) {
 		syncMutex.withLock {
 			processQueue()
 
 			val currentTime = Clock.System.now()
-			if (currentTime - Instant.fromEpochMilliseconds(preferenceManager.lastFullSyncTime) > fullSyncThreshold) {
+			if (force
+				|| currentTime - Instant.fromEpochMilliseconds(preferenceManager.lastFullSyncTime) > fullSyncThreshold
+			) {
 				Logger.i("SyncManager", "Starting full library pull...")
 
 				syncState.update {
