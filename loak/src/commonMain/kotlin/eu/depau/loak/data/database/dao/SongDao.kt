@@ -5,20 +5,20 @@ import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.Transaction
-import androidx.room3.Upsert
 import eu.depau.loak.data.database.entities.SongEntity
 import eu.depau.loak.util.Logger
+import kotlin.time.Instant
 
 @Dao
 interface SongDao {
 	@Query("SELECT * FROM SongEntity WHERE songId = :songId LIMIT 1")
 	suspend fun getSongById(songId: String): SongEntity?
 
-	@Upsert
-	suspend fun insertSong(song: SongEntity)
+	@Query("UPDATE SongEntity SET starredAt = :starredAt WHERE songId = :songId")
+	suspend fun updateSongStarredAt(songId: String, starredAt: Instant?)
 
-	@Upsert
-	suspend fun insertSongs(songs: List<SongEntity>)
+	@Query("UPDATE SongEntity SET userRating = :userRating WHERE songId = :songId")
+	suspend fun updateSongRating(songId: String, userRating: Int)
 
 	@Insert(onConflict = OnConflictStrategy.IGNORE)
 	suspend fun insertSongsIgnoringConflicts(songs: List<SongEntity>)
@@ -66,19 +66,12 @@ interface SongDao {
 				deleteSong(localSong.songId)
 			}
 		}
-		insertSongs(remoteSongs)
-	}
-
-	@Transaction
-	suspend fun updateAllSongs(remoteSongs: List<SongEntity>) {
-		val remoteIds = remoteSongs.map { it.songId }.toSet()
-		getAllSongIds().forEach { localId ->
-			if (localId !in remoteIds) {
-				Logger.w("SongDao", "song $localId no longer exists remotely")
-				deleteSong(localId)
-			}
-		}
-		insertSongs(remoteSongs)
+		// Songs already exist from the library sync; on web the Room @Upsert
+		// degrades to a bare INSERT so re-inserting trips the PK. IGNORE
+		// re-pins identical rows and skips ones already present, which is
+		// enough here: data freshness comes from the full sync, this refresh
+		// only reconciles membership.
+		insertSongsIgnoringConflicts(remoteSongs)
 	}
 
 	@Transaction

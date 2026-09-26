@@ -14,7 +14,6 @@ import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.mappers.toDomainModel
-import eu.depau.loak.data.database.mappers.toEntity
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.models.DomainFilter
 import eu.depau.loak.domain.models.DomainSong
@@ -108,26 +107,17 @@ class SongRepository(
 	suspend fun isSongStarred(song: DomainSong) = songDao.isSongStarred(song.id)
 	suspend fun getSongRating(song: DomainSong) = songDao.getSongRating(song.id) ?: 0
 	suspend fun starSong(song: DomainSong) {
-		val starredEntity = song.toEntity().copy(
-			starredAt = Clock.System.now()
-		)
-		songDao.insertSong(starredEntity)
+		songDao.updateSongStarredAt(song.id, Clock.System.now())
 		syncManager.enqueueAction(SyncActionType.STAR, song.id)
 	}
 
 	suspend fun unstarSong(song: DomainSong) {
-		val unstarredEntity = song.toEntity().copy(
-			starredAt = null
-		)
-		songDao.insertSong(unstarredEntity)
+		songDao.updateSongStarredAt(song.id, null)
 		syncManager.enqueueAction(SyncActionType.UNSTAR, song.id)
 	}
 
 	suspend fun rateSong(song: DomainSong, rating: Int) {
-		val ratedEntity = song.toEntity().copy(
-			userRating = rating
-		)
-		songDao.insertSong(ratedEntity)
+		songDao.updateSongRating(song.id, rating)
 		when (rating) {
 			0 -> syncManager.enqueueAction(SyncActionType.STAR_0, song.id)
 			1 -> syncManager.enqueueAction(SyncActionType.STAR_1, song.id)
