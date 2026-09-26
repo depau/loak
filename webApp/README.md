@@ -22,7 +22,12 @@ static bundle (`index.html`, `webApp.js`, the app + skiko `.wasm`, `sqlite/`
 runtime and `sqlite-worker.js`). Serve it with any static server that sends
 `application/wasm` for `.wasm` and the COOP/COEP headers
 (`Cross-Origin-Opener-Policy: same-origin`,
-`Cross-Origin-Embedder-Policy: require-corp`), necessary for the sqlite worker.
+`Cross-Origin-Embedder-Policy: credentialless`). Keep COEP `credentialless`,
+not `require-corp`: cross-origin `<audio>` streams (the subsonic `stream`
+endpoint) are loaded `no-cors`, and `require-corp` makes the browser block
+them unless the server sends `Cross-Origin-Resource-Policy`. `credentialless`
+still provides the cross-origin isolation the sqlite wasm can use, without
+breaking remote playback.
 
 ## What runs on web
 

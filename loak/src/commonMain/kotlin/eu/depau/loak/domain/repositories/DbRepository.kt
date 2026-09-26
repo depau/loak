@@ -248,7 +248,14 @@ class DbRepository(
 
 					if (albumBatch.size >= dbChunkSize || songBatch.size >= 1500) {
 						albumDao.insertAlbums(albumBatch)
-						songDao.insertSongs(songBatch)
+						// Full-library rebuild: songs are fetched for every album,
+						// so on a repeat sync the same rows already exist (they can
+						// even appear under several albums). The web Room driver turns
+						// @Upsert into a bare INSERT, which then trips the PK on
+						// every existing row and floods the worker; IGNORE keeps the
+						// insert idempotent and rows that vanish are pruned by
+						// deleteObsoleteSongs below.
+						songDao.insertSongsIgnoringConflicts(songBatch)
 
 						finalSongsSynced += songBatch.size
 						albumBatch.clear()
@@ -258,7 +265,7 @@ class DbRepository(
 
 				if (albumBatch.isNotEmpty() || songBatch.isNotEmpty()) {
 					if (albumBatch.isNotEmpty()) albumDao.insertAlbums(albumBatch)
-					if (songBatch.isNotEmpty()) songDao.insertSongs(songBatch)
+					if (songBatch.isNotEmpty()) songDao.insertSongsIgnoringConflicts(songBatch)
 					finalSongsSynced += songBatch.size
 				}
 			}
@@ -308,8 +315,15 @@ class DbRepository(
 		val songIds = songEntities.map { it.songId }.toSet()
 
 		if (songEntities.isNotEmpty()) {
+			// Songs already exist from the album sync phase (most playlist
+			// songs belong to synced albums). A plain insert re-fires the PK;
+			// on the web driver @Upsert degrades to a bare INSERT (no
+			// ON CONFLICT clause) and floods the worker with constraint
+			// errors — IGNORE matches upsert semantics here since song rows
+			// are refreshed by the album phase and only the cross-refs below
+			// carry the playlist membership.
 			songEntities.chunked(dbChunkSize).forEach { chunk ->
-				songDao.insertSongs(chunk)
+				songDao.insertSongsIgnoringConflicts(chunk)
 			}
 
 			val crossRefs = songEntities.mapIndexed { index, it ->
