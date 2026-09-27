@@ -2,7 +2,9 @@ package eu.depau.loak.ui.screens.search.components
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,6 +30,7 @@ fun SearchScreenChips(
 	Row(
 		modifier = Modifier
 			.fillMaxWidth()
+			.horizontalScroll(rememberScrollState())
 			.padding(horizontal = 16.dp)
 			.selectableGroup(),
 		horizontalArrangement = Arrangement.spacedBy(8.dp)

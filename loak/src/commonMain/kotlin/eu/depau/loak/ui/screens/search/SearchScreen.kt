@@ -51,6 +51,7 @@ import eu.depau.loak.generated.resources.info_not_available_offline
 import eu.depau.loak.generated.resources.title_albums
 import eu.depau.loak.generated.resources.title_all
 import eu.depau.loak.generated.resources.title_artists
+import eu.depau.loak.generated.resources.title_playlists
 import eu.depau.loak.generated.resources.title_songs
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -68,6 +69,7 @@ import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainExplicitStatus
+import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
@@ -98,6 +100,13 @@ import eu.depau.loak.ui.screens.album.components.AlbumListScreenGridItem
 import eu.depau.loak.ui.screens.album.viewmodels.AlbumListViewModel
 import eu.depau.loak.ui.screens.artist.ArtistListScreenGridItem
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistListViewModel
+import eu.depau.loak.ui.screens.playlist.components.PlaylistListScreenGridItem
+import eu.depau.loak.ui.screens.playlist.viewmodels.PlaylistListViewModel
+import androidx.compose.runtime.saveable.rememberSaveable
+import eu.depau.loak.ui.components.dialogs.DeletionDialog
+import eu.depau.loak.ui.components.dialogs.DeletionEndpoint
+import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
+import kotlin.time.Duration
 import eu.depau.loak.ui.screens.search.components.SearchScreenChips
 import eu.depau.loak.ui.screens.search.components.SearchScreenTopBar
 import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
@@ -108,8 +117,9 @@ import eu.depau.loak.ui.util.loakAnimateItem
 enum class SearchCategory(val res: StringResource) {
 	ALL(Res.string.title_all),
 	SONGS(Res.string.title_songs),
-	ALBUMS(Res.string.title_albums),
-	ARTISTS(Res.string.title_artists)
+	PLAYLISTS(Res.string.title_playlists),
+	ARTISTS(Res.string.title_artists),
+	ALBUMS(Res.string.title_albums)
 }
 
 // TODO: clean this up, holy shit
@@ -142,6 +152,8 @@ fun SearchScreen(
 		parametersOf(DomainAlbumListType.AlphabeticalByName)
 	}
 	val albumListSelection by albumListViewModel.selectedAlbum.collectAsState()
+	val playlistListViewModel = koinViewModel<PlaylistListViewModel>()
+	val playlistListSelection by playlistListViewModel.selectedPlaylist.collectAsState()
 	val albumListStarred by albumListViewModel.starred.collectAsState()
 	val selectedAlbumRating by albumListViewModel.rating.collectAsStateWithLifecycle()
 
@@ -156,6 +168,9 @@ fun SearchScreen(
 
 	var selectedCategory by remember { mutableStateOf(SearchCategory.ALL) }
 	var songToQueue by remember { mutableStateOf<DomainSong?>(null) }
+	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
+	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
+	var playlistDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
 
 	val rootViewModel = koinViewModel<RootViewModel>()
 	LaunchedEffect(Unit) {
@@ -217,8 +232,10 @@ fun SearchScreen(
 						if (showAll || selectedCategory == SearchCategory.ARTISTS) results.filterIsInstance<DomainArtist>() else emptyList()
 					val songs =
 						if (showAll || selectedCategory == SearchCategory.SONGS) results.filterIsInstance<DomainSong>() else emptyList()
+					val playlists =
+						if (showAll || selectedCategory == SearchCategory.PLAYLISTS) results.filterIsInstance<DomainPlaylist>() else emptyList()
 
-					if (query.text.isNotBlank() && albums.isEmpty() && artists.isEmpty() && songs.isEmpty()) {
+					if (query.text.isNotBlank() && albums.isEmpty() && artists.isEmpty() && songs.isEmpty() && playlists.isEmpty()) {
 						ContentUnavailable(
 							icon = Icons.Outlined.NoSearchResults,
 							label = stringResource(Res.string.info_no_search_results)
@@ -386,27 +403,24 @@ fun SearchScreen(
 							}
 
 							horizontalSection(
-								title = Res.string.title_albums,
-								destination = Screen.AlbumList(true),
-								state = UiState.Success(albums),
+								title = Res.string.title_playlists,
+								destination = Screen.PlaylistList(true),
+								state = UiState.Success(playlists),
 								key = { it.id },
 								seeAll = false
-							) { album ->
-								AlbumListScreenGridItem(
+							) { playlist ->
+								PlaylistListScreenGridItem(
 									modifier = loakAnimateItem(fadeInSpec = null)
 										.width(150.dp),
 									tab = "search",
-									album = album,
-									selected = album == albumListSelection,
-									starred = albumListStarred,
-									onSelect = { albumListViewModel.selectAlbum(album) },
-									onDeselect = { albumListViewModel.clearSelection() },
-									onSetStarred = { albumListViewModel.starAlbum(it) },
-									onSetShareId = { },
-									onPlayNext = { player.playNext(album as DomainSongCollection) },
-									onAddToQueue = { player.addToQueue(album as DomainSongCollection) },
-									rating = selectedAlbumRating,
-									onSetRating = { albumListViewModel.setRating(it) }
+									playlist = playlist,
+									selected = playlist == playlistListSelection,
+									onSelect = { playlistListViewModel.selectPlaylist(playlist) },
+									onDeselect = { playlistListViewModel.clearSelection() },
+									onSetShareId = { shareId = it },
+									onSetDeletionId = { playlistDeletionId = it },
+									onPlayNext = { player.playNext(playlist as DomainSongCollection) },
+									onAddToQueue = { player.addToQueue(playlist as DomainSongCollection) }
 								)
 							}
 
@@ -434,6 +448,30 @@ fun SearchScreen(
 											player
 										)
 									}
+								)
+							}
+							horizontalSection(
+								title = Res.string.title_albums,
+								destination = Screen.AlbumList(true),
+								state = UiState.Success(albums),
+								key = { it.id },
+								seeAll = false
+							) { album ->
+								AlbumListScreenGridItem(
+									modifier = loakAnimateItem(fadeInSpec = null)
+										.width(150.dp),
+									tab = "search",
+									album = album,
+									selected = album == albumListSelection,
+									starred = albumListStarred,
+									onSelect = { albumListViewModel.selectAlbum(album) },
+									onDeselect = { albumListViewModel.clearSelection() },
+									onSetStarred = { albumListViewModel.starAlbum(it) },
+									onSetShareId = { shareId = it },
+									onPlayNext = { player.playNext(album as DomainSongCollection) },
+									onAddToQueue = { player.addToQueue(album as DomainSongCollection) },
+									rating = selectedAlbumRating,
+									onSetRating = { albumListViewModel.setRating(it) }
 								)
 							}
 						} else {
@@ -486,6 +524,20 @@ fun SearchScreen(
 			}
 		}
 	}
+
+	ShareDialog(
+		id = shareId,
+		onIdClear = { shareId = null },
+		expiry = shareExpiry,
+		onExpiryChange = { shareExpiry = it }
+	)
+
+	DeletionDialog(
+		endpoint = DeletionEndpoint.PLAYLIST,
+		id = playlistDeletionId,
+		onIdClear = { playlistDeletionId = null },
+		onRefresh = { playlistListViewModel.refreshPlaylists(false) }
+	)
 
 	if (songToQueue != null) {
 		QueueDuplicateDialog(
