@@ -92,7 +92,7 @@ class PreferenceManager(
 	var shushQueueDuplicateDialog by preference(false)
 
 	// navigation bar settings
-	var bottomBarCollapseMode by preference(BottomBarCollapseMode.OnScroll)
+	var bottomBarCollapseMode by preference(BottomBarCollapseMode.Never)
 	var bottomBarVisibilityMode by preference(BottomBarVisibilityMode.AllScreens)
 	var navigationBarStyle by preference(NavigationBarStyle.Normal)
 	var navigationBarLabelVisibility by preference(
