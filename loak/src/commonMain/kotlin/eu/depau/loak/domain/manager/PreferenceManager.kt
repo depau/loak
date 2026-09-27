@@ -42,7 +42,7 @@ class PreferenceManager(
 	var swipeToSkip by preference(true)
 	var hideIfIdle by preference(false)
 	var enablePredictiveBackAnimations by preference(true)
-	var gridSize by preference(GridSize.TwoByTwo)
+	var gridSize by preference(GridSize.ThreeByThree)
 	var coverArtShape by preference(CoverArtShape.Soft)
 	var artistImageShape by preference(CoverArtShape.Soft)
 	var coverArtQuality by preference(CoverArtQuality.High)
