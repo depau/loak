@@ -78,7 +78,6 @@ import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
-import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
 import eu.depau.loak.domain.models.DomainSong
@@ -467,7 +466,7 @@ class AndroidMediaPlayerViewModel(
 	private val application: Application,
 	private val albumDao: AlbumDao,
 	private val sessionManager: SessionManager,
-	private val snackBarManager: SnackBarManager
+	override val snackBarManager: SnackBarManager
 ) : MediaPlayerViewModel(
 	stateRepository = stateRepository,
 	songRepository = songRepository,
@@ -802,46 +801,13 @@ class AndroidMediaPlayerViewModel(
 		}
 	}
 
-	override fun addToQueueSingle(song: DomainSong, notify: Boolean) {
-		viewModelScope.launch {
-			controller?.addMediaItem(song.toMediaItem())
-			_uiState.update { state ->
-				val newQueue = state.queue + song
-				state.copy(
-					queue = newQueue,
-					currentIndex = if (state.currentIndex == -1) 0 else state.currentIndex,
-					currentSong = if (state.currentIndex == -1) song else state.currentSong
-				)
-			}
-			if (notify) snackBarManager.notifyAddedToQueue()
-		}
-	}
 
-	override fun addToQueue(collection: DomainSongCollection, notify: Boolean) {
-		addToQueue(
-			if (collection is DomainAlbum) collection.songs.sortedWith(
-				compareBy(
-					{ it.discNumber },
-					{ it.trackNumber }
-				)
-			) else collection.songs,
-			notify
-		)
-	}
 
-	override fun addToQueue(songs: List<DomainSong>, notify: Boolean) {
+
+	override fun insertIntoQueue(index: Int, songs: List<DomainSong>) {
 		viewModelScope.launch {
-			val items = songs.map { it.toMediaItem() }
-			controller?.addMediaItems(items)
-			_uiState.update { state ->
-				val newQueue = state.queue + songs
-				state.copy(
-					queue = newQueue,
-					currentIndex = if (state.currentIndex == -1) 0 else state.currentIndex,
-					currentSong = if (state.currentIndex == -1) songs.firstOrNull() else state.currentSong
-				)
-			}
-			if (notify) snackBarManager.notifyAddedToQueue()
+			controller?.addMediaItems(index, songs.map { it.toMediaItem() })
+			_uiState.update { it.withInserted(index, songs) }
 		}
 	}
 
@@ -915,57 +881,7 @@ class AndroidMediaPlayerViewModel(
 		}
 	}
 
-	override fun playNextSingle(song: DomainSong) {
-		viewModelScope.launch {
-			controller?.addMediaItem(
-				_uiState.value.currentIndex + 1,
-				withContext(Dispatchers.Default) { song.toMediaItem() }
-			)
-			_uiState.update { state ->
-				val newQueue =
-					if (state.queue.isEmpty())
-						state.queue + song
-					else
-						state.queue.slice(0..state.currentIndex) + song + state.queue.slice(state.currentIndex + 1..<state.queue.size)
-				state.copy(
-					queue = newQueue,
-					currentIndex = if (state.currentIndex == -1) 0 else state.currentIndex,
-					currentSong = if (state.currentIndex == -1) song else state.currentSong
-				)
-			}
-			snackBarManager.notifyPlayNext()
-		}
-	}
 
-	override fun playNext(collection: DomainSongCollection) {
-		viewModelScope.launch {
-			val (items, newCollection) = withContext(Dispatchers.Default) {
-				val newCollection =
-					if (collection is DomainAlbum) collection.songs.sortedWith(
-						compareBy(
-							{ it.discNumber },
-							{ it.trackNumber }
-						)) else collection.songs
-				newCollection.map { it.toMediaItem() } to newCollection
-			}
-			controller?.addMediaItems(_uiState.value.currentIndex + 1, items)
-			_uiState.update { state ->
-				val newQueue =
-					if (state.queue.isEmpty())
-						state.queue + newCollection
-					else
-						state.queue.slice(0..state.currentIndex) + newCollection + state.queue.slice(
-							state.currentIndex + 1..<state.queue.size
-						)
-				state.copy(
-					queue = newQueue,
-					currentIndex = if (state.currentIndex == -1) 0 else state.currentIndex,
-					currentSong = if (state.currentIndex == -1) newCollection.firstOrNull() else state.currentSong
-				)
-			}
-			snackBarManager.notifyPlayNext()
-		}
-	}
 
 	override fun playRadio(radio: DomainRadio) {
 		viewModelScope.launch {

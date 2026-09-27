@@ -8,8 +8,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.notice_added_to_queue
-import eu.depau.loak.generated.resources.notice_play_next
+import eu.depau.loak.generated.resources.action_undo
 import org.jetbrains.compose.resources.StringResource
 import eu.depau.loak.domain.models.snackbars.PlayerEvent
 
@@ -25,6 +24,9 @@ class SnackBarManager {
 		}
 	}
 
-	fun notifyAddedToQueue() = notify(Res.string.notice_added_to_queue)
-	fun notifyPlayNext() = notify(Res.string.notice_play_next)
+	fun notifyWithUndo(resource: StringResource, onUndo: () -> Unit) {
+		scope.launch {
+			_events.emit(PlayerEvent(resource, action = Res.string.action_undo, onAction = onUndo))
+		}
+	}
 }

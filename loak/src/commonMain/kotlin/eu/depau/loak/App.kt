@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy.Companion.detailPane
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy.Companion.listPane
@@ -147,7 +149,13 @@ fun App() {
 
 	LaunchedEffect(Unit) {
 		snackBarManager.events.collectLatest { event ->
-			snackBarState.showSnackbar(getString(event.resource, *event.args.toTypedArray()))
+			val result = snackBarState.showSnackbar(
+				message = getString(event.resource, *event.args.toTypedArray()),
+				actionLabel = event.action?.let { getString(it) },
+				// an undo needs time to reach
+				duration = if (event.action != null) SnackbarDuration.Long else SnackbarDuration.Short
+			)
+			if (result == SnackbarResult.ActionPerformed) event.onAction?.invoke()
 		}
 	}
 

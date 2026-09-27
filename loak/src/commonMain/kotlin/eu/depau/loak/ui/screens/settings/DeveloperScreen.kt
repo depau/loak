@@ -22,7 +22,6 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel
 import eu.depau.loak.generated.resources.action_ok
-import eu.depau.loak.generated.resources.action_reset_dont_show_agains
 import eu.depau.loak.generated.resources.action_test_exception_handler
 import eu.depau.loak.generated.resources.info_exception_handler
 import eu.depau.loak.generated.resources.option_custom_headers
@@ -30,11 +29,9 @@ import eu.depau.loak.generated.resources.title_confirm
 import eu.depau.loak.generated.resources.title_developer
 import eu.depau.loak.generated.resources.title_logs
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.PlatformType
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.components.common.SegmentedListButton
 import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
 import eu.depau.loak.ui.components.common.SegmentedListItem
@@ -53,7 +50,6 @@ fun SettingsDeveloperScreen() {
 	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	val backStack = LocalNavStack.current
 	var exceptionConfirmationShown by rememberSaveable { mutableStateOf(false) }
-	val preferenceManager = koinInject<PreferenceManager>()
 
 	Scaffold(
 		topBar = {
@@ -79,7 +75,7 @@ fun SettingsDeveloperScreen() {
 			) {
 				SettingsGroup {
 					val isAndroid = platformContext.platformType == PlatformType.Android
-					val count = if (isAndroid) 3 else 2
+					val count = if (isAndroid) 2 else 1
 
 					SettingsNavItem(
 						onClick = dropUnlessResumed {
@@ -93,14 +89,6 @@ fun SettingsDeveloperScreen() {
 						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count)
 					)
 
-					SettingsNavItem(
-						onClick = {
-							preferenceManager.shushQueueDuplicateDialog = false
-						},
-						content = { Text(stringResource(Res.string.action_reset_dont_show_agains)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
-					)
-
 					if (isAndroid) {
 						SettingsNavItem(
 							onClick = dropUnlessResumed {
@@ -111,7 +99,7 @@ fun SettingsDeveloperScreen() {
 								}
 							},
 							content = { Text(stringResource(Res.string.title_logs)) },
-							shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
+							shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
 						)
 					}
 				}

@@ -47,7 +47,6 @@ import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.Lock
 import eu.depau.loak.icons.outlined.Offline
 import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.dialogs.QueueDuplicateDialog
 import eu.depau.loak.ui.components.sheets.SongSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
@@ -82,8 +81,6 @@ fun SongRow(
 
 	val backStack = LocalNavStack.current
 	var playlistDialogShown by rememberSaveable { mutableStateOf(false) }
-	var duplicateQueueDialogShown by rememberSaveable { mutableStateOf(false) }
-	var duplicateQueueDialogShownPlayNext by rememberSaveable { mutableStateOf(false) }
 
 	val isDownloaded = download?.status == DownloadStatus.DOWNLOADED
 	val isCurrentTrack = playerState.currentSong?.id == song.id
@@ -208,22 +205,8 @@ fun SongRow(
 				if (starred) onAddStar() else onRemoveStar()
 			},
 			onShare = onShare,
-			onPlayNext = {
-				if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-					duplicateQueueDialogShown = true
-					duplicateQueueDialogShownPlayNext = true
-				} else {
-					onPlayNext()
-				}
-			},
-			onAddToQueue = {
-				if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-					duplicateQueueDialogShown = true
-					duplicateQueueDialogShownPlayNext = false
-				} else {
-					onAddToQueue()
-				}
-			},
+			onPlayNext = onPlayNext,
+			onAddToQueue = onAddToQueue,
 			onTrackInfo = dropUnlessResumed {
 				backStack.add(Screen.SongDetailScreen(song.id, song.coverArtId))
 			},
@@ -250,18 +233,6 @@ fun SongRow(
 		PlaylistUpdateDialog(
 			songs = persistentListOf(song),
 			onDismissRequest = { playlistDialogShown = false }
-		)
-	}
-
-	if (duplicateQueueDialogShown) {
-		QueueDuplicateDialog(
-			onDismissRequest = {
-				duplicateQueueDialogShown = false
-				onDismissRequest()
-			},
-			onConfirm = {
-				if (duplicateQueueDialogShownPlayNext) onPlayNext() else onAddToQueue()
-			}
 		)
 	}
 }

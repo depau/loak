@@ -18,12 +18,10 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbumListType
-import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.DomainSongListType
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.dialogs.QueueDuplicateDialog
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
@@ -69,7 +67,6 @@ fun GenreDetailScreen(
 
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
-	var songToQueue by remember { mutableStateOf<DomainSong?>(null) }
 
 	Scaffold(
 		topBar = { NestedTopBar({ Text(genreName) }) },
@@ -109,18 +106,10 @@ fun GenreDetailScreen(
 				onAddSongStar = { songsViewModel.starSong(true) },
 				onRemoveSongStar = { songsViewModel.starSong(false) },
 				onPlaySongNext = { song ->
-					if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-						songToQueue = song
-					} else {
-						player.playNextSingle(song)
-					}
+					player.playNextSingle(song)
 				},
 				onAddSongToQueue = { song ->
-					if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-						songToQueue = song
-					} else {
-						player.addToQueueSingle(song)
-					}
+					player.addToQueueSingle(song)
 				},
 				onPlaySong = { index ->
 					player.playNow(songsState.data.orEmpty(), index)
@@ -167,13 +156,4 @@ fun GenreDetailScreen(
 		expiry = shareExpiry,
 		onExpiryChange = { shareExpiry = it }
 	)
-
-	if (songToQueue != null) {
-		QueueDuplicateDialog(
-			onDismissRequest = { songToQueue = null },
-			onConfirm = {
-				songToQueue?.let { player.addToQueueSingle(it) }
-			}
-		)
-	}
 }

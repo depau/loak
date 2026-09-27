@@ -89,7 +89,6 @@ class PreferenceManager(
 	var checkForUpdates by preference(true)
 	var explicitContentPlayback by preference(ExplicitContentPlayback.Allowed)
 	var autoFillQueue by preference(false)
-	var shushQueueDuplicateDialog by preference(false)
 
 	// navigation bar settings
 	var bottomBarCollapseMode by preference(BottomBarCollapseMode.Never)

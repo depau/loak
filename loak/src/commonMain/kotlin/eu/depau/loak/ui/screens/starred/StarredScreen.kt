@@ -26,12 +26,10 @@ import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainFilter
-import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.DomainSongListType
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.dialogs.QueueDuplicateDialog
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
@@ -101,8 +99,6 @@ fun StarredScreen() {
 
 	val player = koinInject<MediaPlayerViewModel>()
 
-	var songToQueue by remember { mutableStateOf<DomainSong?>(null) }
-
 	val isOnline by songsViewModel.isOnline.collectAsStateWithLifecycle()
 
 	Scaffold(
@@ -157,18 +153,10 @@ fun StarredScreen() {
 					songsViewModel.deleteDownload(song.id)
 				},
 				onPlaySongNext = { song ->
-					if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-						songToQueue = song
-					} else {
-						player.playNextSingle(song)
-					}
+					player.playNextSingle(song)
 				},
 				onAddSongToQueue = { song ->
-					if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-						songToQueue = song
-					} else {
-						player.addToQueueSingle(song)
-					}
+					player.addToQueueSingle(song)
 				},
 				selectedSongRating = selectedSongRating,
 				onSetSongRating = { songsViewModel.rateSelectedSong(it) },
@@ -211,13 +199,4 @@ fun StarredScreen() {
 		expiry = shareExpiry,
 		onExpiryChange = { shareExpiry = it }
 	)
-
-	if (songToQueue != null) {
-		QueueDuplicateDialog(
-			onDismissRequest = { songToQueue = null },
-			onConfirm = {
-				songToQueue?.let { player.addToQueueSingle(it) }
-			}
-		)
-	}
 }

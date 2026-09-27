@@ -388,12 +388,12 @@
 	<string name="action_trigger_sync">Trigger manual sync</string>
 	<string name="action_test_exception_handler">Test exception handler</string>
 	<string name="action_dont_show_again">Don't show again</string>
+	<string name="action_undo">Undo</string>
 	<string name="action_open_settings">Open settings</string>
 	<string name="action_reset">Reset</string>
 	<string name="action_configure_lyric_providers">Configure lyric providers</string>
 	<string name="action_visit_site">Visit site</string>
 	<string name="action_scroll_down">Scroll down</string>
-	<string name="action_reset_dont_show_agains">Reset "don't show again" dialogs</string>
 	<string name="subtitle_rebuild_database">Wipes all local metadata and forces a fresh sync</string>
 
 	<string name="notice_deleted_playlist">Playlist deleted.</string>
@@ -404,6 +404,8 @@
 	<string name="notice_created_radio">Radio %1$s added.</string>
 	<string name="notice_added_to_queue">Added to queue.</string>
 	<string name="notice_play_next">Playing next.</string>
+	<string name="notice_moved_play_next">Moved to play next.</string>
+	<string name="notice_moved_to_end">Moved to the end of the queue.</string>
 	<string name="notice_added_to_playlist">Added to %1$s.</string>
 	<string name="notice_added_to_multiple_playlists">Added to multiple playlists.</string>
 	<string name="notice_download_started">Download started.</string>
@@ -412,7 +414,6 @@
 	<string name="notice_image_saved">Image saved.</string>
 	<string name="notice_loading_lyrics">Loading lyrics...\nThis might take a while.</string>
 	<string name="notice_login_suggestion">Did you mean...</string>
-	<string name="notice_queue_duplicate">This song is already in the queue. Do you want to add it again?</string>
 	<string name="notice_local_network_denied">Permission denied</string>
 	<string name="notice_link_confirmation">This link is taking you to the following website:</string>
 

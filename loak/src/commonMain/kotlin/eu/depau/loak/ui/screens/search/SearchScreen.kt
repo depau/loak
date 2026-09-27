@@ -87,7 +87,6 @@ import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.common.MarqueeText
-import eu.depau.loak.ui.components.dialogs.QueueDuplicateDialog
 import eu.depau.loak.ui.components.layouts.ArtGrid
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.artGridPlaceholder
@@ -167,7 +166,6 @@ fun SearchScreen(
 	val backStack = LocalNavStack.current
 
 	var selectedCategory by remember { mutableStateOf(SearchCategory.ALL) }
-	var songToQueue by remember { mutableStateOf<DomainSong?>(null) }
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 	var playlistDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -275,11 +273,7 @@ fun SearchScreen(
 
 									LaunchedEffect(dismissState.currentValue) {
 										if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-											if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-												songToQueue = song
-											} else {
-												player.addToQueueSingle(song)
-											}
+											player.addToQueueSingle(song)
 											dismissState.snapTo(SwipeToDismissBoxValue.Settled)
 										}
 									}
@@ -362,18 +356,10 @@ fun SearchScreen(
 												onDismissRequest = { viewModel.clearSelectedSong() },
 												song = song,
 												onPlayNext = {
-													if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-														songToQueue = song
-													} else {
-														player.playNextSingle(song)
-													}
+													player.playNextSingle(song)
 												},
 												onAddToQueue = {
-													if (player.uiState.value.queue.any { it.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-														songToQueue = song
-													} else {
-														player.addToQueueSingle(song)
-													}
+													player.addToQueueSingle(song)
 												},
 												downloadStatus = if (downloadedSongs.containsKey(
 														song.id
@@ -538,13 +524,4 @@ fun SearchScreen(
 		onIdClear = { playlistDeletionId = null },
 		onRefresh = { playlistListViewModel.refreshPlaylists(false) }
 	)
-
-	if (songToQueue != null) {
-		QueueDuplicateDialog(
-			onDismissRequest = { songToQueue = null },
-			onConfirm = {
-				songToQueue?.let { player.addToQueueSingle(it) }
-			}
-		)
-	}
 }

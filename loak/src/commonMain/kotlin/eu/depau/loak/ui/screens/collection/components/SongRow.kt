@@ -22,10 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,7 +63,6 @@ import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.common.Waveform
-import eu.depau.loak.ui.components.dialogs.QueueDuplicateDialog
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.util.InlineExplicitIcon
 import eu.depau.loak.ui.util.buildSongInfoString
@@ -100,8 +96,6 @@ fun CollectionDetailScreenSongRow(
 	val dismissState = rememberSwipeToDismissBoxState()
 	val scope = rememberCoroutineScope()
 
-	var isPlayNextPending by rememberSaveable { mutableStateOf<Boolean?>(null) }
-
 	val backStack = LocalNavStack.current
 
 	SwipeToDismissBox(
@@ -110,18 +104,10 @@ fun CollectionDetailScreenSongRow(
 		gesturesEnabled = !isExplicit,
 		onDismiss = {
 			if (it == SwipeToDismissBoxValue.StartToEnd) {
-				if (playerState.queue.any { item -> item.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-					isPlayNextPending = false
-				} else {
-					onAddToQueue()
-				}
+				onAddToQueue()
 			}
 			if (it == SwipeToDismissBoxValue.EndToStart) {
-				if (playerState.queue.any { item -> item.id == song.id } && !preferenceManager.shushQueueDuplicateDialog) {
-					isPlayNextPending = true
-				} else {
-					onPlayNext()
-				}
+				onPlayNext()
 			}
 			scope.launch { dismissState.reset() }
 		},
@@ -285,16 +271,6 @@ fun CollectionDetailScreenSongRow(
 						)
 					}
 				}
-			}
-		)
-	}
-
-	if (isPlayNextPending != null) {
-		QueueDuplicateDialog(
-			onDismissRequest = { isPlayNextPending = null },
-			onConfirm = {
-				if (isPlayNextPending == true) onPlayNext() else onAddToQueue()
-				isPlayNextPending = null
 			}
 		)
 	}
