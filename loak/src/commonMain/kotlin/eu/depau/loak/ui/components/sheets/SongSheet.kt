@@ -38,6 +38,7 @@ import eu.depau.loak.generated.resources.action_delete_download
 import eu.depau.loak.generated.resources.action_download
 import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_from_playlist
+import eu.depau.loak.generated.resources.action_remove_from_queue
 import eu.depau.loak.generated.resources.action_remove_star
 import eu.depau.loak.generated.resources.action_share
 import eu.depau.loak.generated.resources.action_sleep_timer
@@ -108,6 +109,7 @@ fun SongSheet(
 	onViewArtist: (() -> Unit)? = null,
 	onAddToPlaylist: (() -> Unit)? = null,
 	onRemoveFromPlaylist: (() -> Unit)? = null,
+	onRemoveFromQueue: (() -> Unit)? = null,
 	downloadStatus: DownloadStatus? = null,
 	onDownload: (() -> Unit)? = null,
 	onCancelDownload: (() -> Unit)? = null,
@@ -368,6 +370,19 @@ fun SongSheet(
 						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
 						onClick = {
 							onRemoveFromPlaylist()
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				if (onRemoveFromQueue != null) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_remove_from_queue)) },
+						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
+						onClick = {
+							onRemoveFromQueue()
 							onDismissRequest()
 						},
 						colors = colors,

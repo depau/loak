@@ -57,6 +57,18 @@ import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.queue.components.QueueScreenItem
 import eu.depau.loak.ui.screens.queue.viewmodels.QueueViewModel
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.collections.immutable.persistentListOf
+import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.ui.components.sheets.SongSheet
+import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
+import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
+import kotlin.time.Duration
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.SnackbarHost
+import eu.depau.loak.di.LocalSnackBarState
+import eu.depau.loak.ui.components.snackbars.LoakSnackBar
 import eu.depau.loak.ui.theme.defaultFont
 import eu.depau.loak.ui.util.draggableItemsIndexed
 import eu.depau.loak.ui.util.rememberDraggableListState
@@ -72,6 +84,12 @@ fun QueueScreen() {
 	val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
 	val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
 	val queue = playerState.queue
+	val selectedIndex by viewModel.selectedIndex.collectAsStateWithLifecycle()
+	val selectedSongIsStarred by viewModel.selectedSongIsStarred.collectAsStateWithLifecycle()
+	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
+	var playlistSong by remember { mutableStateOf<DomainSong?>(null) }
+	var shareId by remember { mutableStateOf<String?>(null) }
+	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 
 	val haptic = LocalHapticFeedback.current
 	val draggableState = rememberDraggableListState(viewModel.listState) { from, to ->
@@ -153,95 +171,159 @@ fun QueueScreen() {
 		}
 	}
 
-	Column(modifier = Modifier.fillMaxSize()) {
-		if (queue.isNotEmpty()) {
-			Row(
-				modifier = Modifier
-					.fillMaxWidth()
-					.padding(horizontal = 24.dp, vertical = 8.dp),
-				horizontalArrangement = Arrangement.SpaceBetween
-			) {
+	Box(modifier = Modifier.fillMaxSize()) {
+		Column(modifier = Modifier.fillMaxSize()) {
+			if (queue.isNotEmpty()) {
 				Row(
-					modifier = Modifier.height(36.dp).clickable {
-						val newValue = when (preferenceManager.queueInfoType) {
-							QueueInfoType.Full -> QueueInfoType.Remaining
-							QueueInfoType.Remaining -> QueueInfoType.Full
-						}
-						preferenceManager.queueInfoType = newValue
-					},
-					verticalAlignment = Alignment.CenterVertically
+					modifier = Modifier
+						.fillMaxWidth()
+						.padding(horizontal = 24.dp, vertical = 8.dp),
+					horizontalArrangement = Arrangement.SpaceBetween
 				) {
-					Text(
-						text = "$songCountText • $formattedDurationText",
-						style = MaterialTheme.typography.titleMedium,
-						fontWeight = FontWeight.SemiBold,
-						fontFamily = defaultFont(round = 100f),
-						color = MaterialTheme.colorScheme.onSurfaceVariant,
-						textAlign = TextAlign.Center
-					)
-				}
-				FilledTonalButton(
-					onClick = {
-						haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-						player.clearQueue()
-					},
-					colors = ButtonDefaults.filledTonalButtonColors(),
-					contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-					modifier = Modifier.height(36.dp)
-				) {
-					Text(stringResource(Res.string.action_clear_queue))
+					Row(
+						modifier = Modifier.height(36.dp).clickable {
+							val newValue = when (preferenceManager.queueInfoType) {
+								QueueInfoType.Full -> QueueInfoType.Remaining
+								QueueInfoType.Remaining -> QueueInfoType.Full
+							}
+							preferenceManager.queueInfoType = newValue
+						},
+						verticalAlignment = Alignment.CenterVertically
+					) {
+						Text(
+							text = "$songCountText • $formattedDurationText",
+							style = MaterialTheme.typography.titleMedium,
+							fontWeight = FontWeight.SemiBold,
+							fontFamily = defaultFont(round = 100f),
+							color = MaterialTheme.colorScheme.onSurfaceVariant,
+							textAlign = TextAlign.Center
+						)
+					}
+					FilledTonalButton(
+						onClick = {
+							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+							player.clearQueueWithUndo()
+						},
+						colors = ButtonDefaults.filledTonalButtonColors(),
+						contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+						modifier = Modifier.height(36.dp)
+					) {
+						Text(stringResource(Res.string.action_clear_queue))
+					}
 				}
 			}
-		}
 
-		LazyColumn(
-			modifier = Modifier
-				.padding(horizontal = 12.dp)
-				.fillMaxSize(),
-			state = draggableState.listState,
-			contentPadding = WindowInsets.systemBars
-				.only(WindowInsetsSides.Bottom)
-				.asPaddingValues(),
-			verticalArrangement = if (queue.isNotEmpty())
-				Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
-			else Arrangement.Center
-		) {
-			draggableItemsIndexed(
-				state = draggableState,
-				items = queue,
-				key = { index, _ -> index }
-			) { index, song, isDragging ->
-				QueueScreenItem(
-					index = index,
-					count = queue.count(),
-					song = song,
-					isPlaying = playerState.currentIndex == index
-						&& !playerState.isPaused,
-					isSelected = playerState.currentIndex == index,
-					isDragging = isDragging,
-					draggableState = draggableState,
-					onClick = dropUnlessResumed {
-						if (playerState.currentIndex != index) {
-							player.playAt(index)
-							animateToDismiss()
-						}
-					},
-					onRemove = {
-						haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-						player.removeFromQueue(index)
-					},
-					isOffline = !isOnline,
-					isDownloaded = downloadedSongs.containsKey(song.id)
-				)
-			}
-			if (queue.isEmpty()) {
-				item {
-					ContentUnavailable(
-						icon = Icons.Outlined.PlaylistRemove,
-						label = stringResource(Res.string.info_no_queue)
+			LazyColumn(
+				modifier = Modifier
+					.padding(horizontal = 12.dp)
+					.fillMaxSize(),
+				state = draggableState.listState,
+				contentPadding = WindowInsets.systemBars
+					.only(WindowInsetsSides.Bottom)
+					.asPaddingValues(),
+				verticalArrangement = if (queue.isNotEmpty())
+					Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
+				else Arrangement.Center
+			) {
+				draggableItemsIndexed(
+					state = draggableState,
+					items = queue,
+					key = { index, _ -> index }
+				) { index, song, isDragging ->
+					QueueScreenItem(
+						index = index,
+						count = queue.count(),
+						song = song,
+						isPlaying = playerState.currentIndex == index
+							&& !playerState.isPaused,
+						isSelected = playerState.currentIndex == index,
+						isDragging = isDragging,
+						draggableState = draggableState,
+						onClick = dropUnlessResumed {
+							if (playerState.currentIndex != index) {
+								player.playAt(index)
+								animateToDismiss()
+							}
+						},
+						onLongClick = {
+							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+							viewModel.select(index, song)
+						},
+						onPlayNext = { player.playNextSingle(song) },
+						onRemove = {
+							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+							player.removeFromQueueWithUndo(index)
+						},
+						isOffline = !isOnline,
+						isDownloaded = downloadedSongs.containsKey(song.id)
 					)
+				}
+				if (queue.isEmpty()) {
+					item {
+						ContentUnavailable(
+							icon = Icons.Outlined.PlaylistRemove,
+							label = stringResource(Res.string.info_no_queue)
+						)
+					}
 				}
 			}
 		}
+		// The queue sheet covers the app's snackbar host, so undo snackbars show here too,
+		// under the header: the sheet's bottom edge is off-screen while it's half open.
+		SnackbarHost(
+			hostState = LocalSnackBarState.current,
+			modifier = Modifier.align(Alignment.TopCenter).padding(top = 52.dp)
+		) { LoakSnackBar(snackBarData = it) }
 	}
+
+	val selectedSong = selectedIndex?.let { queue.getOrNull(it) }
+	if (selectedIndex != null && selectedSong != null) {
+		val index = selectedIndex!!
+		val leaveQueue = {
+			backStack.remove(Screen.Queue)
+			backStack.remove(Screen.NowPlaying)
+		}
+		SongSheet(
+			onDismissRequest = { viewModel.clearSelection() },
+			song = selectedSong,
+			// the playing song is already "next"
+			onPlayNext = if (index == playerState.currentIndex) null
+			else ({ player.playNextSingle(selectedSong) }),
+			onRemoveFromQueue = { player.removeFromQueueWithUndo(index) },
+			onAddToPlaylist = { playlistSong = selectedSong },
+			starred = selectedSongIsStarred,
+			onSetStarred = { viewModel.star(selectedSong, it) },
+			rating = selectedSongRating,
+			onSetRating = { viewModel.rate(selectedSong, it) },
+			onShare = { shareId = selectedSong.id },
+			onViewAlbum = selectedSong.albumId?.let { albumId ->
+				dropUnlessResumed {
+					leaveQueue()
+					backStack.add(Screen.CollectionDetail(albumId, ""))
+				}
+			},
+			onViewArtist = dropUnlessResumed {
+				leaveQueue()
+				backStack.add(Screen.ArtistDetail(selectedSong.artistId))
+			},
+			onTrackInfo = dropUnlessResumed {
+				viewModel.clearSelection()
+				backStack.add(Screen.SongDetailSheet(selectedSong.id, selectedSong.coverArtId))
+			}
+		)
+	}
+
+	playlistSong?.let { song ->
+		PlaylistUpdateDialog(
+			songs = persistentListOf(song),
+			onDismissRequest = { playlistSong = null }
+		)
+	}
+
+	ShareDialog(
+		id = shareId,
+		onIdClear = { shareId = null },
+		expiry = shareExpiry,
+		onExpiryChange = { shareExpiry = it }
+	)
 }

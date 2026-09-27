@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_from_queue
 import eu.depau.loak.generated.resources.action_reorder
 import eu.depau.loak.generated.resources.info_explicit
@@ -42,6 +43,7 @@ import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.DragHandle
 import eu.depau.loak.icons.outlined.Lock
 import eu.depau.loak.icons.outlined.Offline
+import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.SegmentedListItem
@@ -62,6 +64,8 @@ fun QueueScreenItem(
 	isDragging: Boolean,
 	draggableState: DraggableListState,
 	onClick: () -> Unit,
+	onLongClick: () -> Unit,
+	onPlayNext: () -> Unit,
 	onRemove: () -> Unit,
 	isOffline: Boolean = false,
 	isDownloaded: Boolean = false
@@ -89,31 +93,41 @@ fun QueueScreenItem(
 
 	SwipeToDismissBox(
 		state = dismissState,
-		onDismiss = {
-			onRemove()
+		onDismiss = { direction ->
 			scope.launch {
-				dismissState.reset()
+				// rows are keyed by index: settle before the queue changes, or the row that
+				// takes this index inherits the dismissed state and gets removed too
+				dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+				if (direction == SwipeToDismissBoxValue.EndToStart) onPlayNext() else onRemove()
 			}
 		},
 		backgroundContent = {
+			val playNext = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
 			Box(
 				modifier = Modifier
 					.fillMaxSize()
 					.clip(itemShape.shape)
-					.background(MaterialTheme.colorScheme.errorContainer)
+					.background(
+						if (playNext) MaterialTheme.colorScheme.primaryContainer
+						else MaterialTheme.colorScheme.errorContainer
+					)
 					.padding(horizontal = 20.dp)
 			) {
-				Icon(
-					imageVector = Icons.Outlined.Delete,
-					contentDescription = stringResource(Res.string.action_remove_from_queue),
-					tint = MaterialTheme.colorScheme.onErrorContainer,
-					modifier = Modifier.align(
-						when (dismissState.dismissDirection) {
-							SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-							else -> Alignment.CenterEnd
-						}
+				if (playNext) {
+					Icon(
+						imageVector = Icons.Outlined.QueuePlayNext,
+						contentDescription = stringResource(Res.string.action_play_next),
+						tint = MaterialTheme.colorScheme.onPrimaryContainer,
+						modifier = Modifier.align(Alignment.CenterEnd)
 					)
-				)
+				} else {
+					Icon(
+						imageVector = Icons.Outlined.Delete,
+						contentDescription = stringResource(Res.string.action_remove_from_queue),
+						tint = MaterialTheme.colorScheme.onErrorContainer,
+						modifier = Modifier.align(Alignment.CenterStart)
+					)
+				}
 			}
 		},
 		content = {
@@ -123,6 +137,7 @@ fun QueueScreenItem(
 			) {
 				SegmentedListItem(
 					onClick = onClick,
+					onLongClick = onLongClick,
 					enabled = !isExplicit,
 					selected = isSelected,
 					colors = SegmentedListItemDefaults.segmentedColors(

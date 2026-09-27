@@ -29,6 +29,8 @@ import eu.depau.loak.generated.resources.notice_added_to_queue
 import eu.depau.loak.generated.resources.notice_moved_play_next
 import eu.depau.loak.generated.resources.notice_moved_to_end
 import eu.depau.loak.generated.resources.notice_play_next
+import eu.depau.loak.generated.resources.notice_queue_cleared
+import eu.depau.loak.generated.resources.notice_removed_from_queue
 import kotlin.time.Duration.Companion.seconds
 
 abstract class MediaPlayerViewModel(
@@ -131,6 +133,27 @@ abstract class MediaPlayerViewModel(
 
 		for (i in songs.indices.reversed()) removeFromQueue(at + i)
 		moved.forEach { (index, song) -> insertIntoQueue(index, listOf(song)) }
+	}
+
+	fun removeFromQueueWithUndo(index: Int) {
+		val song = uiState.value.queue.getOrNull(index) ?: return
+		removeFromQueue(index)
+		snackBarManager.notifyWithUndo(Res.string.notice_removed_from_queue) {
+			insertIntoQueue(index, listOf(song))
+		}
+	}
+
+	fun clearQueueWithUndo() {
+		val state = uiState.value
+		if (state.queue.isEmpty()) return
+		clearQueue()
+		snackBarManager.notifyWithUndo(Res.string.notice_queue_cleared) {
+			if (uiState.value.queue.isNotEmpty()) return@notifyWithUndo
+			insertIntoQueue(0, state.queue)
+			// ponytail: restarts the song from the beginning; keeping the position needs a seek-to-index primitive
+			playAt(state.currentIndex)
+			if (state.isPaused) pause()
+		}
 	}
 
 	protected fun PlayerUiState.withInserted(index: Int, songs: List<DomainSong>): PlayerUiState {

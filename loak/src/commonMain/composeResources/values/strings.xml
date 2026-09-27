@@ -406,6 +406,8 @@
 	<string name="notice_play_next">Playing next.</string>
 	<string name="notice_moved_play_next">Moved to play next.</string>
 	<string name="notice_moved_to_end">Moved to the end of the queue.</string>
+	<string name="notice_removed_from_queue">Removed from queue.</string>
+	<string name="notice_queue_cleared">Queue cleared.</string>
 	<string name="notice_added_to_playlist">Added to %1$s.</string>
 	<string name="notice_added_to_multiple_playlists">Added to multiple playlists.</string>
 	<string name="notice_download_started">Download started.</string>
