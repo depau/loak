@@ -114,6 +114,11 @@ class SyncManager(
 
 	private suspend fun runSyncCycle(force: Boolean = false) {
 		syncMutex.withLock {
+			// Without a session the SubsonicClient has no auth params and the
+			// server answers REQUIRED_PARAMETER_MISSING ('u'); the periodic
+			// loop can reach here at boot, before the user logs in.
+			if (!sessionManager.isLoggedIn.value) return
+
 			processQueue()
 
 			val currentTime = Clock.System.now()
