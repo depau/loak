@@ -45,8 +45,7 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.PlaylistAdd
 import eu.depau.loak.icons.outlined.Refresh
 import eu.depau.loak.ui.components.common.ErrorBox
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.dialogs.FormDialog
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.screens.playlist.viewmodels.PlaylistUpdateDialogViewModel
@@ -127,13 +126,16 @@ fun PlaylistUpdateDialog(
 			)
 		},
 		buttons = {
+			DialogButton(
+				onClick = onDismissRequest,
+				enabled = state !is UiState.Loading,
+			) {
+				Text(stringResource(Res.string.action_cancel))
+			}
 			if (state.data?.isNotEmpty() == true || state is UiState.Loading) {
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
+				DialogButton(
 					onClick = viewModel::confirm,
-					enabled = confirmState !is UiState.Loading && selectedPlaylists.isNotEmpty(),
-					shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 2),
-					colors = SegmentedListButtonDefaults.primaryColors()
+					enabled = confirmState !is UiState.Loading && selectedPlaylists.isNotEmpty()
 				) {
 					if (confirmState is UiState.Loading) {
 						CircularProgressIndicator(Modifier.size(20.dp))
@@ -141,21 +143,11 @@ fun PlaylistUpdateDialog(
 					Text(stringResource(Res.string.action_ok))
 				}
 			} else {
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
+				DialogButton(
 					onClick = { createDialogShown = true },
-					shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 2)
 				) {
 					Text(stringResource(Res.string.action_new))
 				}
-			}
-			SegmentedListButton(
-				modifier = Modifier.fillMaxWidth(),
-				onClick = onDismissRequest,
-				enabled = state !is UiState.Loading,
-				shapes = SegmentedListButtonDefaults.shapes(index = 1, count = 2)
-			) {
-				Text(stringResource(Res.string.action_cancel))
 			}
 		},
 		content = {

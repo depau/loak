@@ -28,8 +28,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Radio
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.dialogs.FormDialog
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.screens.radio.viewmodels.RadioCreateDialogViewModel
@@ -58,27 +57,22 @@ fun RadioCreateDialog(
 		icon = { Icon(Icons.Outlined.Radio, null) },
 		title = { Text(stringResource(Res.string.title_create_radio)) },
 		buttons = {
-			SegmentedListButton(
-				modifier = Modifier.fillMaxWidth(),
+			DialogButton(
+				onClick = onDismissRequest,
+				enabled = state !is UiState.Loading,
+			) {
+				Text(stringResource(Res.string.action_cancel))
+			}
+			DialogButton(
 				onClick = viewModel::create,
 				enabled = state !is UiState.Loading
 					&& viewModel.name.text.isNotBlank()
-					&& viewModel.streamUrl.text.isNotBlank(),
-				shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 2),
-				colors = SegmentedListButtonDefaults.primaryColors()
+					&& viewModel.streamUrl.text.isNotBlank()
 			) {
 				if (state is UiState.Loading) {
 					CircularProgressIndicator(Modifier.size(20.dp))
 				}
 				Text(stringResource(Res.string.action_ok))
-			}
-			SegmentedListButton(
-				modifier = Modifier.fillMaxWidth(),
-				onClick = onDismissRequest,
-				enabled = state !is UiState.Loading,
-				shapes = SegmentedListButtonDefaults.shapes(index = 1, count = 2)
-			) {
-				Text(stringResource(Res.string.action_cancel))
 			}
 		},
 		content = {

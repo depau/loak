@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,7 +36,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.dropUnlessResumed
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
 import eu.depau.loak.ui.navigation.PredictiveBackState
 import eu.depau.loak.ui.navigation.rememberPredictiveBackState
 import eu.depau.loak.ui.theme.defaultFont
@@ -48,7 +49,8 @@ fun FormDialog(
 	icon: @Composable () -> Unit = {},
 	title: @Composable () -> Unit = {},
 	action: @Composable () -> Unit = {},
-	buttons: @Composable ColumnScope.() -> Unit = {},
+	/** Text buttons at the end of the dialog: cancel first, confirm last. */
+	buttons: @Composable RowScope.() -> Unit = {},
 	content: @Composable () -> Unit
 ) {
 	var predictiveBackState by remember { mutableStateOf<PredictiveBackState?>(null) }
@@ -136,9 +138,11 @@ fun FormDialog(
 							}
 						}
 						Spacer(Modifier.height(contentGap))
-						Column(
+						// Material 3 dialog actions: text buttons in a row at the end, confirm last
+						Row(
 							modifier = Modifier.fillMaxWidth(),
-							verticalArrangement = Arrangement.spacedBy(SegmentedListButtonDefaults.SegmentedGap)
+							horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+							verticalAlignment = Alignment.CenterVertically
 						) {
 							buttons()
 						}

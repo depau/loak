@@ -32,8 +32,7 @@ import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.PlatformType
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.dialogs.FormDialog
@@ -122,23 +121,19 @@ fun SettingsDeveloperScreen() {
 			title = { Text(stringResource(Res.string.title_confirm)) },
 			content = { Text(stringResource(Res.string.info_exception_handler)) },
 			buttons = {
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
+				DialogButton(
+					onClick = { exceptionConfirmationShown = false },
+				) {
+					Text(stringResource(Res.string.action_cancel))
+				}
+				DialogButton(
 					onClick = {
 						exceptionConfirmationShown = false
 						throw Error("Testing exception handler")
 					},
-					shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 2),
-					colors = SegmentedListButtonDefaults.errorColors()
+					destructive = true
 				) {
 					Text(stringResource(Res.string.action_ok))
-				}
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
-					onClick = { exceptionConfirmationShown = false },
-					shapes = SegmentedListButtonDefaults.shapes(index = 1, count = 2)
-				) {
-					Text(stringResource(Res.string.action_cancel))
 				}
 			},
 		)

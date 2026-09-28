@@ -39,8 +39,7 @@ import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Delete
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.core.UiState
 
 enum class DeletionEndpoint(
@@ -154,24 +153,20 @@ fun DeletionDialog(
 			icon = { Icon(Icons.Outlined.Delete, null) },
 			title = { Text(stringResource(endpoint.questionText)) },
 			buttons = {
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
+				DialogButton(
+					onClick = onIdClear,
+				) {
+					Text(stringResource(Res.string.action_cancel))
+				}
+				DialogButton(
 					onClick = { viewModel.delete(endpoint, id) },
 					enabled = state !is UiState.Loading,
-					shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 2),
-					colors = SegmentedListButtonDefaults.errorColors()
+					destructive = true
 				) {
 					if (state is UiState.Loading) {
 						CircularProgressIndicator(Modifier.size(20.dp))
 					}
 					Text(stringResource(Res.string.action_delete))
-				}
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
-					onClick = onIdClear,
-					shapes = SegmentedListButtonDefaults.shapes(index = 1, count = 2)
-				) {
-					Text(stringResource(Res.string.action_cancel))
 				}
 			},
 			content = {

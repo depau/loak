@@ -11,8 +11,7 @@ import eu.depau.loak.generated.resources.action_download
 import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Download
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 
 @Composable
 fun BulkDownloadDialog(
@@ -29,23 +28,18 @@ fun BulkDownloadDialog(
 			title = { Text(title) },
 			content = { Text(message) },
 			buttons = {
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
+				DialogButton(
+					onClick = onDismissRequest,
+				) {
+					Text(stringResource(Res.string.action_cancel))
+				}
+				DialogButton(
 					onClick = {
 						onConfirm()
 						onDismissRequest()
-					},
-					shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 2),
-					colors = SegmentedListButtonDefaults.primaryColors()
+					}
 				) {
 					Text(stringResource(Res.string.action_download))
-				}
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
-					onClick = onDismissRequest,
-					shapes = SegmentedListButtonDefaults.shapes(index = 1, count = 2)
-				) {
-					Text(stringResource(Res.string.action_cancel))
 				}
 			}
 		)

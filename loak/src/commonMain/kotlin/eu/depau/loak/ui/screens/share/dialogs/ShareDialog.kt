@@ -39,8 +39,7 @@ import eu.depau.loak.di.LocalSnackBarState
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.ui.components.common.DurationPicker
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.dialogs.FormDialog
@@ -94,24 +93,19 @@ fun ShareDialog(
 			icon = { Icon(Icons.Outlined.Share, null) },
 			title = { Text(stringResource(Res.string.title_create_share)) },
 			buttons = {
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
+				DialogButton(
+					onClick = onIdClear,
+				) {
+					Text(stringResource(Res.string.action_cancel))
+				}
+				DialogButton(
 					onClick = { viewModel.share(id, expiry) },
-					enabled = state !is UiState.Loading,
-					shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 2),
-					colors = SegmentedListButtonDefaults.primaryColors()
+					enabled = state !is UiState.Loading
 				) {
 					if (state is UiState.Loading) {
 						CircularProgressIndicator(Modifier.size(20.dp))
 					}
 					Text(stringResource(Res.string.action_share))
-				}
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
-					onClick = onIdClear,
-					shapes = SegmentedListButtonDefaults.shapes(index = 1, count = 2)
-				) {
-					Text(stringResource(Res.string.action_cancel))
 				}
 			},
 			onDismissRequest = {

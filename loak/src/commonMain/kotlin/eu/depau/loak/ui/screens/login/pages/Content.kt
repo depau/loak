@@ -53,8 +53,7 @@ import eu.depau.loak.domain.manager.LoginManager
 import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Error
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.dialogs.FormDialog
 import eu.depau.loak.ui.core.LoginUiState
 import eu.depau.loak.ui.navigation.Screen
@@ -217,13 +216,11 @@ fun LoginScreenContent(innerPadding: PaddingValues) {
 			title = { Text(stringResource(Res.string.notice_local_network_denied)) },
 			content = { Text(stringResource(Res.string.subtitle_local_network_denied)) },
 			buttons = {
-				SegmentedListButton(
-					modifier = Modifier.fillMaxWidth(),
+				DialogButton(
 					onClick = {
 						localNetworkDenied = false
 						permissionManager.openPermissionsSettings()
 					},
-					shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 1)
 				) {
 					Text(stringResource(Res.string.action_open_settings))
 				}

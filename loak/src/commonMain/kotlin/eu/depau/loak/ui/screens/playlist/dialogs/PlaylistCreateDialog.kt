@@ -28,8 +28,7 @@ import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.PlaylistAdd
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.dialogs.FormDialog
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
@@ -71,25 +70,20 @@ fun PlaylistCreateDialog(
 		icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
 		title = { Text(stringResource(Res.string.title_create_playlist)) },
 		buttons = {
-			SegmentedListButton(
-				modifier = Modifier.fillMaxWidth(),
+			DialogButton(
+				onClick = onDismissRequest,
+				enabled = state !is UiState.Loading,
+			) {
+				Text(stringResource(Res.string.action_cancel))
+			}
+			DialogButton(
 				onClick = viewModel::create,
-				enabled = state !is UiState.Loading && viewModel.name.text.isNotBlank(),
-				shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 2),
-				colors = SegmentedListButtonDefaults.primaryColors()
+				enabled = state !is UiState.Loading && viewModel.name.text.isNotBlank()
 			) {
 				if (state is UiState.Loading) {
 					CircularProgressIndicator(Modifier.size(20.dp))
 				}
 				Text(stringResource(Res.string.action_ok))
-			}
-			SegmentedListButton(
-				modifier = Modifier.fillMaxWidth(),
-				onClick = onDismissRequest,
-				enabled = state !is UiState.Loading,
-				shapes = SegmentedListButtonDefaults.shapes(index = 1, count = 2)
-			) {
-				Text(stringResource(Res.string.action_cancel))
 			}
 		},
 		content = {

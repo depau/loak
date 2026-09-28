@@ -19,8 +19,7 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.di.LocalSnackBarState
 import eu.depau.loak.ui.components.common.ErrorCodeBlock
-import eu.depau.loak.ui.components.common.SegmentedListButton
-import eu.depau.loak.ui.components.common.SegmentedListButtonDefaults
+import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.dialogs.FormDialog
 import eu.depau.loak.util.Logger
 
@@ -56,13 +55,11 @@ fun ErrorSnackBar(
 			onClearError()
 		},
 		buttons = {
-			SegmentedListButton(
-				modifier = Modifier.fillMaxWidth(),
+			DialogButton(
 				onClick = {
 					visible = false
 					onClearError()
 				},
-				shapes = SegmentedListButtonDefaults.shapes(index = 0, count = 1)
 			) {
 				Text(stringResource(Res.string.action_ok))
 			}
