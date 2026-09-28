@@ -18,6 +18,7 @@ import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.repositories.SearchRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.screens.search.SearchCategory
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(FlowPreview::class)
@@ -44,6 +45,9 @@ class SearchViewModel(
 
 	val searchQuery = TextFieldState()
 
+	/** Kept here so it survives opening a result and coming back. */
+	val selectedCategory = MutableStateFlow(SearchCategory.ALL)
+
 	val isOnline = connectivityManager.isOnline
 	val downloadedSongs = downloadManager.downloadedSongs
 
@@ -53,21 +57,26 @@ class SearchViewModel(
 		viewModelScope.launch {
 			snapshotFlow { searchQuery.text }
 				.debounce(300.milliseconds)
-				.collectLatest { queryText ->
-					val query = queryText.toString()
-					if (query.isBlank()) {
-						searchState.value = UiState.Success(emptyList())
-					} else {
-						searchState.value = UiState.Loading()
-						try {
-							searchState.value = UiState.Success(repository.search(query))
-						} catch (e: Exception) {
-							if (e !is CancellationException) {
-								searchState.value = UiState.Error(e)
-							}
-						}
-					}
-				}
+				.collectLatest { queryText -> search(queryText.toString()) }
+		}
+	}
+
+	/** Runs the current query again, e.g. after something in the results was deleted. */
+	fun refresh() {
+		viewModelScope.launch { search(searchQuery.text.toString()) }
+	}
+
+	private suspend fun search(query: String) {
+		if (query.isBlank()) {
+			searchState.value = UiState.Success(emptyList())
+			return
+		}
+		searchState.value = UiState.Loading()
+		try {
+			searchState.value = UiState.Success(repository.search(query))
+		} catch (e: Exception) {
+			if (e is CancellationException) throw e
+			searchState.value = UiState.Error(e)
 		}
 	}
 

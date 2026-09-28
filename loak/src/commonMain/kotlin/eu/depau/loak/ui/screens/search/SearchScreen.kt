@@ -165,7 +165,7 @@ fun SearchScreen(
 	val player = koinInject<MediaPlayerViewModel>()
 	val backStack = LocalNavStack.current
 
-	var selectedCategory by remember { mutableStateOf(SearchCategory.ALL) }
+	val selectedCategory by viewModel.selectedCategory.collectAsState()
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 	var playlistDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -197,7 +197,7 @@ fun SearchScreen(
 				)
 				SearchScreenChips(
 					selectedCategory = selectedCategory,
-					onCategorySelect = { selectedCategory = it }
+					onCategorySelect = { viewModel.selectedCategory.value = it }
 				)
 			}
 		},
@@ -522,6 +522,9 @@ fun SearchScreen(
 		endpoint = DeletionEndpoint.PLAYLIST,
 		id = playlistDeletionId,
 		onIdClear = { playlistDeletionId = null },
-		onRefresh = { playlistListViewModel.refreshPlaylists(false) }
+		onRefresh = {
+			playlistListViewModel.refreshPlaylists(false)
+			viewModel.refresh()
+		}
 	)
 }
