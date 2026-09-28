@@ -51,6 +51,8 @@ import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.manager.SleepTimerMode
 import eu.depau.loak.domain.manager.canUserShare
 import eu.depau.loak.icons.Icons
+import eu.depau.loak.generated.resources.title_settings
+import eu.depau.loak.icons.filled.Settings
 import eu.depau.loak.icons.outlined.Bedtime
 import eu.depau.loak.icons.outlined.Logout
 import eu.depau.loak.icons.outlined.Share
@@ -148,12 +150,23 @@ fun AccountSheet(
 			Spacer(Modifier.height(9.dp))
 
 			val isSharingAllowed = sessionManager.canUserShare()
-			val count = if (isSharingAllowed) 3 else 2
+			val count = if (isSharingAllowed) 4 else 3
+
+			// Settings lives here rather than in every tab's top bar
+			SegmentedListItem(
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count),
+				onClick = {
+					animateToDismiss()
+					backStack.add(Screen.Settings.Root)
+				},
+				leadingContent = { Icon(Icons.Filled.Settings, null) },
+				content = { Text(stringResource(Res.string.title_settings)) }
+			)
 
 			if (isSharingAllowed) {
 				SegmentedListItem(
 					shapes = SegmentedListItemDefaults.segmentedShapes(
-						index = 0,
+						index = 1,
 						count = count
 					),
 					onClick = {

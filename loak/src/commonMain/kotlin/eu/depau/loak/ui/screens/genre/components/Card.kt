@@ -73,6 +73,8 @@ fun GenreListScreenCard(
 		}
 	) {
 		Box {
+			// ponytail: sized for a 3-column grid (the default); 4 columns may crowd long names
+			val artSize = 56.dp
 			Box(Modifier.align(Alignment.CenterEnd)) {
 				if (firstAlbumCoverArt != null) {
 					CoverArt(
@@ -80,7 +82,7 @@ fun GenreListScreenCard(
 						modifier = Modifier
 							.padding(top = 10.dp)
 							.rotate(10f)
-							.size(90.dp)
+							.size(artSize)
 							.offset(x = 5.dp, y = 5.dp),
 						shape = MaterialTheme.shapes.medium,
 						shadowElevation = 3.dp
@@ -91,7 +93,7 @@ fun GenreListScreenCard(
 							modifier = Modifier
 								.padding(top = 13.dp)
 								.rotate(25f)
-								.size(90.dp)
+								.size(artSize)
 								.offset(x = 25.dp, y = 15.dp),
 							shape = MaterialTheme.shapes.medium,
 							shadowElevation = 10.dp
@@ -102,7 +104,7 @@ fun GenreListScreenCard(
 			Column(
 				modifier = Modifier.fillMaxWidth().padding(
 					start = 8.dp,
-					end = 85.dp,
+					end = artSize * 0.7f,
 					top = 10.dp,
 					bottom = 10.dp
 				).align(Alignment.TopStart)

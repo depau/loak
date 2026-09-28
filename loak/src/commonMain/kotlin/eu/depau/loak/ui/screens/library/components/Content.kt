@@ -191,7 +191,8 @@ fun LibraryScreenContent(
 			key = { it.name },
 			seeAll = true
 		) { genreWithAlbums ->
-			GenreListScreenCard(genre = genreWithAlbums)
+			// as wide as a card in the 2-column genre grid, so both look the same
+			GenreListScreenCard(modifier = Modifier.width(180.dp), genre = genreWithAlbums)
 		}
 	}
 }

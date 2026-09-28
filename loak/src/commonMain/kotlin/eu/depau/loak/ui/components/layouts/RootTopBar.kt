@@ -19,14 +19,12 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.title_account
 import eu.depau.loak.generated.resources.title_search
-import eu.depau.loak.generated.resources.title_settings
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.models.settings.NavbarConfig
 import eu.depau.loak.domain.models.settings.NavbarTab
 import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.filled.Settings
 import eu.depau.loak.icons.outlined.AccountCircle
 import eu.depau.loak.icons.outlined.Search
 import eu.depau.loak.ui.components.common.TooltipBox
@@ -91,17 +89,6 @@ private fun Actions(
 					contentDescription = stringResource(Res.string.title_search)
 				)
 			}
-		}
-	}
-
-	TooltipBox(stringResource(Res.string.title_settings)) {
-		IconButton(onClick = dropUnlessResumed {
-			backStack.add(Screen.Settings.Root)
-		}) {
-			Icon(
-				imageVector = Icons.Filled.Settings,
-				contentDescription = stringResource(Res.string.title_settings)
-			)
 		}
 	}
 

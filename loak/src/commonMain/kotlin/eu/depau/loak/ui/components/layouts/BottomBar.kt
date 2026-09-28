@@ -134,6 +134,8 @@ fun BottomBar(
 		.tabs.filter { tab -> tab.visible }
 	val preferenceManager = koinInject<PreferenceManager>()
 
+	// A tab tap resets the stack to that tab, so the stack's root is the tab the user is in,
+	// and it stays selected on the screens pushed from it
 	val onTabSelected = { destination: Screen ->
 		if (backStack.lastOrNull() == destination) {
 			rootViewModel.requestScrollToTop()
@@ -168,7 +170,7 @@ fun BottomBar(
 						NavbarTab.Id.SONGS -> NavItem.SONGS
 						NavbarTab.Id.RADIOS -> NavItem.RADIOS
 					}
-					val selected = backStack.lastOrNull() == item.destination
+					val selected = backStack.firstOrNull() == item.destination
 
 					NavigationBarItem(
 						selected = selected,
@@ -224,13 +226,13 @@ fun BottomBar(
 						NavbarTab.Id.SONGS -> NavItem.SONGS
 						NavbarTab.Id.RADIOS -> NavItem.RADIOS
 					}
-					val selected = backStack.last() == item.destination
+					val selected = backStack.firstOrNull() == item.destination
 
 					ShortNavigationBarItem(
 						iconPosition = if (platformContext.sizeClass.widthSizeClass > WindowWidthSizeClass.Compact)
 							NavigationItemIconPosition.Start
 						else NavigationItemIconPosition.Top,
-						selected = backStack.last() == item.destination,
+						selected = selected,
 						enabled = enabled,
 						onClick = dropUnlessResumed {
 							onTabSelected(item.destination)
