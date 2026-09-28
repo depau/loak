@@ -104,6 +104,10 @@ fun LibraryScreen() {
 			playlistsViewModel.refreshPlaylists(false)
 			artistsViewModel.refreshArtists(false)
 			genresViewModel.refreshGenres(false)
+			// cheap server checks; albums come from the library sync
+			playlistsViewModel.revalidate()
+			artistsViewModel.revalidate()
+			genresViewModel.revalidate()
 		}
 	}
 

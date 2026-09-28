@@ -8,6 +8,10 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.DomainAlbum
@@ -23,7 +27,8 @@ class AlbumListViewModel(
 	initialFilters: Set<DomainFilter>? = null,
 	private val repository: AlbumRepository,
 	private val sessionManager: SessionManager,
-	private val preferenceManager: PreferenceManager
+	private val preferenceManager: PreferenceManager,
+	syncManager: SyncManager
 ) : ViewModel() {
 	val albumsState: StateFlow<UiState<ImmutableList<DomainAlbum>>>
 		field = MutableStateFlow<UiState<ImmutableList<DomainAlbum>>>(UiState.Loading())
@@ -53,6 +58,11 @@ class AlbumListViewModel(
 	init {
 		viewModelScope.launch {
 			sessionManager.isLoggedIn.collect { if (it) refreshAlbums(false) }
+		}
+		// the library sync writes the cache in the background: reload once it's done
+		viewModelScope.launch {
+			syncManager.syncState.map { it.isSyncing }.distinctUntilChanged().drop(1)
+				.collect { syncing -> if (!syncing) refreshAlbums(false) }
 		}
 	}
 

@@ -72,6 +72,8 @@ fun ArtistListScreen(
 			koinInject<PersistentViewModelStoreOwner>()
 		}
 	)
+	// show the cache at once, then pick up server changes
+	LaunchedEffect(Unit) { viewModel.revalidate() }
 	val artistsState by viewModel.artistsState.collectAsState()
 	val selectedArtist by viewModel.selectedArtist.collectAsState()
 	val selectedArtistAlbums by viewModel.selectedArtistAlbums.collectAsState()

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.DomainFilter
 import eu.depau.loak.domain.models.DomainPlaylist
@@ -17,12 +18,16 @@ import eu.depau.loak.domain.models.toBitmask
 import eu.depau.loak.domain.models.toDomainFilters
 import eu.depau.loak.domain.repositories.PlaylistRepository
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.core.inBackground
 
 class PlaylistListViewModel(
 	private val repository: PlaylistRepository,
 	private val sessionManager: SessionManager,
-	private val preferenceManager: PreferenceManager
+	private val preferenceManager: PreferenceManager,
+	connectivityManager: ConnectivityManager
 ) : ViewModel() {
+	private val isOnline = connectivityManager.isOnline
+
 	val playlistsState: StateFlow<UiState<ImmutableList<DomainPlaylist>>>
 		field = MutableStateFlow<UiState<ImmutableList<DomainPlaylist>>>(UiState.Loading())
 
@@ -58,16 +63,22 @@ class PlaylistListViewModel(
 		selectedPlaylist.value = null
 	}
 
-	fun refreshPlaylists(fullRefresh: Boolean) {
+	/** Shows the cache, then updates it from the server when online (no spinner). */
+	fun revalidate() {
+		if (isOnline.value) refreshPlaylists(fullRefresh = true, background = true)
+	}
+
+	fun refreshPlaylists(fullRefresh: Boolean, background: Boolean = false) {
 		viewModelScope.launch {
 			repository.getPlaylistsFlow(
 				fullRefresh,
 				selectedSorting.value,
 				selectedReversed.value,
-				selectedFilters.value
-			).collect {
-				playlistsState.value = it
-			}
+				selectedFilters.value,
+				withSongs = !background
+			)
+				.let { if (background) it.inBackground() else it }
+				.collect { playlistsState.value = it }
 		}
 	}
 

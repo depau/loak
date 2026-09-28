@@ -74,6 +74,8 @@ fun RadioListScreen(
 			koinInject<PersistentViewModelStoreOwner>()
 		}
 	)
+	// show the cache at once, then pick up server changes
+	LaunchedEffect(Unit) { viewModel.revalidate() }
 	val player = koinInject<MediaPlayerViewModel>()
 	val radiosState by viewModel.radiosState.collectAsState()
 	val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()

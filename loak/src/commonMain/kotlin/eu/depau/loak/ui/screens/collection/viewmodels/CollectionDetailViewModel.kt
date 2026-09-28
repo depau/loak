@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_deleted_download
 import eu.depau.loak.generated.resources.notice_download_started
@@ -33,6 +32,7 @@ import eu.depau.loak.domain.repositories.AlbumRepository
 import eu.depau.loak.domain.repositories.CollectionRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.core.inBackground
 import eu.depau.loak.util.Logger
 
 class CollectionDetailViewModel(
@@ -105,34 +105,41 @@ class CollectionDetailViewModel(
 		)
 
 	init {
-		viewModelScope.launch(IoDispatcher) {
-			try {
-				val data = repository.getLocalData(collectionId)
-				collectionState.value = if (data.songs.isEmpty()) UiState.Loading(data) else UiState.Success(data)
-			} catch (_: Exception) {
-				collectionState.value = UiState.Loading()
-			}
-		}
 		viewModelScope.launch {
-			sessionManager.isLoggedIn.collect { if (it) refreshCollection(false) }
+			sessionManager.isLoggedIn.collect {
+				// one flow, in order: the cache first, then the server's answer as the last word
+				if (it) loadCollection(fullRefresh = isOnline.value, background = true)
+			}
 		}
 	}
 
-	fun refreshCollection(fullRefresh: Boolean) {
-		viewModelScope.launch {
-			repository.getCollectionFlow(fullRefresh, collectionId).collect {
-				collectionState.value = it
-				if (it.data is DomainAlbum) {
-					starred.value = albumRepository.isAlbumStarred(it.data as DomainAlbum)
-					rating.value = albumRepository.getAlbumRating(it.data as DomainAlbum)
-					try {
-						val albumInfo = repository.getAlbumInfo(collectionId)
-						albumInfoState.value = UiState.Success(albumInfo.toDomainModel())
-					} catch (e: Exception) {
-						albumInfoState.value = UiState.Error(e)
+	/** Shows the cache, then updates it from the server when online (no spinner). */
+	fun revalidate() {
+		if (isOnline.value) refreshCollection(fullRefresh = true, background = true)
+	}
+
+	fun refreshCollection(fullRefresh: Boolean, background: Boolean = false) {
+		viewModelScope.launch { loadCollection(fullRefresh, background) }
+	}
+
+	private suspend fun loadCollection(fullRefresh: Boolean, background: Boolean) {
+		run {
+			repository.getCollectionFlow(fullRefresh, collectionId)
+				.let { if (background) it.inBackground { c -> c.songs.isEmpty() } else it }
+				.collect {
+					collectionState.value = it
+					if (it.data is DomainAlbum) {
+						starred.value = albumRepository.isAlbumStarred(it.data as DomainAlbum)
+						rating.value = albumRepository.getAlbumRating(it.data as DomainAlbum)
+						if (albumInfoState.value is UiState.Success) return@collect
+						try {
+							val albumInfo = repository.getAlbumInfo(collectionId)
+							albumInfoState.value = UiState.Success(albumInfo.toDomainModel())
+						} catch (e: Exception) {
+							albumInfoState.value = UiState.Error(e)
+						}
 					}
 				}
-			}
 		}
 	}
 

@@ -87,6 +87,8 @@ fun PlaylistListScreen(
 			koinInject<PersistentViewModelStoreOwner>()
 		}
 	)
+	// show the cache at once, then pick up server changes
+	LaunchedEffect(Unit) { viewModel.revalidate() }
 	val player = koinInject<MediaPlayerViewModel>()
 	val playlistsState by viewModel.playlistsState.collectAsState()
 	val selectedPlaylist by viewModel.selectedPlaylist.collectAsState()

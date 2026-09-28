@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -28,7 +32,8 @@ class SongListViewModel(
 	private val downloadManager: DownloadManager,
 	private val sessionManager: SessionManager,
 	private val preferenceManager: PreferenceManager,
-	connectivityManager: ConnectivityManager
+	connectivityManager: ConnectivityManager,
+	syncManager: SyncManager
 ) : ViewModel() {
 	val songsState: StateFlow<UiState<ImmutableList<DomainSong>>>
 		field = MutableStateFlow<UiState<ImmutableList<DomainSong>>>(UiState.Loading())
@@ -65,6 +70,11 @@ class SongListViewModel(
 	init {
 		viewModelScope.launch {
 			sessionManager.isLoggedIn.collect { if (it) refreshSongs(false) }
+		}
+		// the library sync writes the cache in the background: reload once it's done
+		viewModelScope.launch {
+			syncManager.syncState.map { it.isSyncing }.distinctUntilChanged().drop(1)
+				.collect { syncing -> if (!syncing) refreshSongs(false) }
 		}
 	}
 

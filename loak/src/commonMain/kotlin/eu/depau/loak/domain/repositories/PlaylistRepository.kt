@@ -62,9 +62,12 @@ class PlaylistRepository(
 	private suspend fun refreshLocalData(
 		listType: DomainPlaylistListType,
 		reversed: Boolean,
-		filters: Set<DomainFilter> = emptySet()
+		filters: Set<DomainFilter> = emptySet(),
+		withSongs: Boolean = true
 	): ImmutableList<DomainPlaylist> {
-		dbRepository.syncPlaylists().getOrThrow().forEach { playlist ->
+		val playlists = dbRepository.syncPlaylists().getOrThrow()
+		// one request per playlist: only on explicit refreshes; a playlist's own page updates its songs
+		if (withSongs) playlists.forEach { playlist ->
 			dbRepository.syncPlaylistSongs(playlist.playlistId).getOrThrow()
 		}
 		return getLocalData(listType, reversed, filters)
@@ -77,13 +80,14 @@ class PlaylistRepository(
 		fullRefresh: Boolean,
 		listType: DomainPlaylistListType,
 		reversed: Boolean,
-		filters: Set<DomainFilter> = emptySet()
+		filters: Set<DomainFilter> = emptySet(),
+		withSongs: Boolean = true
 	): Flow<UiState<ImmutableList<DomainPlaylist>>> = flow {
 		val localData = getLocalData(listType, reversed, filters)
 		if (fullRefresh) {
 			emit(UiState.Loading(data = localData))
 			try {
-				emit(UiState.Success(data = refreshLocalData(listType, reversed, filters)))
+				emit(UiState.Success(data = refreshLocalData(listType, reversed, filters, withSongs)))
 			} catch (error: Exception) {
 				emit(UiState.Error(error = error, data = localData))
 			}

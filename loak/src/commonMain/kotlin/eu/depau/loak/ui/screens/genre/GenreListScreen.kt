@@ -52,6 +52,8 @@ fun GenreListScreen(
 			koinInject<PersistentViewModelStoreOwner>()
 		}
 	)
+	// show the cache at once, then pick up server changes
+	LaunchedEffect(Unit) { viewModel.revalidate() }
 	val genresState by viewModel.genresState.collectAsState()
 	val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 

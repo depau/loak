@@ -72,7 +72,8 @@ val viewModelModule = module {
 			initialFilters = params.getOrNull<Set<DomainFilter>>(),
 			repository = get(),
 			sessionManager = get(),
-			preferenceManager = get()
+			preferenceManager = get(),
+			syncManager = get()
 		)
 	}
 	viewModel { params ->
@@ -83,7 +84,8 @@ val viewModelModule = module {
 			downloadManager = get(),
 			sessionManager = get(),
 			preferenceManager = get(),
-			connectivityManager = get()
+			connectivityManager = get(),
+			syncManager = get()
 		)
 	}
 	viewModel { params ->
@@ -93,7 +95,8 @@ val viewModelModule = module {
 			repository = get(),
 			albumDao = get(),
 			sessionManager = get(),
-			preferenceManager = get()
+			preferenceManager = get(),
+			connectivityManager = get()
 		)
 	}
 	viewModelOf(::SearchViewModel)
