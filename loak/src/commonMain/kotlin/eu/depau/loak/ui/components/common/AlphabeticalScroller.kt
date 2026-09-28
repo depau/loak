@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.shape.CircleShape
@@ -27,11 +25,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.launch
@@ -119,12 +118,16 @@ fun AlphabeticalScroller(
 			val bubbleSize = 56.dp
 			Surface(
 				modifier = Modifier
-					.size(bubbleSize)
-					.offset {
-						IntOffset(
-							x = -(bubbleSize + 16.dp).roundToPx(),
-							y = (bubbleY - (bubbleSize / 2).toPx()).roundToInt()
-						)
+					// drawn beside the index without taking layout space, or the index would
+					// widen and its letters shift while it's held
+					.layout { measurable, _ ->
+						val placeable = measurable.measure(Constraints.fixed(bubbleSize.roundToPx(), bubbleSize.roundToPx()))
+						layout(0, 0) {
+							placeable.place(
+								x = -(bubbleSize + 16.dp).roundToPx(),
+								y = (bubbleY - (bubbleSize / 2).toPx()).roundToInt()
+							)
+						}
 					},
 				shape = CircleShape,
 				color = MaterialTheme.colorScheme.primaryContainer,
