@@ -156,6 +156,29 @@ abstract class MediaPlayerViewModel(
 		}
 	}
 
+	protected fun PlayerUiState.withRemoved(index: Int): PlayerUiState {
+		if (index !in queue.indices) return this
+		val newQueue = queue.toMutableList().apply { removeAt(index) }
+		val newIndex = when {
+			index < currentIndex -> currentIndex - 1
+			index == currentIndex -> if (newQueue.isEmpty()) -1 else currentIndex.coerceAtMost(newQueue.size - 1)
+			else -> currentIndex
+		}
+		return copy(queue = newQueue, currentIndex = newIndex, currentSong = newQueue.getOrNull(newIndex))
+	}
+
+	protected fun PlayerUiState.withMoved(fromIndex: Int, toIndex: Int): PlayerUiState {
+		if (fromIndex !in queue.indices || toIndex !in queue.indices) return this
+		val newQueue = queue.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+		val newIndex = when (currentIndex) {
+			fromIndex -> toIndex
+			in (fromIndex + 1)..toIndex -> currentIndex - 1
+			in toIndex until fromIndex -> currentIndex + 1
+			else -> currentIndex
+		}
+		return copy(queue = newQueue, currentIndex = newIndex, currentSong = newQueue.getOrNull(newIndex))
+	}
+
 	protected fun PlayerUiState.withInserted(index: Int, songs: List<DomainSong>): PlayerUiState {
 		val at = index.coerceIn(0, queue.size)
 		return copy(

@@ -814,45 +814,14 @@ class AndroidMediaPlayerViewModel(
 	override fun removeFromQueue(index: Int) {
 		viewModelScope.launch {
 			controller?.removeMediaItem(index)
-			_uiState.update { state ->
-				val newQueue = state.queue.toMutableList().apply { removeAt(index) }
-				val newIndex = when {
-					index < state.currentIndex -> state.currentIndex - 1
-					index == state.currentIndex -> if (newQueue.isEmpty()) -1 else state.currentIndex.coerceAtMost(
-						newQueue.size - 1
-					)
-
-					else -> state.currentIndex
-				}
-				state.copy(
-					queue = newQueue,
-					currentIndex = newIndex,
-					currentSong = if (newIndex == -1) null else newQueue[newIndex]
-				)
-			}
+			_uiState.update { it.withRemoved(index) }
 		}
 	}
 
 	override fun moveQueueItem(fromIndex: Int, toIndex: Int) {
 		viewModelScope.launch {
 			controller?.moveMediaItem(fromIndex, toIndex)
-			_uiState.update { state ->
-				val newQueue = state.queue.toMutableList().apply {
-					val item = removeAt(fromIndex)
-					add(toIndex, item)
-				}
-				val newIndex = when (state.currentIndex) {
-					fromIndex -> toIndex
-					in (fromIndex + 1)..toIndex -> state.currentIndex - 1
-					in toIndex until fromIndex -> state.currentIndex + 1
-					else -> state.currentIndex
-				}
-				state.copy(
-					queue = newQueue,
-					currentIndex = newIndex,
-					currentSong = if (newIndex == -1) null else newQueue[newIndex]
-				)
-			}
+			_uiState.update { it.withMoved(fromIndex, toIndex) }
 		}
 	}
 
