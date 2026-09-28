@@ -14,11 +14,12 @@ import eu.depau.loak.domain.repositories.SongRepository
 class QueueViewModel(
 	private val songRepository: SongRepository,
 	connectivityManager: ConnectivityManager,
-	downloadManager: DownloadManager
+	val downloadManager: DownloadManager
 ) : ViewModel() {
 	val listState = LazyListState()
 	val isOnline = connectivityManager.isOnline
 	val downloadedSongs = downloadManager.downloadedSongs
+	val allDownloads = downloadManager.allDownloads
 
 	/** Queue index of the song whose options sheet is open. */
 	val selectedIndex: StateFlow<Int?>

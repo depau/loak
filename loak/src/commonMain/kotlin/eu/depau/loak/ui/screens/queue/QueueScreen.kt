@@ -87,6 +87,7 @@ fun QueueScreen() {
 	val selectedIndex by viewModel.selectedIndex.collectAsStateWithLifecycle()
 	val selectedSongIsStarred by viewModel.selectedSongIsStarred.collectAsStateWithLifecycle()
 	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
+	val allDownloads by viewModel.allDownloads.collectAsStateWithLifecycle(persistentListOf())
 	var playlistSong by remember { mutableStateOf<DomainSong?>(null) }
 	var shareId by remember { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
@@ -294,6 +295,10 @@ fun QueueScreen() {
 			else ({ player.playNextSingle(selectedSong) }),
 			onRemoveFromQueue = { player.removeFromQueueWithUndo(index) },
 			onAddToPlaylist = { playlistSong = selectedSong },
+			downloadStatus = allDownloads.find { it.songId == selectedSong.id }?.status,
+			onDownload = { viewModel.downloadManager.downloadSong(selectedSong) },
+			onCancelDownload = { viewModel.downloadManager.cancelDownload(selectedSong.id) },
+			onDeleteDownload = { viewModel.downloadManager.deleteDownload(selectedSong.id) },
 			starred = selectedSongIsStarred,
 			onSetStarred = { viewModel.star(selectedSong, it) },
 			rating = selectedSongRating,

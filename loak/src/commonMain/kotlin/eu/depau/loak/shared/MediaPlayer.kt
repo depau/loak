@@ -149,10 +149,10 @@ abstract class MediaPlayerViewModel(
 		clearQueue()
 		snackBarManager.notifyWithUndo(Res.string.notice_queue_cleared) {
 			if (uiState.value.queue.isNotEmpty()) return@notifyWithUndo
-			insertIntoQueue(0, state.queue)
-			// ponytail: restarts the song from the beginning; keeping the position needs a seek-to-index primitive
-			playAt(state.currentIndex)
-			if (state.isPaused) pause()
+			// same path as restoring the saved queue at startup: song, position and paused state
+			val restored = state.copy(isPaused = true)
+			_uiState.value = restored
+			syncPlayerWithState(restored)
 		}
 	}
 
