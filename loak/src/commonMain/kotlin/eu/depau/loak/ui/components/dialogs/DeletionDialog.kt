@@ -91,17 +91,20 @@ class DeletionViewModel(
 	/** Hides the playlist at once; the server delete waits until the Undo snackbar is gone. */
 	fun deletePlaylist(id: String, onRefresh: () -> Unit) {
 		viewModelScope.launch {
+			// queued now, so the delete still happens if the app dies during the Undo window
+			val actionId = syncManager.enqueueHeld(SyncActionType.DELETE_PLAYLIST, id)
 			playlistDao.deletePlaylist(id)
 			onRefresh()
 			snackBarManager.notifyWithDeferredCommit(
 				Res.string.notice_deleted_playlist,
 				onUndo = {
+					syncManager.cancel(actionId)
 					// the server still has it: fetch it back
 					dbRepository.syncPlaylists()
 					dbRepository.syncPlaylistSongs(id)
 					onRefresh()
 				},
-				commit = { syncManager.enqueueAction(SyncActionType.DELETE_PLAYLIST, id) }
+				commit = { syncManager.release(actionId) }
 			)
 		}
 	}

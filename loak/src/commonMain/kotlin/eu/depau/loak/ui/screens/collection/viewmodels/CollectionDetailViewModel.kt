@@ -23,6 +23,8 @@ import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.data.database.entities.SyncActionType
+import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainAlbumInfo
 import eu.depau.loak.domain.models.DomainPlaylist
@@ -43,6 +45,7 @@ class CollectionDetailViewModel(
 	private val downloadManager: DownloadManager,
 	private val sessionManager: SessionManager,
 	private val snackBarManager: SnackBarManager,
+	private val syncManager: SyncManager,
 	connectivityManager: ConnectivityManager
 ) : ViewModel() {
 
@@ -185,21 +188,19 @@ class CollectionDetailViewModel(
 				duration = before.duration - song.duration
 			)
 		)
-		snackBarManager.notifyWithDeferredCommit(
-			Res.string.notice_removed_from_playlist,
-			onUndo = { collectionState.value = UiState.Success(before) },
-			commit = {
-				try {
-					// ponytail: the index is from when the song was hidden; a server-side edit in
-					// between would shift it
-					sessionManager.api.updatePlaylist(id = collectionId, songIndicesToRemove = listOf(index))
-					refreshCollection(true)
-				} catch (e: Exception) {
-					Logger.e("CollectionDetailViewModel", "Failed to remove song from playlist", e)
+		viewModelScope.launch {
+			// ponytail: the index is from when the song was hidden; a server-side edit in
+			// between would shift it
+			val actionId = syncManager.enqueueHeld(SyncActionType.REMOVE_FROM_PLAYLIST, "$collectionId:$index")
+			snackBarManager.notifyWithDeferredCommit(
+				Res.string.notice_removed_from_playlist,
+				onUndo = {
+					syncManager.cancel(actionId)
 					collectionState.value = UiState.Success(before)
-				}
-			}
-		)
+				},
+				commit = { syncManager.release(actionId) }
+			)
+		}
 	}
 
 	fun starSelectedSong() {

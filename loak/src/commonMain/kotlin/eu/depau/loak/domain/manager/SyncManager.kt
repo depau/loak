@@ -25,7 +25,9 @@ import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.util.Logger
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 data class SyncState(
@@ -112,6 +114,25 @@ class SyncManager(
 		}
 	}
 
+	/**
+	 * Queues a change that must wait for an Undo: it is held (not sent) until [release],
+	 * or until [hold] has passed, so a change survives the app being killed meanwhile.
+	 * [cancel] drops it. Returns the id for those two.
+	 */
+	suspend fun enqueueHeld(actionType: SyncActionType, itemId: String, hold: Duration = 30.seconds): Int =
+		syncDao.enqueue(
+			SyncActionEntity(actionType = actionType, itemId = itemId, time = Clock.System.now() + hold)
+		).toInt()
+
+	fun release(id: Int) {
+		scope.launch {
+			syncDao.setTime(id, Clock.System.now())
+			if (!syncMutex.isLocked) syncMutex.withLock { processQueue() }
+		}
+	}
+
+	suspend fun cancel(id: Int) = syncDao.removeAction(id)
+
 	private suspend fun runSyncCycle(force: Boolean = false) {
 		syncMutex.withLock {
 			// Without a session the SubsonicClient has no auth params and the
@@ -158,12 +179,19 @@ class SyncManager(
 		val actions = syncDao.getPendingActions()
 		if (actions.isEmpty()) return
 
+		val now = Clock.System.now()
 		for (action in actions) {
+			// held for an Undo (see enqueueHeld); scrobbles always carry a past time
+			if (action.time > now) continue
 			try {
 				when (action.actionType) {
 					SyncActionType.STAR -> sessionManager.api.star(action.itemId)
 					SyncActionType.UNSTAR -> sessionManager.api.unstar(action.itemId)
 					SyncActionType.DELETE_PLAYLIST -> sessionManager.api.deletePlaylist(action.itemId)
+					SyncActionType.REMOVE_FROM_PLAYLIST -> {
+						val (playlistId, index) = action.itemId.split(':').let { it[0] to it[1].toInt() }
+						sessionManager.api.updatePlaylist(playlistId, songIndicesToRemove = listOf(index))
+					}
 					SyncActionType.SCROBBLE -> sessionManager.api.scrobble(
 						action.itemId,
 						submission = true,

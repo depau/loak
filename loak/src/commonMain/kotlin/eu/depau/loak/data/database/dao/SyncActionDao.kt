@@ -4,12 +4,16 @@ import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.Query
 import androidx.room3.Transaction
+import kotlin.time.Instant
 import eu.depau.loak.data.database.entities.SyncActionEntity
 
 @Dao
 interface SyncActionDao {
 	@Insert
-	suspend fun enqueue(action: SyncActionEntity)
+	suspend fun enqueue(action: SyncActionEntity): Long
+
+	@Query("UPDATE SyncActionEntity SET time = :time WHERE id = :id")
+	suspend fun setTime(id: Int, time: Instant)
 
 	@Transaction
 	@Query("SELECT * FROM SyncActionEntity ORDER BY id ASC")
