@@ -13,6 +13,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import eu.depau.loak.ui.util.longPressOverChildren
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -39,7 +43,7 @@ fun SegmentedListItem(
 	content: @Composable () -> Unit,
 ) {
 	androidx.compose.material3.SegmentedListItem(
-		modifier = modifier,
+		modifier = modifier.withLongClick(enabled, onLongClick, onLongClickLabel),
 		content = content,
 		leadingContent = leadingContent,
 		trailingContent = trailingContent,
@@ -48,8 +52,7 @@ fun SegmentedListItem(
 		verticalAlignment = verticalAlignment,
 		enabled = enabled,
 		onClick = onClick,
-		onLongClick = onLongClick,
-		onLongClickLabel = onLongClickLabel,
+		// handled below, so that it wins over links inside the content
 		interactionSource = interactionSource,
 		colors = colors,
 		shapes = shapes,
@@ -94,7 +97,7 @@ fun SegmentedListItem(
 	androidx.compose.material3.SegmentedListItem(
 		modifier = modifier.semantics {
 			this@semantics.selected = selected
-		},
+		}.withLongClick(enabled, onLongClick, onLongClickLabel),
 		content = content,
 		leadingContent = leadingContent,
 		trailingContent = trailingContent,
@@ -104,8 +107,7 @@ fun SegmentedListItem(
 		enabled = enabled,
 		selected = false,
 		onClick = onClick,
-		onLongClick = onLongClick,
-		onLongClickLabel = onLongClickLabel,
+		// handled below, so that it wins over links inside the content
 		interactionSource = interactionSource,
 		colors = colors,
 		shapes = shapes,
@@ -244,4 +246,19 @@ object SegmentedListItemDefaults {
 			}
 		}
 	}
+}
+
+@Composable
+private fun Modifier.withLongClick(
+	enabled: Boolean,
+	onLongClick: (() -> Unit)?,
+	label: String?
+): Modifier {
+	if (!enabled || onLongClick == null) return this
+	val haptic = LocalHapticFeedback.current
+	return semantics { onLongClick(label) { onLongClick(); true } }
+		.longPressOverChildren {
+			haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+			onLongClick()
+		}
 }

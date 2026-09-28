@@ -17,6 +17,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -122,4 +126,34 @@ fun LazyStaggeredGridItemScope.loakAnimateItem(
 		return Modifier
 	}
 	return Modifier.animateItem(fadeInSpec, placementSpec, fadeOutSpec)
+}
+
+/**
+ * Long-press for a row whose content holds tappable things (artist links in a song's
+ * subtitle): it sees the press before them, and once the press is long it runs
+ * [onLongClick] and swallows the release, so the link or the row's own click don't fire
+ * too. Movement past the touch slop (scrolling, swiping) cancels it.
+ */
+fun Modifier.longPressOverChildren(onLongClick: () -> Unit): Modifier = pointerInput(onLongClick) {
+	awaitEachGesture {
+		val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+		val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+			while (true) {
+				val change = awaitPointerEvent(PointerEventPass.Initial).changes
+					.firstOrNull { it.id == down.id }
+				if (change == null || !change.pressed || change.isConsumed) return@withTimeoutOrNull false
+				if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+					return@withTimeoutOrNull false
+				}
+			}
+			@Suppress("UNREACHABLE_CODE") false
+		} == null
+		if (!longPressed) return@awaitEachGesture
+
+		onLongClick()
+		do {
+			val event = awaitPointerEvent(PointerEventPass.Initial)
+			event.changes.forEach { it.consume() }
+		} while (event.changes.any { it.pressed })
+	}
 }
