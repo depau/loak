@@ -28,6 +28,15 @@ class SnackBarManager {
 		}
 	}
 
+	/** Runs [block] in a scope that outlives screens, for snackbar actions. */
+	fun launch(block: suspend () -> Unit) {
+		scope.launch { block() }
+	}
+
+	fun notify(event: PlayerEvent) {
+		scope.launch { _events.emit(event) }
+	}
+
 	fun notifyWithUndo(resource: StringResource, vararg args: Any, onUndo: () -> Unit) {
 		scope.launch {
 			_events.emit(PlayerEvent(resource, args.toList(), Res.string.action_undo, onUndo))

@@ -89,6 +89,8 @@ class PreferenceManager(
 	var checkForUpdates by preference(true)
 	var explicitContentPlayback by preference(ExplicitContentPlayback.Allowed)
 	var autoFillQueue by preference(false)
+	/** Id of the playlist songs were last saved to; "Add to playlist" goes straight there. */
+	var lastPlaylistId by preference("")
 
 	// navigation bar settings
 	var bottomBarCollapseMode by preference(BottomBarCollapseMode.Never)

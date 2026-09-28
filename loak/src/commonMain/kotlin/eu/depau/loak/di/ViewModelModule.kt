@@ -61,7 +61,8 @@ val viewModelModule = module {
 			songs = songs,
 			playlistToExclude = playlistToExclude,
 			sessionManager = get(),
-			snackBarManager = get()
+			snackBarManager = get(),
+			preferenceManager = get()
 		)
 	}
 
