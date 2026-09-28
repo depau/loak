@@ -26,6 +26,7 @@ import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainAlbumInfo
+import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.repositories.AlbumRepository
@@ -162,22 +163,36 @@ class CollectionDetailViewModel(
 		}
 	}
 
+	/** Hides the song at once; the server update waits until the Undo snackbar is gone. */
 	fun removeFromPlaylist() {
 		val song = selectedSong.value ?: return
-		val songs = collectionState.value.data?.songs ?: return
-		viewModelScope.launch {
-			try {
-				sessionManager.api.updatePlaylist(
-					id = collectionId,
-					songIndicesToRemove = listOf(songs.indexOf(song))
-				)
-				snackBarManager.notify(Res.string.notice_removed_from_playlist)
-				refreshCollection(true)
-			} catch (e: Exception) {
-				Logger.e("CollectionDetailViewModel", "Failed to remove song from playlist", e)
-			}
-		}
+		val before = collectionState.value.data as? DomainPlaylist ?: return
+		val index = before.songs.indexOf(song)
+		if (index == -1) return
 		clearSelection()
+
+		collectionState.value = UiState.Success(
+			before.copy(
+				songs = before.songs.filterIndexed { i, _ -> i != index },
+				songCount = before.songCount - 1,
+				duration = before.duration - song.duration
+			)
+		)
+		snackBarManager.notifyWithDeferredCommit(
+			Res.string.notice_removed_from_playlist,
+			onUndo = { collectionState.value = UiState.Success(before) },
+			commit = {
+				try {
+					// ponytail: the index is from when the song was hidden; a server-side edit in
+					// between would shift it
+					sessionManager.api.updatePlaylist(id = collectionId, songIndicesToRemove = listOf(index))
+					refreshCollection(true)
+				} catch (e: Exception) {
+					Logger.e("CollectionDetailViewModel", "Failed to remove song from playlist", e)
+					collectionState.value = UiState.Success(before)
+				}
+			}
+		)
 	}
 
 	fun starSelectedSong() {

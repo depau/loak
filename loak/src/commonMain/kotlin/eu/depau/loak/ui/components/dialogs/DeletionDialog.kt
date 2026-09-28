@@ -34,6 +34,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.data.database.dao.PlaylistDao
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.domain.manager.SessionManager
+import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.icons.Icons
@@ -53,6 +54,7 @@ enum class DeletionEndpoint(
 class DeletionViewModel(
 	private val syncManager: SyncManager,
 	private val playlistDao: PlaylistDao,
+	private val dbRepository: DbRepository,
 	private val sessionManager: SessionManager,
 	private val snackBarManager: SnackBarManager
 ) : ViewModel() {
@@ -87,6 +89,24 @@ class DeletionViewModel(
 		}
 	}
 
+	/** Hides the playlist at once; the server delete waits until the Undo snackbar is gone. */
+	fun deletePlaylist(id: String, onRefresh: () -> Unit) {
+		viewModelScope.launch {
+			playlistDao.deletePlaylist(id)
+			onRefresh()
+			snackBarManager.notifyWithDeferredCommit(
+				Res.string.notice_deleted_playlist,
+				onUndo = {
+					// the server still has it: fetch it back
+					dbRepository.syncPlaylists()
+					dbRepository.syncPlaylistSongs(id)
+					onRefresh()
+				},
+				commit = { syncManager.enqueueAction(SyncActionType.DELETE_PLAYLIST, id) }
+			)
+		}
+	}
+
 	sealed class Event {
 		object Dismiss : Event()
 	}
@@ -111,6 +131,17 @@ fun DeletionDialog(
 				}
 			}
 		}
+	}
+
+	if (endpoint == DeletionEndpoint.PLAYLIST) {
+		// playlists are deleted right away with an Undo snackbar instead of a confirmation
+		LaunchedEffect(id) {
+			if (id != null) {
+				viewModel.deletePlaylist(id, onRefresh)
+				onIdClear()
+			}
+		}
+		return
 	}
 
 	id?.let {

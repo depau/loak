@@ -21,6 +21,7 @@ fun LoakSnackBar(
 		containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
 		contentColor = MaterialTheme.colorScheme.onSurface,
 		actionColor = MaterialTheme.colorScheme.primary,
-		actionContentColor = MaterialTheme.colorScheme.primary
+		actionContentColor = MaterialTheme.colorScheme.primary,
+		dismissActionContentColor = MaterialTheme.colorScheme.onSurfaceVariant
 	)
 }

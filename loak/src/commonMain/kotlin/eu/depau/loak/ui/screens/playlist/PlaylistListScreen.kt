@@ -248,7 +248,7 @@ fun PlaylistListScreen(
 		endpoint = DeletionEndpoint.PLAYLIST,
 		id = deletionId,
 		onIdClear = { deletionId = null },
-		onRefresh = { viewModel.refreshPlaylists(true) }
+		onRefresh = { viewModel.refreshPlaylists(false) }
 	)
 
 	if (createDialogShown) {
