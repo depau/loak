@@ -1,15 +1,20 @@
 package eu.depau.loak.domain.manager
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.unit.Dp
 
 // TODO: replace this because it's kind of finnicky
 class BottomBarScrollManager(val thresholdPx: Float) {
 	var isTriggered by mutableStateOf(false)
+
+	/** Height of each bottom bar on screen, keyed by its owner; screens overlap during transitions. */
+	val barHeights = mutableStateMapOf<Any, Dp>()
 	private var accumulator = 0f
 
 	val connection = object : NestedScrollConnection {

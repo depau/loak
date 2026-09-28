@@ -24,9 +24,29 @@ class SnackBarManager {
 		}
 	}
 
-	fun notifyWithUndo(resource: StringResource, onUndo: () -> Unit) {
+	fun notifyWithUndo(resource: StringResource, vararg args: Any, onUndo: () -> Unit) {
 		scope.launch {
-			_events.emit(PlayerEvent(resource, action = Res.string.action_undo, onAction = onUndo))
+			_events.emit(PlayerEvent(resource, args.toList(), Res.string.action_undo, onUndo))
+		}
+	}
+
+	/**
+	 * For changes the server can't undo: [commit] only runs once the snackbar goes away
+	 * without Undo being pressed.
+	 */
+	fun notifyWithDeferredCommit(
+		resource: StringResource,
+		vararg args: Any,
+		onUndo: () -> Unit,
+		commit: () -> Unit
+	) {
+		scope.launch {
+			_events.emit(
+				PlayerEvent(
+					resource, args.toList(), Res.string.action_undo, onUndo,
+					onDismiss = commit, dismissible = true
+				)
+			)
 		}
 	}
 }

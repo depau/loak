@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.material3.SnackbarDuration
+import kotlinx.coroutines.CancellationException
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -149,13 +152,22 @@ fun App() {
 
 	LaunchedEffect(Unit) {
 		snackBarManager.events.collectLatest { event ->
-			val result = snackBarState.showSnackbar(
-				message = getString(event.resource, *event.args.toTypedArray()),
-				actionLabel = event.action?.let { getString(it) },
-				// an undo needs time to reach
-				duration = if (event.action != null) SnackbarDuration.Long else SnackbarDuration.Short
-			)
+			val result = try {
+				snackBarState.showSnackbar(
+					message = getString(event.resource, *event.args.toTypedArray()),
+					actionLabel = event.action?.let { getString(it) },
+					// Short (4 s) is the Material default; Compose extends it for users who set a
+					// longer accessibility timeout
+					duration = SnackbarDuration.Short,
+					withDismissAction = event.dismissible
+				)
+			} catch (e: CancellationException) {
+				// replaced by a newer snackbar or the app went away
+				event.onDismiss?.invoke()
+				throw e
+			}
 			if (result == SnackbarResult.ActionPerformed) event.onAction?.invoke()
+			else event.onDismiss?.invoke()
 		}
 	}
 
@@ -188,7 +200,14 @@ fun App() {
 				Scaffold(
 					modifier = Modifier.nestedScroll(scrollManager.connection),
 					snackbarHost = {
-						SnackbarHost(hostState = snackBarState) { snackBarData ->
+						// sit above the mini player and nav bar when a screen shows them
+						val barHeight = scrollManager.barHeights.values.maxOrNull() ?: 0.dp
+						SnackbarHost(
+							hostState = snackBarState,
+							modifier = Modifier
+								.padding(bottom = barHeight)
+								.consumeWindowInsets(PaddingValues(bottom = barHeight))
+						) { snackBarData ->
 							LoakSnackBar(snackBarData = snackBarData)
 						}
 					},

@@ -12,6 +12,15 @@ import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import eu.depau.loak.di.LocalBottomBarScrollManager
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import org.koin.compose.koinInject
@@ -42,8 +51,19 @@ fun RootBottomBar(
 		targetValue = if (scrolled || !shadows) 0f else 1f,
 		animationSpec = tween(durationMillis = 600)
 	)
+	val scrollManager = LocalBottomBarScrollManager.current
+	val density = LocalDensity.current
+	val owner = remember { Any() }
+	var measuredHeight by remember { mutableStateOf(0.dp) }
+	LaunchedEffect(scrolled, measuredHeight) {
+		scrollManager.barHeights[owner] = if (scrolled) 0.dp else measuredHeight
+	}
+	DisposableEffect(owner) { onDispose { scrollManager.barHeights.remove(owner) } }
+
 	Column(
-		modifier = modifier.then(
+		modifier = modifier.onSizeChanged {
+			measuredHeight = with(density) { it.height.toDp() }
+		}.then(
 			if (preferenceManager.miniPlayerStyle == MiniPlayerStyle.Detached)
 				Modifier.background(
 					Brush.easedVerticalGradient(color = MaterialTheme.colorScheme.surface.copy(alpha = shadowFadeProgress))

@@ -6,5 +6,8 @@ data class PlayerEvent(
 	val resource: StringResource,
 	val args: List<Any> = emptyList(),
 	val action: StringResource? = null,
-	val onAction: (() -> Unit)? = null
+	val onAction: (() -> Unit)? = null,
+	/** Runs when the snackbar goes away without its action, for any reason. */
+	val onDismiss: (() -> Unit)? = null,
+	val dismissible: Boolean = false
 )
