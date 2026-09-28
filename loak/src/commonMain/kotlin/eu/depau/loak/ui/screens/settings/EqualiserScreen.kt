@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
@@ -125,7 +126,8 @@ fun SettingsEqualiserScreen() {
 									equaliserManager.setConfig(newConfig)
 								}
 							},
-							levelRange = config.bandLowerRange..config.bandUpperRange
+							levelRange = config.bandLowerRange..config.bandUpperRange,
+							frequency = config.bandFrequencies.getOrNull(band)
 						)
 					}
 				}
@@ -138,7 +140,8 @@ fun SettingsEqualiserScreen() {
 private fun RowScope.EqualiserBand(
 	level: Float,
 	onLevelChange: (level: Float) -> Unit,
-	levelRange: ClosedFloatingPointRange<Float>
+	levelRange: ClosedFloatingPointRange<Float>,
+	frequency: Int?
 ) {
 	val textStyle = MaterialTheme.typography.bodySmall.copy(
 		fontFamily = FontFamily.Monospace,
@@ -149,13 +152,25 @@ private fun RowScope.EqualiserBand(
 		horizontalAlignment = Alignment.CenterHorizontally,
 		verticalArrangement = Arrangement.spacedBy(8.dp)
 	) {
-		Text("${levelRange.endInclusive.toInt()}mB", style = textStyle, maxLines = 1)
+		// levels are in millibels; dB is what people know
+		Text(formatDb(level), style = textStyle.copy(color = MaterialTheme.colorScheme.primary), maxLines = 1)
+		Text(formatDb(levelRange.endInclusive), style = textStyle, maxLines = 1)
 		VerticalSlider(
 			modifier = Modifier.weight(1f),
 			value = level,
 			onValueChange = onLevelChange,
 			valueRange = levelRange
 		)
-		Text("${levelRange.start.toInt()}mB", style = textStyle, maxLines = 1)
+		Text(formatDb(levelRange.start), style = textStyle, maxLines = 1)
+		frequency?.let { Text(formatHz(it), style = textStyle, maxLines = 1) }
 	}
 }
+
+private fun formatDb(millibels: Float): String {
+	val db = (millibels / 100).roundToInt()
+	return if (db > 0) "+$db dB" else "$db dB"
+}
+
+private fun formatHz(hz: Int) =
+	if (hz >= 1000) "${(hz / 100) / 10.0}".removeSuffix(".0") + " kHz" else "$hz Hz"
+

@@ -31,6 +31,9 @@ import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -95,15 +98,18 @@ fun SettingsThemesScreen() {
 					.padding(horizontal = 16.dp),
 				verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
 			) {
-				SettingsGroup {
-					SettingsChoiceItem(
-						choices = ThemeMode.entries.toImmutableList(),
-						selectedChoice = preferenceManager.themeMode,
-						onChoiceSelected = { preferenceManager.themeMode = it },
-						content = { Text(stringResource(Res.string.title_theme_mode)) },
-						label = { stringResource(it.title) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
-					)
+				SettingsGroup(title = { Text(stringResource(Res.string.title_theme_mode)) }) {
+					// flipped often enough to deserve an inline control instead of a dialog
+					SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+						ThemeMode.entries.forEachIndexed { index, mode ->
+							SegmentedButton(
+								shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
+								onClick = { preferenceManager.themeMode = mode },
+								selected = preferenceManager.themeMode == mode,
+								label = { Text(stringResource(mode.title)) }
+							)
+						}
+					}
 				}
 
 				SettingsGroup(title = { Text(stringResource(Res.string.title_palette)) }) {

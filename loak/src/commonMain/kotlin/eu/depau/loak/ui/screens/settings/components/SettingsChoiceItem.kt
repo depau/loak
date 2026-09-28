@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
-import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
@@ -111,7 +111,7 @@ private fun <Choice> ChoiceDialog(
 			}
 		},
 		confirmButton = {
-			Button(onClick = onDismissRequest) {
+			TextButton(onClick = onDismissRequest) {
 				Text(stringResource(Res.string.action_ok))
 			}
 		}

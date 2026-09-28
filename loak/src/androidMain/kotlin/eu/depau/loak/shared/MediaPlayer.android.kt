@@ -381,13 +381,15 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 			val bandLowerRange = equaliser.bandLevelRange.firstOrNull()?.toFloat() ?: -1500f
 			val bandUpperRange = equaliser.bandLevelRange.lastOrNull()?.toFloat() ?: 1500f
 			val bandCount = equaliser.numberOfBands.toInt()
+			val bandFrequencies = List(bandCount) { equaliser.getCenterFreq(it.toShort()) / 1000 }
 
 			scope.launch {
 				equaliserManager.setConfig(
 					equaliserManager.config.value.copy(
 						bandLowerRange = bandLowerRange,
 						bandUpperRange = bandUpperRange,
-						bandCount = bandCount
+						bandCount = bandCount,
+						bandFrequencies = bandFrequencies
 					)
 				)
 			}
