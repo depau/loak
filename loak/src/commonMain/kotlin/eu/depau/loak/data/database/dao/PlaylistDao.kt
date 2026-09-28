@@ -5,6 +5,7 @@ import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.Transaction
+import androidx.room3.Update
 import kotlinx.coroutines.flow.Flow
 import eu.depau.loak.data.database.entities.PlaylistEntity
 import eu.depau.loak.data.database.entities.PlaylistSongCrossRef
@@ -13,11 +14,24 @@ import eu.depau.loak.util.Logger
 
 @Dao
 interface PlaylistDao {
-	@Insert(onConflict = OnConflictStrategy.REPLACE)
-	suspend fun insertPlaylist(playlist: PlaylistEntity)
+	@Insert(onConflict = OnConflictStrategy.IGNORE)
+	suspend fun insertPlaylistsIgnoringConflicts(playlists: List<PlaylistEntity>)
 
-	@Insert(onConflict = OnConflictStrategy.REPLACE)
-	suspend fun insertPlaylists(playlists: List<PlaylistEntity>)
+	@Update
+	suspend fun updatePlaylists(playlists: List<PlaylistEntity>)
+
+	suspend fun insertPlaylist(playlist: PlaylistEntity) = insertPlaylists(listOf(playlist))
+
+	/**
+	 * Insert or update in place. Not REPLACE: that deletes the row first, and the delete
+	 * cascades to the playlist's song links, emptying the playlist until its songs are
+	 * fetched again. (Room's @Upsert degrades to a bare INSERT on web.)
+	 */
+	@Transaction
+	suspend fun insertPlaylists(playlists: List<PlaylistEntity>) {
+		insertPlaylistsIgnoringConflicts(playlists)
+		updatePlaylists(playlists)
+	}
 
 	@Insert(onConflict = OnConflictStrategy.REPLACE)
 	suspend fun insertPlaylistSongCrossRefs(crossRefs: List<PlaylistSongCrossRef>)
