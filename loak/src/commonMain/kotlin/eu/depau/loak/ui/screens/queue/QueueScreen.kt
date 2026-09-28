@@ -243,6 +243,9 @@ fun QueueScreen() {
 							if (playerState.currentIndex != index) {
 								player.playAt(index)
 								animateToDismiss()
+							} else {
+								player.seek(0f)
+								player.resume()
 							}
 						},
 						onLongClick = {
