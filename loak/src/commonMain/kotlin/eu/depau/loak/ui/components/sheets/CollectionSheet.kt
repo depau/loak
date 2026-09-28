@@ -55,6 +55,12 @@ import eu.depau.loak.domain.models.DomainAlbumInfo
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import eu.depau.loak.domain.repositories.DbRepository
+import eu.depau.loak.ui.screens.playlist.dialogs.EditPlaylistSheet
+import eu.depau.loak.generated.resources.action_edit_playlist
+import eu.depau.loak.icons.outlined.Edit
 import eu.depau.loak.icons.brand.Lastfm
 import eu.depau.loak.icons.brand.Musicbrainz
 import eu.depau.loak.icons.filled.Star
@@ -97,6 +103,8 @@ fun CollectionSheet(
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val sessionManager = koinInject<SessionManager>()
+	val dbRepository = koinInject<DbRepository>()
+	val scope = rememberCoroutineScope()
 
 	val contentPadding = PaddingValues(horizontal = 16.dp)
 	val colors = ListItemDefaults.colors(
@@ -105,8 +113,13 @@ fun CollectionSheet(
 		headlineColor = MaterialTheme.colorScheme.onSurface
 	)
 	var linkToOpen by rememberSaveable { mutableStateOf<String?>(null) }
+	var editing by rememberSaveable { mutableStateOf(false) }
+	// only the owner can rename it; playlists shared by others are read-only
+	val editablePlaylist = (collection as? DomainPlaylist)
+		?.takeIf { it.owner == sessionManager.username }
 
-	ModalBottomSheet(
+	// the edit sheet replaces this one rather than stacking on top
+	if (!editing) ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
 		contentWindowInsets = {
 			BottomSheetDefaults.modalWindowInsets.add(
@@ -312,6 +325,16 @@ fun CollectionSheet(
 				)
 			}
 
+			if (editablePlaylist != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_edit_playlist)) },
+					leadingContent = { Icon(Icons.Outlined.Edit, null) },
+					onClick = { editing = true },
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
 			if (onShare != null && sessionManager.canUserShare()) {
 				ListItem(
 					content = { Text(stringResource(Res.string.action_share)) },
@@ -366,6 +389,18 @@ fun CollectionSheet(
 				)
 			}
 		}
+	}
+
+	if (editing && editablePlaylist != null) {
+		EditPlaylistSheet(
+			playlist = editablePlaylist,
+			onDismissRequest = {
+				editing = false
+				onDismissRequest()
+			},
+			// pull the new name into the local cache the lists read from
+			onSaved = { scope.launch { dbRepository.syncPlaylists() } }
+		)
 	}
 
 	if (linkToOpen != null) {

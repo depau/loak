@@ -6,6 +6,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import eu.depau.loak.data.database.dao.DownloadDao
@@ -68,6 +69,9 @@ class PlaylistRepository(
 		}
 		return getLocalData(listType, reversed, filters)
 	}
+
+	/** Emits whenever the cached playlists change (renames, deletes, syncs). */
+	fun playlistChanges() = playlistDao.getAllPlaylistsFlow().drop(1)
 
 	fun getPlaylistsFlow(
 		fullRefresh: Boolean,

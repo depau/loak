@@ -27,6 +27,9 @@ class SessionManager(
 		field = MutableStateFlow(false)
 
 	private var currentUser: User? = null
+
+	/** The logged-in username, as entered at login. */
+	val username: String get() = settings.getString("username", "")
 	private val mutex = Mutex()
 	private val scope = CoroutineScope(IoDispatcher)
 

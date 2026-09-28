@@ -19,6 +19,7 @@ import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.models.DomainAlbum
+import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainAlbumInfo
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
@@ -102,6 +103,7 @@ fun CollectionDetailScreenTopBar(
 	if (playlistDialogShown) {
 		PlaylistUpdateDialog(
 			songs = collection?.songs.orEmpty().toPersistentList(),
+			playlistToExclude = (collection as? DomainPlaylist)?.id,
 			onDismissRequest = { playlistDialogShown = false }
 		)
 	}

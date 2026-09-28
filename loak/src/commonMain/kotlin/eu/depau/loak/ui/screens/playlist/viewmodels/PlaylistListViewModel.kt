@@ -44,6 +44,10 @@ class PlaylistListViewModel(
 		viewModelScope.launch {
 			sessionManager.isLoggedIn.collect { if (it) refreshPlaylists(false) }
 		}
+		// reload from the cache when something else changes it
+		viewModelScope.launch {
+			repository.playlistChanges().collect { refreshPlaylists(false) }
+		}
 	}
 
 	fun selectPlaylist(playlist: DomainPlaylist) {

@@ -125,6 +125,7 @@ fun PlaylistListScreenListItem(
 		if (playlistDialogShown) {
 			PlaylistUpdateDialog(
 				songs = playlist.songs.toPersistentList(),
+				playlistToExclude = playlist.id,
 				onDismissRequest = { playlistDialogShown = false }
 			)
 		}
