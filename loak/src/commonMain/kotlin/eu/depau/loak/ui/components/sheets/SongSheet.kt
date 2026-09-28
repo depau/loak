@@ -141,7 +141,6 @@ fun SongSheet(
 		)
 		ModalBottomSheet(
 			onDismissRequest = onDismissRequest,
-			dragHandle = null,
 			containerColor = MaterialTheme.colorScheme.surface,
 			sheetState = rememberBottomSheetState(
 				initialValue = SheetValue.Hidden,
@@ -202,12 +201,72 @@ fun SongSheet(
 			HorizontalDivider(Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
 
 			Column(Modifier.verticalScroll(rememberScrollState())) {
-				if (onShare != null && sessionManager.canUserShare()) {
+				if (onPlayNext != null) {
 					ListItem(
-						content = { Text(stringResource(Res.string.action_share)) },
-						leadingContent = { Icon(Icons.Outlined.Share, null) },
+						content = { Text(stringResource(Res.string.action_play_next)) },
+						leadingContent = { Icon(Icons.Outlined.QueuePlayNext, null) },
 						onClick = {
-							onShare()
+							onPlayNext()
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				if (onAddToQueue != null) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_add_to_queue)) },
+						leadingContent = { Icon(Icons.Outlined.Queue, null) },
+						onClick = {
+							onAddToQueue()
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				if (onAddToPlaylist != null) {
+					ListItem(
+						content = {
+							Text(
+								stringResource(
+									if (collection != null && collection !is DomainAlbum)
+										Res.string.action_add_to_another_playlist
+									else Res.string.action_add_to_playlist
+								)
+							)
+						},
+						leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
+						onClick = {
+							onAddToPlaylist()
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				if (onRemoveFromPlaylist != null && collection != null && collection !is DomainAlbum) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_remove_from_playlist)) },
+						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
+						onClick = {
+							onRemoveFromPlaylist()
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				if (onRemoveFromQueue != null) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_remove_from_queue)) },
+						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
+						onClick = {
+							onRemoveFromQueue()
 							onDismissRequest()
 						},
 						colors = colors,
@@ -317,79 +376,6 @@ fun SongSheet(
 					)
 				}
 
-				if (onPlayNext != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_play_next)) },
-						leadingContent = { Icon(Icons.Outlined.QueuePlayNext, null) },
-						onClick = {
-							onPlayNext()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onAddToQueue != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_add_to_queue)) },
-						leadingContent = { Icon(Icons.Outlined.Queue, null) },
-						onClick = {
-							onAddToQueue()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onAddToPlaylist != null) {
-					ListItem(
-						content = {
-							Text(
-								stringResource(
-									if (collection != null && collection !is DomainAlbum)
-										Res.string.action_add_to_another_playlist
-									else Res.string.action_add_to_playlist
-								)
-							)
-						},
-						leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
-						onClick = {
-							onAddToPlaylist()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onRemoveFromPlaylist != null && collection != null && collection !is DomainAlbum) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_remove_from_playlist)) },
-						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
-						onClick = {
-							onRemoveFromPlaylist()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onRemoveFromQueue != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_remove_from_queue)) },
-						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
-						onClick = {
-							onRemoveFromQueue()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
 				if (onViewAlbum != null) {
 					ListItem(
 						content = {
@@ -411,6 +397,19 @@ fun SongSheet(
 						leadingContent = { Icon(Icons.Outlined.Artist, null) },
 						onClick = {
 							onViewArtist()
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				if (onShare != null && sessionManager.canUserShare()) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_share)) },
+						leadingContent = { Icon(Icons.Outlined.Share, null) },
+						onClick = {
+							onShare()
 							onDismissRequest()
 						},
 						colors = colors,

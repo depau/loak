@@ -108,7 +108,6 @@ fun CollectionSheet(
 
 	ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
-		dragHandle = null,
 		contentWindowInsets = {
 			BottomSheetDefaults.modalWindowInsets.add(
 				WindowInsets(
@@ -155,43 +154,6 @@ fun CollectionSheet(
 		HorizontalDivider(Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
 
 		Column(Modifier.verticalScroll(rememberScrollState())) {
-			if (albumInfo?.lastFmUrl != null) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_view_on_lastfm)) },
-					leadingContent = { Icon(Icons.Brand.Lastfm, null) },
-					onClick = {
-						linkToOpen = albumInfo.lastFmUrl
-					},
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
-			if (albumInfo?.musicBrainzId != null) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_view_on_musicbrainz)) },
-					leadingContent = { Icon(Icons.Brand.Musicbrainz, null) },
-					onClick = {
-						linkToOpen = "https://musicbrainz.org/release/${albumInfo.musicBrainzId}"
-					},
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
-			if (onShare != null && sessionManager.canUserShare()) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_share)) },
-					leadingContent = { Icon(Icons.Outlined.Share, null) },
-					onClick = {
-						onShare()
-						onDismissRequest()
-					},
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
 			if (onPlayNext != null) {
 				ListItem(
 					content = { Text(stringResource(Res.string.action_play_next)) },
@@ -233,20 +195,6 @@ fun CollectionSheet(
 					enabled = !collection?.songs.isNullOrEmpty()
 				)
 			}
-
-			if (onViewArtist != null) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_view_artist)) },
-					leadingContent = { Icon(Icons.Outlined.Artist, null) },
-					onClick = {
-						onViewArtist()
-						onDismissRequest()
-					},
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
 
 			if (starred != null && onSetStarred != null) {
 				ListItem(
@@ -351,6 +299,32 @@ fun CollectionSheet(
 				)
 			}
 
+			if (onViewArtist != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_view_artist)) },
+					leadingContent = { Icon(Icons.Outlined.Artist, null) },
+					onClick = {
+						onViewArtist()
+						onDismissRequest()
+					},
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
+			if (onShare != null && sessionManager.canUserShare()) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_share)) },
+					leadingContent = { Icon(Icons.Outlined.Share, null) },
+					onClick = {
+						onShare()
+						onDismissRequest()
+					},
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
 			if (onDelete != null) {
 				ListItem(
 					content = { Text(stringResource(Res.string.action_delete)) },
@@ -358,6 +332,34 @@ fun CollectionSheet(
 					onClick = {
 						onDelete()
 						onDismissRequest()
+					},
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
+			if (albumInfo?.lastFmUrl != null || albumInfo?.musicBrainzId != null) {
+				HorizontalDivider(Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+			}
+
+			if (albumInfo?.lastFmUrl != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_view_on_lastfm)) },
+					leadingContent = { Icon(Icons.Brand.Lastfm, null) },
+					onClick = {
+						linkToOpen = albumInfo.lastFmUrl
+					},
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
+			if (albumInfo?.musicBrainzId != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_view_on_musicbrainz)) },
+					leadingContent = { Icon(Icons.Brand.Musicbrainz, null) },
+					onClick = {
+						linkToOpen = "https://musicbrainz.org/release/${albumInfo.musicBrainzId}"
 					},
 					colors = colors,
 					contentPadding = contentPadding

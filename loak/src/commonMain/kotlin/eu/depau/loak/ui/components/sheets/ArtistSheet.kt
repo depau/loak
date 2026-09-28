@@ -88,7 +88,6 @@ fun ArtistSheet(
 
 	ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
-		dragHandle = null,
 		contentWindowInsets = {
 			BottomSheetDefaults.modalWindowInsets.add(
 				WindowInsets(
@@ -122,30 +121,6 @@ fun ArtistSheet(
 		HorizontalDivider(Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
 
 		Column(Modifier.verticalScroll(rememberScrollState())) {
-			if (artist.lastFmUrl != null) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_view_on_lastfm)) },
-					leadingContent = { Icon(Icons.Brand.Lastfm, null) },
-					onClick = {
-						linkToOpen = artist.lastFmUrl
-					},
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
-			if (artist.musicBrainzId != null) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_view_on_musicbrainz)) },
-					leadingContent = { Icon(Icons.Brand.Musicbrainz, null) },
-					onClick = {
-						linkToOpen = "https://musicbrainz.org/artist/${artist.musicBrainzId}"
-					},
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
 			if (onPlayNext != null) {
 				ListItem(
 					content = { Text(stringResource(Res.string.action_play_next)) },
@@ -281,6 +256,34 @@ fun ArtistSheet(
 					onClick = {
 						onDownloadAll()
 						onDismissRequest()
+					},
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
+			if (artist.lastFmUrl != null || artist.musicBrainzId != null) {
+				HorizontalDivider(Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+			}
+
+			if (artist.lastFmUrl != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_view_on_lastfm)) },
+					leadingContent = { Icon(Icons.Brand.Lastfm, null) },
+					onClick = {
+						linkToOpen = artist.lastFmUrl
+					},
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
+			if (artist.musicBrainzId != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_view_on_musicbrainz)) },
+					leadingContent = { Icon(Icons.Brand.Musicbrainz, null) },
+					onClick = {
+						linkToOpen = "https://musicbrainz.org/artist/${artist.musicBrainzId}"
 					},
 					colors = colors,
 					contentPadding = contentPadding

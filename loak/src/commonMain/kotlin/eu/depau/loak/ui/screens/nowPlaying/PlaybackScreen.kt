@@ -16,6 +16,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import org.jetbrains.compose.resources.stringResource
+import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.option_playback_speed
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,28 +27,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.depau.loak.ui.theme.ContinuousCapsule
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import org.koin.compose.koinInject
 import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.util.rememberDraggableListState
 import kotlin.math.round
 
 @Composable
 fun PlaybackSpeedScreen() {
 	val player = koinInject<MediaPlayerViewModel>()
 	val lazyListState = rememberLazyListState()
-	val haptic = LocalHapticFeedback.current
 	val playerState by player.uiState.collectAsStateWithLifecycle()
-
-	val draggableState = rememberDraggableListState(lazyListState) { from, to ->
-		player.moveQueueItem(from, to)
-		haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-	}
 
 	val selectedSpeed = playerState.playbackSpeed
 	val playbackSpeeds = listOf(
@@ -61,11 +55,19 @@ fun PlaybackSpeedScreen() {
 			.padding(horizontal = 12.dp, vertical = 4.dp)
 			.fillMaxWidth()
 			.clip(ContinuousRoundedRectangle(topStart = 16.dp, topEnd = 16.dp)),
-		state = draggableState.listState,
+		state = lazyListState,
 		contentPadding = WindowInsets.systemBars
 			.only(WindowInsetsSides.Bottom)
 			.asPaddingValues()
 	) {
+		item {
+			// same title style as the sleep timer sheet
+			Text(
+				text = stringResource(Res.string.option_playback_speed),
+				style = MaterialTheme.typography.titleLarge,
+				modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+			)
+		}
 		item {
 			Row(
 				modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),

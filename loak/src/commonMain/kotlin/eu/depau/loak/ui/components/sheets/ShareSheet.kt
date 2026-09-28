@@ -45,7 +45,6 @@ fun ShareSheet(
 
 	ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
-		dragHandle = null,
 		containerColor = MaterialTheme.colorScheme.surface,
 		sheetState = rememberBottomSheetState(
 			initialValue = SheetValue.Hidden,
