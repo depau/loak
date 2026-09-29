@@ -63,10 +63,12 @@ import eu.depau.loak.generated.resources.action_next_song
 import eu.depau.loak.generated.resources.action_pause
 import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.action_previous_song
+import eu.depau.loak.generated.resources.action_star
 import eu.depau.loak.generated.resources.info_not_playing
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
@@ -77,12 +79,14 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Note
 import eu.depau.loak.icons.filled.Pause
 import eu.depau.loak.icons.filled.Play
-import eu.depau.loak.icons.filled.SkipNext
+import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.Radio
+import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.screens.nowPlaying.viewmodels.NowPlayingViewModel
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
 import eu.depau.loak.ui.util.playPauseIconPainter
 import coil3.compose.LocalPlatformContext as LocalCoilPlatformContext
@@ -107,6 +111,8 @@ fun MiniPlayer(
 
 	val playerState by player.uiState.collectAsState()
 	val song = playerState.currentSong
+	val nowPlayingViewModel = koinViewModel<NowPlayingViewModel> { parametersOf(player) }
+	val songIsStarred by nowPlayingViewModel.songIsStarred.collectAsState()
 
 	val coilPlatformContext = LocalCoilPlatformContext.current
 	val imageLoader = koinInject<ImageLoader>()
@@ -303,16 +309,15 @@ fun MiniPlayer(
 									)
 								}
 							}
+							// skipping is a swipe on the player, so the second button stars the song
 							IconButton(
-								onClick = {
-									player.next()
-								},
-								enabled = isInteractive,
+								onClick = { nowPlayingViewModel.starSong(!songIsStarred) },
+								enabled = isInteractive && !isRadio,
 								colors = colors
 							) {
 								Icon(
-									imageVector = Icons.Filled.SkipNext,
-									contentDescription = stringResource(Res.string.action_next_song),
+									imageVector = if (songIsStarred) Icons.Filled.Star else Icons.Outlined.Star,
+									contentDescription = stringResource(Res.string.action_star),
 									modifier = Modifier.size(iconSize)
 								)
 							}
