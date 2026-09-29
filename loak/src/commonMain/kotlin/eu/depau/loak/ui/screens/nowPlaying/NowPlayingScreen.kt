@@ -1,6 +1,8 @@
 package eu.depau.loak.ui.screens.nowPlaying
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.shape.CircleShape
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import eu.depau.loak.ui.screens.queue.QueueScreen
 import eu.depau.loak.ui.screens.lyrics.LyricsScreen
@@ -13,7 +15,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -255,7 +258,19 @@ private fun NowPlayingSidePane(song: DomainSong?, modifier: Modifier = Modifier)
 		color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f)
 	) {
 		Column {
-			SecondaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
+			// no full-width divider, and the M3 primary indicator: short, with rounded ends
+			PrimaryTabRow(
+				selectedTabIndex = tab,
+				containerColor = Color.Transparent,
+				indicator = {
+					TabRowDefaults.PrimaryIndicator(
+						modifier = Modifier.tabIndicatorOffset(tab, matchContentSize = true),
+						width = Dp.Unspecified,
+						shape = CircleShape
+					)
+				},
+				divider = {}
+			) {
 				Tab(
 					selected = tab == 0,
 					onClick = { tab = 0 },
