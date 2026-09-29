@@ -1,6 +1,20 @@
 package eu.depau.loak.ui.screens.lyrics
 
 import androidx.compose.animation.AnimatedContent
+import org.jetbrains.compose.resources.stringResource
+import eu.depau.loak.icons.outlined.Check
+import eu.depau.loak.icons.outlined.Close
+import eu.depau.loak.icons.outlined.Share
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.generated.resources.action_cancel
+import eu.depau.loak.generated.resources.action_share_lyrics
+import eu.depau.loak.generated.resources.Res
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -46,7 +60,9 @@ import eu.depau.loak.ui.util.KeepScreenOn
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LyricsScreen(
-	song: DomainSong?
+	song: DomainSong?,
+	/** In the now playing side pane: no toolbar, just the lines and a share button. */
+	pane: Boolean = false
 ) {
 	val backStack = LocalNavStack.current
 
@@ -89,10 +105,10 @@ fun LyricsScreen(
 		}
 	}
 
-	val sheetState = LocalSheetState.current
+	val sheetState = if (pane) null else LocalSheetState.current
 	val closeScope = rememberCoroutineScope()
 	val animateToDismiss = {
-		closeScope.launch {
+		if (sheetState != null) closeScope.launch {
 			sheetState.hide()
 		}.invokeOnCompletion {
 			if (!sheetState.isVisible) {
@@ -106,19 +122,7 @@ fun LyricsScreen(
 		KeepScreenOn()
 	}
 
-	SheetScaffold(
-		toolbar = { windowInsets ->
-			LyricsScreenToolbar(
-				onDismissRequest = { animateToDismiss() },
-				onShare = { shareSheetOpen = true },
-				isSelecting = isSelecting,
-				toggleIsSelecting = toggleIsSelecting,
-				windowInsets = windowInsets,
-				selectedIndices = selectedIndices.toImmutableList()
-			)
-		},
-		toolbarPosition = ToolbarPosition.Top
-	) { contentPadding ->
+	val body: @Composable (PaddingValues) -> Unit = { contentPadding ->
 		AnimatedContent(
 			targetState = lyricsState,
 			modifier = Modifier.fillMaxSize(),
@@ -180,5 +184,43 @@ fun LyricsScreen(
 				)
 			}
 		}
+	}
+
+	if (pane) {
+		Box(Modifier.fillMaxSize()) {
+			body(PaddingValues())
+			// like the toolbar: first pick the lines, then share them
+			Row(Modifier.align(Alignment.TopEnd)) {
+				if (isSelecting) IconButton(onClick = toggleIsSelecting) {
+					Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
+				}
+				IconButton(
+					onClick = { if (isSelecting) shareSheetOpen = true else toggleIsSelecting() },
+					enabled = !isSelecting || selectedIndices.isNotEmpty()
+				) {
+					Icon(
+						if (isSelecting) Icons.Outlined.Check else Icons.Outlined.Share,
+						stringResource(Res.string.action_share_lyrics)
+					)
+				}
+			}
+		}
+		return
+	}
+
+	SheetScaffold(
+		toolbar = { windowInsets ->
+			LyricsScreenToolbar(
+				onDismissRequest = { animateToDismiss() },
+				onShare = { shareSheetOpen = true },
+				isSelecting = isSelecting,
+				toggleIsSelecting = toggleIsSelecting,
+				windowInsets = windowInsets,
+				selectedIndices = selectedIndices.toImmutableList()
+			)
+		},
+		toolbarPosition = ToolbarPosition.Top
+	) { contentPadding ->
+		body(contentPadding)
 	}
 }

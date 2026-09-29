@@ -1,6 +1,20 @@
 package eu.depau.loak.ui.screens.nowPlaying
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
+import eu.depau.loak.ui.screens.queue.QueueScreen
+import eu.depau.loak.ui.screens.lyrics.LyricsScreen
+import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.di.isExpanded
+import eu.depau.loak.di.LocalPlatformContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -68,6 +82,8 @@ fun NowPlayingScreen() {
 
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 	val song = playerState.currentSong
+	// expanded windows: the queue and lyrics sit in a pane beside the player
+	val expanded = LocalPlatformContext.current.isExpanded()
 
 	val viewModel = koinViewModel<NowPlayingViewModel> { parametersOf(player) }
 	val songIsStarred by viewModel.songIsStarred.collectAsStateWithLifecycle()
@@ -105,13 +121,13 @@ fun NowPlayingScreen() {
 					)
 				},
 				actions = {
-					SheetActionButton(
+					if (!expanded) SheetActionButton(
 						icon = Icons.Outlined.Lyrics,
 						contentDescription = stringResource(Res.string.action_lyrics),
 						onClick = dropUnlessResumed { backStack.add(Screen.Lyrics) },
 						isStartRounded = true
 					)
-					SheetActionButton(
+					if (!expanded) SheetActionButton(
 						icon = Icons.Outlined.List,
 						contentDescription = stringResource(Res.string.action_queue),
 						onClick = dropUnlessResumed { backStack.add(Screen.Queue) },
@@ -154,7 +170,39 @@ fun NowPlayingScreen() {
 
 					else -> contentPadding
 				}
-				if (isLandscape) {
+				if (isLandscape && expanded) {
+					// cover and controls on the left, up next / lyrics always visible on the right
+					Row(
+						modifier = Modifier.fillMaxSize().padding(contentPadding),
+						horizontalArrangement = Arrangement.spacedBy(24.dp)
+					) {
+						Column(
+							modifier = Modifier.weight(1f).fillMaxHeight(),
+							horizontalAlignment = Alignment.CenterHorizontally,
+							verticalArrangement = Arrangement.Center
+						) {
+							NowPlayingArtworkPager(
+								modifier = Modifier.weight(1f).fillMaxWidth(),
+								isLandscape = false
+							)
+							NowPlayingControlsRow(
+								modifier = Modifier.weight(1f),
+								isLandscape = false,
+								songIsStarred = songIsStarred,
+								onSetSongIsStarred = { viewModel.starSong(it) },
+								songRating = songRating,
+								onSetSongRating = { viewModel.rateSong(it) }
+							)
+						}
+						NowPlayingSidePane(
+							song = song,
+							modifier = Modifier
+								.weight(0.8f)
+								.fillMaxHeight()
+								.padding(end = 16.dp, bottom = 16.dp)
+						)
+					}
+				} else if (isLandscape) {
 					Row(
 						modifier = Modifier.fillMaxSize().padding(padding),
 						horizontalArrangement = Arrangement.SpaceEvenly,
@@ -193,6 +241,34 @@ fun NowPlayingScreen() {
 						)
 					}
 				}
+			}
+		}
+	}
+}
+
+@Composable
+private fun NowPlayingSidePane(song: DomainSong?, modifier: Modifier = Modifier) {
+	var tab by rememberSaveable { mutableStateOf(0) }
+	Surface(
+		modifier = modifier,
+		shape = ContinuousRoundedRectangle(28.dp),
+		color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f)
+	) {
+		Column {
+			SecondaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
+				Tab(
+					selected = tab == 0,
+					onClick = { tab = 0 },
+					text = { Text(stringResource(Res.string.action_queue)) }
+				)
+				Tab(
+					selected = tab == 1,
+					onClick = { tab = 1 },
+					text = { Text(stringResource(Res.string.action_lyrics)) }
+				)
+			}
+			Box(Modifier.weight(1f).padding(top = 8.dp)) {
+				if (tab == 0) QueueScreen(pane = true) else LyricsScreen(song, pane = true)
 			}
 		}
 	}
