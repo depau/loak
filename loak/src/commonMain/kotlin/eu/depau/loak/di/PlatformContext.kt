@@ -19,6 +19,12 @@ fun PlatformContext.isLandscape() = remember(sizeClass) {
 	sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 }
 
+/** Landscape tablets, desktop and web windows: the full player bar replaces the mini player. */
+@Composable
+fun PlatformContext.isExpanded() = remember(sizeClass) {
+	sizeClass.widthSizeClass >= WindowWidthSizeClass.Expanded
+}
+
 enum class PlatformType {
 	Android,
 	IOS,

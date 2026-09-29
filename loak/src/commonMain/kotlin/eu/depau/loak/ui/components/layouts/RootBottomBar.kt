@@ -16,6 +16,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import eu.depau.loak.di.LocalBottomBarScrollManager
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isExpanded
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
@@ -71,7 +73,13 @@ fun RootBottomBar(
 			else Modifier
 		)
 	) {
-		if (!hideMiniPlayer) MiniPlayer(
+		if (!hideMiniPlayer && LocalPlatformContext.current.isExpanded()) PlayerBar(
+			modifier = Modifier.graphicsLayer {
+				alpha = progress.coerceIn(0f..1f)
+				translationY = (1f - progress) * size.height * 2
+			},
+			enabled = !scrolled
+		) else if (!hideMiniPlayer) MiniPlayer(
 			modifier = Modifier.graphicsLayer {
 				alpha = progress.coerceIn(0f..1f)
 				translationY = ((1f - progress) * (size.height * 2)).coerceAtLeast(
