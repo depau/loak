@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.artist.components
 
+import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ListItem
@@ -52,6 +53,7 @@ fun ArtistListScreenListItem(
 
 	Box(modifier) {
 		ListItem(
+			modifier = Modifier.onSecondaryClick(onSelect),
 			leadingContent = {
 				CoverArt(
 					coverArtId = artist.coverArtId,

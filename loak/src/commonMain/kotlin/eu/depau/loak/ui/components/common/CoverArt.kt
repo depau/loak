@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.common
 
+import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.indication
@@ -94,7 +95,7 @@ fun CoverArt(
 		.background(MaterialTheme.colorScheme.surfaceContainer)
 		.then(
 			if (onClick != null)
-				Modifier.combinedClickable(
+				Modifier.onSecondaryClick(onLongClick).combinedClickable(
 					onClick = onClick,
 					onLongClick = onLongClick,
 					interactionSource = interactionSource

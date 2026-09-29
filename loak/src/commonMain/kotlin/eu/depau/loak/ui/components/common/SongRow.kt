@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.common
 
+import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -92,6 +93,7 @@ fun SongRow(
 		modifier = modifier
 			.width(400.dp)
 			.alpha(if (isExplicit) .5f else 1f)
+			.onSecondaryClick(onLongClick)
 			.combinedClickable(
 				onClick = onClick,
 				onLongClick = onLongClick,

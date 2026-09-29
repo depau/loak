@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.song.components
 
+import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -123,6 +124,7 @@ fun SongListScreenItem(
 	) {
 		Box {
 			ListItem(
+				modifier = Modifier.onSecondaryClick(onSelect),
 				onClick = onClick,
 				onLongClick = onSelect,
 				content = {

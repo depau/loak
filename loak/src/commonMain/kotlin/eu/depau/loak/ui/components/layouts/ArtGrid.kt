@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.combinedClickable
@@ -109,6 +110,7 @@ fun ArtGridItem(
 		Column(
 			modifier = Modifier
 				.fillMaxWidth()
+				.onSecondaryClick(onLongClick)
 				.combinedClickable(
 					interactionSource = interactionSource,
 					indication = null,

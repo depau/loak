@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -137,6 +138,12 @@ fun LazyStaggeredGridItemScope.loakAnimateItem(
 fun Modifier.longPressOverChildren(onLongClick: () -> Unit): Modifier = pointerInput(onLongClick) {
 	awaitEachGesture {
 		val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+		// a right click opens the same menu at once
+		if (currentEvent.buttons.isSecondaryPressed) {
+			down.consume()
+			onLongClick()
+			return@awaitEachGesture
+		}
 		val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
 			while (true) {
 				val change = awaitPointerEvent(PointerEventPass.Initial).changes
@@ -157,3 +164,18 @@ fun Modifier.longPressOverChildren(onLongClick: () -> Unit): Modifier = pointerI
 		} while (event.changes.any { it.pressed })
 	}
 }
+
+/**
+ * Mouse right click, for the items whose long press opens their options: on desktop and web
+ * a right click is the expected way to get there.
+ */
+fun Modifier.onSecondaryClick(onClick: (() -> Unit)?): Modifier =
+	if (onClick == null) this else pointerInput(onClick) {
+		awaitEachGesture {
+			val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+			if (currentEvent.buttons.isSecondaryPressed) {
+				down.consume()
+				onClick()
+			}
+		}
+	}
