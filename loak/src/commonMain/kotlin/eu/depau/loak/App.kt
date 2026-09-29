@@ -12,6 +12,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -70,6 +71,7 @@ import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.LocalSharedTransitionScope
 import eu.depau.loak.di.LocalSnackBarState
 import eu.depau.loak.di.PlatformType
+import eu.depau.loak.di.isLandscape
 import eu.depau.loak.di.rememberPlatformContext
 import eu.depau.loak.domain.manager.BottomBarScrollManager
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -121,6 +123,7 @@ import eu.depau.loak.ui.screens.song.SongDetailScreen
 import eu.depau.loak.ui.screens.song.SongDetailSheet
 import eu.depau.loak.ui.screens.song.SongListScreen
 import eu.depau.loak.ui.screens.starred.StarredScreen
+import eu.depau.loak.ui.components.layouts.AppNavigationRail
 import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.ui.util.Material3Transitions
 
@@ -213,78 +216,83 @@ fun App() {
 					},
 					contentWindowInsets = WindowInsets()
 				) { contentPadding ->
-					NavDisplay(
-						modifier = Modifier
-							.padding(
-								start = contentPadding
-									.calculateStartPadding(layoutDirection),
-								end = contentPadding
-									.calculateEndPadding(layoutDirection)
-							)
-							.fillMaxSize()
-							.background(MaterialTheme.colorScheme.surface),
-						backStack = backStack,
-						sceneStrategies = listOf(
-							remember { NowPlayingSceneStrategy() },
-							remember { BottomSheetSceneStrategy() },
-							rememberListDetailSceneStrategy()
-						),
-						entryDecorators = listOf(
-							rememberSaveableStateHolderNavEntryDecorator(),
+					Row {
+						// wider windows: the tabs move from each screen's bottom bar into a rail
+						if (isLoggedIn && platformContext.isLandscape()) AppNavigationRail()
+						NavDisplay(
+							modifier = Modifier
+								.weight(1f)
+								.padding(
+									start = contentPadding
+										.calculateStartPadding(layoutDirection),
+									end = contentPadding
+										.calculateEndPadding(layoutDirection)
+								)
+								.fillMaxSize()
+								.background(MaterialTheme.colorScheme.surface),
+							backStack = backStack,
+							sceneStrategies = listOf(
+								remember { NowPlayingSceneStrategy() },
+								remember { BottomSheetSceneStrategy() },
+								rememberListDetailSceneStrategy()
+							),
+							entryDecorators = listOf(
+								rememberSaveableStateHolderNavEntryDecorator(),
 
-							// makes it so that ViewModels get destroyed if their
-							// associated screen is removed from the back stack
-							//
-							// this might not always be desirable, so the
-							// `PersistentViewModelStoreOwner` class is used for
-							// certain ViewModels to work around this
-							rememberViewModelStoreNavEntryDecorator()
-						),
-						onBack = {
-							if (backStack.size >= 2) {
-								backStack.removeLastOrNull()
+								// makes it so that ViewModels get destroyed if their
+								// associated screen is removed from the back stack
+								//
+								// this might not always be desirable, so the
+								// `PersistentViewModelStoreOwner` class is used for
+								// certain ViewModels to work around this
+								rememberViewModelStoreNavEntryDecorator()
+							),
+							onBack = {
+								if (backStack.size >= 2) {
+									backStack.removeLastOrNull()
+								}
+							},
+							entryProvider = entryProvider(backStack),
+							sharedTransitionScope = this@SharedTransitionLayout,
+							transitionSpec = {
+								if (platformContext.platformType == PlatformType.Web) {
+									// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
+									ContentTransform(EnterTransition.None, ExitTransition.None)
+								} else {
+									Material3Transitions.SharedXAxisEnterTransition(
+										density
+									) togetherWith Material3Transitions.SharedXAxisExitTransition(
+										density
+									)
+								}
+							},
+							popTransitionSpec = {
+								if (platformContext.platformType == PlatformType.Web) {
+									// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
+									ContentTransform(EnterTransition.None, ExitTransition.None)
+								} else {
+									Material3Transitions.SharedXAxisPopEnterTransition(
+										density
+									) togetherWith Material3Transitions.SharedXAxisPopExitTransition(
+										density
+									)
+								}
+							},
+							predictivePopTransitionSpec = {
+								if (preferenceManager.enablePredictiveBackAnimations) {
+									slideInHorizontally(
+										animationSpec = tween(300, easing = EaseOutQuart),
+										initialOffsetX = { -it }
+									) togetherWith slideOutHorizontally(
+										animationSpec = tween(300, easing = EaseOutQuart),
+										targetOffsetX = { it }
+									)
+								} else {
+									ContentTransform(EnterTransition.None, ExitTransition.None)
+								}
 							}
-						},
-						entryProvider = entryProvider(backStack),
-						sharedTransitionScope = this@SharedTransitionLayout,
-						transitionSpec = {
-							if (platformContext.platformType == PlatformType.Web) {
-								// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
-								ContentTransform(EnterTransition.None, ExitTransition.None)
-							} else {
-								Material3Transitions.SharedXAxisEnterTransition(
-									density
-								) togetherWith Material3Transitions.SharedXAxisExitTransition(
-									density
-								)
-							}
-						},
-						popTransitionSpec = {
-							if (platformContext.platformType == PlatformType.Web) {
-								// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
-								ContentTransform(EnterTransition.None, ExitTransition.None)
-							} else {
-								Material3Transitions.SharedXAxisPopEnterTransition(
-									density
-								) togetherWith Material3Transitions.SharedXAxisPopExitTransition(
-									density
-								)
-							}
-						},
-						predictivePopTransitionSpec = {
-							if (preferenceManager.enablePredictiveBackAnimations) {
-								slideInHorizontally(
-									animationSpec = tween(300, easing = EaseOutQuart),
-									initialOffsetX = { -it }
-								) togetherWith slideOutHorizontally(
-									animationSpec = tween(300, easing = EaseOutQuart),
-									targetOffsetX = { it }
-								)
-							} else {
-								ContentTransform(EnterTransition.None, ExitTransition.None)
-							}
-						}
-					)
+						)
+					}
 				}
 				// version check is annoying to do on iOS
 				if (preferenceManager.checkForUpdates
@@ -305,11 +313,10 @@ private fun entryProvider(
 	val fadeSpec = ContentTransform(fadeIn(), fadeOut())
 
 	val navtabMetadata = if (backStack.size == 1)
-		listPane("root")
-			.plus(transitionSpec { fadeSpec })
+		transitionSpec { fadeSpec }
 			.plus(popTransitionSpec { fadeSpec })
 			.plus(predictivePopTransitionSpec { fadeSpec })
-	else listPane("root")
+	else emptyMap()
 	val imageViewMetadata = transitionSpec { ContentTransform(fadeIn(), ExitTransition.None) }
 		.plus(popTransitionSpec { ContentTransform(EnterTransition.None, fadeOut()) })
 		.plus(predictivePopTransitionSpec { ContentTransform(EnterTransition.None, fadeOut()) })
@@ -373,7 +380,7 @@ private fun entryProvider(
 		entry<Screen.PlaybackSpeed>(metadata = BottomSheetSceneStrategy.bottomSheet()) {
 			PlaybackSpeedScreen()
 		}
-		entry<Screen.CollectionDetail>(metadata = detailPane("root")) { key ->
+		entry<Screen.CollectionDetail> { key ->
 			CollectionDetailScreen(key.collectionId, key.tab)
 		}
 		entry<Screen.SongDetailScreen> { key ->

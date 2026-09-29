@@ -22,6 +22,8 @@ import eu.depau.loak.generated.resources.title_search
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isLandscape
 import eu.depau.loak.domain.models.settings.NavbarConfig
 import eu.depau.loak.domain.models.settings.NavbarTab
 import eu.depau.loak.icons.Icons
@@ -92,7 +94,8 @@ private fun Actions(
 		}
 	}
 
-	TooltipBox(stringResource(Res.string.title_account)) {
+	// wider windows have it at the bottom of the navigation rail
+	if (!LocalPlatformContext.current.isLandscape()) TooltipBox(stringResource(Res.string.title_account)) {
 		IconButton(onClick = {
 			accountSheetOpen = true
 		}) {

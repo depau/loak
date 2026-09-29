@@ -4,6 +4,20 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
+import eu.depau.loak.di.isLandscape
+import eu.depau.loak.generated.resources.title_account
+import eu.depau.loak.icons.outlined.AccountCircle
+import eu.depau.loak.ui.components.common.TooltipBox
+import eu.depau.loak.ui.components.sheets.AccountSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -13,7 +27,6 @@ import androidx.compose.material3.NavigationItemIconPosition
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -125,7 +138,6 @@ fun BottomBar(
 	enabled: Boolean = true
 ) {
 	val viewModel = koinViewModel<NavtabsViewModel>()
-	val rootViewModel = koinViewModel<RootViewModel>()
 	val backStack = LocalNavStack.current
 	val platformContext = LocalPlatformContext.current
 	val state by viewModel.state.collectAsState()
@@ -134,23 +146,13 @@ fun BottomBar(
 		.tabs.filter { tab -> tab.visible }
 	val preferenceManager = koinInject<PreferenceManager>()
 
-	// A tab tap resets the stack to that tab, so the stack's root is the tab the user is in,
-	// and it stays selected on the screens pushed from it
-	val onTabSelected = { destination: Screen ->
-		if (backStack.lastOrNull() == destination) {
-			rootViewModel.requestScrollToTop()
-		} else {
-			backStack.apply {
-				clear()
-				add(destination)
-			}
-		}
-	}
+	val onTabSelected = rememberOnTabSelected()
+
+	// wider windows get the navigation rail instead (AppNavigationRail)
+	if (platformContext.isLandscape()) return
 
 	AnimatedContent(
-		preferenceManager.navigationBarStyle != NavigationBarStyle.Short
-			&& platformContext.sizeClass.widthSizeClass <= WindowWidthSizeClass.Compact
-			&& tabs.size > 1
+		preferenceManager.navigationBarStyle != NavigationBarStyle.Short && tabs.size > 1
 	) {
 		if (tabs.size < 2) return@AnimatedContent
 		if (it) {
@@ -160,16 +162,7 @@ fun BottomBar(
 				windowInsets = windowInsets
 			) {
 				tabs.forEach { tab ->
-					val item = when (tab.id) {
-						NavbarTab.Id.LIBRARY -> NavItem.LIBRARY
-						NavbarTab.Id.ALBUMS -> NavItem.ALBUMS
-						NavbarTab.Id.PLAYLISTS -> NavItem.PLAYLISTS
-						NavbarTab.Id.ARTISTS -> NavItem.ARTISTS
-						NavbarTab.Id.SEARCH -> NavItem.SEARCH
-						NavbarTab.Id.GENRES -> NavItem.GENRES
-						NavbarTab.Id.SONGS -> NavItem.SONGS
-						NavbarTab.Id.RADIOS -> NavItem.RADIOS
-					}
+					val item = tab.id.navItem()
 					val selected = backStack.firstOrNull() == item.destination
 
 					NavigationBarItem(
@@ -216,22 +209,11 @@ fun BottomBar(
 				containerColor = containerColor
 			) {
 				tabs.forEach { tab ->
-					val item = when (tab.id) {
-						NavbarTab.Id.LIBRARY -> NavItem.LIBRARY
-						NavbarTab.Id.ALBUMS -> NavItem.ALBUMS
-						NavbarTab.Id.PLAYLISTS -> NavItem.PLAYLISTS
-						NavbarTab.Id.ARTISTS -> NavItem.ARTISTS
-						NavbarTab.Id.SEARCH -> NavItem.SEARCH
-						NavbarTab.Id.GENRES -> NavItem.GENRES
-						NavbarTab.Id.SONGS -> NavItem.SONGS
-						NavbarTab.Id.RADIOS -> NavItem.RADIOS
-					}
+					val item = tab.id.navItem()
 					val selected = backStack.firstOrNull() == item.destination
 
 					ShortNavigationBarItem(
-						iconPosition = if (platformContext.sizeClass.widthSizeClass > WindowWidthSizeClass.Compact)
-							NavigationItemIconPosition.Start
-						else NavigationItemIconPosition.Top,
+						iconPosition = NavigationItemIconPosition.Top,
 						selected = selected,
 						enabled = enabled,
 						onClick = dropUnlessResumed {
@@ -261,5 +243,74 @@ fun BottomBar(
 				}
 			}
 		}
+	}
+}
+
+private fun NavbarTab.Id.navItem() = when (this) {
+	NavbarTab.Id.LIBRARY -> NavItem.LIBRARY
+	NavbarTab.Id.ALBUMS -> NavItem.ALBUMS
+	NavbarTab.Id.PLAYLISTS -> NavItem.PLAYLISTS
+	NavbarTab.Id.ARTISTS -> NavItem.ARTISTS
+	NavbarTab.Id.SEARCH -> NavItem.SEARCH
+	NavbarTab.Id.GENRES -> NavItem.GENRES
+	NavbarTab.Id.SONGS -> NavItem.SONGS
+	NavbarTab.Id.RADIOS -> NavItem.RADIOS
+}
+
+@Composable
+private fun rememberOnTabSelected(): (Screen) -> Unit {
+	val rootViewModel = koinViewModel<RootViewModel>()
+	val backStack = LocalNavStack.current
+	// A tab tap resets the stack to that tab, so the stack's root is the tab the user is in,
+	// and it stays selected on the screens pushed from it
+	return { destination: Screen ->
+		if (backStack.lastOrNull() == destination) {
+			rootViewModel.requestScrollToTop()
+		} else {
+			backStack.apply {
+				clear()
+				add(destination)
+			}
+		}
+	}
+}
+
+/** The tabs in a navigation rail, for windows wider than a phone. Account sits at the bottom. */
+@Composable
+fun AppNavigationRail(modifier: Modifier = Modifier) {
+	val viewModel = koinViewModel<NavtabsViewModel>()
+	val backStack = LocalNavStack.current
+	val state by viewModel.state.collectAsState()
+	val tabs = ((state as? UiState.Success)?.data ?: NavbarConfig.default)
+		.tabs.filter { tab -> tab.visible }
+	val onTabSelected = rememberOnTabSelected()
+	var accountSheetOpen by rememberSaveable { mutableStateOf(false) }
+
+	NavigationRail(
+		modifier = modifier,
+		containerColor = MaterialTheme.colorScheme.surface
+	) {
+		Spacer(Modifier.height(12.dp))
+		tabs.forEach { tab ->
+			val item = tab.id.navItem()
+			val selected = backStack.firstOrNull() == item.destination
+			NavigationRailItem(
+				selected = selected,
+				onClick = dropUnlessResumed { onTabSelected(item.destination) },
+				icon = { Icon(if (selected) item.icon else item.iconUnselected, null) },
+				label = { Text(stringResource(item.label), maxLines = 1) }
+			)
+		}
+		Spacer(Modifier.weight(1f))
+		TooltipBox(stringResource(Res.string.title_account)) {
+			IconButton(onClick = { accountSheetOpen = true }) {
+				Icon(Icons.Outlined.AccountCircle, stringResource(Res.string.title_account))
+			}
+		}
+		Spacer(Modifier.height(16.dp))
+	}
+
+	if (accountSheetOpen) {
+		AccountSheet(onDismissRequest = { accountSheetOpen = false })
 	}
 }
