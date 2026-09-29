@@ -1,6 +1,12 @@
 package eu.depau.loak.ui.components.layouts
 
 import androidx.compose.foundation.background
+import eu.depau.loak.icons.outlined.VolumeUp
+import eu.depau.loak.generated.resources.action_volume
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Slider
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +48,6 @@ import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalQueuePaneOpen
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.action_lyrics
 import eu.depau.loak.generated.resources.action_next_song
 import eu.depau.loak.generated.resources.action_pause
 import eu.depau.loak.generated.resources.action_play
@@ -65,7 +70,6 @@ import eu.depau.loak.icons.filled.SkipPrevious
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.KeyboardArrowDown
 import eu.depau.loak.icons.outlined.List
-import eu.depau.loak.icons.outlined.Lyrics
 import eu.depau.loak.icons.outlined.Repeat
 import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.icons.outlined.Star
@@ -94,6 +98,7 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 	val songIsStarred by nowPlayingViewModel.songIsStarred.collectAsState()
 	val backStack = LocalNavStack.current
 	val queuePaneOpen = LocalQueuePaneOpen.current
+	val volumeLabel = stringResource(Res.string.action_volume)
 	val isRadio = song?.id?.startsWith("radio_") == true
 	val interactive = enabled && song != null
 
@@ -244,11 +249,21 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 							modifier = Modifier.padding(end = 8.dp)
 						)
 					}
-					IconButton(
-						onClick = dropUnlessResumed { backStack.add(Screen.Lyrics) },
-						enabled = interactive
-					) {
-						Icon(Icons.Outlined.Lyrics, stringResource(Res.string.action_lyrics))
+					// only where the app owns the volume (web); elsewhere the device's keys do
+					player.volume?.let { volumeFlow ->
+						val volume by volumeFlow.collectAsState()
+						Icon(
+							Icons.Outlined.VolumeUp,
+							contentDescription = null,
+							tint = MaterialTheme.colorScheme.onSurfaceVariant
+						)
+						Slider(
+							value = volume,
+							onValueChange = player::setVolume,
+							modifier = Modifier
+								.width(112.dp)
+								.semantics { contentDescription = volumeLabel }
+						)
 					}
 					IconToggleButton(
 						checked = queuePaneOpen.value,

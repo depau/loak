@@ -76,6 +76,10 @@ abstract class MediaPlayerViewModel(
 	abstract fun shufflePlay(collection: DomainSongCollection)
 	abstract fun setPlaybackSpeed(value: Float)
 
+	/** 0..1, or null where volume belongs to the device (hardware keys) and the app shows none. */
+	open val volume: StateFlow<Float>? = null
+	open fun setVolume(value: Float) {}
+
 	fun addToQueueSingle(song: DomainSong, notify: Boolean = true) =
 		addToQueue(listOf(song), notify)
 

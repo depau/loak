@@ -377,6 +377,7 @@
 	<string name="action_add_to_queue">Add to queue</string>
 	<string name="action_queue">Queue</string>
 	<string name="action_close_queue">Close queue</string>
+	<string name="action_volume">Volume</string>
 	<string name="action_reorder">Reorder</string>
 	<string name="action_remove_from_queue">Remove from queue</string>
 	<string name="action_clear_queue">Clear queue</string>

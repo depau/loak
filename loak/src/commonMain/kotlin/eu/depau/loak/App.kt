@@ -1,5 +1,13 @@
 package eu.depau.loak
 
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusTarget
 import eu.depau.loak.ui.screens.queue.QueuePane
 import eu.depau.loak.di.isExpanded
 import eu.depau.loak.di.LocalQueuePaneOpen
@@ -188,6 +196,9 @@ fun App() {
 
 	var appStarted by rememberSaveable { mutableStateOf(false) }
 	val queuePaneOpen = rememberSaveable { mutableStateOf(false) }
+	val mediaPlayer = koinInject<MediaPlayerViewModel>()
+	val rootFocus = remember { FocusRequester() }
+	LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
 
 	LaunchedEffect(Unit) {
 		if (!appStarted) {
@@ -209,7 +220,21 @@ fun App() {
 		) {
 			LoakTheme {
 				Scaffold(
-					modifier = Modifier.nestedScroll(scrollManager.connection),
+					modifier = Modifier
+						.nestedScroll(scrollManager.connection)
+						// keyboards (desktop, web, tablets with one): space plays/pauses unless a
+						// text field or a focused button takes it first
+						.focusRequester(rootFocus)
+						.focusTarget()
+						.onKeyEvent { event ->
+							if (event.type != KeyEventType.KeyUp || event.key != Key.Spacebar) {
+								return@onKeyEvent false
+							}
+							val player = mediaPlayer
+							if (player.uiState.value.currentSong == null) return@onKeyEvent false
+							if (player.uiState.value.isPaused) player.resume() else player.pause()
+							true
+						},
 					snackbarHost = {
 						// sit above the mini player and nav bar when a screen shows them
 						val barHeight = scrollManager.barHeights.values.maxOrNull() ?: 0.dp

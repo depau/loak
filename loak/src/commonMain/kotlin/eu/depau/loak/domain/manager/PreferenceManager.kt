@@ -91,6 +91,8 @@ class PreferenceManager(
 	var autoFillQueue by preference(false)
 	/** Id of the playlist songs were last saved to; "Add to playlist" goes straight there. */
 	var lastPlaylistId by preference("")
+	/** In-app volume, where the platform has no hardware volume keys (web). */
+	var playerVolume by preference(1f)
 
 	// navigation bar settings
 	var bottomBarCollapseMode by preference(BottomBarCollapseMode.Never)

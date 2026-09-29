@@ -1,5 +1,7 @@
 package eu.depau.loak.shared
 
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.viewModelScope
 import kotlinx.browser.document
 import kotlinx.coroutines.flow.update
@@ -50,6 +52,16 @@ class WebMediaPlayerViewModel(
 
 	private var isTransitioningBetweenTracks = false
 
+	override val volume: StateFlow<Float>
+		field = MutableStateFlow(preferenceManager.playerVolume)
+
+	override fun setVolume(value: Float) {
+		val v = value.coerceIn(0f, 1f)
+		volume.value = v
+		audio.volume = v.toDouble()
+		preferenceManager.playerVolume = v
+	}
+
 	private val scrobbleManager = ScrobbleManager(
 		playerSource = object : ScrobblePlayerSource {
 			override val currentPosition: Long
@@ -67,6 +79,7 @@ class WebMediaPlayerViewModel(
 	)
 
 	init {
+		audio.volume = volume.value.toDouble()
 		setupAudioListeners()
 		startProgressObserver()
 	}
