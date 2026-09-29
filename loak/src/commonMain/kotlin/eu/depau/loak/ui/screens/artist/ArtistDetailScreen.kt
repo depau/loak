@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -255,7 +256,7 @@ fun ArtistDetailScreen(
 								},
 								downloadStatus = downloadStatus,
 								playEnabled = state.albums.isNotEmpty(),
-								modifier = Modifier.padding(top = 8.dp)
+								modifier = Modifier.widthIn(max = 560.dp).padding(top = 8.dp)
 							)
 							Column(
 								modifier = Modifier

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,7 +63,8 @@ fun CollectionDetailScreenHeadingRowButtons(
 		.collectAsState(initial = DownloadStatus.NOT_DOWNLOADED)
 
 	Row(
-		modifier = Modifier.padding(horizontal = 31.dp, vertical = 10.dp),
+		// on wide windows the play button keeps a phone-like width
+		modifier = Modifier.widthIn(max = 560.dp).padding(horizontal = 31.dp, vertical = 10.dp),
 		verticalAlignment = Alignment.CenterVertically,
 		horizontalArrangement = Arrangement.spacedBy(
 			10.dp,

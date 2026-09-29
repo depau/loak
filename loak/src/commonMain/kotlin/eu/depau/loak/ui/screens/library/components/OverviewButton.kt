@@ -32,7 +32,8 @@ fun LazyGridScope.libraryScreenOverviewButton(
 	icon: ImageVector,
 	label: StringResource,
 	destination: NavKey,
-	start: Boolean
+	start: Boolean,
+	end: Boolean = !start
 ) {
 	item(span = { GridItemSpan(1) }) {
 		val backStack = LocalNavStack.current
@@ -42,7 +43,7 @@ fun LazyGridScope.libraryScreenOverviewButton(
 				.height(42.dp)
 				.padding(
 					start = if (start) 16.dp else 0.dp,
-					end = if (!start) 16.dp else 0.dp,
+					end = if (end) 16.dp else 0.dp,
 				),
 			contentPadding = PaddingValues(horizontal = 12.dp),
 			elevation = null,

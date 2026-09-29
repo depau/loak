@@ -35,6 +35,8 @@ import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.ui.components.layouts.horizontalSection
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isExpanded
 import eu.depau.loak.ui.screens.album.components.AlbumListScreenGridItem
 import eu.depau.loak.ui.screens.artist.ArtistListScreenGridItem
 import eu.depau.loak.ui.screens.genre.components.GenreListScreenCard
@@ -84,9 +86,11 @@ fun LibraryScreenContent(
 	// genres
 	genresState: UiState<ImmutableList<DomainGenre>>
 ) {
+	// wider windows: the four shortcuts fit on one row
+	val columns = if (LocalPlatformContext.current.isExpanded()) 4 else 2
 	LazyVerticalGrid(
 		modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-		columns = GridCells.Fixed(2),
+		columns = GridCells.Fixed(columns),
 		contentPadding = innerPadding.withoutTop() + PaddingValues(top = 8.dp),
 		verticalArrangement = Arrangement.spacedBy(5.dp),
 		horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -96,25 +100,29 @@ fun LibraryScreenContent(
 			icon = Icons.Outlined.LibraryAdd,
 			label = Res.string.option_sort_newest,
 			destination = Screen.AlbumList(true, DomainAlbumListType.Newest),
-			start = true
+			start = 0 % columns == 0,
+			end = 0 % columns == columns - 1
 		)
 		libraryScreenOverviewButton(
 			icon = Icons.Outlined.Shuffle,
 			label = Res.string.option_sort_random,
 			destination = Screen.AlbumList(true, DomainAlbumListType.Random),
-			start = false
+			start = 1 % columns == 0,
+			end = 1 % columns == columns - 1
 		)
 		libraryScreenOverviewButton(
 			icon = Icons.Outlined.Star,
 			label = Res.string.option_sort_starred,
 			destination = Screen.Starred(),
-			start = true
+			start = 2 % columns == 0,
+			end = 2 % columns == columns - 1
 		)
 		libraryScreenOverviewButton(
 			icon = Icons.Outlined.History,
 			label = Res.string.option_sort_frequent,
 			destination = Screen.AlbumList(true, DomainAlbumListType.Frequent),
-			start = false
+			start = 3 % columns == 0,
+			end = 3 % columns == columns - 1
 		)
 
 		horizontalSection(

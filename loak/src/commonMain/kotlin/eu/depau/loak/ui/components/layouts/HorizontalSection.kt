@@ -3,6 +3,8 @@ package eu.depau.loak.ui.components.layouts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -70,36 +72,38 @@ fun LazyGridScope.header(
 	destination: NavKey,
 	active: Boolean
 ) {
-	item(span = { GridItemSpan(1) }) {
-		Text(
-			stringResource(title, formatArgs),
-			style = MaterialTheme.typography.titleMediumEmphasized,
-			fontWeight = FontWeight(600),
-			modifier = Modifier
-				.heightIn(min = 32.dp)
-				.padding(top = 12.dp, start = 16.dp)
-				.semantics { heading() }
-		)
-	}
-	if (active) {
-		item(span = { GridItemSpan(1) }) {
-			val backStack = LocalNavStack.current
+	// one full-width row, so it works whatever the grid's column count
+	item(span = { GridItemSpan(maxLineSpan) }) {
+		Row(verticalAlignment = Alignment.Bottom) {
 			Text(
-				stringResource(Res.string.action_see_all),
-				fontSize = 12.sp,
-				color = MaterialTheme.colorScheme.primary,
-				textAlign = TextAlign.Right,
+				stringResource(title, formatArgs),
+				style = MaterialTheme.typography.titleMediumEmphasized,
+				fontWeight = FontWeight(600),
 				modifier = Modifier
+					.weight(1f)
 					.heightIn(min = 32.dp)
-					.padding(top = 12.dp, end = 16.dp)
-					.clickable(
-						interactionSource = null,
-						indication = null,
-						onClick = dropUnlessResumed {
-					    	backStack.add(destination)
-					    }
-					)
+					.padding(top = 12.dp, start = 16.dp)
+					.semantics { heading() }
 			)
+			if (active) {
+				val backStack = LocalNavStack.current
+				Text(
+					stringResource(Res.string.action_see_all),
+					fontSize = 12.sp,
+					color = MaterialTheme.colorScheme.primary,
+					textAlign = TextAlign.Right,
+					modifier = Modifier
+						.heightIn(min = 32.dp)
+						.padding(top = 12.dp, end = 16.dp)
+						.clickable(
+							interactionSource = null,
+							indication = null,
+							onClick = dropUnlessResumed {
+								backStack.add(destination)
+							}
+						)
+				)
+			}
 		}
 	}
 }

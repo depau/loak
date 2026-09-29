@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -35,7 +36,10 @@ import androidx.compose.ui.unit.dp
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_more
 import org.jetbrains.compose.resources.stringResource
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isLandscape
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.screens.artist.truncateText
 
@@ -50,11 +54,19 @@ fun ArtistDetailScreenHeading(
 ) {
 	val layoutDirection = LocalLayoutDirection.current
 	val progress by animateFloatAsState(if (scrolled) 0f else 1f)
+	// next to the navigation rail a full-bleed fade looks cut off: the photo becomes an inset card
+	val card = LocalPlatformContext.current.isLandscape()
 	BoxWithConstraints(
 		modifier = Modifier.fillMaxWidth()
 	) {
 		Box(
-			modifier = Modifier
+			modifier = if (card) Modifier
+				.padding(top = innerPadding.calculateTopPadding(), start = 16.dp, end = 16.dp)
+				.fillMaxWidth()
+				.height(320.dp)
+				.clip(ContinuousRoundedRectangle(28.dp))
+				.background(MaterialTheme.colorScheme.surfaceContainer)
+			else Modifier
 				.fillMaxWidth()
 				.height((400.dp / (maxWidth / 300.dp)) + innerPadding.calculateTopPadding())
 				.background(MaterialTheme.colorScheme.surfaceContainer)
@@ -69,7 +81,10 @@ fun ArtistDetailScreenHeading(
 				modifier = Modifier
 					.fillMaxSize()
 					.background(
-						Brush.verticalGradient(
+						if (card) Brush.verticalGradient(
+							0.35f to Color.Transparent,
+							1f to Color.Black.copy(alpha = .62f)
+						) else Brush.verticalGradient(
 							0.0f to Color.Transparent,
 							0.975f to MaterialTheme.colorScheme.background
 						)
@@ -80,6 +95,7 @@ fun ArtistDetailScreenHeading(
 				modifier = Modifier
 					.align(Alignment.BottomStart)
 					.padding(horizontal = 20.dp)
+					.padding(bottom = if (card) 20.dp else 0.dp)
 					.padding(start = innerPadding.calculateStartPadding(layoutDirection))
 					.padding(end = innerPadding.calculateEndPadding(layoutDirection)),
 				verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -96,7 +112,7 @@ fun ArtistDetailScreenHeading(
 							}
 						},
 						style = MaterialTheme.typography.bodySmall,
-						color = MaterialTheme.colorScheme.onSurface,
+						color = if (card) Color.White.copy(alpha = .9f) else MaterialTheme.colorScheme.onSurface,
 						modifier = Modifier.widthIn(max = 500.dp)
 					)
 				}
@@ -104,6 +120,7 @@ fun ArtistDetailScreenHeading(
 					text = artistName,
 					style = MaterialTheme.typography.displaySmall.copy(
 						fontWeight = FontWeight.Bold,
+						color = if (card) Color.White else Color.Unspecified
 					),
 					modifier = Modifier
 						.fillMaxWidth()
