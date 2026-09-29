@@ -4,6 +4,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -39,4 +40,9 @@ val LocalBottomBarScrollManager = staticCompositionLocalOf<BottomBarScrollManage
 @OptIn(ExperimentalMaterial3Api::class)
 val LocalSheetState = staticCompositionLocalOf<SheetState> {
 	error("LocalSheetState used outside of a sheet")
+}
+
+/** Whether the queue shows as a side pane (expanded windows only). */
+val LocalQueuePaneOpen = staticCompositionLocalOf<MutableState<Boolean>> {
+	error("No queue pane state provided")
 }

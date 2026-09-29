@@ -31,7 +31,6 @@ import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
-import eu.depau.loak.di.isLandscape
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainArtist
@@ -59,7 +58,6 @@ fun ArtistListScreen(
 	nested: Boolean = false,
 	listType: DomainArtistListType
 ) {
-	val platformContext = LocalPlatformContext.current
 	val preferenceManager = koinInject<PreferenceManager>()
 	val selectedViewMode = preferenceManager.artistListViewMode
 
@@ -120,7 +118,7 @@ fun ArtistListScreen(
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
 			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!nested || (!platformContext.isLandscape() && preferVisible)) {
+			if (!nested || preferVisible) {
 				RootBottomBar(scrolled = scrollManager.isTriggered)
 			}
 		}

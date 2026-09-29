@@ -71,7 +71,6 @@ import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
-import eu.depau.loak.di.isLandscape
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SnackBarManager
@@ -102,7 +101,6 @@ import kotlin.time.Duration
 fun ArtistDetailScreen(
 	artistId: String
 ) {
-	val platformContext = LocalPlatformContext.current
 	val preferenceManager = koinInject<PreferenceManager>()
 
 	val viewModel = koinViewModel<ArtistDetailViewModel>(
@@ -175,7 +173,7 @@ fun ArtistDetailScreen(
 			bottomBar = {
 				val scrollManager = LocalBottomBarScrollManager.current
 				val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-				if (!platformContext.isLandscape() && preferVisible) {
+				if (preferVisible) {
 					RootBottomBar(scrolled = scrollManager.isTriggered)
 				}
 			}

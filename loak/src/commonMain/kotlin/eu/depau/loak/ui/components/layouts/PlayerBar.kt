@@ -39,6 +39,7 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.di.LocalQueuePaneOpen
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_lyrics
@@ -92,6 +93,7 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 	val nowPlayingViewModel = koinViewModel<NowPlayingViewModel> { parametersOf(player) }
 	val songIsStarred by nowPlayingViewModel.songIsStarred.collectAsState()
 	val backStack = LocalNavStack.current
+	val queuePaneOpen = LocalQueuePaneOpen.current
 	val isRadio = song?.id?.startsWith("radio_") == true
 	val interactive = enabled && song != null
 
@@ -248,9 +250,13 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 					) {
 						Icon(Icons.Outlined.Lyrics, stringResource(Res.string.action_lyrics))
 					}
-					IconButton(
-						onClick = dropUnlessResumed { backStack.add(Screen.Queue) },
-						enabled = interactive
+					IconToggleButton(
+						checked = queuePaneOpen.value,
+						onCheckedChange = { queuePaneOpen.value = it },
+						colors = IconButtonDefaults.iconToggleButtonColors(
+							checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+							checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+						)
 					) {
 						Icon(Icons.Outlined.List, stringResource(Res.string.action_queue))
 					}

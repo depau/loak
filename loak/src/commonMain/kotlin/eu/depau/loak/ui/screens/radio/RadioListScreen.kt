@@ -40,7 +40,6 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalPlatformContext
-import eu.depau.loak.di.isLandscape
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
@@ -65,7 +64,6 @@ import eu.depau.loak.ui.viewmodel.RootViewModel
 fun RadioListScreen(
 	nested: Boolean
 ) {
-	val platformContext = LocalPlatformContext.current
 	val scrollManager = LocalBottomBarScrollManager.current
 	val viewModel = koinViewModel<RadioListViewModel>(
 		viewModelStoreOwner = if (nested) {
@@ -139,7 +137,7 @@ fun RadioListScreen(
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
 			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!nested || (!platformContext.isLandscape() && preferVisible)) {
+			if (!nested || preferVisible) {
 				RootBottomBar(scrolled = scrollManager.isTriggered)
 			}
 		}

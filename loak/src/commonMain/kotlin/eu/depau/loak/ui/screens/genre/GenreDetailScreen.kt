@@ -31,7 +31,6 @@ import eu.depau.loak.ui.screens.album.viewmodels.AlbumListViewModel
 import eu.depau.loak.ui.screens.genre.components.GenreDetailScreenContent
 import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
 import eu.depau.loak.ui.screens.song.viewmodels.SongListViewModel
-import eu.depau.loak.di.isLandscape
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalPlatformContext
 import kotlin.time.Duration
@@ -40,7 +39,6 @@ import kotlin.time.Duration
 fun GenreDetailScreen(
 	genreName: String
 ) {
-	val platformContext = LocalPlatformContext.current
 	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 
@@ -73,7 +71,7 @@ fun GenreDetailScreen(
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
 			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!platformContext.isLandscape() && preferVisible) {
+			if (preferVisible) {
 				RootBottomBar(scrolled = scrollManager.isTriggered)
 			}
 		}

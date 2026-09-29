@@ -76,7 +76,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QueueScreen() {
+/** The queue, as a bottom sheet or, with [pane], as the side pane on expanded windows. */
+fun QueueScreen(pane: Boolean = false) {
 	val viewModel = koinViewModel<QueueViewModel>()
 	val backStack = LocalNavStack.current
 	val player = koinInject<MediaPlayerViewModel>()
@@ -160,10 +161,11 @@ fun QueueScreen() {
 		QueueInfoType.Remaining -> stringResource(Res.string.info_duration_left, durationText)
 	}
 
-	val sheetState = LocalSheetState.current
+	val sheetState = if (pane) null else LocalSheetState.current
 	val closeScope = rememberCoroutineScope()
 	val animateToDismiss = {
-		closeScope.launch {
+		// the pane stays open next to the content
+		if (sheetState != null) closeScope.launch {
 			sheetState.hide()
 		}.invokeOnCompletion {
 			if (!sheetState.isVisible) {
@@ -274,7 +276,7 @@ fun QueueScreen() {
 		}
 		// The queue sheet covers the app's snackbar host, so undo snackbars show here too,
 		// under the header: the sheet's bottom edge is off-screen while it's half open.
-		SnackbarHost(
+		if (!pane) SnackbarHost(
 			hostState = LocalSnackBarState.current,
 			modifier = Modifier.align(Alignment.TopCenter).padding(top = 52.dp)
 		) { LoakSnackBar(snackBarData = it) }

@@ -1,5 +1,11 @@
 package eu.depau.loak
 
+import eu.depau.loak.ui.screens.queue.QueuePane
+import eu.depau.loak.di.isExpanded
+import eu.depau.loak.di.LocalQueuePaneOpen
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -181,6 +187,7 @@ fun App() {
 	}
 
 	var appStarted by rememberSaveable { mutableStateOf(false) }
+	val queuePaneOpen = rememberSaveable { mutableStateOf(false) }
 
 	LaunchedEffect(Unit) {
 		if (!appStarted) {
@@ -197,7 +204,8 @@ fun App() {
 			LocalNavStack provides backStack,
 			LocalSnackBarState provides snackBarState,
 			LocalSharedTransitionScope provides this@SharedTransitionLayout,
-			LocalBottomBarScrollManager provides scrollManager
+			LocalBottomBarScrollManager provides scrollManager,
+			LocalQueuePaneOpen provides queuePaneOpen
 		) {
 			LoakTheme {
 				Scaffold(
@@ -292,6 +300,13 @@ fun App() {
 								}
 							}
 						)
+						AnimatedVisibility(
+							isLoggedIn && platformContext.isExpanded() && queuePaneOpen.value,
+							enter = expandHorizontally(),
+							exit = shrinkHorizontally()
+						) {
+							QueuePane(onClose = { queuePaneOpen.value = false })
+						}
 					}
 				}
 				// version check is annoying to do on iOS

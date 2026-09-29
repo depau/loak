@@ -63,7 +63,6 @@ import eu.depau.loak.ui.screens.collection.components.collectionDetailScreenMore
 import eu.depau.loak.ui.screens.collection.viewmodels.CollectionDetailViewModel
 import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
 import eu.depau.loak.ui.theme.LoakTheme
-import eu.depau.loak.di.isLandscape
 import eu.depau.loak.ui.util.rememberColorSchemeFromCoverArt
 import eu.depau.loak.ui.util.withoutTop
 import kotlin.time.Duration
@@ -73,7 +72,6 @@ fun CollectionDetailScreen(
 	collectionId: String,
 	tab: String
 ) {
-	val platformContext = LocalPlatformContext.current
 	val preferenceManager = koinInject<PreferenceManager>()
 
 	val viewModel = koinViewModel<CollectionDetailViewModel>(
@@ -159,7 +157,7 @@ fun CollectionDetailScreen(
 			bottomBar = {
 				val scrollManager = LocalBottomBarScrollManager.current
 				val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-				if (!platformContext.isLandscape() && preferVisible) {
+				if (preferVisible) {
 					RootBottomBar(scrolled = scrollManager.isTriggered)
 				}
 			}
