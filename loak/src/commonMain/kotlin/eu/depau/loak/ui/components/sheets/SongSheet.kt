@@ -141,6 +141,7 @@ fun SongSheet(
 		)
 		ModalBottomSheet(
 			onDismissRequest = onDismissRequest,
+			menuOnWideWindows = true,
 			containerColor = MaterialTheme.colorScheme.surface,
 			sheetState = rememberBottomSheetState(
 				initialValue = SheetValue.Hidden,

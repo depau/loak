@@ -121,6 +121,7 @@ fun CollectionSheet(
 	// the edit sheet replaces this one rather than stacking on top
 	if (!editing) ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
+		menuOnWideWindows = true,
 		contentWindowInsets = {
 			BottomSheetDefaults.modalWindowInsets.add(
 				WindowInsets(

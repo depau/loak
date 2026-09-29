@@ -88,6 +88,7 @@ fun ArtistSheet(
 
 	ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
+		menuOnWideWindows = true,
 		contentWindowInsets = {
 			BottomSheetDefaults.modalWindowInsets.add(
 				WindowInsets(
