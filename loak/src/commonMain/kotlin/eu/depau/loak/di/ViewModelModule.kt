@@ -68,7 +68,7 @@ val viewModelModule = module {
 
 	viewModel { params ->
 		AlbumListViewModel(
-			initialListType = params.getOrNull<DomainAlbumListType>() ?: DomainAlbumListType.AlphabeticalByArtist,
+			initialListType = params.getOrNull<DomainAlbumListType>() ?: DomainAlbumListType.AlphabeticalByName,
 			initialFilters = params.getOrNull<Set<DomainFilter>>(),
 			repository = get(),
 			sessionManager = get(),

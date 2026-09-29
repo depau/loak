@@ -23,7 +23,7 @@ import eu.depau.loak.domain.repositories.AlbumRepository
 import eu.depau.loak.ui.core.UiState
 
 class AlbumListViewModel(
-	initialListType: DomainAlbumListType = DomainAlbumListType.AlphabeticalByArtist,
+	initialListType: DomainAlbumListType = DomainAlbumListType.AlphabeticalByName,
 	initialFilters: Set<DomainFilter>? = null,
 	private val repository: AlbumRepository,
 	private val sessionManager: SessionManager,

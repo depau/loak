@@ -42,7 +42,7 @@ sealed interface Screen : NavKey {
 	@Serializable
 	data class AlbumList(
 		val nested: Boolean = false,
-		val listType: DomainAlbumListType = DomainAlbumListType.AlphabeticalByArtist
+		val listType: DomainAlbumListType = DomainAlbumListType.AlphabeticalByName
 	) : Screen
 
 	@Immutable
