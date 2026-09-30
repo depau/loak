@@ -14,6 +14,15 @@ val fdroid = System.getenv("FDROID") == "true" || providers.gradleProperty("fdro
 	.map { it.toBoolean() }
 	.getOrElse(false)
 
+val nightly = System.getenv("NIGHTLY") == "true" || providers.gradleProperty("nightly")
+	.map { it.toBoolean() }
+	.getOrElse(false)
+
+// Optional version overrides, used by the nightly build. Falls back to the hardcoded release
+// versions when absent (Gradle also allows `-PversionCode=… -PversionName=…` from the CLI).
+val versionCodeOverride = providers.gradleProperty("versionCode").map { it.toInt() }.orNull
+val versionNameOverride = providers.gradleProperty("versionName").orNull
+
 extensions.configure<ApplicationExtension> {
 	namespace = "eu.depau.loak.androidApp"
 	compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -26,8 +35,13 @@ extensions.configure<ApplicationExtension> {
 		applicationId = "eu.depau.loak"
 		minSdk = libs.versions.android.minSdk.get().toInt()
 		targetSdk = libs.versions.android.targetSdk.get().toInt()
-		versionCode = 58
-		versionName = "v1.0.0-alpha58"
+		versionCode = versionCodeOverride ?: 58
+		versionName = versionNameOverride ?: "v1.0.0-alpha58"
+
+		if (nightly) {
+			applicationIdSuffix = ".nightly"
+			resValue("string", "app_name", "Loak (Nightly)")
+		}
 
 		ndk {
 			abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
@@ -98,10 +112,11 @@ extensions.configure<ApplicationAndroidComponentsExtension> {
 	onVariants { variant ->
 		variant.outputs.forEach { output ->
 			if (output is VariantOutputImpl) {
-				output.outputFileName = if (fdroid) {
-					"Lo'ak.fdroid.apk"
-				} else {
-					"Lo'ak.apk"
+				output.outputFileName = when {
+					nightly && !isTaskRelease -> "Lo'ak.nightly-debug.apk"
+					nightly -> "Lo'ak.nightly.apk"
+					fdroid -> "Lo'ak.fdroid.apk"
+					else -> "Lo'ak.apk"
 				}
 			}
 		}

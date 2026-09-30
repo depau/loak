@@ -65,6 +65,24 @@ jobs:
           mv loakApp/build/outputs/apk/**/*.apk ./
           rm release.keystore
 
+      - name: Build with Gradle (nightly)
+        id: build_nightly
+        if: github.event_name == 'push' && env.SIGNING_KEY_ALIAS && startsWith(github.ref, 'refs/heads/main')
+        env:
+          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
+        run: |
+          echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
+          version_code=$(( $(git show -s --format=%ct HEAD) / 60 ))
+          version_name="v1.0.0-alpha58-nightly.${GITHUB_SHA::7}"
+          ./gradlew :loakApp:packageRelease -Pnightly=true \
+            -PversionCode="$version_code" -PversionName="$version_name" --stacktrace
+          mkdir -p nightly
+          mv loakApp/build/outputs/apk/**/*.apk "nightly/Lo'ak.nightly.apk"
+          rm release.keystore
+
       - name: Build with Gradle (debug)
         id: build_debug
         if: github.event_name == 'pull_request'
@@ -79,6 +97,15 @@ jobs:
         with:
           name: loak-release-android
           path: ./*.apk
+          compression-level: 0
+          if-no-files-found: ignore
+
+      - name: Upload nightly artifact
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+        uses: actions/upload-artifact@v6
+        with:
+          name: loak-nightly-android
+          path: nightly/*.apk
           compression-level: 0
           if-no-files-found: ignore
 
