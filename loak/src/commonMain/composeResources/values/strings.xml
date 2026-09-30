@@ -60,8 +60,8 @@
 	<string name="title_account">Account</string>
 	<string name="title_track_info">Track info</string>
 	<string name="title_lyric_providers">Lyric providers</string>
-	<string name="title_github">GitHub</string>
-	<string name="title_codeberg">Codeberg</string>
+	<string name="title_forgejo">Forgejo</string>
+	<string name="title_navic">Navic</string>
 	<string name="title_link_confirmation">Leaving Lo'ak</string>
 	<string name="title_audio_effects">Audio effects</string>
 
@@ -84,7 +84,6 @@
 	<string name="subtitle_streaming_quality">Adjust the quality of streamed music</string>
 	<string name="subtitle_download_quality">Adjust the quality of downloaded music</string>
 	<string name="subtitle_dynamic_theming">Dynamically theme the album and artist view based on the cover art</string>
-	<string name="subtitle_app_icon_designer">Designed by: %1$s</string>
 	<string name="subtitle_local_network_denied">You need to grant Lo'ak access to your local network in order for your server to be reachable.</string>
 	<string name="subtitle_equaliser">Tune &amp; enhance audio</string>
 	<string name="subtitle_equaliser_disabled">Not available when audio offload is enabled</string>

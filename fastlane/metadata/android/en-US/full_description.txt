@@ -12,8 +12,7 @@
 
 <h2>Links</h2>
 <ul>
-	<li><a href="https://navic.app/">Website</a></li>
-	<li><a href="https://github.com/ssalggnikool/Lo'ak">GitHub</a></li>
-	<li><a href="https://codeberg.org/paige/Lo'ak">Codeberg</a></li>
-	<li><a href="https://hosted.weblate.org/engage/navic/">Translations</a></li>
+	<li><a href="https://git.depau.eu/depau/loak">Forgejo</a></li>
+	<li><a href="https://github.com/ssalggnikool/Navic">Original project (Navic)</a></li>
+	<li><a href="https://discord.gg/TBcnNX66PH">Discord</a></li>
 </ul>

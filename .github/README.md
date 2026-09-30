@@ -1,17 +1,14 @@
 <div align="center">
 
-<img title="Navic" alt="Navic" height="140" src="https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/wordmark.png">
-
 A modern (Open)Subsonic music streaming app for Android and iOS.
+
+Fork of [Navic](https://github.com/ssalggnikool/Navic).
 
 [![Add to Obtainium](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/obtainium.svg)][ADD_TO_OBTAINIUM]
 [![AltSource provides links for most sideloading apps, like Feather](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/altsource.svg)][ALTSOURCE]
 [![Link to the latest release where you can download the APK or IPA directly](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/direct_download.svg)][LATEST_RELEASE]
 [![Discord](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/discord.svg)](https://discord.gg/TBcnNX66PH)
-[![IzzyOnDroid](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/izzyondroid.svg)](https://apt.izzysoft.de/fdroid/index/apk/paige.navic)
-[![F-droid](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/fdroid.svg)](https://f-droid.org/packages/paige.navic/)
-[![Translate](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/translate.svg)](#translating)
-[![Codeberg](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/codeberg.svg)](https://codeberg.org/paige/Navic)
+[![Forgejo](https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/assets/codeberg.svg)](https://git.depau.eu/depau/loak)
 
 </div>
 
@@ -30,7 +27,7 @@ A modern (Open)Subsonic music streaming app for Android and iOS.
 * **Home widgets**: a couple of home screen widgets are inbuilt
 * **Share music**: share links to music to your friends
 * **Android Auto**: control music playback through Android Auto
-* **Pretty lightweight**: Navic is fast and small (~10MB)
+* **Pretty lightweight**: Lo'ak is fast and small (~10MB)
 * **Compatible**: supports older devices and most Subsonic
   servers ([LMS](https://github.com/epoupon/lms), [gonic](https://github.com/sentriz/gonic), [Navidrome](https://navidrome.org),
   etc.)
@@ -39,32 +36,16 @@ A modern (Open)Subsonic music streaming app for Android and iOS.
 
 ## Screenshots
 
-|                                       Library                                        |                                       Player                                        |                                       Lyrics                                        |                                       Albums                                        |
-|:------------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------:|
-| ![](https://github.com/NavicApp/Branding/blob/main/screenshots/library.png?raw=true) | ![](https://github.com/NavicApp/Branding/blob/main/screenshots/player.png?raw=true) | ![](https://github.com/NavicApp/Branding/blob/main/screenshots/lyrics.png?raw=true) | ![](https://github.com/NavicApp/Branding/blob/main/screenshots/albums.png?raw=true) |
-
-## Translating
-
-You can help translate Navic by contributing on [Weblate](https://hosted.weblate.org/engage/navic/).
-
-![Weblate translation status](https://hosted.weblate.org/widget/navic/navic/matrix-auto.svg)
+|                                        Library                                         |                                        Player                                        |                                        Lyrics                                        |                                        Albums                                        |
+|:--------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|
+| ![](fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg) | ![](fastlane/metadata/android/en-US/images/phoneScreenshots/2.jpg) | ![](fastlane/metadata/android/en-US/images/phoneScreenshots/3.jpg) | ![](fastlane/metadata/android/en-US/images/phoneScreenshots/4.jpg) |
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to see how you can help out!
 
-## Star History
+[ADD_TO_OBTAINIUM]: https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22eu.depau.loak%22%2C%22url%22%3A%22https%3A%2F%2Fgit.depau.eu%2Fdepau%2Floak%22%2C%22author%22%3A%22depau%22%2C%22name%22%3A%22Lo%27ak%22%2C%22preferredApkIndex%22%3A0%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Atrue%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22filterReleaseTitlesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22filterReleaseNotesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22useLatestAssetDateAsReleaseDate%5C%22%3Afalse%2C%5C%22releaseTitleAsVersion%5C%22%3Afalse%2C%5C%22trackOnly%5C%22%3Afalse%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22matchGroupToUse%5C%22%3A%5C%22%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22releaseDateAsVersion%5C%22%3Afalse%2C%5C%22useVersionCodeAsOSVersion%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22invertAPKFilter%5C%22%3Afalse%2C%5C%22autoApkFilterByArch%5C%22%3Atrue%2C%5C%22appName%5C%22%3A%5C%22%5C%22%2C%5C%22appAuthor%5C%22%3A%5C%22%5C%22%2C%5C%22shizukuPretendToBeGooglePlay%5C%22%3Afalse%2C%5C%22allowInsecure%5C%22%3Afalse%2C%5C%22exemptFromBackgroundUpdates%5C%22%3Afalse%2C%5C%22skipUpdateNotifications%5C%22%3Afalse%2C%5C%22about%5C%22%3A%5C%22%5C%22%2C%5C%22refreshBeforeDownload%5C%22%3Afalse%7D%22%2C%22overrideSource%22%3Anull%7D "Add to Obtainium"
 
-<a href="https://www.star-history.com/?repos=ssalggnikool%2FNavic&type=date&logscale=&legend=bottom-right">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ssalggnikool/Navic&type=date&theme=dark&logscale&legend=top-left&sealed_token=ZCgrX-tWFZmKqKBz7-Bu3ecoSJOb7t6nOWZwleHQnQTaHwTdITEQqvyjFPUlFNkLE5DtG2VxUuqATupENGa9i4Grc7G29knvuSBObj1PlH9sJTyw6b2iaRFS0dcIRJi1YLIjjLi4CEgMzC2C6dqVplJcCRNcXPmUbxSaJsv3Xr_Seia6GVMzT_kV0WYq" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ssalggnikool/Navic&type=date&logscale&legend=top-left&sealed_token=ZCgrX-tWFZmKqKBz7-Bu3ecoSJOb7t6nOWZwleHQnQTaHwTdITEQqvyjFPUlFNkLE5DtG2VxUuqATupENGa9i4Grc7G29knvuSBObj1PlH9sJTyw6b2iaRFS0dcIRJi1YLIjjLi4CEgMzC2C6dqVplJcCRNcXPmUbxSaJsv3Xr_Seia6GVMzT_kV0WYq" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ssalggnikool/Navic&type=date&logscale&legend=top-left&sealed_token=ZCgrX-tWFZmKqKBz7-Bu3ecoSJOb7t6nOWZwleHQnQTaHwTdITEQqvyjFPUlFNkLE5DtG2VxUuqATupENGa9i4Grc7G29knvuSBObj1PlH9sJTyw6b2iaRFS0dcIRJi1YLIjjLi4CEgMzC2C6dqVplJcCRNcXPmUbxSaJsv3Xr_Seia6GVMzT_kV0WYq" />
- </picture>
-</a>
+[ALTSOURCE]: https://stikstore.app/altdirect/?url=https://git.depau.eu/depau/loak/raw/branch/main/app-repo.json
 
-[ADD_TO_OBTAINIUM]: https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22paige.navic%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fssalggnikool%2FNavic%22%2C%22author%22%3A%22ssalggnikool%22%2C%22name%22%3A%22Navic%22%2C%22preferredApkIndex%22%3A0%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Atrue%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22filterReleaseTitlesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22filterReleaseNotesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22useLatestAssetDateAsReleaseDate%5C%22%3Afalse%2C%5C%22releaseTitleAsVersion%5C%22%3Afalse%2C%5C%22trackOnly%5C%22%3Afalse%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22matchGroupToUse%5C%22%3A%5C%22%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22releaseDateAsVersion%5C%22%3Afalse%2C%5C%22useVersionCodeAsOSVersion%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22invertAPKFilter%5C%22%3Afalse%2C%5C%22autoApkFilterByArch%5C%22%3Atrue%2C%5C%22appName%5C%22%3A%5C%22%5C%22%2C%5C%22appAuthor%5C%22%3A%5C%22%5C%22%2C%5C%22shizukuPretendToBeGooglePlay%5C%22%3Afalse%2C%5C%22allowInsecure%5C%22%3Afalse%2C%5C%22exemptFromBackgroundUpdates%5C%22%3Afalse%2C%5C%22skipUpdateNotifications%5C%22%3Afalse%2C%5C%22about%5C%22%3A%5C%22%5C%22%2C%5C%22refreshBeforeDownload%5C%22%3Afalse%7D%22%2C%22overrideSource%22%3Anull%7D "Add to Obtainium"
-
-[ALTSOURCE]: https://stikstore.app/altdirect/?url=https://raw.githubusercontent.com/ssalggnikool/Navic/refs/heads/master/app-repo.json
-
-[LATEST_RELEASE]: https://github.com/ssalggnikool/Navic/releases/latest
+[LATEST_RELEASE]: https://git.depau.eu/depau/loak/releases/latest

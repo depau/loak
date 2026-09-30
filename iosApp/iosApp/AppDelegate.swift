@@ -2,7 +2,7 @@
 //  AppDelegate.swift
 //  iosApp
 //
-//  Created by paige on 2026.01.01.
+//  Created by paige (original Navic author) on 2026.01.01.
 //
 
 import ComposeApp

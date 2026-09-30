@@ -1,10 +1,10 @@
 contact_links:
   - name: "Discussions"
-    url: https://github.com/ssalggnikool/Navic/discussions
-    about: Qestions, known issues, announcements & more
+    url: https://git.depau.eu/depau/loak/issues
+    about: Questions, known issues, announcements & more
   - name: "Discord"
     url: https://discord.gg/TBcnNX66PH
     about: Development discussion & random other things
   - name: "Downloads"
-    url: https://navic.app/downloads/
-    about: List of available downloads for Navic
+    url: https://git.depau.eu/depau/loak/releases
+    about: List of available downloads for Lo'ak

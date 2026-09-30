@@ -22,9 +22,9 @@ import eu.depau.loak.generated.resources.info_app_version
 import eu.depau.loak.generated.resources.option_check_for_updates
 import eu.depau.loak.generated.resources.subtitle_check_for_updates
 import eu.depau.loak.generated.resources.title_about
-import eu.depau.loak.generated.resources.title_codeberg
 import eu.depau.loak.generated.resources.title_discord_server
-import eu.depau.loak.generated.resources.title_github
+import eu.depau.loak.generated.resources.title_forgejo
+import eu.depau.loak.generated.resources.title_navic
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalPlatformContext
@@ -89,14 +89,14 @@ fun SettingsAboutScreen() {
 
 			SettingsGroup {
 				SettingsNavItem(
-					onClick = { linkToOpen = "https://github.com/ssalggnikool/Navic" },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 4),
-					content = { Text(stringResource(Res.string.title_github)) }
+					onClick = { linkToOpen = "https://git.depau.eu/depau/loak" },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3),
+					content = { Text(stringResource(Res.string.title_forgejo)) }
 				)
 				SettingsNavItem(
-					onClick = { linkToOpen = "https://codeberg.org/paige/Navic" },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4),
-					content = { Text(stringResource(Res.string.title_codeberg)) }
+					onClick = { linkToOpen = "https://github.com/ssalggnikool/Navic" },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3),
+					content = { Text(stringResource(Res.string.title_navic)) }
 				)
 				SettingsNavItem(
 					onClick = { linkToOpen = "https://discord.gg/TBcnNX66PH" },

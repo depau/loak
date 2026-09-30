@@ -357,7 +357,7 @@ class DbRepository(
 		val artists =	 mutableListOf<ArtistEntity>()
 
 		// reverting this for now
-		// see https://github.com/ssalggnikool/Navic/issues/521
+		// see the original upstream issue about grouping arbitrary artists
 
 		//try {
 		//	while (true) {

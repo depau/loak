@@ -58,7 +58,7 @@ import eu.depau.loak.util.Logger
 import eu.depau.loak.di.PlatformContext
 
 @Serializable
-data class GitHubRelease(
+data class Release(
 	@SerialName("tag_name") val tag: String,
 	@SerialName("html_url") val url: String,
 	@SerialName("body") val body: String
@@ -67,7 +67,7 @@ data class GitHubRelease(
 class ChangelogViewModel(
 	platformContext: PlatformContext
 ) : ViewModel() {
-	val release: StateFlow<GitHubRelease?>
+	val release: StateFlow<Release?>
 		field = MutableStateFlow(null)
 
 	private val updateClient = HttpClient {
@@ -83,8 +83,8 @@ class ChangelogViewModel(
 	fun checkForUpdates(currentVersion: String) {
 		viewModelScope.launch {
 			release.value = try {
-				val release: GitHubRelease =
-					updateClient.get("https://api.github.com/repos/ssalggnikool/Navic/releases/latest")
+				val release: Release =
+					updateClient.get("https://git.depau.eu/api/v1/repos/depau/loak/releases/latest")
 						.body()
 				val remoteVersion = release.tag
 					.filter { it.isDigit() }
