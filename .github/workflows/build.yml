@@ -6,7 +6,6 @@ on:
       - loak/**
       - loakApp/**
       - gradle/**
-      - iosApp/**
       - build.gradle.kts
       - settings.gradle.kts
       - .github/workflows/build.yml
@@ -20,7 +19,6 @@ on:
       - loak/**
       - loakApp/**
       - gradle/**
-      - iosApp/**
       - build.gradle.kts
       - settings.gradle.kts
       - .github/workflows/build.yml
@@ -111,6 +109,7 @@ jobs:
 
   build-ios:
     name: iOS
+    if: false # iOS build disabled for now; remove this line to re-enable
     runs-on: macos-26
     steps:
       - name: Checkout repository
@@ -168,7 +167,7 @@ jobs:
   upload-artifacts-to-discord:
     name: Upload Artifacts to Discord
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs: [ build-android, build-ios ]
+    needs: [ build-android ]
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
@@ -203,7 +202,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [ build-android, build-ios ]
+    needs: [ build-android ]
     runs-on: ubuntu-latest
     permissions:
       contents: write

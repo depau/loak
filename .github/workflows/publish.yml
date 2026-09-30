@@ -12,6 +12,7 @@ concurrency:
 jobs:
   testflight:
     name: TestFlight
+    if: false # iOS disabled for now; remove this line to re-enable
     runs-on: macos-latest
     steps:
       - name: Checkout repository
