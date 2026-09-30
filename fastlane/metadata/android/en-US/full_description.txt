@@ -12,7 +12,7 @@
 
 <h2>Links</h2>
 <ul>
-	<li><a href="https://git.depau.eu/depau/loak">Forgejo</a></li>
+	<li><a href="https://github.com/depau/loak">GitHub</a></li>
 	<li><a href="https://github.com/ssalggnikool/Navic">Original project (Navic)</a></li>
 	<li><a href="https://discord.gg/TBcnNX66PH">Discord</a></li>
 </ul>

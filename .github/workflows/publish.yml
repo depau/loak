@@ -60,17 +60,16 @@ jobs:
     name: AltStore
     if: false # iOS disabled for now; remove this line to re-enable
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
-        run: |
-          git clone https://$USERNAME:$API_TOKEN@git.depau.eu/depau/loak.git repo
-        env:
-          API_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
-          USERNAME: depau
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Update app-repo.json
         run: |
-          cd repo
           echo "${{ github.event.release.assets }}"
 
           TAG="${{ github.event.release.tag_name }}"
@@ -108,9 +107,8 @@ jobs:
 
       - name: Commit and push changes
         run: |
-          cd repo
-          git config --global user.name "depau"
-          git config --global user.email "depau@git.depau.eu"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add app-repo.json
 
@@ -118,7 +116,6 @@ jobs:
 
           git commit -m "chore: update altstore repo for ${{ github.event.release.tag_name }}"
 
-          git push --force https://$USERNAME:$API_TOKEN@git.depau.eu/depau/loak.git
+          git push origin "${{ github.head_ref || github.ref_name }}"
         env:
-          API_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
-          USERNAME: depau
+          GH_TOKEN: ${{ secrets.LOAK_GITHUB_TOKEN }}

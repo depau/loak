@@ -80,7 +80,7 @@ Classic layered single-module KMP app. Everything lives under `loak/src/commonMa
 
 1. **Valkyrie icons** — SVG sources in `loak/src/commonMain/valkyrieResources/{brand,filled,outlined}/` are compiled by the `generateValkyrieImageVector` task into `eu.depau.loak.icons.Icons.*` (generated in `build/`). All Kotlin compile tasks and KSP tasks depend on it. → **To add an icon: drop an SVG in the right `valkyrieResources` folder; never hand-write `ImageVector`s.** (The brand/app icon is `ic_loak.xml` → `Icons.Brand.Loak`.)
 2. **Compose resources** — the `Res` class package is **pinned** via `compose.resources { packageOfResClass = "eu.depau.loak.generated.resources" }` in `loak/build.gradle.kts`, so imports (`eu.depau.loak.generated.resources.*`) stay stable. Don't remove that pin.
-3. **`BuildInfo.kt`** — `generateBuildInfo` task writes `eu.depau.loak.generated.BuildInfo` carrying the `FDROID` flag (from env `FDROID=true` or `-Pfdroid`), used for update-check gating.
+3. **`BuildInfo.kt`** — `generateBuildInfo` task writes an (empty) `eu.depau.loak.generated.BuildInfo`, kept as a compile target; no flags today.
 4. **Room schemas** — `room3 { schemaDirectory("$projectDir/schemas") }` auto-exports schema JSON on compile when entities change (`eu.depau.loak.data.database.CacheDatabase/…`). Currently the databases use `fallbackToDestructiveMigration(true)`, so schema bumps are low-risk. `CacheDatabase` version is currently 21.
 5. **iOS TextField workaround** — `compileKotlinIos*` tasks inject a *temporary* `androidx.compose.foundation.text.input.TextFieldDecorator` into `commonMain` at build time (workaround for [KT-84055](https://youtrack.jetbrains.com/issue/KT-84055)). **Do not declare that type yourself in commonMain.**
 
@@ -134,6 +134,17 @@ The debug variant gets applicationId suffix `.debug` and label *"Loak (Dev)"*; b
 **Icons only (no full build):** `./gradlew :loak:generateValkyrieImageVector`
 
 Debug realm: the Android `debug` build has **no ABIs excluded** (`x86_64` is added) for emulator use; release builds `arm64-v8a` + `armeabi-v7a`.
+
+**Android emulator (this dev machine)** — verified working:
+```bash
+export ANDROID_HOME=/home/depau/Android/Sdk QT_QPA_PLATFORM=xcb
+/home/depau/Android/Sdk/emulator/emulator -avd Pixel_9_Pro -gpu swiftshader_indirect -no-snapshot-save -no-boot-anim
+```
+- Installed AVDs: `BRACCIOv7`, `Pixel_9_Pro`, `Pixel_Fold_API_35_Android_15_`, `Wear_OS_Small_Round` (there is **no** plain "Pixel 9"; the Pixel 9 Pro is the closest).
+- `-gpu swiftshader_indirect` is required: host GPU can't be used (Vulkan init fails), so the emulator falls back to software rendering. Without it you get a fatal `Qt platform plugin "wayland"` error → the visible window needs `QT_QPA_PLATFORM=xcb`; plain X11 (`:0`) is available via xcb.
+- Headless alternative: add `-no-window` (still use swiftshader) — usable via `adb` for CI-style runs.
+- Only **one** running instance per AVD: launching the same AVD twice fatals with "Running multiple emulators with the same AVD… use -read-only".
+- Boot check: `adb wait-for-device` then poll `adb shell getprop sys.boot_completed` for `1`. Stock window is 1280x2856 @480dpi.
 
 ## Tests
 

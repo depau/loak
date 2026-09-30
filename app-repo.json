@@ -1,8 +1,8 @@
 {
   "name": "Lo'ak Repository",
   "identifier": "eu.depau.loak.repo",
-  "website": "https://git.depau.eu/depau/loak",
-  "iconURL": "https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/icons/ios.png",
+  "website": "https://github.com/depau/loak",
+  "iconURL": "https://raw.githubusercontent.com/depau/loak/main/fastlane/metadata/android/en-US/images/icon.png",
   "apps": [
     {
       "name": "Lo'ak",
@@ -11,28 +11,28 @@
       "localizedDescription": "Subsonic music streaming app for Android and iOS",
       "subtitle": "Subsonic music streaming app",
       "tintColor": "ffffff",
-      "iconURL": "https://raw.githubusercontent.com/NavicApp/Branding/refs/heads/main/icons/ios.png",
+      "iconURL": "https://raw.githubusercontent.com/depau/loak/main/fastlane/metadata/android/en-US/images/icon.png",
       "versions": [
         {
           "version": "1.0.0",
           "buildVersion": "56",
           "date": "2026-09-17T16:52:29Z",
           "size": 21399507,
-          "downloadURL": "https://git.depau.eu/depau/loak/releases/download/v1.0.0-alpha56/Lo'ak.ipa"
+          "downloadURL": "https://github.com/depau/loak/releases/download/v1.0.0-alpha56/Lo'ak.ipa"
         }
       ],
       "appPermissions": {},
       "screenshotURLs": [
-        "https://github.com/NavicApp/Branding/blob/main/screenshots/albums.png?raw=true",
-        "https://github.com/NavicApp/Branding/blob/main/screenshots/library.png?raw=true",
-        "https://github.com/NavicApp/Branding/blob/main/screenshots/lyrics.png?raw=true",
-        "https://github.com/NavicApp/Branding/blob/main/screenshots/player.png?raw=true"
+        "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg?raw=true",
+        "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/2.jpg?raw=true",
+        "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/3.jpg?raw=true",
+        "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/4.jpg?raw=true"
       ],
       "version": "1.0.0",
       "buildVersion": "56",
       "versionDate": "2026-09-17T16:52:29Z",
       "size": 21399507,
-      "downloadURL": "https://git.depau.eu/depau/loak/releases/download/v1.0.0-alpha56/Lo'ak.ipa"
+      "downloadURL": "https://github.com/depau/loak/releases/download/v1.0.0-alpha56/Lo'ak.ipa"
     }
   ]
 }

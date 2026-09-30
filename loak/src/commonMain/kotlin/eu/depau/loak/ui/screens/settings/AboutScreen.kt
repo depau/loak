@@ -23,14 +23,13 @@ import eu.depau.loak.generated.resources.option_check_for_updates
 import eu.depau.loak.generated.resources.subtitle_check_for_updates
 import eu.depau.loak.generated.resources.title_about
 import eu.depau.loak.generated.resources.title_discord_server
-import eu.depau.loak.generated.resources.title_forgejo
+import eu.depau.loak.generated.resources.title_github
 import eu.depau.loak.generated.resources.title_navic
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.generated.BuildInfo
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.dialogs.LinkConfirmationDialog
@@ -89,9 +88,9 @@ fun SettingsAboutScreen() {
 
 			SettingsGroup {
 				SettingsNavItem(
-					onClick = { linkToOpen = "https://git.depau.eu/depau/loak" },
+					onClick = { linkToOpen = "https://github.com/depau/loak" },
 					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3),
-					content = { Text(stringResource(Res.string.title_forgejo)) }
+					content = { Text(stringResource(Res.string.title_github)) }
 				)
 				SettingsNavItem(
 					onClick = { linkToOpen = "https://github.com/ssalggnikool/Navic" },
@@ -105,7 +104,7 @@ fun SettingsAboutScreen() {
 				)
 			}
 
-			if (platformContext.platformType == PlatformType.Android && !BuildInfo.FDROID) {
+			if (platformContext.platformType == PlatformType.Android) {
 				SettingsGroup {
 					SettingsToggleItem(
 						content = { Text(stringResource(Res.string.option_check_for_updates)) },

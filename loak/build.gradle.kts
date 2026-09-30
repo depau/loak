@@ -56,18 +56,12 @@ valkyrie {
 val generateBuildInfo = tasks.register("generateBuildInfo", Sync::class) {
 	description = "generate BuildInfo.kt"
 
-	val fdroid = System.getenv("FDROID") == "true" || providers.gradleProperty("fdroid")
-		.map { it.toBoolean() }
-		.getOrElse(false)
-
 	from(
 		resources.text.fromString(
 			"""
 			|package eu.depau.loak.generated
 			|
-			|object BuildInfo {
-			|	const val FDROID = $fdroid
-			|}
+			|// BuildInfo carries no flags — update checks are on for every build.
 			|
 			""".trimMargin()
 		)

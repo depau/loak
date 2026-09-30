@@ -10,10 +10,6 @@ plugins {
 
 val isTaskRelease = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
 
-val fdroid = System.getenv("FDROID") == "true" || providers.gradleProperty("fdroid")
-	.map { it.toBoolean() }
-	.getOrElse(false)
-
 val nightly = System.getenv("NIGHTLY") == "true" || providers.gradleProperty("nightly")
 	.map { it.toBoolean() }
 	.getOrElse(false)
@@ -115,7 +111,6 @@ extensions.configure<ApplicationAndroidComponentsExtension> {
 				output.outputFileName = when {
 					nightly && !isTaskRelease -> "Lo'ak.nightly-debug.apk"
 					nightly -> "Lo'ak.nightly.apk"
-					fdroid -> "Lo'ak.fdroid.apk"
 					else -> "Lo'ak.apk"
 				}
 			}

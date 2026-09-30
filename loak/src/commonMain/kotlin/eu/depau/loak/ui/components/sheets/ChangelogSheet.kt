@@ -84,7 +84,7 @@ class ChangelogViewModel(
 		viewModelScope.launch {
 			release.value = try {
 				val release: Release =
-					updateClient.get("https://git.depau.eu/api/v1/repos/depau/loak/releases/latest")
+					updateClient.get("https://api.github.com/repos/depau/loak/releases/latest")
 						.body()
 				val remoteVersion = release.tag
 					.filter { it.isDigit() }

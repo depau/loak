@@ -60,7 +60,7 @@
 	<string name="title_account">Account</string>
 	<string name="title_track_info">Track info</string>
 	<string name="title_lyric_providers">Lyric providers</string>
-	<string name="title_forgejo">Forgejo</string>
+	<string name="title_github">GitHub</string>
 	<string name="title_navic">Navic</string>
 	<string name="title_link_confirmation">Leaving Lo'ak</string>
 	<string name="title_audio_effects">Audio effects</string>

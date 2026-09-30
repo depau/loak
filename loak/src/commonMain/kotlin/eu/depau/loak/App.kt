@@ -92,7 +92,6 @@ import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
-import eu.depau.loak.generated.BuildInfo
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.sheets.ChangelogSheet
 import eu.depau.loak.ui.components.snackbars.LoakSnackBar
@@ -337,7 +336,6 @@ fun App() {
 				// version check is annoying to do on iOS
 				if (preferenceManager.checkForUpdates
 					&& platformContext.platformType == PlatformType.Android
-					&& !BuildInfo.FDROID
 				) {
 					ChangelogSheet()
 				}

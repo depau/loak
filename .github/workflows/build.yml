@@ -59,8 +59,6 @@ jobs:
           echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
           ./gradlew :loakApp:packageRelease --stacktrace
           mv loakApp/build/outputs/apk/**/*.apk ./
-          ./gradlew :loakApp:packageRelease -Pfdroid=true --stacktrace
-          mv loakApp/build/outputs/apk/**/*.apk ./
           rm release.keystore
 
       - name: Build with Gradle (nightly)
@@ -86,8 +84,6 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           ./gradlew :loakApp:assembleDebug --stacktrace
-          mv loakApp/build/outputs/apk/**/*.apk ./
-          ./gradlew :loakApp:assembleDebug -Pfdroid=true --stacktrace
           mv loakApp/build/outputs/apk/**/*.apk ./
 
       - name: Upload APK artifact
@@ -164,11 +160,44 @@ jobs:
           compression-level: 0
           if-no-files-found: ignore
 
+  publish-nightly:
+    name: Publish Nightly Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
+    needs: [ build-android ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download nightly artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: loak-nightly-android
+          path: nightly
+
+      - name: Delete existing nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes || true
+
+      - name: Create nightly release with APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create nightly \
+            nightly/*.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Nightly" \
+            --notes "Nightly build of \`main\` (${{ github.sha }})." \
+            --prerelease
+
   create-release:
-    name: Create Forgejo Release
+    name: Create GitHub Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [ build-android ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v7
@@ -178,44 +207,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create release on Forgejo
+      - name: Create Release
         shell: bash
         env:
-          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-          shopt -s nullglob
-
-          API="https://git.depau.eu/api/v1/repos/depau/loak"
-          TAG="${GITHUB_REF_NAME}"
+          shopt -s nullglob globstar
 
           # Release notes = commits since the previous tag (empty if none)
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
-          if [ -n "$PREV_TAG" ]; then
-            BODY=$(git log --oneline --no-merges "${PREV_TAG}..HEAD" || true)
-          else
-            BODY=""
-          fi
+          BODY=$(git log --oneline --no-merges "$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)..HEAD" 2>/dev/null || true)
 
-          # Create a draft release (Obtainium picks it up on publish)
-          BODY_JSON=$(jq -n \
-            --arg tag "$TAG" \
-            --arg name "$TAG" \
-            --arg body "$BODY" \
-            '{tag_name:$tag, name:$name, body:$body, draft:true}')
-          RELEASE=$(curl -fsS \
-            -X POST "${API}/releases" \
-            -H "Authorization: token ${FORGEJO_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "$BODY_JSON")
-          RELEASE_ID=$(jq -r '.id' <<<"$RELEASE")
-          echo "Created release ${TAG} (id=${RELEASE_ID}, draft)"
-
-          # Upload release APKs only (nightly lives under nightly/ and is excluded)
-          for file in ./*.apk; do
-            curl -fsS \
-              -X POST "${API}/releases/${RELEASE_ID}/assets" \
-              -H "Authorization: token ${FORGEJO_TOKEN}" \
-              -F "attachment=@${file}"
-            echo "Uploaded ${file}"
-          done
+          gh release create "$GITHUB_REF_NAME" **/*.{apk,ipa} \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "$BODY" \
+            --draft
