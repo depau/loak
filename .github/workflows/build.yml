@@ -204,8 +204,14 @@ jobs:
         shell: bash
         run: |
           # The compose plugin publishes no zip target; bundle the runnable
-          # jlink app dir by hand for a portable, launcher-free tarball.
-          (cd loakDesktop/build/compose/binaries/main/app && zip -r "../Loak-${{ runner.os }}.zip" .)
+          # jlink app dir by hand for a portable, launcher-free archive. `zip`
+          # isn't on the Windows (Git Bash) runners, so use PowerShell there.
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            powershell -NoProfile -Command \
+              "Compress-Archive -Path 'loakDesktop/build/compose/binaries/main/app/*' -DestinationPath 'loakDesktop/build/compose/binaries/main/Loak-Windows.zip' -Force"
+          else
+            (cd loakDesktop/build/compose/binaries/main/app && zip -r "../Loak-${{ runner.os }}.zip" .)
+          fi
 
       - name: Collect desktop installers
         shell: bash
