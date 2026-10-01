@@ -189,11 +189,11 @@ jobs:
           # (re-runs) before recreating it.
           gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
 
-          git tag --force "$TAG"
-          git push --force origin "refs/tags/$TAG"
-
+          # `gh release create` creates both the tag and the release; no git
+          # push needed (avoids the workflow-file ref-push guard).
           gh release create "$TAG" nightly/*.apk \
             --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
             --title "Nightly $TAG" \
             --notes "Nightly build of \`main\` (${{ github.sha }})." \
             --prerelease
