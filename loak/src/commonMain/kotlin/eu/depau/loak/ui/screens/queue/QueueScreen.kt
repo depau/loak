@@ -15,9 +15,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -73,6 +71,31 @@ import eu.depau.loak.ui.theme.defaultFont
 import eu.depau.loak.ui.util.draggableItemsIndexed
 import eu.depau.loak.ui.util.rememberDraggableListState
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.produceState
+import eu.depau.loak.domain.manager.QueueSyncManager
+import eu.depau.loak.domain.manager.ServerQueue
+import eu.depau.loak.generated.resources.action_load_server_queue
+import eu.depau.loak.generated.resources.action_more
+import eu.depau.loak.generated.resources.action_save_to_playlist
+import eu.depau.loak.generated.resources.action_send_queue_to_server
+import eu.depau.loak.generated.resources.info_server_queue_checking
+import eu.depau.loak.generated.resources.info_server_queue_none
+import eu.depau.loak.generated.resources.info_server_queue_saved_by
+import eu.depau.loak.generated.resources.info_server_queue_saved_by_ago
+import eu.depau.loak.generated.resources.info_server_unreachable
+import eu.depau.loak.icons.outlined.Delete
+import eu.depau.loak.icons.outlined.Download
+import eu.depau.loak.icons.outlined.MoreVert
+import eu.depau.loak.icons.outlined.PlaylistAdd
+import eu.depau.loak.icons.outlined.Upload
+import eu.depau.loak.ui.util.timeAgo
+import kotlinx.collections.immutable.toImmutableList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +113,7 @@ fun QueueScreen(pane: Boolean = false) {
 	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
 	val allDownloads by viewModel.allDownloads.collectAsStateWithLifecycle(persistentListOf())
 	var playlistSong by remember { mutableStateOf<DomainSong?>(null) }
+	var savingQueue by remember { mutableStateOf(false) }
 	var shareId by remember { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 
@@ -202,16 +226,25 @@ fun QueueScreen(pane: Boolean = false) {
 							textAlign = TextAlign.Center
 						)
 					}
-					FilledTonalButton(
-						onClick = {
-							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-							player.clearQueueWithUndo()
-						},
-						colors = ButtonDefaults.filledTonalButtonColors(),
-						contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-						modifier = Modifier.height(36.dp)
-					) {
-						Text(stringResource(Res.string.action_clear_queue))
+					Box {
+						var menuOpen by remember { mutableStateOf(false) }
+						IconButton(
+							onClick = { menuOpen = true },
+							modifier = Modifier.size(36.dp)
+						) {
+							Icon(Icons.Outlined.MoreVert, stringResource(Res.string.action_more))
+						}
+						QueueMenu(
+							expanded = menuOpen,
+							onDismissRequest = { menuOpen = false },
+							onSendToServer = player::sendQueueToServer,
+							onLoadFromServer = player::loadQueueFromServer,
+							onSaveToPlaylist = { savingQueue = true },
+							onClear = {
+								haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+								player.clearQueueWithUndo()
+							}
+						)
 					}
 				}
 			}
@@ -330,10 +363,92 @@ fun QueueScreen(pane: Boolean = false) {
 		)
 	}
 
+	if (savingQueue) {
+		PlaylistUpdateDialog(
+			songs = queue.toImmutableList(),
+			onDismissRequest = { savingQueue = false }
+		)
+	}
+
 	ShareDialog(
 		id = shareId,
 		onIdClear = { shareId = null },
 		expiry = shareExpiry,
 		onExpiryChange = { shareExpiry = it }
 	)
+}
+
+/**
+ * The queue's ⋯ menu: the server queue's status with send and load, then saving and
+ * clearing the queue.
+ */
+@Composable
+private fun QueueMenu(
+	expanded: Boolean,
+	onDismissRequest: () -> Unit,
+	onSendToServer: () -> Unit,
+	onLoadFromServer: () -> Unit,
+	onSaveToPlaylist: () -> Unit,
+	onClear: () -> Unit
+) {
+	DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest) {
+		val queueSyncManager = koinInject<QueueSyncManager>()
+		// fetched each time the menu opens
+		val remote by produceState<Result<ServerQueue?>?>(null) {
+			value = runCatching { queueSyncManager.fetch() }
+		}
+		val status = when {
+			remote == null -> stringResource(Res.string.info_server_queue_checking)
+			remote!!.isFailure -> stringResource(Res.string.info_server_unreachable)
+			else -> when (val queue = remote!!.getOrNull()) {
+				null -> stringResource(Res.string.info_server_queue_none)
+				else -> {
+					val name = QueueSyncManager.sourceName(queue.changedBy)
+					queue.changed?.let {
+						stringResource(Res.string.info_server_queue_saved_by_ago, name, it.timeAgo())
+					} ?: stringResource(Res.string.info_server_queue_saved_by, name)
+				}
+			}
+		}
+		Text(
+			text = status,
+			style = MaterialTheme.typography.bodySmall,
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+		)
+		DropdownMenuItem(
+			text = { Text(stringResource(Res.string.action_send_queue_to_server)) },
+			leadingIcon = { Icon(Icons.Outlined.Upload, null) },
+			onClick = {
+				onDismissRequest()
+				onSendToServer()
+			}
+		)
+		DropdownMenuItem(
+			text = { Text(stringResource(Res.string.action_load_server_queue)) },
+			leadingIcon = { Icon(Icons.Outlined.Download, null) },
+			enabled = remote?.getOrNull() != null,
+			onClick = {
+				onDismissRequest()
+				onLoadFromServer()
+			}
+		)
+		HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+		DropdownMenuItem(
+			text = { Text(stringResource(Res.string.action_save_to_playlist)) },
+			leadingIcon = { Icon(Icons.Outlined.PlaylistAdd, null) },
+			onClick = {
+				onDismissRequest()
+				onSaveToPlaylist()
+			}
+		)
+		DropdownMenuItem(
+			text = { Text(stringResource(Res.string.action_clear_queue)) },
+			leadingIcon = { Icon(Icons.Outlined.Delete, null) },
+			onClick = {
+				onDismissRequest()
+				onClear()
+			}
+		)
+	}
 }

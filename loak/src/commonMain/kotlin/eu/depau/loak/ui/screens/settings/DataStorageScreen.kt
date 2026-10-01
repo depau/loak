@@ -52,9 +52,6 @@ import eu.depau.loak.generated.resources.action_clear_image_cache
 import eu.depau.loak.generated.resources.action_clear_pending_actions
 import eu.depau.loak.generated.resources.action_rebuild_database
 import eu.depau.loak.generated.resources.action_trigger_sync
-import eu.depau.loak.generated.resources.count_days_ago
-import eu.depau.loak.generated.resources.count_hours_ago
-import eu.depau.loak.generated.resources.count_minutes_ago
 import eu.depau.loak.generated.resources.count_songs
 import eu.depau.loak.generated.resources.info_library_download
 import eu.depau.loak.generated.resources.info_library_download_warning
@@ -62,7 +59,6 @@ import eu.depau.loak.generated.resources.info_not_available_offline
 import eu.depau.loak.generated.resources.info_progress
 import eu.depau.loak.generated.resources.info_status_calculating
 import eu.depau.loak.generated.resources.info_status_downloading
-import eu.depau.loak.generated.resources.info_sync_just_now
 import eu.depau.loak.generated.resources.info_sync_never
 import eu.depau.loak.generated.resources.option_cover_art_quality
 import eu.depau.loak.generated.resources.option_downloaded_songs
@@ -105,8 +101,8 @@ import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.screens.settings.components.SettingsNavItem
 import eu.depau.loak.ui.screens.settings.viewmodels.SettingsDataStorageViewModel
-import kotlin.time.Clock
 import kotlin.time.Instant
+import eu.depau.loak.ui.util.timeAgo
 
 @Composable
 fun SettingsDataStorageScreen() {
@@ -172,17 +168,7 @@ fun SettingsDataStorageScreen() {
 
 		if (time == 0L) return stringResource(Res.string.info_sync_never)
 
-		val duration = Clock.System.now() - Instant.fromEpochMilliseconds(time)
-		val minutes = duration.inWholeMinutes.toInt()
-		val hours = duration.inWholeHours.toInt()
-		val days = duration.inWholeDays.toInt()
-
-		return when {
-			minutes < 1 -> stringResource(Res.string.info_sync_just_now)
-			hours < 1 -> pluralStringResource(Res.plurals.count_minutes_ago, minutes, minutes)
-			days < 1 -> pluralStringResource(Res.plurals.count_hours_ago, hours, hours)
-			else -> pluralStringResource(Res.plurals.count_days_ago, days, days)
-		}
+		return Instant.fromEpochMilliseconds(time).timeAgo()
 	}
 
 	LaunchedEffect(Unit) {

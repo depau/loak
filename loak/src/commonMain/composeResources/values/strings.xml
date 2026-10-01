@@ -531,4 +531,16 @@
 	<string name="option_startup_queue_nothing">Nothing</string>
 	<string name="option_startup_playlist">Startup playlist</string>
 	<string name="info_no_playlist_selected">None selected</string>
+	<string name="action_send_queue_to_server">Send this queue to the server</string>
+	<string name="action_load_server_queue">Load the server queue</string>
+	<string name="action_save_to_playlist">Save to playlist…</string>
+	<string name="info_server_queue_saved_by">Server queue saved by %1$s</string>
+	<string name="info_server_queue_saved_by_ago">Server queue saved by %1$s, %2$s</string>
+	<string name="info_server_queue_checking">Checking the server…</string>
+	<string name="info_server_queue_none">No queue on the server</string>
+	<string name="info_server_unreachable">Can't reach the server</string>
+	<string name="notice_queue_sent">Queue sent to the server.</string>
+	<string name="notice_queue_loaded">Loaded the queue from %1$s.</string>
+	<string name="notice_server_unreachable">Couldn't reach the server.</string>
+	<string name="notice_no_server_queue">The server has no queue.</string>
 </resources>

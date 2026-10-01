@@ -14,6 +14,7 @@ import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.QueueSyncManager
+import eu.depau.loak.domain.manager.toState
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainExplicitStatus
@@ -29,9 +30,13 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_added_to_queue
 import eu.depau.loak.generated.resources.notice_moved_play_next
 import eu.depau.loak.generated.resources.notice_moved_to_end
+import eu.depau.loak.generated.resources.notice_no_server_queue
 import eu.depau.loak.generated.resources.notice_play_next
 import eu.depau.loak.generated.resources.notice_queue_cleared
+import eu.depau.loak.generated.resources.notice_queue_loaded
+import eu.depau.loak.generated.resources.notice_queue_sent
 import eu.depau.loak.generated.resources.notice_removed_from_queue
+import eu.depau.loak.generated.resources.notice_server_unreachable
 import kotlin.time.Duration.Companion.seconds
 
 abstract class MediaPlayerViewModel(
@@ -259,6 +264,49 @@ abstract class MediaPlayerViewModel(
 			syncPlayerWithState(savedState)
 			checkAndAutoFillQueue()
 		}
+	}
+
+	/** Sends this queue to the server, for the user's other devices. */
+	fun sendQueueToServer() {
+		viewModelScope.launch {
+			snackBarManager.notify(
+				if (pushQueue()) Res.string.notice_queue_sent else Res.string.notice_server_unreachable
+			)
+		}
+	}
+
+	/** Replaces this queue with the one on the server, with an undo. */
+	fun loadQueueFromServer() {
+		viewModelScope.launch {
+			val remote = try {
+				queueSyncManager.fetch()
+			} catch (e: Exception) {
+				Logger.w("MediaPlayerViewModel", "could not fetch the server queue", e)
+				snackBarManager.notify(Res.string.notice_server_unreachable)
+				return@launch
+			}
+			if (remote == null) {
+				snackBarManager.notify(Res.string.notice_no_server_queue)
+				return@launch
+			}
+			val previous = uiState.value
+			replaceQueue(remote.toState(previous))
+			queueSyncManager.markPickedUp(remote)
+			snackBarManager.notifyWithUndo(
+				Res.string.notice_queue_loaded,
+				QueueSyncManager.sourceName(remote.changedBy)
+			) { replaceQueue(previous) }
+		}
+	}
+
+	/** Swaps in [state], paused, the same way the saved queue is restored at startup. */
+	private fun replaceQueue(state: PlayerUiState) {
+		val paused = state.copy(isPaused = true, isLoading = false)
+		clearQueue()
+		// a queue that came from the server, or was there before, isn't pushed back
+		syncedKey = paused.syncKey()
+		_uiState.value = paused
+		syncPlayerWithState(paused)
 	}
 
 	/** What a push to the server tracks: the playback status and the track. */
