@@ -60,6 +60,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -486,6 +487,9 @@ class AndroidMediaPlayerViewModel(
 
 	private var pendingSyncState: PlayerUiState? = null
 
+	/** The running progress poller; at most one is ever active. */
+	private var progressJob: Job? = null
+
 	init {
 		connectToService()
 	}
@@ -759,7 +763,10 @@ class AndroidMediaPlayerViewModel(
 	}
 
 	private fun startProgressLoop() {
-		viewModelScope.launch {
+		// re-buffering or a play/pause race can fire onIsPlayingChanged(true)
+		// again while a poller is already running; only ever keep one
+		if (progressJob?.isActive == true) return
+		progressJob = viewModelScope.launch {
 			while (controller?.isPlaying == true) {
 				val player = controller ?: break
 				val duration = player.duration

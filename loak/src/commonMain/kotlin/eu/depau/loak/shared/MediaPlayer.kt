@@ -358,8 +358,12 @@ abstract class MediaPlayerViewModel(
 		viewModelScope.launch {
 			uiState
 				.distinctUntilChanged { old, new ->
+					// every queue mutation produces a new list (immutable songs),
+					// so identity is enough: deep-comparing queues on each 200 ms
+					// progress tick (which shares the list reference) is pure
+					// waste on long playlists
 					old.currentIndex == new.currentIndex &&
-						old.queue == new.queue &&
+						old.queue === new.queue &&
 						old.isPaused == new.isPaused &&
 						old.repeatMode == new.repeatMode &&
 						old.isShuffleEnabled == new.isShuffleEnabled
