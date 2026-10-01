@@ -5,6 +5,7 @@ on:
     paths:
       - loak/**
       - loakApp/**
+      - loakDesktop/**
       - gradle/**
       - build.gradle.kts
       - settings.gradle.kts
@@ -18,6 +19,7 @@ on:
     paths:
       - loak/**
       - loakApp/**
+      - loakDesktop/**
       - gradle/**
       - build.gradle.kts
       - settings.gradle.kts
