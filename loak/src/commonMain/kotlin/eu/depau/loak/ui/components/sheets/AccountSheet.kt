@@ -119,7 +119,12 @@ fun AccountSheet(
 			modifier = Modifier.verticalScroll(rememberScrollState()),
 			verticalArrangement = Arrangement.spacedBy(SegmentedListItemDefaults.SegmentedGap)
 		) {
+			// the account card opens the Server settings: address, credentials, device name
 			Surface(
+				onClick = {
+					animateToDismiss()
+					backStack.add(Screen.Settings.Server)
+				},
 				color = MaterialTheme.colorScheme.surfaceContainer,
 				shape = MaterialTheme.shapes.large
 			) {

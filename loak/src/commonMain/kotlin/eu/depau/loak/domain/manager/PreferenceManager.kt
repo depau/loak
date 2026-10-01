@@ -86,6 +86,8 @@ class PreferenceManager(
 	var nowPlayingSliderStyle by preference(NowPlayingSliderStyle.Squiggly)
 	var nowPlayingCoverArtAction by preference(CoverArtTapAction.ShowLyrics)
 	var customHeaders by preference("")
+	/** Shown on other devices as where a synced queue came from; blank = the system name. */
+	var deviceName by preference("")
 	var checkForUpdates by preference(true)
 	var explicitContentPlayback by preference(ExplicitContentPlayback.Allowed)
 	var autoFillQueue by preference(false)

@@ -511,4 +511,14 @@
 	<string name="info_equaliser_mode_not_builtin">Please adjust the external equaliser using its dedicated app.</string>
 	<string name="info_lyric_provider_disclaimer">Enabling LRCLIB and/or LyricsPlus will make requests to external and unaffiliated web services.</string>
 	<string name="info_duration_left">%1$s left</string>
+	<string name="title_server">Server</string>
+	<string name="subtitle_server">Address, account, this device's name</string>
+	<string name="title_connection">Connection</string>
+	<string name="title_this_device">This device</string>
+	<string name="option_device_name">Device name</string>
+	<string name="info_device_name">Shown on your other devices when they pick up a queue saved here.</string>
+	<string name="info_device_name_default">Leave empty to use %1$s</string>
+	<string name="subtitle_custom_headers">Extra HTTP headers sent with every request</string>
+	<string name="action_save_and_reconnect">Save and reconnect</string>
+	<string name="notice_server_saved">Connected to the server.</string>
 </resources>

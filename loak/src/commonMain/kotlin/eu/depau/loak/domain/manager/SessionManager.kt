@@ -1,6 +1,7 @@
 package eu.depau.loak.domain.manager
 
 import eu.depau.loak.util.IoDispatcher
+import eu.depau.loak.util.systemDeviceName
 
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
@@ -30,6 +31,13 @@ class SessionManager(
 
 	/** The logged-in username, as entered at login. */
 	val username: String get() = settings.getString("username", "")
+	val instanceUrl: String get() = settings.getString("instanceUrl", "")
+
+	/** This device's name, as shown to the user's other devices. */
+	val deviceName: String get() = preferenceManager.deviceName.ifBlank { systemDeviceName() }
+
+	/** The Subsonic client name; the server reports it as who last saved the queue. */
+	val clientName: String get() = "$CLIENT_NAME ($deviceName)"
 	private val mutex = Mutex()
 	private val scope = CoroutineScope(IoDispatcher)
 
@@ -55,10 +63,10 @@ class SessionManager(
 			username = username,
 			password = password,
 		),
-		client = "Lo'ak",
+		client = clientName,
 		clientConfig = {
 			install(UserAgent) {
-				agent = "Lo'ak"
+				agent = CLIENT_NAME
 			}
 
 			val customHeaders = preferenceManager.customHeadersMap()
@@ -143,6 +151,8 @@ class SessionManager(
 		return currentUser
 	}
 }
+
+private const val CLIENT_NAME = "Lo'ak"
 
 fun User.hasRole(role: Role): Boolean {
 	return this.roles.contains(role)

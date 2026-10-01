@@ -31,6 +31,7 @@ import eu.depau.loak.generated.resources.subtitle_data_storage
 import eu.depau.loak.generated.resources.subtitle_developer
 import eu.depau.loak.generated.resources.subtitle_now_playing
 import eu.depau.loak.generated.resources.subtitle_playback
+import eu.depau.loak.generated.resources.subtitle_server
 import eu.depau.loak.generated.resources.title_about
 import eu.depau.loak.generated.resources.title_appearance
 import eu.depau.loak.generated.resources.title_bottom_app_bar
@@ -38,6 +39,7 @@ import eu.depau.loak.generated.resources.title_data_storage
 import eu.depau.loak.generated.resources.title_developer
 import eu.depau.loak.generated.resources.title_now_playing
 import eu.depau.loak.generated.resources.title_playback
+import eu.depau.loak.generated.resources.title_server
 import eu.depau.loak.generated.resources.title_settings
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -45,6 +47,7 @@ import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.filled.Dns
 import eu.depau.loak.icons.filled.BottomNavigation
 import eu.depau.loak.icons.filled.Info
 import eu.depau.loak.icons.filled.Palette
@@ -73,6 +76,16 @@ fun SettingsScreen() {
 				.padding(horizontal = 16.dp),
 			verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
 		) {
+			SettingsGroup {
+				PageRow(
+					destination = Screen.Settings.Server,
+					icon = Icons.Filled.Dns,
+					iconSize = 24.dp,
+					title = Res.string.title_server,
+					subtitle = Res.string.subtitle_server,
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+				)
+			}
 			SettingsGroup {
 				PageRow(
 					destination = Screen.Settings.Appearance,

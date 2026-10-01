@@ -75,15 +75,8 @@ class LoginManager(
 			loginState.value = LoginUiState.Loading
 
 			try {
-				val rawUrl = instanceState.text.toString().trim().removeSuffix("/")
-				val url = if (rawUrl.startsWith("https://") || rawUrl.startsWith("http://")) {
-					rawUrl
-				} else {
-					"https://$rawUrl"
-				}
-
 				sessionManager.login(
-					url,
+					normalizeInstanceUrl(instanceState.text.toString()),
 					usernameState.text.toString(),
 					passwordState.text.toString()
 				)
@@ -104,6 +97,21 @@ class LoginManager(
 		return true
 	}
 
+	/**
+	 * Applies new connection details from the Server settings page. Throws, keeping the
+	 * old ones, when the server rejects them; a different server or user starts over
+	 * with a fresh library sync.
+	 */
+	suspend fun reconnect(instanceUrl: String, username: String, password: String) {
+		val url = normalizeInstanceUrl(instanceUrl)
+		val switched = url != sessionManager.instanceUrl || username != sessionManager.username
+		sessionManager.login(url, username, password)
+		if (switched) scope.launch {
+			repository.removeEverything()
+			repository.syncEverything()
+		}
+	}
+
 	fun logout() {
 		loginState.value = LoginUiState.Idle
 		sessionManager.logout()
@@ -111,4 +119,10 @@ class LoginManager(
 			repository.removeEverything()
 		}
 	}
+}
+
+/** Trims the URL and its trailing slash, assuming https when no scheme is given. */
+fun normalizeInstanceUrl(raw: String): String {
+	val url = raw.trim().removeSuffix("/")
+	return if (url.startsWith("https://") || url.startsWith("http://")) url else "https://$url"
 }

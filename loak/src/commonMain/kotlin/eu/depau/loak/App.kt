@@ -128,6 +128,7 @@ import eu.depau.loak.ui.screens.settings.SettingsEqualiserScreen
 import eu.depau.loak.ui.screens.settings.SettingsLogsScreen
 import eu.depau.loak.ui.screens.settings.SettingsNowPlayingScreen
 import eu.depau.loak.ui.screens.settings.SettingsPlaybackScreen
+import eu.depau.loak.ui.screens.settings.SettingsServerScreen
 import eu.depau.loak.ui.screens.settings.SettingsScreen
 import eu.depau.loak.ui.screens.settings.SettingsStreamingQualityScreen
 import eu.depau.loak.ui.screens.settings.SettingsThemesScreen
@@ -462,6 +463,9 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.Playback>(metadata = detailPane("settings")) {
 			SettingsPlaybackScreen()
+		}
+		entry<Screen.Settings.Server>(metadata = detailPane("settings")) {
+			SettingsServerScreen()
 		}
 		entry<Screen.Settings.Effects>(metadata = detailPane("settings")) {
 			AudioEffectsScreen()
