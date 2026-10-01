@@ -4,13 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.shared.MediaPlayerViewModel
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class NowPlayingViewModel(
 	private val player: MediaPlayerViewModel,
 	private val songRepository: SongRepository
@@ -23,18 +27,25 @@ class NowPlayingViewModel(
 
 	init {
 		// the star and rating only change on user action, and the player pushes
-		// progress updates ~5×/s while playing; re-running two Room queries on
+		// progress updates ~5×/s while playing; re-running Room queries on
 		// every emission is needless IO churn, so react to the current song only
+		val currentSong = player.uiState
+			.map { it.currentSong }
+			.distinctUntilChangedBy { it?.id }
+
+		// observed, so a star toggled from the media notification shows up here too
 		viewModelScope.launch {
-			player.uiState
-				.map { it.currentSong?.id }
-				.distinctUntilChanged()
-				.collect { songId ->
-					val song = player.uiState.value.currentSong
-					if (song == null) return@collect
-					songIsStarred.value = songRepository.isSongStarred(song)
-					songRating.value = songRepository.getSongRating(song)
+			currentSong
+				.flatMapLatest { song ->
+					song?.let { songRepository.observeSongStarred(it.id) } ?: flowOf(false)
 				}
+				.collect { songIsStarred.value = it }
+		}
+
+		viewModelScope.launch {
+			currentSong.collect { song ->
+				if (song != null) songRating.value = songRepository.getSongRating(song)
+			}
 		}
 	}
 
@@ -42,12 +53,9 @@ class NowPlayingViewModel(
 		viewModelScope.launch {
 			runCatching {
 				player.uiState.value.currentSong?.let { song ->
+					// optimistic: a song missing from the cache never makes the flow emit
 					songIsStarred.value = starred
-					if (starred) {
-						songRepository.starSong(song)
-					} else {
-						songRepository.unstarSong(song)
-					}
+					songRepository.setSongStarred(song.id, starred)
 				}
 			}
 		}

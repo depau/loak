@@ -106,14 +106,18 @@ class SongRepository(
 
 	suspend fun isSongStarred(song: DomainSong) = songDao.isSongStarred(song.id)
 	suspend fun getSongRating(song: DomainSong) = songDao.getSongRating(song.id) ?: 0
-	suspend fun starSong(song: DomainSong) {
-		songDao.updateSongStarredAt(song.id, Clock.System.now())
-		syncManager.enqueueAction(SyncActionType.STAR, song.id)
-	}
+	fun observeSongStarred(songId: String) = songDao.observeSongStarred(songId)
+	suspend fun starSong(song: DomainSong) = setSongStarred(song.id, true)
+	suspend fun unstarSong(song: DomainSong) = setSongStarred(song.id, false)
 
-	suspend fun unstarSong(song: DomainSong) {
-		songDao.updateSongStarredAt(song.id, null)
-		syncManager.enqueueAction(SyncActionType.UNSTAR, song.id)
+	suspend fun setSongStarred(songId: String, starred: Boolean) {
+		if (starred) {
+			songDao.updateSongStarredAt(songId, Clock.System.now())
+			syncManager.enqueueAction(SyncActionType.STAR, songId)
+		} else {
+			songDao.updateSongStarredAt(songId, null)
+			syncManager.enqueueAction(SyncActionType.UNSTAR, songId)
+		}
 	}
 
 	suspend fun rateSong(song: DomainSong, rating: Int) {

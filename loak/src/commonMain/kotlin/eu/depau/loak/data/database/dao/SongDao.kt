@@ -7,6 +7,7 @@ import androidx.room3.Query
 import androidx.room3.Transaction
 import eu.depau.loak.data.database.entities.SongEntity
 import eu.depau.loak.util.Logger
+import kotlinx.coroutines.flow.Flow
 import kotlin.time.Instant
 
 @Dao
@@ -35,6 +36,9 @@ interface SongDao {
 	// TODO
 	@Query("SELECT EXISTS(SELECT 1 FROM SongEntity WHERE songId = :songId AND starredAt IS NOT NULL)")
 	suspend fun isSongStarred(songId: String): Boolean
+
+	@Query("SELECT EXISTS(SELECT 1 FROM SongEntity WHERE songId = :songId AND starredAt IS NOT NULL)")
+	fun observeSongStarred(songId: String): Flow<Boolean>
 
 	@Query("SELECT userRating FROM SongEntity WHERE songId = :songId")
 	suspend fun getSongRating(songId: String): Int?
