@@ -2,6 +2,8 @@ package eu.depau.loak.di
 
 import androidx.room3.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import com.russhwolf.settings.PropertiesSettings
+import com.russhwolf.settings.Settings
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import eu.depau.loak.data.database.CacheDatabase
@@ -19,6 +21,7 @@ import eu.depau.loak.shared.MediaPlayerViewModel
 import coil3.PlatformContext as CoilPlatformContext
 import java.io.File
 import java.nio.file.Files
+import java.util.Properties
 
 val desktopDataDir: File by lazy {
 	val dir = File(
@@ -36,6 +39,17 @@ val desktopDataDir: File by lazy {
 actual val platformModule = module {
 	single { PlatformType.Desktop }
 
+	single<Settings> {
+		val propertiesFile = File(desktopDataDir, "settings.properties")
+		val properties = Properties().apply {
+			if (propertiesFile.exists()) {
+				runCatching { propertiesFile.inputStream().use { load(it) } }
+			}
+		}
+		PropertiesSettings(properties) { props ->
+			runCatching { propertiesFile.outputStream().use { props.store(it, null) } }
+		}
+	}
 	single<CacheDatabase> {
 		Room
 			.databaseBuilder<CacheDatabase>(File(desktopDataDir, "cache.db").absolutePath)

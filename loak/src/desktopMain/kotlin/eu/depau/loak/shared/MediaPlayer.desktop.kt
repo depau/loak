@@ -1,7 +1,6 @@
 package eu.depau.loak.shared
 
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -24,9 +23,13 @@ import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.repositories.PlayerStateRepository
 import eu.depau.loak.domain.repositories.SongRepository
+import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.notice_server_unreachable
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
+import java.io.BufferedInputStream
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.sound.sampled.AudioFormat
@@ -39,8 +42,9 @@ import javax.sound.sampled.SourceDataLine
 /**
  * Desktop (JVM) implementation of [MediaPlayerViewModel], using Java Sound.
  *
- * MP3 decoding comes from mp3spi (JLayer); WAV/AIFF are native. FLAC streaming
- * and gapless playback are not implemented yet — see DESIGN_CHANGES.
+ * Requests MP3 container from Subsonic for universal compatibility across all
+ * server formats (FLAC, AAC, Opus, Vorbis, etc.). The stream is decoded via
+ * mp3spi into 16-bit signed PCM and written to a [SourceDataLine].
  */
 class DesktopMediaPlayerViewModel(
 	stateRepository: PlayerStateRepository,
@@ -64,6 +68,8 @@ class DesktopMediaPlayerViewModel(
 	private val player = DesktopAudioPlayer()
 	private var isTransitioningBetweenTracks = false
 	private var progressJob: Job? = null
+	private var lastTrackEndTime = 0L
+	private var rapidEndCount = 0
 
 	private val scrobbleManager = ScrobbleManager(
 		playerSource = player,
@@ -97,24 +103,25 @@ class DesktopMediaPlayerViewModel(
 		progressJob?.cancel()
 	}
 
-	// --- stream URL (same logic as iOS) ---
+	// --- stream URL ---
 
 	private fun getStreamUrl(id: String): String {
 		val isCellular = connectivityManager.isCellular.value
 		val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
 			if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
 		} else {
-			if (isCellular) preferenceManager.streamingQualityCellular.bitrateIos else preferenceManager.streamingQualityWifi.bitrateIos
+			val quality = if (isCellular) preferenceManager.streamingQualityCellular else preferenceManager.streamingQualityWifi
+			if (quality.bitrateIos > 0) quality.bitrateIos else 320
 		}
 		val container = if (preferenceManager.isAdvancedTranscodingActive) {
 			if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi
 		} else {
-			if (isCellular) preferenceManager.streamingQualityCellular.containerIos else preferenceManager.streamingQualityWifi.containerIos
+			"mp3"
 		}
 		return sessionManager.api.getStreamUrl(
 			id = id,
 			maxBitRate = bitrate,
-			format = container?.takeIf { it.isNotBlank() }
+			format = container?.takeIf { it.isNotBlank() } ?: "mp3"
 		) + "&estimateContentLength=true"
 	}
 
@@ -123,8 +130,12 @@ class DesktopMediaPlayerViewModel(
 			song.id.startsWith("radio_") && !song.filePath.isNullOrEmpty() -> song.filePath
 			else -> {
 				val localPath = downloadManager.getDownloadedFilePath(song.id)
-				if (localPath != null) "file://$localPath"
-				else getStreamUrl(song.id)
+				// Only use local file if it's already decoded PCM / WAV or MP3 that Java Sound can decode
+				if (localPath != null && (localPath.endsWith(".mp3", true) || localPath.endsWith(".wav", true))) {
+					"file://$localPath"
+				} else {
+					getStreamUrl(song.id)
+				}
 			}
 		}
 
@@ -142,13 +153,19 @@ class DesktopMediaPlayerViewModel(
 					currentIndex = index,
 					currentSong = songToPlay,
 					isPaused = false,
-					isLoading = false
+					isLoading = false,
+					progress = 0f
 				)
 			}
-			player.playUrl(url)
+			val durationMs = songToPlay.duration.inWholeMilliseconds
+			player.playUrl(url, durationMs)
 			player.volume = preferenceManager.playerVolume
 			scrobbleManager.onMediaChanged(songToPlay.id)
 			scrobbleManager.onPlayStateChanged(true)
+		} catch (e: Exception) {
+			Logger.e("DesktopMediaPlayerViewModel", "Failed to start playback for ${songToPlay.id}", e)
+			_uiState.update { it.copy(isPaused = true, isLoading = false) }
+			snackBarManager.notify(Res.string.notice_server_unreachable)
 		} finally {
 			isTransitioningBetweenTracks = false
 		}
@@ -196,18 +213,24 @@ class DesktopMediaPlayerViewModel(
 			isExternal = false
 		)
 
-		player.playUrl(radio.streamUrl)
-		_uiState.update { state ->
-			state.copy(
-				queue = listOf(dummyRadioSong),
-				currentIndex = 0,
-				currentSong = dummyRadioSong,
-				isLoading = false,
-				isPaused = false
-			)
+		try {
+			player.playUrl(radio.streamUrl, 0L)
+			_uiState.update { state ->
+				state.copy(
+					queue = listOf(dummyRadioSong),
+					currentIndex = 0,
+					currentSong = dummyRadioSong,
+					isLoading = false,
+					isPaused = false
+				)
+			}
+			scrobbleManager.onMediaChanged(radioId)
+			scrobbleManager.onPlayStateChanged(true)
+		} catch (e: Exception) {
+			Logger.e("DesktopMediaPlayerViewModel", "Failed to start radio stream", e)
+			_uiState.update { it.copy(isPaused = true, isLoading = false) }
+			snackBarManager.notify(Res.string.notice_server_unreachable)
 		}
-		scrobbleManager.onMediaChanged(radioId)
-		scrobbleManager.onPlayStateChanged(true)
 	}
 
 	override fun insertIntoQueue(index: Int, songs: List<DomainSong>) {
@@ -286,12 +309,11 @@ class DesktopMediaPlayerViewModel(
 
 	override fun setPlaybackSpeed(value: Float) {
 		_uiState.update { it.copy(playbackSpeed = value) }
-		// ponytail: SourceDataLine can't change rate; playback-speed is stored for UI.
 	}
 
 	override fun seek(normalized: Float) {
-		if (player.durationMs <= 0) return
-		val targetMs = (player.durationMs * normalized).toLong()
+		if (player.duration <= 0) return
+		val targetMs = (player.duration * normalized).toLong()
 		player.seekTo(targetMs)
 		_uiState.update { it.copy(progress = normalized) }
 	}
@@ -307,6 +329,20 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	private fun onTrackEnded() {
+		val now = System.currentTimeMillis()
+		if (now - lastTrackEndTime < 1000) {
+			rapidEndCount++
+		} else {
+			rapidEndCount = 0
+		}
+		lastTrackEndTime = now
+
+		if (rapidEndCount >= 3) {
+			Logger.w("DesktopMediaPlayerViewModel", "Rapid track ending detected, pausing playback")
+			pause()
+			return
+		}
+
 		scrobbleManager.onPlayStateChanged(false)
 		when {
 			_uiState.value.repeatMode == 1 -> playAt(_uiState.value.currentIndex)
@@ -319,67 +355,89 @@ class DesktopMediaPlayerViewModel(
 		private var line: SourceDataLine? = null
 		private var stream: AudioInputStream? = null
 		private var source: HttpURLConnection? = null
-		private var buffer = ByteArray(64 * 1024)
+		private val buffer = ByteArray(64 * 1024)
 		private var playing = false
 		private var paused = false
 		private var atEnd = false
-		private var totalFrames: Long = 0
+
+		private var trackDurationMs: Long = 0
+		private var bytesPerSecond: Long = 0
+		private var totalDecodedBytes: Long = 0
 
 		override var currentPosition: Long = 0
 			private set
-		override var duration: Long = 0
-			private set
+
+		override val duration: Long
+			get() = trackDurationMs
+
 		override var isPlaying: Boolean
 			get() = playing && !paused
 			set(value) {}
 
 		val ended: Boolean get() = atEnd
 
-		val durationMs: Long
-			get() = if (duration > 0 && frameRate > 0) duration * 1000 / frameRate.toLong() else 0
+		fun playUrl(url: String, durationMs: Long) {
+			stopStream()
+			atEnd = false
+			playing = false
+			paused = false
+			currentPosition = 0
+			trackDurationMs = durationMs
 
-		var frameRate: Float = 0f
-
-		fun playUrl(url: String) {
 			try {
-				stopStream()
-				atEnd = false
-				playing = false
-				paused = false
-
 				val conn = if (url.startsWith("file:"))
 					null else URL(url).openConnection() as HttpURLConnection
 				source = conn
 
-				val inStream = when {
+				val rawIn = when {
 					conn != null -> {
 						conn.connect()
 						if (conn.responseCode !in 200..299) {
-							Logger.e("DesktopAudioPlayer", "HTTP ${conn.responseCode} for $url")
-							return
+							throw IOException("HTTP ${conn.responseCode} for $url")
 						}
 						conn.inputStream
 					}
-
 					else -> File(URL(url).toURI()).inputStream()
 				}
+				val bufferedIn = BufferedInputStream(rawIn)
 
-				val audioStream = AudioSystem.getAudioInputStream(inStream)
-				stream = audioStream
-				val format = audioStream.format
-				frameRate = format.frameRate
-				// estimate duration from the stream when the header says so
-				totalFrames = try {
-					AudioSystem.getAudioFileFormat(inStream)?.frameLength?.toLong() ?: -1
-				} catch (e: Exception) {
-					-1L
+				val audioStream = AudioSystem.getAudioInputStream(bufferedIn)
+				val baseFormat = audioStream.format
+
+				// If the audio format is not PCM_SIGNED (e.g. MP3 via mp3spi), convert to PCM_SIGNED
+				val decodedFormat = if (baseFormat.encoding != AudioFormat.Encoding.PCM_SIGNED) {
+					AudioFormat(
+						AudioFormat.Encoding.PCM_SIGNED,
+						baseFormat.sampleRate,
+						16,
+						baseFormat.channels,
+						baseFormat.channels * 2,
+						baseFormat.sampleRate,
+						false
+					)
+				} else {
+					baseFormat
 				}
-				duration = songDurationFromFrames(totalFrames, format)
 
-				val info = DataLine.Info(SourceDataLine::class.java, format)
+				val pcmStream = if (baseFormat.encoding != AudioFormat.Encoding.PCM_SIGNED) {
+					AudioSystem.getAudioInputStream(decodedFormat, audioStream)
+				} else {
+					audioStream
+				}
+				stream = pcmStream
+
+				bytesPerSecond = (decodedFormat.sampleRate * decodedFormat.frameSize).toLong()
+				totalDecodedBytes = if (durationMs > 0 && bytesPerSecond > 0) {
+					durationMs * bytesPerSecond / 1000L
+				} else {
+					0L
+				}
+
+				val info = DataLine.Info(SourceDataLine::class.java, decodedFormat)
 				val l = AudioSystem.getLine(info) as SourceDataLine
 				line = l
-				l.open(format)
+				l.open(decodedFormat)
+				applyVolumeToLine(l, volume)
 				l.start()
 				playing = true
 
@@ -391,18 +449,21 @@ class DesktopMediaPlayerViewModel(
 								Thread.sleep(50)
 								continue
 							}
-							val read = audioStream.read(buf, 0, buf.size)
+							val read = pcmStream.read(buf, 0, buf.size)
 							if (read < 0) {
+								l.drain()
 								atEnd = true
 								break
 							}
 							if (read > 0) {
 								l.write(buf, 0, read)
-								currentPosition += read
+								if (bytesPerSecond > 0) {
+									currentPosition += (read.toLong() * 1000L) / bytesPerSecond
+								}
 							}
 						}
 					} catch (e: Exception) {
-						Logger.e("DesktopAudioPlayer", "playback error", e)
+						Logger.e("DesktopAudioPlayer", "playback stream error", e)
 					} finally {
 						try {
 							l.drain()
@@ -415,14 +476,22 @@ class DesktopMediaPlayerViewModel(
 				}.start()
 			} catch (e: Exception) {
 				Logger.e("DesktopAudioPlayer", "failed to play $url", e)
-				atEnd = true
+				atEnd = false
 				cleanupStream()
+				throw e
 			}
 		}
 
-		private fun songDurationFromFrames(frames: Long, format: AudioFormat): Long {
-			if (frames > 0 && format.frameRate > 0) return (frames / format.frameRate.toLong()).toLong()
-			return 0
+		private fun applyVolumeToLine(l: SourceDataLine?, vol: Float) {
+			if (l == null) return
+			runCatching {
+				val control = l.getControl(FloatControl.Type.MASTER_GAIN)
+				if (control is FloatControl) {
+					val min = control.minimum
+					val dB = if (vol <= 0f) min else (20.0 * Math.log10(vol.toDouble())).toFloat().coerceIn(control.minimum, 0.5f)
+					control.value = dB.coerceIn(control.minimum, control.maximum)
+				}
+			}.onFailure { Logger.w("DesktopAudioPlayer", "no volume control") }
 		}
 
 		fun resume() {
@@ -459,20 +528,12 @@ class DesktopMediaPlayerViewModel(
 		}
 
 		fun progress(): Float =
-			if (durationMs > 0) currentPosition.toFloat() / durationMs else 0f
+			if (trackDurationMs > 0) (currentPosition.toFloat() / trackDurationMs.toFloat()).coerceIn(0f, 1f) else 0f
 
 		var volume: Float = 1f
 			set(value) {
 				field = value.coerceIn(0f, 1f)
-				val l = line ?: return
-				runCatching {
-					val control = l.getControl(FloatControl.Type.MASTER_GAIN)
-					if (control is FloatControl) {
-						val min = control.minimum
-						val dB = if (field <= 0f) min else (20.0 * Math.log10(field.toDouble())).toFloat().coerceIn(control.minimum, 0.5f)
-						control.value = dB.coerceIn(control.minimum, control.maximum)
-					}
-				}.onFailure { Logger.w("DesktopAudioPlayer", "no volume control") }
+				applyVolumeToLine(line, field)
 			}
 
 		fun release() {

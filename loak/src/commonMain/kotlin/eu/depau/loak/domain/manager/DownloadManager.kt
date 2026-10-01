@@ -351,9 +351,12 @@ class DownloadManager(
 			if (isCellular) preferenceManager.customDownloadFormatCellular else preferenceManager.customDownloadFormatWifi
 		} else {
 			val quality = if (isCellular) preferenceManager.downloadQualityCellular else preferenceManager.downloadQualityWifi
-			if (platformType == PlatformType.Android) quality.containerAndroid else quality.containerIos
+			when (platformType) {
+				PlatformType.Android -> quality.containerAndroid
+				PlatformType.Desktop -> "mp3"
+				else -> quality.containerIos
+			}
 		}
-
 		val extension = container?.takeIf { it.isNotBlank() } ?: song.fileExtension
 
 		val request = client.prepareRequest(

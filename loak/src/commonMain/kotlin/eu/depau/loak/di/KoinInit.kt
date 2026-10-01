@@ -7,6 +7,7 @@ import org.koin.dsl.KoinAppDeclaration
 fun initKoin(config: KoinAppDeclaration? = null): KoinApplication {
 	return startKoin {
 		config?.invoke(this)
+		allowOverride(true)
 		printLogger()
 		modules(
 			appModule,
