@@ -51,7 +51,7 @@ jobs:
         id: build_release
         if: github.event_name == 'push' && env.SIGNING_KEY_ALIAS
         env:
-          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_KEY_ALIAS: ${{ vars.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
@@ -65,7 +65,7 @@ jobs:
         id: build_nightly
         if: github.event_name == 'push' && env.SIGNING_KEY_ALIAS && startsWith(github.ref, 'refs/heads/main')
         env:
-          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          SIGNING_KEY_ALIAS: ${{ vars.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
