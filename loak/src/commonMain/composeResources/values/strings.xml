@@ -535,7 +535,7 @@
 	<string name="action_load_server_queue">Load the server queue</string>
 	<string name="action_save_to_playlist">Save to playlist…</string>
 	<string name="info_server_queue_saved_by">Server queue saved by %1$s</string>
-	<string name="info_server_queue_saved_by_ago">Server queue saved by %1$s, %2$s</string>
+	<string name="info_server_queue_saved_by_ago">Server queue saved by %1$s · %2$s</string>
 	<string name="info_server_queue_checking">Checking the server…</string>
 	<string name="info_server_queue_none">No queue on the server</string>
 	<string name="info_server_unreachable">Can't reach the server</string>

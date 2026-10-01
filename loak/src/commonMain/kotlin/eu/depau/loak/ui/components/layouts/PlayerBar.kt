@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.layouts
 
+import androidx.compose.ui.text.style.TextOverflow
 import eu.depau.loak.ui.util.pickedUpFromLabel
 import androidx.compose.foundation.background
 import eu.depau.loak.icons.outlined.VolumeUp
@@ -170,7 +171,8 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 								it,
 								style = MaterialTheme.typography.bodyMedium,
 								color = MaterialTheme.colorScheme.onSurfaceVariant,
-								maxLines = 1
+								maxLines = 1,
+								overflow = TextOverflow.Ellipsis
 							)
 						}
 					}
