@@ -6,6 +6,8 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -339,6 +341,20 @@ abstract class MediaPlayerViewModel(
 				}
 		}
 
+		// and every so often while playing, so other devices resume near the same spot:
+		// the server only knows the position a client last saved
+		viewModelScope.launch {
+			uiState
+				.map { !it.isPaused && it.currentSong != null }
+				.distinctUntilChanged()
+				.collectLatest { playing ->
+					while (playing) {
+						delay(POSITION_SAVE_INTERVAL)
+						if (preferenceManager.queueSyncEnabled) pushQueue()
+					}
+				}
+		}
+
 		viewModelScope.launch {
 			uiState
 				.distinctUntilChanged { old, new ->
@@ -361,4 +377,10 @@ abstract class MediaPlayerViewModel(
 				}
 		}
 	}
+
+	private companion object {
+		// ponytail: fixed; a setting if anyone needs it tighter
+		val POSITION_SAVE_INTERVAL = 30.seconds
+	}
 }
+

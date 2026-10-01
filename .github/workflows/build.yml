@@ -168,26 +168,33 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Download nightly artifact
         uses: actions/download-artifact@v7
         with:
           name: loak-nightly-android
           path: nightly
 
-      - name: Delete existing nightly release
+      - name: Tag and create nightly release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes || true
+          set -euo pipefail
 
-      - name: Create nightly release with APK
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create nightly \
-            nightly/*.apk \
+          TAG="nightly/$(date -u +%F)-${GITHUB_SHA::7}"
+
+          # Fresh release per commit; drop any previous run of this exact tag
+          # (re-runs) before recreating it.
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+
+          git tag --force "$TAG"
+          git push --force origin "refs/tags/$TAG"
+
+          gh release create "$TAG" nightly/*.apk \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Nightly" \
+            --title "Nightly $TAG" \
             --notes "Nightly build of \`main\` (${{ github.sha }})." \
             --prerelease
 
