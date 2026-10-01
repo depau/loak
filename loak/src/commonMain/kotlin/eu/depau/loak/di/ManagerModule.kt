@@ -6,6 +6,7 @@ import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.EqualiserManager
 import eu.depau.loak.domain.manager.LoginManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.manager.SnackBarManager
@@ -24,4 +25,5 @@ val managerModule = module {
 	singleOf(::SnackBarManager)
 	singleOf(::LoginManager)
 	singleOf(::EqualiserManager)
+	singleOf(::QueueSyncManager)
 }

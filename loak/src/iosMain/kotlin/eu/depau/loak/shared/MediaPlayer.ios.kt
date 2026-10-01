@@ -9,6 +9,7 @@ import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.IOSScrobbleManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
@@ -74,6 +75,7 @@ class IOSMediaPlayerViewModel(
 	downloadManager: DownloadManager,
 	connectivityManager: ConnectivityManager,
 	preferenceManager: PreferenceManager,
+	queueSyncManager: QueueSyncManager,
 	syncManager: SyncManager,
 	private val sessionManager: SessionManager,
 	override val snackBarManager: SnackBarManager
@@ -82,7 +84,8 @@ class IOSMediaPlayerViewModel(
 	songRepository = songRepository,
 	connectivityManager = connectivityManager,
 	downloadManager = downloadManager,
-	preferenceManager = preferenceManager
+	preferenceManager = preferenceManager,
+	queueSyncManager = queueSyncManager
 ) {
 	private val player = AVPlayer()
 	private var timeObserver: Any? = null

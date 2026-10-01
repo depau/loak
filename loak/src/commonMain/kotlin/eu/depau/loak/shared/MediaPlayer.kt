@@ -8,12 +8,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainExplicitStatus
@@ -24,6 +24,7 @@ import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
 import eu.depau.loak.domain.repositories.PlayerStateRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.PlayerUiState
+import eu.depau.loak.util.Logger
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_added_to_queue
 import eu.depau.loak.generated.resources.notice_moved_play_next
@@ -38,7 +39,8 @@ abstract class MediaPlayerViewModel(
 	protected val songRepository: SongRepository,
 	protected val connectivityManager: ConnectivityManager,
 	protected val downloadManager: DownloadManager,
-	protected val preferenceManager: PreferenceManager
+	protected val preferenceManager: PreferenceManager,
+	protected val queueSyncManager: QueueSyncManager
 ) : ViewModel() {
 
 	@Suppress("PropertyName")
@@ -49,6 +51,10 @@ abstract class MediaPlayerViewModel(
 		return song.explicitStatus == DomainExplicitStatus.Explicit
 			&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
 	}
+
+	/** The [syncKey] the server last saw from here, or that was loaded from it. */
+	// declared before init: restoreState() sets it while the constructor runs
+	private var syncedKey: Any? = null
 
 	init {
 		viewModelScope.launch {
@@ -244,10 +250,10 @@ abstract class MediaPlayerViewModel(
 	}
 
 	private suspend fun restoreState() {
-		val savedState = stateRepository.state
-			.filterNotNull()
-			.firstOrNull()
+		val savedState = queueSyncManager.startupState(stateRepository.state.value)
 			?.copy(isPaused = true, isLoading = false)
+		// what was loaded is what the server has, or nothing worth pushing yet
+		syncedKey = (savedState ?: _uiState.value).syncKey()
 		if (savedState != null) {
 			_uiState.value = savedState
 			syncPlayerWithState(savedState)
@@ -255,8 +261,36 @@ abstract class MediaPlayerViewModel(
 		}
 	}
 
+	/** What a push to the server tracks: the playback status and the track. */
+	private fun PlayerUiState.syncKey() = Triple(currentSong?.id, currentIndex, isPaused)
+
+	/** Saves the queue to the server; true if it got there. */
+	protected suspend fun pushQueue(): Boolean {
+		val state = uiState.value
+		return try {
+			queueSyncManager.save(state)
+			syncedKey = state.syncKey()
+			true
+		} catch (e: Exception) {
+			Logger.w("MediaPlayerViewModel", "could not save the queue to the server", e)
+			false
+		}
+	}
+
 	@OptIn(FlowPreview::class)
 	private fun observeAndSaveState() {
+		// the server gets the queue when playback starts, pauses or stops, or the track
+		// changes; the debounce lets the player settle after skips and queue swaps
+		viewModelScope.launch {
+			uiState
+				.map { it.syncKey() }
+				.distinctUntilChanged()
+				.debounce(1.seconds)
+				.collect { key ->
+					if (preferenceManager.queueSyncEnabled && key != syncedKey) pushQueue()
+				}
+		}
+
 		viewModelScope.launch {
 			uiState
 				.distinctUntilChanged { old, new ->

@@ -47,6 +47,19 @@ import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.screens.settings.components.SettingsNavItem
 import eu.depau.loak.ui.screens.settings.components.SettingsSliderItem
 import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import eu.depau.loak.domain.models.DomainPlaylist
+import eu.depau.loak.domain.models.DomainPlaylistListType
+import eu.depau.loak.domain.models.settings.StartupQueue
+import eu.depau.loak.domain.repositories.PlaylistRepository
+import eu.depau.loak.generated.resources.info_no_playlist_selected
+import eu.depau.loak.generated.resources.option_queue_sync
+import eu.depau.loak.generated.resources.option_startup_playlist
+import eu.depau.loak.generated.resources.option_startup_queue
+import eu.depau.loak.generated.resources.subtitle_queue_sync
+import eu.depau.loak.generated.resources.title_queue_sync
 import kotlin.math.roundToInt
 
 @Composable
@@ -144,13 +157,56 @@ fun SettingsPlaybackScreen() {
 					}
 
 					AnimatedVisibility(visible = enableScrobbling) {
-
 						SettingsSliderItem(
 							value = preferenceManager.minDurationToScrobble,
 							valueRange = 0f..60f,
 							onValueChange = { preferenceManager.minDurationToScrobble = it },
 							trailingContent = { Text("${preferenceManager.minDurationToScrobble.toInt()}s") },
 							content = { Text(stringResource(Res.string.option_min_duration_to_scrobble)) },
+							shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
+						)
+					}
+				}
+
+				SettingsGroup(title = { Text(stringResource(Res.string.title_queue_sync)) }) {
+					val startupQueue = preferenceManager.startupQueue
+					val pickPlaylist = startupQueue == StartupQueue.Playlist
+					val count = if (pickPlaylist) 3 else 2
+
+					SettingsToggleItem(
+						checked = preferenceManager.queueSyncEnabled,
+						onCheckedChange = { preferenceManager.queueSyncEnabled = it },
+						content = { Text(stringResource(Res.string.option_queue_sync)) },
+						supportingContent = { Text(stringResource(Res.string.subtitle_queue_sync)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count)
+					)
+					SettingsChoiceItem(
+						choices = StartupQueue.entries.toImmutableList(),
+						selectedChoice = startupQueue,
+						onChoiceSelected = { preferenceManager.startupQueue = it },
+						content = { Text(stringResource(Res.string.option_startup_queue)) },
+						label = { stringResource(it.displayName) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
+					)
+					AnimatedVisibility(visible = pickPlaylist) {
+						val playlistRepository = koinInject<PlaylistRepository>()
+						val playlists by remember {
+							playlistRepository.getPlaylistsFlow(
+								fullRefresh = false,
+								listType = DomainPlaylistListType.Name,
+								reversed = false,
+								withSongs = false
+							)
+						}.collectAsState(null)
+						val choices = playlists?.data.orEmpty()
+						SettingsChoiceItem(
+							choices = choices.toImmutableList<DomainPlaylist?>(),
+							selectedChoice = choices.find { it.id == preferenceManager.startupPlaylistId },
+							onChoiceSelected = { preferenceManager.startupPlaylistId = it?.id.orEmpty() },
+							content = { Text(stringResource(Res.string.option_startup_playlist)) },
+							label = {
+								it?.name ?: stringResource(Res.string.info_no_playlist_selected)
+							},
 							shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
 						)
 					}

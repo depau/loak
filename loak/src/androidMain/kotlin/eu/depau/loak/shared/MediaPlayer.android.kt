@@ -75,6 +75,7 @@ import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.EqualiserManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
@@ -464,6 +465,7 @@ class AndroidMediaPlayerViewModel(
 	downloadManager: DownloadManager,
 	connectivityManager: ConnectivityManager,
 	preferenceManager: PreferenceManager,
+	queueSyncManager: QueueSyncManager,
 	private val audioGainManager: AudioGainManager,
 	private val application: Application,
 	private val albumDao: AlbumDao,
@@ -474,7 +476,8 @@ class AndroidMediaPlayerViewModel(
 	songRepository = songRepository,
 	connectivityManager = connectivityManager,
 	downloadManager = downloadManager,
-	preferenceManager = preferenceManager
+	preferenceManager = preferenceManager,
+	queueSyncManager = queueSyncManager
 ) {
 	private var controller: MediaController? = null
 	private var controllerFuture: ListenableFuture<MediaController>? = null

@@ -24,6 +24,7 @@ import eu.depau.loak.domain.models.settings.NowPlayingSliderStyle
 import eu.depau.loak.domain.models.settings.OfflineMode
 import eu.depau.loak.domain.models.settings.QueueInfoType
 import eu.depau.loak.domain.models.settings.ReplayGainMode
+import eu.depau.loak.domain.models.settings.StartupQueue
 import eu.depau.loak.domain.models.settings.StreamingQuality
 import eu.depau.loak.domain.models.settings.Theme
 import eu.depau.loak.domain.models.settings.ThemeMode
@@ -91,6 +92,10 @@ class PreferenceManager(
 	var checkForUpdates by preference(true)
 	var explicitContentPlayback by preference(ExplicitContentPlayback.Allowed)
 	var autoFillQueue by preference(false)
+	/** Save the queue to the server as playback goes, for the user's other devices. */
+	var queueSyncEnabled by preference(true)
+	var startupQueue by preference(StartupQueue.Server)
+	var startupPlaylistId by preference("")
 	/** Id of the playlist songs were last saved to; "Add to playlist" goes straight there. */
 	var lastPlaylistId by preference("")
 	/** In-app volume, where the platform has no hardware volume keys (web). */

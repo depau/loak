@@ -10,6 +10,7 @@ import org.w3c.dom.events.Event
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.ScrobbleManager
 import eu.depau.loak.domain.manager.ScrobblePlayerSource
 import eu.depau.loak.domain.manager.SessionManager
@@ -35,6 +36,7 @@ class WebMediaPlayerViewModel(
 	connectivityManager: ConnectivityManager,
 	downloadManager: DownloadManager,
 	preferenceManager: PreferenceManager,
+	queueSyncManager: QueueSyncManager,
 	syncManager: SyncManager,
 	private val sessionManager: SessionManager,
 	override val snackBarManager: SnackBarManager
@@ -43,7 +45,8 @@ class WebMediaPlayerViewModel(
 	songRepository = songRepository,
 	connectivityManager = connectivityManager,
 	downloadManager = downloadManager,
-	preferenceManager = preferenceManager
+	preferenceManager = preferenceManager,
+	queueSyncManager = queueSyncManager
 ) {
 	private val audio: HTMLAudioElement =
 		(document.createElement("audio") as HTMLAudioElement).apply {

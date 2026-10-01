@@ -521,4 +521,14 @@
 	<string name="subtitle_custom_headers">Extra HTTP headers sent with every request</string>
 	<string name="action_save_and_reconnect">Save and reconnect</string>
 	<string name="notice_server_saved">Connected to the server.</string>
+	<string name="title_queue_sync">Queue sync</string>
+	<string name="option_queue_sync">Sync queue across devices</string>
+	<string name="subtitle_queue_sync">Save your queue to the server as you play</string>
+	<string name="option_startup_queue">On startup, play</string>
+	<string name="option_startup_queue_server">Latest queue from server</string>
+	<string name="option_startup_queue_local">Latest queue on this device</string>
+	<string name="option_startup_queue_playlist">A playlist</string>
+	<string name="option_startup_queue_nothing">Nothing</string>
+	<string name="option_startup_playlist">Startup playlist</string>
+	<string name="info_no_playlist_selected">None selected</string>
 </resources>
