@@ -40,8 +40,7 @@ compose.desktop {
 				TargetFormat.Msi,
 				TargetFormat.Exe,
 				TargetFormat.Deb,
-				TargetFormat.Rpm,
-				TargetFormat.AppImage
+				TargetFormat.Rpm
 			)
 			packageName = "Loak"
 			packageVersion = "1.0.0"

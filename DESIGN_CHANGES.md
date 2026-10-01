@@ -309,9 +309,13 @@ Current state:
   `%LOCALAPPDATA%\Loak`, and no-op managers where desktop lacks the subsystem
   (app icon, audio gain, permissions, animated icons).
 - New `:loakDesktop` app module packages native installers with
-  **jlink + jpackage** (DMG on macOS, MSI/EXE on Windows, DEB/RPM/AppImage on
-  Linux, plus a portable ZIP). The jlink runtime is kept lean with an explicit
+  **jlink + jpackage** (DMG on macOS, MSI/EXE on Windows, DEB/RPM on Linux,
+  plus a portable ZIP per OS). The jlink runtime is kept lean with an explicit
   module list (~84 MB on Linux instead of ~166 MB with `includeAllModules`).
+- **AppImage deferred**: the compose-plugin AppImage target emits no artifact
+  on ubuntu-latest (needs a working appimagetool on the build host). Linux
+  ships deb + rpm + the portable zip instead; re-add once the toolchain is in
+  place.
 - CI (`build.yml` → `build-desktop`) builds the three platform installers on
   each OS runner and attaches them to the `nightly` and `v*` releases.
 - Playback: MP3 (via mp3spi/JLayer) and WAV/AIFF through Java Sound. Progress,

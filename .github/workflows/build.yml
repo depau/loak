@@ -194,10 +194,9 @@ jobs:
               ./gradlew :loakDesktop:packageMsi --stacktrace
               ./gradlew :loakDesktop:packageExe --stacktrace
               ;;
-            *)
+              *)
               ./gradlew :loakDesktop:packageDeb --stacktrace
               ./gradlew :loakDesktop:packageRpm --stacktrace
-              ./gradlew :loakDesktop:packageAppImage --stacktrace
               ;;
           esac
       - name: Build portable zip
