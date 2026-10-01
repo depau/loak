@@ -94,6 +94,7 @@ import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.MoreVert
 import eu.depau.loak.icons.outlined.PlaylistAdd
 import eu.depau.loak.icons.outlined.Upload
+import eu.depau.loak.ui.util.pickedUpFromLabel
 import eu.depau.loak.ui.util.timeAgo
 import kotlinx.collections.immutable.toImmutableList
 
@@ -246,6 +247,14 @@ fun QueueScreen(pane: Boolean = false) {
 							}
 						)
 					}
+				}
+				pickedUpFromLabel(ago = true)?.let {
+					Text(
+						text = it,
+						style = MaterialTheme.typography.bodyMedium,
+						color = MaterialTheme.colorScheme.onSurfaceVariant,
+						modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp)
+					)
 				}
 			}
 

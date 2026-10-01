@@ -67,6 +67,7 @@ import eu.depau.loak.generated.resources.action_star
 import eu.depau.loak.generated.resources.info_not_playing
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import eu.depau.loak.ui.util.pickedUpFromLabel
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalNavStack
@@ -330,7 +331,10 @@ fun MiniPlayer(
 					},
 					supportingContent = {
 						if (song != null) {
-							MarqueeText(song.artistName ?: "[unknown artist]")
+							// a queue picked up from another device says where it came from
+							MarqueeText(
+								pickedUpFromLabel() ?: song.artistName ?: "[unknown artist]"
+							)
 						} else {
 							MarqueeText(stringResource(Res.string.info_not_playing))
 						}

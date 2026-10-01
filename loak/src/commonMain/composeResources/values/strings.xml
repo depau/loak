@@ -543,4 +543,6 @@
 	<string name="notice_queue_loaded">Loaded the queue from %1$s.</string>
 	<string name="notice_server_unreachable">Couldn't reach the server.</string>
 	<string name="notice_no_server_queue">The server has no queue.</string>
+	<string name="info_queue_from">From %1$s</string>
+	<string name="info_queue_from_ago">From %1$s · %2$s</string>
 </resources>

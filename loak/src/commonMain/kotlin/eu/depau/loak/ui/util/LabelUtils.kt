@@ -9,6 +9,8 @@ import eu.depau.loak.generated.resources.count_hours
 import eu.depau.loak.generated.resources.count_hours_ago
 import eu.depau.loak.generated.resources.count_minutes
 import eu.depau.loak.generated.resources.count_minutes_ago
+import eu.depau.loak.generated.resources.info_queue_from
+import eu.depau.loak.generated.resources.info_queue_from_ago
 import eu.depau.loak.generated.resources.info_sync_just_now
 import eu.depau.loak.generated.resources.option_sort_alphabetical_by_artist
 import eu.depau.loak.generated.resources.option_sort_alphabetical_by_name
@@ -28,8 +30,26 @@ import eu.depau.loak.domain.models.lyrics.LyricsProvider
 import kotlin.math.max
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import eu.depau.loak.domain.manager.QueueSyncManager
+import org.koin.compose.koinInject
 import kotlin.time.Clock
 import kotlin.time.Instant
+
+/**
+ * "From Pixel 9" (with [ago], "From Pixel 9 · 2 minutes ago") while the queue picked up from
+ * another device hasn't been saved from here yet; null otherwise.
+ */
+@Composable
+fun pickedUpFromLabel(ago: Boolean = false): String? {
+	val from by koinInject<QueueSyncManager>().pickedUpFrom.collectAsState()
+	val queue = from ?: return null
+	val name = QueueSyncManager.sourceName(queue.changedBy)
+	val changed = queue.changed
+	return if (ago && changed != null) stringResource(Res.string.info_queue_from_ago, name, changed.timeAgo())
+	else stringResource(Res.string.info_queue_from, name)
+}
 
 /** How long ago [this] was: "just now", "3 minutes ago", "2 hours ago", "5 days ago". */
 @Composable

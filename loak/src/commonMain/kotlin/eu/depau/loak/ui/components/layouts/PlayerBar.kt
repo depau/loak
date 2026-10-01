@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.ui.util.pickedUpFromLabel
 import androidx.compose.foundation.background
 import eu.depau.loak.icons.outlined.VolumeUp
 import eu.depau.loak.generated.resources.action_volume
@@ -164,7 +165,7 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 					}
 					Column(Modifier.weight(1f, fill = false)) {
 						MarqueeText(song?.title ?: stringResource(Res.string.info_not_playing))
-						song?.artistName?.let {
+						(song?.let { pickedUpFromLabel() } ?: song?.artistName)?.let {
 							Text(
 								it,
 								style = MaterialTheme.typography.bodyMedium,
