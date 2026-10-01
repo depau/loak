@@ -180,11 +180,32 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Install WiX Toolset (Windows MSI packaging)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install wixtoolset -y --version=3.11.2
+
       - name: Build desktop package
         shell: bash
         run: |
-          ./gradlew :loakDesktop:packageDistributionForCurrentOS --stacktrace
-
+          # Run each format as its own gradle invocation: on Linux/Windows the
+          # per-OS formats share the intermediate app-image output, so the
+          # multi-format packageDistributionForCurrentOS task graph collides.
+          case "${{ runner.os }}" in
+            macOS)
+              ./gradlew :loakDesktop:packageDmg --stacktrace
+              ;;
+            Windows)
+              ./gradlew :loakDesktop:packageMsi --stacktrace
+              ./gradlew :loakDesktop:packageExe --stacktrace
+              ;;
+            *)
+              ./gradlew :loakDesktop:packageDeb --stacktrace
+              ./gradlew :loakDesktop:packageRpm --stacktrace
+              ./gradlew :loakDesktop:packageAppImage --stacktrace
+              ;;
+          esac
       - name: Build portable zip
         shell: bash
         run: |
