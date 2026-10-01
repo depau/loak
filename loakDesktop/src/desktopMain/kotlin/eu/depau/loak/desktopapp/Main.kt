@@ -1,6 +1,8 @@
 package eu.depau.loak.desktopapp
 
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.brand.Loak
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -16,10 +18,12 @@ fun main() {
 	initKoin()
 	application {
 		val state = rememberWindowState(width = 1400.dp, height = 900.dp)
+		val icon = rememberVectorPainter(Icons.Brand.Loak)
 		Window(
 			onCloseRequest = ::exitApplication,
 			title = "Lo'ak",
-			state = state
+			state = state,
+			icon = icon
 		) {
 			App()
 		}

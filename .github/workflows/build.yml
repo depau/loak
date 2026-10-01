@@ -199,18 +199,25 @@ jobs:
               ./gradlew :loakDesktop:packageRpm --stacktrace
               ;;
           esac
-      - name: Build portable zip
+      - name: Build portable archive
         shell: bash
         run: |
-          # The compose plugin publishes no zip target; bundle the runnable
-          # jlink app dir by hand for a portable, launcher-free archive. `zip`
-          # isn't on the Windows (Git Bash) runners, so use PowerShell there.
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            powershell -NoProfile -Command \
-              "Compress-Archive -Path 'loakDesktop/build/compose/binaries/main/app/*' -DestinationPath 'loakDesktop/build/compose/binaries/main/Loak-Windows.zip' -Force"
-          else
-            (cd loakDesktop/build/compose/binaries/main/app && zip -r "../Loak-${{ runner.os }}.zip" .)
-          fi
+          # Linux: tar.gz preserves executable bits on launchers and shared libs.
+          # Windows: zip is the portable standard (built via PowerShell).
+          # macOS: zip of Loak.app is the payload format for auto-updaters (Sparkle).
+          case "${{ runner.os }}" in
+            Linux)
+              tar -czf "loakDesktop/build/compose/binaries/main/Loak-Linux.tar.gz" \
+                -C loakDesktop/build/compose/binaries/main/app .
+              ;;
+            Windows)
+              powershell -NoProfile -Command \
+                "Compress-Archive -Path 'loakDesktop/build/compose/binaries/main/app/*' -DestinationPath 'loakDesktop/build/compose/binaries/main/Loak-Windows.zip' -Force"
+              ;;
+            macOS)
+              (cd loakDesktop/build/compose/binaries/main/app && zip -r "../Loak-macOS.zip" .)
+              ;;
+          esac
 
       - name: Collect desktop installers
         shell: bash
@@ -224,7 +231,8 @@ jobs:
               *.deb|*.rpm|*.AppImage|*.msi|*.exe|*.dmg|*.pkg) cp "$f" dist/ ;;
             esac
           done < <(find loakDesktop/build/compose/binaries/main -type f -print0)
-          cp loakDesktop/build/compose/binaries/main/*.zip dist/
+          cp loakDesktop/build/compose/binaries/main/*.tar.gz dist/ 2>/dev/null || true
+          cp loakDesktop/build/compose/binaries/main/*.zip dist/ 2>/dev/null || true
           ls -la dist/
 
       - name: Upload desktop artifact

@@ -309,12 +309,20 @@ Current state:
   `%LOCALAPPDATA%\Loak`, and no-op managers where desktop lacks the subsystem
   (app icon, audio gain, permissions, animated icons).
 - New `:loakDesktop` app module packages native installers with
-  **jlink + jpackage** (DMG on macOS, MSI/EXE on Windows, DEB/RPM on Linux,
-  plus a portable ZIP per OS). The jlink runtime is kept lean with an explicit
-  module list (~84 MB on Linux instead of ~166 MB with `includeAllModules`).
+  **jlink + jpackage** (DMG on macOS, MSI/EXE on Windows, DEB/RPM on Linux).
+  Portable archives: `.tar.gz` for Linux (preserves POSIX file permissions
+  and executable bits), `.zip` for Windows, and `.zip` for macOS (contains
+  the raw `Loak.app` bundle, the standard payload format for auto-updaters
+  such as Sparkle; DMG remains the user-facing installer).
+  The jlink runtime is kept lean with an explicit module list (~84 MB on Linux
+  instead of ~166 MB with `includeAllModules`).
+- **Window responsiveness**: Desktop uses `calculateWindowSizeClass()` to
+  dynamically track the actual window dimensions, adapting between Compact
+  (< 600 dp; phone layout with bottom bar & mini-player), Medium (600–839 dp;
+  navigation rail), and Expanded (≥ 840 dp; floating player bar & queue pane).
 - **AppImage deferred**: the compose-plugin AppImage target emits no artifact
   on ubuntu-latest (needs a working appimagetool on the build host). Linux
-  ships deb + rpm + the portable zip instead; re-add once the toolchain is in
+  ships deb + rpm + portable tar.gz instead; re-add once the toolchain is in
   place.
 - CI (`build.yml` → `build-desktop`) builds the three platform installers on
   each OS runner and attaches them to the `nightly` and `v*` releases.
