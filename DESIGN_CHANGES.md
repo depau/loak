@@ -111,7 +111,7 @@ that the app still has to catch up with. Items marked **[done]** are implemented
 
 ## Notification
 
-- **Star is the only extra button** in the media notification (after
+- **[done]** **Star is the only extra button** in the media notification (after
   Previous / Next), like the mini player. Filled when starred; tapping toggles
   it. Shuffle and Repeat are dropped from the notification and stay on the Now
   playing screen. Board: Media notification.
