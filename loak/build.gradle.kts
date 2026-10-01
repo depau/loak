@@ -129,6 +129,12 @@ kotlin {
 		browser()
 	}
 
+	jvm("desktop") {
+		compilerOptions {
+			jvmTarget.set(JvmTarget.JVM_21)
+		}
+	}
+
 	android {
 		namespace = "eu.depau.loak"
 		compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -196,6 +202,14 @@ kotlin {
 			implementation(libs.androidx.sqlite.web.wasm.js)
 			implementation(libs.kotlinx.browser)
 		}
+
+		val desktopMain by getting {
+			dependencies {
+				implementation(libs.androidx.sqlite.bundled)
+				implementation(libs.kmpalette.core)
+				implementation(libs.mp3spi)
+			}
+		}
 	}
 
 	compilerOptions {
@@ -212,6 +226,7 @@ dependencies {
 	add("kspIosSimulatorArm64", libs.androidx.room3.compiler)
 	add("kspIosArm64", libs.androidx.room3.compiler)
 	add("kspWasmJs", libs.androidx.room3.compiler)
+	add("kspDesktop", libs.androidx.room3.compiler)
 
 	add("kspCommonMainMetadata", libs.androidx.room3.compiler)
 }

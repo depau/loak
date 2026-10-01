@@ -28,6 +28,7 @@ fun PlatformContext.isExpanded() = remember(sizeClass) {
 enum class PlatformType {
 	Android,
 	IOS,
+	Desktop,
 	Web
 }
 

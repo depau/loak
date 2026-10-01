@@ -160,10 +160,65 @@ jobs:
           compression-level: 0
           if-no-files-found: ignore
 
+  build-desktop:
+    name: Desktop ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-26, windows-latest ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build desktop package
+        shell: bash
+        run: |
+          ./gradlew :loakDesktop:packageDistributionForCurrentOS --stacktrace
+
+      - name: Build portable zip
+        shell: bash
+        run: |
+          # The compose plugin publishes no zip target; bundle the runnable
+          # jlink app dir by hand for a portable, launcher-free tarball.
+          (cd loakDesktop/build/compose/binaries/main/app && zip -r "../Loak-${{ runner.os }}.zip" .)
+
+      - name: Collect desktop installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # packageDistributionForCurrentOS writes installers straight into
+          # build/compose/binaries/main/app/ alongside the unpacked runtime.
+          while IFS= read -r -d '' f; do
+            case "$f" in
+              *.deb|*.rpm|*.AppImage|*.msi|*.exe|*.dmg|*.pkg) cp "$f" dist/ ;;
+            esac
+          done < <(find loakDesktop/build/compose/binaries/main -type f -print0)
+          cp loakDesktop/build/compose/binaries/main/*.zip dist/
+          ls -la dist/
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: loak-desktop-${{ runner.os }}
+          path: dist/
+          compression-level: 0
+          if-no-files-found: error
+
   publish-nightly:
     name: Publish Nightly Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
-    needs: [ build-android ]
+    needs: [ build-android, build-desktop ]
     runs-on: ubuntu-latest
     concurrency:
       group: nightly-publish
@@ -174,11 +229,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Download nightly artifact
+      - name: Download nightly android
         uses: actions/download-artifact@v7
         with:
           name: loak-nightly-android
           path: nightly
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-*
+          path: desktop
+          merge-multiple: true
 
       - name: Tag and create nightly release
         env:
@@ -186,13 +248,16 @@ jobs:
         run: |
           set -euo pipefail
 
+          shopt -s nullglob
+          FILES=( nightly/* desktop/* )
+
           # Stable `nightly` tag: replaced on every main push, so installs always
           # track the latest tip. Old release/tag are dropped first.
           gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
 
           # `gh release create` creates both the tag and the release; no git
           # push needed (avoids the workflow-file ref-push guard).
-          gh release create nightly nightly/*.apk \
+          gh release create nightly "${FILES[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Nightly" \
@@ -202,13 +267,16 @@ jobs:
   create-release:
     name: Create GitHub Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [ build-android ]
+    needs: [ build-android, build-desktop ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
 
       - name: Checkout repository (full history for release notes)
         uses: actions/checkout@v6
@@ -225,7 +293,7 @@ jobs:
           # Release notes = commits since the previous tag (empty if none)
           BODY=$(git log --oneline --no-merges "$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)..HEAD" 2>/dev/null || true)
 
-          gh release create "$GITHUB_REF_NAME" **/*.{apk,ipa} \
+          gh release create "$GITHUB_REF_NAME" artifacts/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
             --notes "$BODY" \
