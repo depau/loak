@@ -165,6 +165,9 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
     needs: [ build-android ]
     runs-on: ubuntu-latest
+    concurrency:
+      group: nightly-publish
+      cancel-in-progress: true
     permissions:
       contents: write
     steps:
@@ -183,18 +186,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="nightly/$(date -u +%F)-${GITHUB_SHA::7}"
-
-          # Fresh release per commit; drop any previous run of this exact tag
-          # (re-runs) before recreating it.
-          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+          # Stable `nightly` tag: replaced on every main push, so installs always
+          # track the latest tip. Old release/tag are dropped first.
+          gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
 
           # `gh release create` creates both the tag and the release; no git
           # push needed (avoids the workflow-file ref-push guard).
-          gh release create "$TAG" nightly/*.apk \
+          gh release create nightly nightly/*.apk \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "Nightly $TAG" \
+            --title "Nightly" \
             --notes "Nightly build of \`main\` (${{ github.sha }})." \
             --prerelease
 
