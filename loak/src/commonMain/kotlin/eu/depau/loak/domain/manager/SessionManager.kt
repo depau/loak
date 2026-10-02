@@ -2,6 +2,7 @@ package eu.depau.loak.domain.manager
 
 import eu.depau.loak.di.setSentryUser
 import eu.depau.loak.util.IoDispatcher
+import eu.depau.loak.util.Logger
 import eu.depau.loak.util.systemDeviceName
 
 import com.russhwolf.settings.Settings
@@ -150,7 +151,12 @@ class SessionManager(
 			return currentUser
 		}
 		scope.launch {
-			fetchCurrentUser()
+			// The server may be briefly unreachable (slow LAN, sleeping host): a
+			// connect timeout here used to escape this coroutine and crash the app
+			// via the uncaught-exception handler. Swallow and log instead — sharing
+			// just stays disabled until the user fetch succeeds.
+			runCatching { fetchCurrentUser() }
+				.onFailure { Logger.e("SessionManager", "couldn't fetch current user", it) }
 		}
 		return currentUser
 	}

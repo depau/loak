@@ -43,15 +43,25 @@ fun initializeSentry() {
 		// embed the full request URL (with the signed auth query params and the
 		// user's server address) in their message. Scrub URLs and credential
 		// parameters from every event and breadcrumb at the send boundary.
+		// KMP beforeSend: on JVM targets (Android/desktop) the SDK's applyKmpEvent
+		// never writes exceptions back to the JVM event, so scrubbing there would
+		// be dropped; register a native sanitizer instead (see the actuals of
+		// registerJvmSentrySanitizer). This one still covers the Apple message path.
 		options.beforeSend = ::sanitizeSentryEvent
 		options.beforeBreadcrumb = ::sanitizeBreadcrumb
-		// BuildInfo (eu.depau.loak.generated) is an empty class — no version
-		// fields to feed release/dist with. Enrich it if you want per-version
-		// release groups on Sentry.
-		// options.release = BuildInfo.version
-		// options.dist = BuildInfo.versionCode
 	}
+	// JVM-targeted platforms let the raw io.sentry Java/Kotlin event reach the
+	// send boundary, so redact there too (covers uncaught-exception and other
+	// native-captured events that bypass the KMP wrapper).
+	registerJvmSentrySanitizer()
 }
+
+/**
+ * Scrub URLs and credential parameters from raw JVM `io.sentry` events at the
+ * send boundary. No-op expect; Android and desktop JVM register a real
+ * `SentryOptions.beforeSend`/`beforeBreadcrumb` in their actuals.
+ */
+internal expect fun registerJvmSentrySanitizer()
 
 private fun sanitizeSentryEvent(event: SentryEvent): SentryEvent {
 	event.message?.let { m ->
@@ -73,7 +83,11 @@ private fun sanitizeBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
 	return breadcrumb
 }
 
-private fun String.sanitizeSentryText(): String =
+/**
+ * Redact URLs and credential assignments from a string. Shared by the KMP
+ * beforeSend and the JVM-native sentry sanitizers (Android and desktop).
+ */
+internal fun String.sanitizeSentryText(): String =
 	URL_REGEX.replace(this, "[REDACTED_URL]")
 		.let { SENSITIVE_PARAM_REGEX.replace(it, "$1[REDACTED]") }
 
