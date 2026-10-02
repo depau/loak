@@ -207,7 +207,7 @@ fun ArtGridPlaceholder(
 						.shimmerLoading()
 				)
 			},
-			content = {
+			headlineContent = {
 				Box(
 					modifier = Modifier
 						.width(170.dp)

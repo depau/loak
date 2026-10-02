@@ -159,7 +159,7 @@ fun SongSheet(
 			Spacer(Modifier.height(16.dp))
 
 			ListItem(
-				content = {
+				headlineContent = {
 					MarqueeText(
 						text = buildAnnotatedString {
 							append(song.title)

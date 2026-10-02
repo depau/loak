@@ -128,7 +128,6 @@ fun NowPlayingSliderStyleDialog(
 										thumb = { sliderState ->
 											SliderDefaults.Thumb(
 												interactionSource = interactionSource,
-												isVertical = sliderState.isVertical,
 												modifier = Modifier.clip(CircleShape),
 												enabled = true,
 												thumbSize = DpSize(16.dp, 16.dp)

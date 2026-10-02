@@ -214,6 +214,11 @@ kotlin {
 
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xexpect-actual-classes", "-Xexplicit-backing-fields")
+		// material3 1.12 still marks these experimental (1.13 stabilised most of them)
+		optIn.addAll(
+			"androidx.compose.material3.ExperimentalMaterial3Api",
+			"androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
+		)
 	}
 }
 

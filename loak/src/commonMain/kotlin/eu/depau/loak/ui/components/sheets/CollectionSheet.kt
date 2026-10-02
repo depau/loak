@@ -141,7 +141,7 @@ fun CollectionSheet(
 					shape = preferenceManager.coverArtShape.decreasedShape
 				)
 			},
-			content = { MarqueeText(collection?.name.orEmpty()) },
+			headlineContent = { MarqueeText(collection?.name.orEmpty()) },
 			supportingContent = {
 				MarqueeText(
 					listOfNotNull(

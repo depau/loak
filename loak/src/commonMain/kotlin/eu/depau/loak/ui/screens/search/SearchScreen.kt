@@ -480,7 +480,7 @@ fun SearchScreen(
 											query.clearText()
 											query.edit { insert(0, historyItem) }
 										},
-										content = { Text(historyItem) },
+										headlineContent = { Text(historyItem) },
 										leadingContent = {
 											Icon(
 												imageVector = Icons.Outlined.History,

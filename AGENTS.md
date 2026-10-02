@@ -16,7 +16,7 @@ Lo'ak is a **fork of Navic** — a modern **(Open)Subsonic music streaming app f
 | Concern | Choice |
 |---|---|
 | Language | Kotlin `2.4.20` (very bleeding-edge — all versions here are similarly fresh) |
-| UI | Compose Multiplatform `1.12.0`, Material3 `1.13.0-alpha01`, material3-adaptive `1.3.0-alpha04` (**pinned — see gotchas**) |
+| UI | Compose Multiplatform `1.12.1`, Material3 `1.12.0-alpha03`, material3-adaptive `1.3.0-alpha04` (**pinned — see gotchas**; Compose held at 1.12 for the desktop window decorations) |
 | Navigation | `androidx.navigation3` `1.2.0-beta01` + `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3` |
 | DI | Koin `4.2.2` (`koin-core`, `koin-compose`, `koin-compose-viewmodel`, `koin-android`) |
 | Networking | Ktor client `3.5.2` (OkHttp on Android, Darwin on iOS), kotlinx-serialization |
