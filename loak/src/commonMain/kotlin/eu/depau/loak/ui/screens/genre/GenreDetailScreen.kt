@@ -2,9 +2,12 @@ package eu.depau.loak.ui.screens.genre
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -12,29 +15,38 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
-import org.koin.core.parameter.parametersOf
+import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.DomainSongListType
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
+import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.title_albums
+import eu.depau.loak.generated.resources.title_songs
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.outlined.Album
+import eu.depau.loak.icons.outlined.Note
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
-import eu.depau.loak.ui.components.snackbars.ErrorSnackBar
-import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.components.layouts.horizontalSection
+import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.screens.album.components.AlbumListScreenGridItem
 import eu.depau.loak.ui.screens.album.viewmodels.AlbumListViewModel
-import eu.depau.loak.ui.screens.genre.components.GenreDetailScreenContent
+import eu.depau.loak.ui.screens.home.HomeFeed
+import eu.depau.loak.ui.screens.home.viewmodels.HomeViewModel
+import eu.depau.loak.ui.screens.library.components.libraryScreenOverviewButton
 import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
-import eu.depau.loak.ui.screens.song.viewmodels.SongListViewModel
-import eu.depau.loak.di.LocalBottomBarScrollManager
-import eu.depau.loak.di.LocalPlatformContext
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 import kotlin.time.Duration
 
+/** A genre's page: Home's feed for that genre, then its albums and links to all of it. */
 @Composable
 fun GenreDetailScreen(
 	genreName: String
@@ -42,14 +54,11 @@ fun GenreDetailScreen(
 	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 
-	val songsViewModel = koinViewModel<SongListViewModel>(
-		key = "genre_detail_songs_$genreName",
-		parameters = { parametersOf(DomainSongListType.ByGenre(genreName)) }
+	val viewModel = koinViewModel<HomeViewModel>(
+		key = "genre_feed_$genreName",
+		parameters = { parametersOf(genreName) }
 	)
-	val songsState by songsViewModel.songsState.collectAsStateWithLifecycle()
-	val selectedSong by songsViewModel.selectedSong.collectAsStateWithLifecycle()
-	val selectedSongIsStarred by songsViewModel.starred.collectAsStateWithLifecycle()
-	val selectedSongRating by songsViewModel.selectedSongRating.collectAsStateWithLifecycle()
+	val state by viewModel.state.collectAsStateWithLifecycle()
 
 	val albumsViewModel = koinViewModel<AlbumListViewModel>(
 		key = "genre_detail_albums_$genreName",
@@ -59,9 +68,6 @@ fun GenreDetailScreen(
 	val selectedAlbum by albumsViewModel.selectedAlbum.collectAsStateWithLifecycle()
 	val selectedAlbumIsStarred by albumsViewModel.starred.collectAsStateWithLifecycle()
 	val selectedAlbumRating by albumsViewModel.rating.collectAsStateWithLifecycle()
-
-	val allDownloads by songsViewModel.allDownloads.collectAsStateWithLifecycle()
-	val isOnline by songsViewModel.isOnline.collectAsStateWithLifecycle()
 
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
@@ -80,73 +86,57 @@ fun GenreDetailScreen(
 			modifier = Modifier
 				.padding(top = innerPadding.calculateTopPadding())
 				.background(MaterialTheme.colorScheme.surface),
-			finished = albumsState !is UiState.Loading &&
-				songsState !is UiState.Loading,
+			finished = !state.loading,
 			onRefresh = {
+				viewModel.refresh()
 				albumsViewModel.refreshAlbums(true)
-				songsViewModel.refreshSongs(true)
 			},
-			key = listOf(albumsState, songsState)
+			key = state.loading
 		) {
-			GenreDetailScreenContent(
-				genreName = genreName,
-				innerPadding = innerPadding,
-				onSetShareId = { shareId = it },
-				isOnline = isOnline,
-
-				songsState = songsState,
-				selectedSong = selectedSong,
-				selectedSongIsStarred = selectedSongIsStarred,
-				selectedSongRating = selectedSongRating,
-				allDownloads = allDownloads,
-				onSelectSong = { songsViewModel.selectSong(it) },
-				onClearSongSelection = { songsViewModel.clearSelection() },
-				onAddSongStar = { songsViewModel.starSong(true) },
-				onRemoveSongStar = { songsViewModel.starSong(false) },
-				onPlaySongNext = { song ->
-					player.playNextSingle(song)
-				},
-				onAddSongToQueue = { song ->
-					player.addToQueueSingle(song)
-				},
-				onPlaySong = { index ->
-					player.playNow(songsState.data.orEmpty(), index)
-				},
-				onSetSongRating = { songsViewModel.rateSelectedSong(it) },
-				onDownloadSong = { songsViewModel.downloadSong(it) },
-				onCancelDownloadSong = { song ->
-					songsViewModel.cancelDownload(song.id)
-				},
-				onDeleteDownloadSong = { song ->
-					songsViewModel.deleteDownload(song.id)
-				},
-
-				albumsState = albumsState,
-				selectedAlbum = selectedAlbum,
-				selectedAlbumIsStarred = selectedAlbumIsStarred,
-				selectedAlbumRating = selectedAlbumRating,
-				onSelectAlbum = { albumsViewModel.selectAlbum(it) },
-				onClearAlbumSelection = { albumsViewModel.clearSelection() },
-				onStarSelectedAlbum = { albumsViewModel.starAlbum(it) },
-				onPlayAlbumNext = { if (selectedAlbum != null) player.playNext(selectedAlbum as DomainSongCollection) },
-				onAddAlbumToQueue = { if (selectedAlbum != null) player.addToQueue(selectedAlbum as DomainSongCollection) },
-				onRateSelectedAlbum = { albumsViewModel.setRating(it) },
-			)
+			HomeFeed(
+				viewModel = viewModel,
+				gridState = rememberLazyGridState(),
+				scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(),
+				innerPadding = innerPadding
+			) {
+				horizontalSection(
+					title = Res.string.title_albums,
+					destination = Screen.AlbumList(true, DomainAlbumListType.ByGenre(genreName)),
+					state = albumsState,
+					key = { it.id },
+					seeAll = true
+				) { album ->
+					AlbumListScreenGridItem(
+						modifier = Modifier.width(150.dp),
+						tab = "genre",
+						album = album,
+						selected = album == selectedAlbum,
+						starred = selectedAlbumIsStarred,
+						onSelect = { albumsViewModel.selectAlbum(album) },
+						onDeselect = { albumsViewModel.clearSelection() },
+						onSetStarred = { albumsViewModel.starAlbum(it) },
+						onSetShareId = { shareId = it },
+						onPlayNext = { player.playNext(album as DomainSongCollection) },
+						onAddToQueue = { player.addToQueue(album as DomainSongCollection) },
+						rating = selectedAlbumRating,
+						onSetRating = { albumsViewModel.setRating(it) }
+					)
+				}
+				libraryScreenOverviewButton(
+					icon = Icons.Outlined.Note,
+					label = Res.string.title_songs,
+					destination = Screen.SongList(true, DomainSongListType.ByGenre(genreName)),
+					start = true
+				)
+				libraryScreenOverviewButton(
+					icon = Icons.Outlined.Album,
+					label = Res.string.title_albums,
+					destination = Screen.AlbumList(true, DomainAlbumListType.ByGenre(genreName)),
+					start = false
+				)
+			}
 		}
 	}
-
-	val flattenedErrors = listOf(
-		(albumsState as? UiState.Error)?.error,
-		(songsState as? UiState.Error)?.error
-	).mapNotNull { it?.stackTraceToString() }.takeIf { it.isNotEmpty() }?.joinToString("\n\n")
-
-	ErrorSnackBar(
-		error = flattenedErrors?.let { Error(it) },
-		onClearError = {
-			albumsViewModel.clearError()
-			songsViewModel.clearError()
-		}
-	)
 
 	ShareDialog(
 		id = shareId,
