@@ -91,6 +91,14 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import eu.depau.loak.ui.screens.queue.queuePaneFits
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.material3.SliderState
+import androidx.compose.material3.VerticalSlider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.window.PopupProperties
+import kotlinx.coroutines.delay
 
 /** Room for "00:00 / 00:00" plus its padding and the gaps between the bar's buttons. */
 private val TimeWidth = 112.dp
@@ -273,7 +281,12 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 						// only where the app owns the volume (web); elsewhere the device's keys do
 						player.volume?.let { volumeFlow ->
 							val volume by volumeFlow.collectAsState()
-							val slider = @Composable {
+							if (roomy) {
+								Icon(
+									Icons.Outlined.VolumeUp,
+									contentDescription = null,
+									tint = MaterialTheme.colorScheme.onSurfaceVariant
+								)
 								Slider(
 									value = volume,
 									onValueChange = player::setVolume,
@@ -281,24 +294,8 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 										.width(112.dp)
 										.semantics { contentDescription = volumeLabel }
 								)
-							}
-							if (roomy) {
-								Icon(
-									Icons.Outlined.VolumeUp,
-									contentDescription = null,
-									tint = MaterialTheme.colorScheme.onSurfaceVariant
-								)
-								slider()
 							} else {
-								var volumeOpen by remember { mutableStateOf(false) }
-								Box {
-									IconButton(onClick = { volumeOpen = true }) {
-										Icon(Icons.Outlined.VolumeUp, volumeLabel)
-									}
-									DropdownMenu(volumeOpen, onDismissRequest = { volumeOpen = false }) {
-										Box(Modifier.padding(horizontal = 16.dp)) { slider() }
-									}
-								}
+								VolumePopupButton(volume, player::setVolume, volumeLabel)
 							}
 						}
 						// the pane needs a wide window; narrower ones reach the queue from the player
@@ -341,6 +338,57 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 					)
 				}
 			}
+		}
+	}
+}
+
+/**
+ * Volume as a button with a vertical slider in a popup: opens on click, or while a mouse hovers
+ * the button or the popup (closing shortly after it leaves both).
+ */
+@Composable
+private fun VolumePopupButton(volume: Float, onVolumeChange: (Float) -> Unit, label: String) {
+	var open by remember { mutableStateOf(false) }
+	var openedByHover by remember { mutableStateOf(false) }
+	val buttonHover = remember { MutableInteractionSource() }
+	val popupHover = remember { MutableInteractionSource() }
+	val hovered = buttonHover.collectIsHoveredAsState().value ||
+		popupHover.collectIsHoveredAsState().value
+	LaunchedEffect(hovered) {
+		if (hovered && !open) {
+			open = true
+			openedByHover = true
+		} else if (!hovered && openedByHover) {
+			delay(300)
+			open = false
+		}
+	}
+	val sliderState = remember { SliderState(volume) }
+	sliderState.onValueChange = { sliderState.value = it; onVolumeChange(it) }
+	LaunchedEffect(volume) { sliderState.value = volume }
+
+	Box {
+		IconButton(
+			onClick = { open = !open; openedByHover = false },
+			modifier = Modifier.hoverable(buttonHover)
+		) {
+			Icon(Icons.Outlined.VolumeUp, label)
+		}
+		DropdownMenu(
+			expanded = open,
+			onDismissRequest = { open = false },
+			// opened by hover: don't take keyboard focus away from the app (space = play/pause)
+			properties = PopupProperties(focusable = !openedByHover)
+		) {
+			VerticalSlider(
+				state = sliderState,
+				reverseDirection = true, // loud at the top
+				modifier = Modifier
+					.hoverable(popupHover)
+					.padding(horizontal = 12.dp)
+					.height(140.dp)
+					.semantics { contentDescription = label }
+			)
 		}
 	}
 }
