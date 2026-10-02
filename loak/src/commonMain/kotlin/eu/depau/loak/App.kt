@@ -112,7 +112,7 @@ import eu.depau.loak.ui.screens.collection.CollectionDetailScreen
 import eu.depau.loak.ui.screens.genre.GenreDetailScreen
 import eu.depau.loak.ui.screens.genre.GenreListScreen
 import eu.depau.loak.ui.screens.imageView.ImageViewScreen
-import eu.depau.loak.ui.screens.library.LibraryScreen
+import eu.depau.loak.ui.screens.home.HomeScreen
 import eu.depau.loak.ui.screens.login.LoginScreen
 import eu.depau.loak.ui.screens.lyrics.LyricsScreen
 import eu.depau.loak.ui.screens.nowPlaying.NowPlayingScreen
@@ -426,7 +426,7 @@ private fun entryProvider(
 	return androidx.navigation3.runtime.entryProvider {
 		// tabs
 		entry<Screen.Home>(metadata = navtabMetadata) {
-			LibraryScreen()
+			HomeScreen()
 		}
 		entry<Screen.Starred>(metadata = navtabMetadata) {
 			StarredScreen()

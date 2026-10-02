@@ -11,6 +11,7 @@ import eu.depau.loak.domain.models.DomainSongListType
 import eu.depau.loak.ui.components.dialogs.DeletionViewModel
 import eu.depau.loak.ui.components.sheets.ChangelogViewModel
 import eu.depau.loak.ui.screens.album.viewmodels.AlbumListViewModel
+import eu.depau.loak.ui.screens.home.viewmodels.HomeViewModel
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistDetailViewModel
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistListViewModel
 import eu.depau.loak.ui.screens.collection.viewmodels.CollectionDetailViewModel
@@ -34,6 +35,19 @@ import eu.depau.loak.ui.screens.song.viewmodels.SongListViewModel
 import eu.depau.loak.ui.viewmodel.RootViewModel
 
 val viewModelModule = module {
+	// no parameter: Home; a genre name: that genre's page
+	viewModel { params ->
+		HomeViewModel(
+			fixedGenre = params.getOrNull(),
+			repository = get(),
+			songRepository = get(),
+			player = get(),
+			snackBarManager = get(),
+			sessionManager = get(),
+			syncManager = get()
+		)
+	}
+
 	viewModel { (artistId: String) ->
 		ArtistDetailViewModel(
 			artistId = artistId,
