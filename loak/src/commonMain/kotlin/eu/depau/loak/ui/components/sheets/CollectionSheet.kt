@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.sheets
 
+import eu.depau.loak.domain.repositories.HomeRepository
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -243,6 +244,10 @@ fun CollectionSheet(
 					colors = colors,
 					contentPadding = contentPadding
 				)
+			}
+
+			collection?.let { HomeRepository.keyOf(it) }?.let { key ->
+				SpeedDialPinItem(key, colors, contentPadding, onDismissRequest)
 			}
 
 			if (downloadStatus != null) {

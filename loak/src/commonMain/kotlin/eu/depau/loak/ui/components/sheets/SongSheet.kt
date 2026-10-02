@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.sheets
 
+import eu.depau.loak.domain.repositories.HomeRepository
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -326,6 +327,8 @@ fun SongSheet(
 						contentPadding = contentPadding
 					)
 				}
+
+				SpeedDialPinItem(HomeRepository.keyOf(song), colors, contentPadding, onDismissRequest)
 
 				if (downloadStatus != null) {
 					when (downloadStatus) {
