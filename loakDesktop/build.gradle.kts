@@ -67,6 +67,8 @@ compose.desktop {
 
 			linux {
 				appCategory = "Audio"
+				// the 256px rendering of icons/macos/AppIcon.icns (iconutil -c iconset); Linux
+				// desktops don't shape app icons, so it carries its own rounded square
 				iconFile.set(project.file("icons/loak.png"))
 			}
 			windows {
