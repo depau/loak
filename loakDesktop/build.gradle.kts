@@ -74,9 +74,36 @@ compose.desktop {
 				menuGroup = "Lo'ak"
 			}
 			macOS {
-				// jpackage builds the .icns from a PNG via iconutil on macOS.
-				iconFile.set(project.file("icons/loak.png"))
+				// Compiled from the iOS Icon Composer icon (needs Xcode 26+):
+				//   xcrun actool "$PWD/iosApp/iosApp/AppIcon.icon" --compile "$PWD/loakDesktop/icons/macos" \
+				//     --platform macosx --minimum-deployment-target 11.0 --app-icon AppIcon \
+				//     --output-partial-info-plist /tmp/partial.plist
+				// AppIcon.icns is the pre-rendered fallback for macOS < 26; macOS 26 draws the
+				// Liquid Glass icon from Assets.car, found through CFBundleIconName.
+				iconFile.set(project.file("icons/macos/AppIcon.icns"))
+				infoPlist {
+					extraKeysRawXml = "<key>CFBundleIconName</key><string>AppIcon</string>"
+				}
 			}
 		}
+	}
+}
+
+// jpackage can't add files to Contents/Resources: put Assets.car into the app image (which
+// packageDmg reuses) and re-seal its ad-hoc signature.
+tasks.matching { it.name == "createDistributable" }.configureEach {
+	// locals, not script vals: the configuration cache can't capture the script
+	val assetsCar = file("icons/macos/Assets.car")
+	val appBundle = layout.buildDirectory.dir("compose/binaries/main/app/Loak.app")
+	inputs.file(assetsCar)
+	doLast {
+		if (!System.getProperty("os.name").startsWith("Mac")) return@doLast
+		val app = appBundle.get().asFile
+		assetsCar.copyTo(app.resolve("Contents/Resources/Assets.car"), overwrite = true)
+		val codesign = ProcessBuilder(
+			"codesign", "--force", "--sign", "-",
+			"--preserve-metadata=entitlements,requirements,flags,runtime", app.path
+		).inheritIO().start()
+		check(codesign.waitFor() == 0) { "codesign failed" }
 	}
 }
