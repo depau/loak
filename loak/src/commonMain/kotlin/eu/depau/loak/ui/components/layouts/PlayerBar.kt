@@ -86,6 +86,17 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import coil3.compose.LocalPlatformContext as LocalCoilPlatformContext
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import eu.depau.loak.ui.screens.queue.queuePaneFits
+
+/** Room for "00:00 / 00:00" plus its padding and the gaps between the bar's buttons. */
+private val TimeWidth = 112.dp
+
+/** The inline volume slider (icon + 112dp slider) over the 48dp volume button. */
+private val InlineVolumeExtraWidth = 96.dp
 
 /**
  * The player on expanded windows: the mini player's card with the full controls. It floats over
@@ -237,53 +248,79 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 				}
 
 				// time and panels
-				Row(
-					modifier = Modifier.weight(1f),
-					verticalAlignment = Alignment.CenterVertically,
-					horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End)
-				) {
-					if (song != null && !isRadio) {
-						Text(
-							"${(song.duration * playerState.progress.toDouble()).toHoursMinutesSeconds()} / " +
-								song.duration.toHoursMinutesSeconds(),
-							style = MaterialTheme.typography.bodySmall,
-							color = MaterialTheme.colorScheme.onSurfaceVariant,
-							maxLines = 1,
-							modifier = Modifier.padding(end = 8.dp)
-						)
-					}
-					// only where the app owns the volume (web); elsewhere the device's keys do
-					player.volume?.let { volumeFlow ->
-						val volume by volumeFlow.collectAsState()
-						Icon(
-							Icons.Outlined.VolumeUp,
-							contentDescription = null,
-							tint = MaterialTheme.colorScheme.onSurfaceVariant
-						)
-						Slider(
-							value = volume,
-							onValueChange = player::setVolume,
-							modifier = Modifier
-								.width(112.dp)
-								.semantics { contentDescription = volumeLabel }
-						)
-					}
-					IconToggleButton(
-						checked = queuePaneOpen.value,
-						onCheckedChange = { queuePaneOpen.value = it },
-						colors = IconButtonDefaults.iconToggleButtonColors(
-							checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-							checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
-						)
+				BoxWithConstraints(Modifier.weight(1f)) {
+					// what fits, given the room: the open-player button always stays; the volume
+					// slider collapses into a button first, then the time goes
+					val showQueue = queuePaneFits()
+					val buttons = 48.dp * (1 + (if (showQueue) 1 else 0) + (if (player.volume != null) 1 else 0))
+					val showTime = maxWidth >= buttons + TimeWidth
+					val roomy = maxWidth >= buttons + TimeWidth + InlineVolumeExtraWidth
+					Row(
+						modifier = Modifier.fillMaxWidth(),
+						verticalAlignment = Alignment.CenterVertically,
+						horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End)
 					) {
-						Icon(Icons.Outlined.List, stringResource(Res.string.action_queue))
-					}
-					IconButton(onClick = openPlayer, enabled = interactive) {
-						Icon(
-							Icons.Outlined.KeyboardArrowDown,
-							stringResource(Res.string.title_now_playing),
-							modifier = Modifier.rotate(180f)
-						)
+						if (showTime && song != null && !isRadio) {
+							Text(
+								"${(song.duration * playerState.progress.toDouble()).toHoursMinutesSeconds()} / " +
+									song.duration.toHoursMinutesSeconds(),
+								style = MaterialTheme.typography.bodySmall,
+								color = MaterialTheme.colorScheme.onSurfaceVariant,
+								maxLines = 1,
+								modifier = Modifier.padding(end = 8.dp)
+							)
+						}
+						// only where the app owns the volume (web); elsewhere the device's keys do
+						player.volume?.let { volumeFlow ->
+							val volume by volumeFlow.collectAsState()
+							val slider = @Composable {
+								Slider(
+									value = volume,
+									onValueChange = player::setVolume,
+									modifier = Modifier
+										.width(112.dp)
+										.semantics { contentDescription = volumeLabel }
+								)
+							}
+							if (roomy) {
+								Icon(
+									Icons.Outlined.VolumeUp,
+									contentDescription = null,
+									tint = MaterialTheme.colorScheme.onSurfaceVariant
+								)
+								slider()
+							} else {
+								var volumeOpen by remember { mutableStateOf(false) }
+								Box {
+									IconButton(onClick = { volumeOpen = true }) {
+										Icon(Icons.Outlined.VolumeUp, volumeLabel)
+									}
+									DropdownMenu(volumeOpen, onDismissRequest = { volumeOpen = false }) {
+										Box(Modifier.padding(horizontal = 16.dp)) { slider() }
+									}
+								}
+							}
+						}
+						// the pane needs a wide window; narrower ones reach the queue from the player
+						if (showQueue) {
+							IconToggleButton(
+								checked = queuePaneOpen.value,
+								onCheckedChange = { queuePaneOpen.value = it },
+								colors = IconButtonDefaults.iconToggleButtonColors(
+									checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+									checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+								)
+							) {
+								Icon(Icons.Outlined.List, stringResource(Res.string.action_queue))
+							}
+						}
+						IconButton(onClick = openPlayer, enabled = interactive) {
+							Icon(
+								Icons.Outlined.KeyboardArrowDown,
+								stringResource(Res.string.title_now_playing),
+								modifier = Modifier.rotate(180f)
+							)
+						}
 					}
 				}
 			}

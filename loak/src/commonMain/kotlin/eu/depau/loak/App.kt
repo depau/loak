@@ -141,6 +141,7 @@ import eu.depau.loak.ui.components.layouts.AppNavigationRail
 import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.ui.util.Material3Transitions
 import eu.depau.loak.ui.util.WindowChromeHost
+import eu.depau.loak.ui.screens.queue.queuePaneFits
 
 @OptIn(ExperimentalSerializationApi::class)
 private val config = SavedStateConfiguration {
@@ -328,7 +329,8 @@ fun App() {
 								}
 							)
 							AnimatedVisibility(
-								isLoggedIn && platformContext.isExpanded() && queuePaneOpen.value,
+								// narrower windows hide it but keep it open, so it comes back when widened
+								isLoggedIn && queuePaneFits() && queuePaneOpen.value,
 								enter = expandHorizontally(),
 								exit = shrinkHorizontally()
 							) {

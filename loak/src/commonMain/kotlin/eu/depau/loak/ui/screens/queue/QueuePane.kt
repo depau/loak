@@ -27,6 +27,17 @@ import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.ui.util.LocalWindowChrome
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+
+/** Window width below which the queue pane would leave the content too little room. */
+private val QueuePaneMinWindowWidth = 1080.dp
+
+/** Whether the window is wide enough for the queue pane next to the content. */
+@Composable
+fun queuePaneFits(): Boolean =
+	with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >=
+		QueuePaneMinWindowWidth
 
 /** The queue beside the content on expanded windows, on its own surface. */
 @Composable
