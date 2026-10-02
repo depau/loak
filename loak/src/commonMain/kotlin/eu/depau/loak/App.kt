@@ -197,7 +197,8 @@ fun App() {
 	}
 
 	var appStarted by rememberSaveable { mutableStateOf(false) }
-	val queuePaneOpen = rememberSaveable { mutableStateOf(false) }
+	val queuePaneOpen = remember { mutableStateOf(preferenceManager.queuePaneOpen) }
+	LaunchedEffect(queuePaneOpen.value) { preferenceManager.queuePaneOpen = queuePaneOpen.value }
 	val mediaPlayer = koinInject<MediaPlayerViewModel>()
 	val rootFocus = remember { FocusRequester() }
 	LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }

@@ -41,6 +41,8 @@ class PreferenceManager(
 	var animationStyle by preference(AnimationStyle.Expressive)
 	var nowPlayingBackgroundStyle by preference(NowPlayingBackgroundStyle.Dynamic)
 	var swipeToSkip by preference(true)
+	/** The queue side pane on wide windows, kept across launches. */
+	var queuePaneOpen by preference(false)
 	var hideIfIdle by preference(false)
 	var enablePredictiveBackAnimations by preference(true)
 	var gridSize by preference(GridSize.ThreeByThree)
