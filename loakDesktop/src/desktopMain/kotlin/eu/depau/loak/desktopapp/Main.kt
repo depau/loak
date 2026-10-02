@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.rememberWindowState
 import dev.nucleusframework.application.DecoratedWindow
 import dev.nucleusframework.application.nucleusApplication
+import dev.nucleusframework.window.ControlButtonsDirection
 import dev.nucleusframework.window.WindowControls
 import dev.nucleusframework.window.WindowScaffold
 import dev.nucleusframework.window.windowDragArea
@@ -52,11 +53,13 @@ fun main(args: Array<String>) {
 				titleBar = { Spacer(Modifier.fillMaxWidth().height(titleBarHeight)) },
 				titleBarPlacement = TitleBarPlacement.Overlay(passThroughToContent = true),
 			) {
-				val controlsOnLeft = when {
-					isMac -> true
-					isWindows -> false
-					else -> !rememberLinuxButtonLayout().controlsOnRight
-				}
+				val nucleusOnLeft = !isWindows && (isMac || !rememberLinuxButtonLayout().controlsOnRight)
+				val controlsOnLeft = nucleusOnLeft ||
+					(!isMac && !isWindows && remember { gsettingsControlsOnLeft() })
+				// Nucleus put them on the right (its non-GNOME default): mirror its button row
+				val direction =
+					if (controlsOnLeft != nucleusOnLeft) ControlButtonsDirection.Rtl
+					else ControlButtonsDirection.Auto
 				val chrome = WindowChrome(
 					controlsOnLeft = controlsOnLeft,
 					barHeight = titleBarHeight,
@@ -68,7 +71,10 @@ fun main(args: Array<String>) {
 							if (darkTheme) WindowAppearanceMode.Dark else WindowAppearanceMode.Light
 						)
 						// Windows caption buttons keep their native 32dp height, flush in the corner
-						WindowControls(if (isWindows) Modifier.height(32.dp) else Modifier)
+						WindowControls(
+							if (isWindows) Modifier.height(32.dp) else Modifier,
+							direction = direction,
+						)
 					},
 				)
 				CompositionLocalProvider(LocalWindowChrome provides chrome) {
@@ -83,3 +89,16 @@ private fun loadIcon(): BitmapPainter? =
 	Thread.currentThread().contextClassLoader?.getResourceAsStream("icons/loak.png")?.use {
 		BitmapPainter(Image.makeFromEncoded(it.readAllBytes()).toComposeImageBitmap())
 	}
+
+/**
+ * Whether the desktop puts the window buttons on the left, from GNOME's `button-layout`
+ * GSettings key. Nucleus reads that key only on GNOME, but other desktops keep it too
+ * (KDE mirrors its own layout into it), so read it everywhere with Nucleus' own reader.
+ * ponytail: drop once Nucleus reads the layout on every desktop (button set still Nucleus').
+ */
+private fun gsettingsControlsOnLeft(): Boolean = runCatching {
+	val layout = Class.forName("dev.nucleusframework.window.NativeLayoutDirectionBridge")
+		.getMethod("nativeGetButtonLayout").invoke(null) as String?
+	layout != null && "close" in layout.substringBefore(':', "") &&
+		"close" !in layout.substringAfter(':', layout)
+}.getOrDefault(false)
