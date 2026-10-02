@@ -166,6 +166,9 @@ fun App() {
 			Screen.Login
 		}
 	)
+	// the app's chrome (rail, queue pane) waits until the login screen is gone: it stays up,
+	// syncing the library, for a while after the session is already valid
+	val inApp = isLoggedIn && backStack.firstOrNull() != Screen.Login
 	val snackBarState = remember { SnackbarHostState() }
 	val snackBarManager = koinInject<SnackBarManager>()
 
@@ -255,7 +258,7 @@ fun App() {
 					) { contentPadding ->
 						Row {
 							// wider windows: the tabs move from each screen's bottom bar into a rail
-							if (isLoggedIn && platformContext.isLandscape()) AppNavigationRail()
+							if (inApp && platformContext.isLandscape()) AppNavigationRail()
 							NavDisplay(
 								modifier = Modifier
 									.weight(1f)
@@ -331,7 +334,7 @@ fun App() {
 							)
 							AnimatedVisibility(
 								// narrower windows hide it but keep it open, so it comes back when widened
-								isLoggedIn && queuePaneFits() && queuePaneOpen.value,
+								inApp && queuePaneFits() && queuePaneOpen.value,
 								enter = expandHorizontally(),
 								exit = shrinkHorizontally()
 							) {
