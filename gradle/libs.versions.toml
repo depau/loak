@@ -128,3 +128,4 @@ composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "k
 valkyrie = { id = "io.github.composegears.valkyrie", version = "0.5.2" }
 ksp = { id = "com.google.devtools.ksp", version = "2.3.9" }
 androidx-room3 = { id = "androidx.room3", version.ref = "androidx-room3" }
+nucleus = { id = "dev.nucleusframework", version.ref = "nucleus" }

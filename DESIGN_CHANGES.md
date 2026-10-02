@@ -308,8 +308,10 @@ Current state:
   `~/.local/share/Loak` / `~/Library/Application Support/Loak` /
   `%LOCALAPPDATA%\Loak`, and no-op managers where desktop lacks the subsystem
   (app icon, audio gain, permissions, animated icons).
-- New `:loakDesktop` app module packages native installers with
-  **jlink + jpackage** (DMG on macOS, MSI/EXE on Windows, DEB/RPM on Linux).
+- New `:loakDesktop` app module packages native installers with the
+  **Nucleus Gradle plugin** (jlink + jpackage app image, then electron-builder,
+  so packaging needs Node.js): DMG on macOS, MSI/EXE on Windows, DEB/RPM/AppImage
+  on Linux. On macOS it also compiles the Icon Composer icon into `Assets.car`.
   Portable archives: `.tar.gz` for Linux (preserves POSIX file permissions
   and executable bits), `.zip` for Windows, and `.zip` for macOS (contains
   the raw `Loak.app` bundle, the standard payload format for auto-updaters
@@ -320,10 +322,6 @@ Current state:
   dynamically track the actual window dimensions, adapting between Compact
   (< 600 dp; phone layout with bottom bar & mini-player), Medium (600–839 dp;
   navigation rail), and Expanded (≥ 840 dp; floating player bar & queue pane).
-- **AppImage deferred**: the compose-plugin AppImage target emits no artifact
-  on ubuntu-latest (needs a working appimagetool on the build host). Linux
-  ships deb + rpm + portable tar.gz instead; re-add once the toolchain is in
-  place.
 - CI (`build.yml` → `build-desktop`) builds the three platform installers on
   each OS runner and attaches them to the `nightly` and `v*` releases.
 - Playback: MP3 (via mp3spi/JLayer) and WAV/AIFF through Java Sound. Progress,
