@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.di.setSentryUser
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.systemDeviceName
 
@@ -102,6 +103,7 @@ class SessionManager(
 
 		api = client
 		isLoggedIn.value = true
+		setSentryUser(currentUser)
 	}
 
 	fun logout() {
@@ -109,6 +111,7 @@ class SessionManager(
 		settings["password"] = null
 		isLoggedIn.value = false
 		currentUser = null
+		setSentryUser(null)
 	}
 
 	fun refreshClient() {
@@ -133,6 +136,7 @@ class SessionManager(
 		mutex.withLock {
 			if (username.isNotBlank()) {
 				currentUser = client.getUser(username)
+				setSentryUser(currentUser)
 				return currentUser
 			}
 		}

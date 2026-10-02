@@ -40,6 +40,11 @@ koin = "4.2.2"
 mp3spi = "1.9.5.4"
 kotlinx-coroutines = "1.11.0"
 
+# Error reporting
+# sentry KMP SDK + gradle plugin share one version; must stay in lockstep with
+# the pinned Sentry Cocoa SDK (currently 8.58.2 for 0.27.0 — see README table).
+sentry = "0.27.0"
+
 [libraries]
 # Compose
 cmp-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
@@ -104,6 +109,11 @@ nucleus-decorated-window-tao = { module = "dev.nucleusframework:nucleus.decorate
 nucleus-darkmode-detector = { module = "dev.nucleusframework:nucleus.darkmode-detector", version.ref = "nucleus" }
 subsonicKotlin = { module = "dev.zt64.subsonic:subsonic-client", version = "1.0.0-SNAPSHOT" }
 
+# Error reporting
+# Auto-installed into commonMain by the sentry gradle plugin; kept here so
+# `:loak` also declares it explicitly (version source of truth).
+sentryKmp = { module = "io.sentry:sentry-kotlin-multiplatform", version.ref = "sentry" }
+
 [bundles]
 cmp = ["cmp-foundation", "cmp-material3", "cmp-material3-adaptive-nav", "cmp-material3-windowSize", "cmp-resources", "cmp-runtime", "cmp-ui"]
 coil = ["coil-compose", "coil-network-ktor3"]
@@ -129,3 +139,4 @@ valkyrie = { id = "io.github.composegears.valkyrie", version = "0.5.2" }
 ksp = { id = "com.google.devtools.ksp", version = "2.3.9" }
 androidx-room3 = { id = "androidx.room3", version.ref = "androidx-room3" }
 nucleus = { id = "dev.nucleusframework", version.ref = "nucleus" }
+sentryKmp = { id = "io.sentry.kotlin.multiplatform.gradle", version.ref = "sentry" }

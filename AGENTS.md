@@ -146,6 +146,15 @@ export ANDROID_HOME=/home/depau/Android/Sdk QT_QPA_PLATFORM=xcb
 - Only **one** running instance per AVD: launching the same AVD twice fatals with "Running multiple emulators with the same AVD… use -read-only".
 - Boot check: `adb wait-for-device` then poll `adb shell getprop sys.boot_completed` for `1`. Stock window is 1280x2856 @480dpi.
 
+## Sentry (error reporting)
+
+Crash/error reporting uses the **Sentry Kotlin Multiplatform SDK** (`io.sentry:sentry-kotlin-multiplatform`, version pinned in `gradle/libs.versions.toml` via the `sentry` ref) plus the same-version `io.sentry.kotlin.multiplatform.gradle` plugin (auto-installs the SDK into `commonMain`; only `commonMain` auto-install is enabled in `:loak`).
+
+- **Init** lives in `loak/src/commonMain/kotlin/eu/depau/loak/di/SentrySetup.kt` — `initializeSentry()` / `setSentryUser()`. It is called from the Android `Application.onCreate`, the iOS `AppDelegate.swift` (`SentrySetupKt.initializeSentry()`), and the desktop `main()`. The **DSN is a real project key** (a custom `de`-region `SentrySetup.kt` constant): reporting is live. If it ever needs toggling off (e.g. dev builds), blanking or marking the DSN breaks `Sentry.init` URI parsing — gate the call at the platform entry points instead.
+- **What's reported:** `Logger.e(tag, msg, tr)` forwards non-null `Throwable`s to Sentry on all platforms (`captureSentryError` in `util/Logger.kt`); Sentry's own integrations capture unhandled crashes. The logged-in Subsonic username is attached to events via `setSentryUser` (login, logout and session restore — see `SessionManager`).
+- **iOS caveat:** the Swift side compiles and the SDK init runs via the framework, but the app is built with plain `embedAndSignAppleFrameworkForXcode` (no SPM/CocoaPods) so **Sentry Cocoa must be linked into the Xcode project** for iOS crash capture to work. Wire it (add Sentry Cocoa via SPM in Xcode, then – if needed – point `sentryKmp { linker { frameworkPath.set(...) } }` at the resolved `Sentry.xcframework`), or Sentry calls become no-ops on iOS. Sentry Cocoa version must be compatible with the KMP SDK version (see the compat table in the sentry-kotlin-multiplatform README).
+- **Web (Wasm)**: the KMP SDK ships a no-op stub for `wasmJs`, so `initializeSentry`/`Logger` calls compile and are inert — no web crash reporting today.
+
 ## Tests
 
 > **Important: this repository currently has NO tests.** There is no `commonTest`/`androidUnitTest`/`iosTest` source set, no test dependencies in `gradle/libs.versions.toml`, and no CI test job. Do not claim "tests pass" — the closest sanity gates are compile/assemble tasks above and manual UI verification.

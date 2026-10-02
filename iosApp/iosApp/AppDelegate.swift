@@ -22,6 +22,7 @@ struct ComposeView: UIViewControllerRepresentable {
 struct ComposeApp: App {
 	init() {
 		KoinInitKt.doInitKoin()
+		SentrySetupKt.initializeSentry()
 	}
 
 	var body: some Scene {

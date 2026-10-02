@@ -11,6 +11,13 @@ plugins {
 	alias(libs.plugins.valkyrie)
 	alias(libs.plugins.ksp)
 	alias(libs.plugins.androidx.room3)
+	alias(libs.plugins.sentryKmp)
+}
+
+sentryKmp {
+	autoInstall {
+		cocoapods.enabled = false
+	}
 }
 
 configurations.all {
@@ -178,6 +185,7 @@ kotlin {
 			implementation(libs.kotlinx.collections.immutable)
 
 			implementation(libs.subsonicKotlin)
+			implementation(libs.sentryKmp)
 		}
 
 		androidMain.dependencies {

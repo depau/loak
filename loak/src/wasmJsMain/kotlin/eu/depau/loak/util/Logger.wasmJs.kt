@@ -15,6 +15,7 @@ private external fun jsConsoleError(s: String): Unit
 actual object Logger {
 	actual fun e(tag: String, msg: String, tr: Throwable?) {
 		jsConsoleError("[$tag] $msg${tr?.let { "\n${it.stackTraceToString()}" } ?: ""}")
+		captureSentryError(tr)
 	}
 
 	actual fun i(tag: String, msg: String, tr: Throwable?) {

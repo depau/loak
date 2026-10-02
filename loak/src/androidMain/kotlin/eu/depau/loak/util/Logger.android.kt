@@ -5,6 +5,7 @@ import android.util.Log
 actual object Logger {
 	actual fun e(tag: String, msg: String, tr: Throwable?) {
 		Log.e(tag, msg, tr)
+		captureSentryError(tr)
 	}
 
 	actual fun i(tag: String, msg: String, tr: Throwable?) {

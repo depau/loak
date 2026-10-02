@@ -12,6 +12,7 @@ import eu.depau.loak.androidApp.di.AndroidResourceProvider
 import eu.depau.loak.di.ActivityProvider
 import eu.depau.loak.di.ResourceProvider
 import eu.depau.loak.di.initKoin
+import eu.depau.loak.di.initializeSentry
 import kotlin.system.exitProcess
 
 class Application : android.app.Application() {
@@ -35,6 +36,11 @@ class Application : android.app.Application() {
 				exitProcess(1)
 			}
 		}
+
+		// After the crash-screen handler so Sentry's own uncaught-exception
+		// integration chains to it (report → crash screen → exit) instead of
+		// being replaced wholesale by Thread.setDefaultUncaughtExceptionHandler.
+		initializeSentry()
 
 		initKoin {
 			modules(module(createdAtStart = true) {

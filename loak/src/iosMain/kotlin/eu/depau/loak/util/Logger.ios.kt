@@ -8,6 +8,7 @@ actual object Logger {
 
 	actual fun e(tag: String, msg: String, tr: Throwable?) {
 		log(tag, msg, tr)
+		captureSentryError(tr)
 	}
 
 	actual fun i(tag: String, msg: String, tr: Throwable?) {

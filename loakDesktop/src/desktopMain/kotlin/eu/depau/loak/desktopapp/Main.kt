@@ -18,6 +18,7 @@ import dev.nucleusframework.window.WindowScaffold
 import dev.nucleusframework.window.windowDragArea
 import eu.depau.loak.App
 import eu.depau.loak.di.initKoin
+import eu.depau.loak.di.initializeSentry
 import org.jetbrains.skia.Image
 import androidx.compose.runtime.CompositionLocalProvider
 import dev.nucleusframework.window.TitleBarPlacement
@@ -41,6 +42,7 @@ private val titleBarHeight = 64.dp
  */
 fun main(args: Array<String>) {
 	initKoin()
+	initializeSentry()
 	nucleusApplication(args) {
 		DecoratedWindow(
 			onCloseRequest = ::exitApplication,
