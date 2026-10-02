@@ -16,6 +16,13 @@ import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.data.database.mappers.toEntity
 import eu.depau.loak.domain.manager.SessionManager
+import io.ktor.client.request.get
+import io.ktor.client.request.parameter
+import io.ktor.client.statement.bodyAsText
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.models.DomainFilter
 import eu.depau.loak.domain.models.DomainSong
@@ -46,6 +53,30 @@ class SongRepository(
 		// take(): subsonic-client leaves count out of the request, so the server sends its default
 		return sessionManager.api.getSimilarSongs(id, count).take(count)
 			.map { it.toEntity().toDomainModel() }
+	}
+
+	/**
+	 * Songs that ease from [fromId] into [toId] (the OpenSubsonic sonicSimilarity extension).
+	 *
+	 * ponytail: a raw call, because subsonic-client 1.0.0-SNAPSHOT sends stopSongId where the
+	 * spec says endSongId. Use api.findSonicPath once it's fixed.
+	 */
+	suspend fun getSonicPath(fromId: String, toId: String, count: Int = 20): List<DomainSong> {
+		val body = sessionManager.api.httpClient.get("findSonicPath.view") {
+			parameter("startSongId", fromId)
+			parameter("endSongId", toId)
+			parameter("count", count)
+		}.bodyAsText()
+		val response = Json.parseToJsonElement(body).jsonObject["subsonic-response"]?.jsonObject
+		val status = response?.get("status")?.jsonPrimitive?.content
+		if (status != "ok") error("findSonicPath failed: ${response?.get("error") ?: body}")
+
+		val ids = response["sonicMatch"]?.jsonArray
+			?.mapNotNull { it.jsonObject["entry"]?.jsonObject?.get("id")?.jsonPrimitive?.content }
+			.orEmpty()
+		// ponytail: songs the library sync hasn't seen yet are dropped
+		val known = songDao.getSongsByIds(ids).associateBy { it.songId }
+		return ids.mapNotNull { known[it]?.toDomainModel() }
 	}
 
 	private suspend fun getLocalData(

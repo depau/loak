@@ -59,7 +59,8 @@ class QueueSyncManager(
 	val pickedUpFrom: StateFlow<ServerQueue?>
 		field = MutableStateFlow(null)
 
-	private suspend fun extensions(): Set<String> = extensions ?: runCatching {
+	/** The OpenSubsonic extensions the server has; none when it can't say. */
+	suspend fun extensions(): Set<String> = extensions ?: runCatching {
 		sessionManager.api.getOpenSubsonicExtensions().mapTo(HashSet()) { it.name }
 	}.getOrElse {
 		Logger.w(TAG, "could not read the server's extensions", it)

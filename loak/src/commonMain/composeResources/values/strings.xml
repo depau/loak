@@ -376,6 +376,7 @@
 	<string name="action_add_to_queue">Add to queue</string>
 	<string name="action_instant_mix">Instant mix</string>
 	<string name="action_mix">Mix</string>
+	<string name="action_mix_to_here">Mix to here</string>
 	<string name="action_queue">Queue</string>
 	<string name="action_close_queue">Close queue</string>
 	<string name="action_volume">Volume</string>
@@ -409,6 +410,7 @@
 	<string name="notice_play_next">Playing next.</string>
 	<string name="notice_instant_mix">Playing an instant mix from %1$s.</string>
 	<string name="notice_no_similar_songs">No similar songs found.</string>
+	<string name="notice_sonic_path">Mixing into %1$s.</string>
 	<string name="notice_moved_play_next">Moved to play next.</string>
 	<string name="notice_moved_to_end">Moved to the end of the queue.</string>
 	<string name="notice_removed_from_queue">Removed from queue.</string>

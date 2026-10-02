@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.buildAnnotatedString
@@ -34,6 +35,7 @@ import eu.depau.loak.generated.resources.action_add_to_another_playlist
 import eu.depau.loak.generated.resources.action_add_to_playlist
 import eu.depau.loak.generated.resources.action_add_to_queue
 import eu.depau.loak.generated.resources.action_instant_mix
+import eu.depau.loak.generated.resources.action_mix_to_here
 import eu.depau.loak.generated.resources.action_cancel_download
 import eu.depau.loak.generated.resources.action_delete_download
 import eu.depau.loak.generated.resources.action_download
@@ -76,6 +78,7 @@ import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.InstantMix
+import eu.depau.loak.icons.outlined.SonicPath
 import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.Info
 import eu.depau.loak.icons.outlined.PlaylistAdd
@@ -128,6 +131,8 @@ fun SongSheet(
 	val preferenceManager = koinInject<PreferenceManager>()
 	val sessionManager = koinInject<SessionManager>()
 	val player = koinInject<MediaPlayerViewModel>()
+	val playerState by player.uiState.collectAsStateWithLifecycle()
+	val canFindSonicPaths by produceState(false) { value = player.canFindSonicPaths() }
 
 	val sleepTimerManager = koinInject<SleepTimerManager>()
 	val sleepTimerMode by sleepTimerManager.mode.collectAsStateWithLifecycle()
@@ -242,6 +247,21 @@ fun SongSheet(
 					colors = colors,
 					contentPadding = contentPadding
 				)
+
+				// from the song playing now into this one
+				val playingId = playerState.currentSong?.id
+				if (canFindSonicPaths && playingId != null && playingId != song.id) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_mix_to_here)) },
+						leadingContent = { Icon(Icons.Outlined.SonicPath, null) },
+						onClick = {
+							player.playSonicPathTo(song)
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
 
 				if (onAddToPlaylist != null) {
 					ListItem(

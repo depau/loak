@@ -43,6 +43,7 @@ import eu.depau.loak.generated.resources.notice_no_server_queue
 import eu.depau.loak.generated.resources.notice_no_similar_songs
 import eu.depau.loak.generated.resources.notice_play_next
 import eu.depau.loak.generated.resources.notice_queue_cleared
+import eu.depau.loak.generated.resources.notice_sonic_path
 import eu.depau.loak.generated.resources.notice_queue_loaded
 import eu.depau.loak.generated.resources.notice_queue_sent
 import eu.depau.loak.generated.resources.notice_removed_from_queue
@@ -279,6 +280,36 @@ abstract class MediaPlayerViewModel(
 	abstract fun syncPlayerWithState(state: PlayerUiState)
 
 	private var autoFillJob: Job? = null
+
+	/** Whether the server can find paths between songs, for [playSonicPathTo]. */
+	suspend fun canFindSonicPaths() = "sonicSimilarity" in queueSyncManager.extensions()
+
+	/**
+	 * Replaces what comes after the current song with songs that ease from it into [target],
+	 * ending on [target], with an undo.
+	 */
+	fun playSonicPathTo(target: DomainSong) {
+		val current = uiState.value.currentSong ?: return
+		viewModelScope.launch {
+			val path = try {
+				songRepository.getSonicPath(current.id, target.id)
+			} catch (e: Exception) {
+				if (e is CancellationException) throw e
+				Logger.w("MediaPlayerViewModel", "could not find a sonic path", e)
+				snackBarManager.notify(Res.string.notice_server_unreachable)
+				return@launch
+			}
+			// the server may or may not include the ends
+			val songs = path.filter { it.id != current.id && it.id != target.id } + target
+			val previous = uiState.value
+			val start = previous.currentIndex + 1
+			for (index in previous.queue.lastIndex downTo start) removeFromQueue(index)
+			insertIntoQueue(start, songs)
+			snackBarManager.notifyWithUndo(Res.string.notice_sonic_path, target.title) {
+				replaceQueue(previous)
+			}
+		}
+	}
 
 	/** Checks for auto-fill whenever the songs left or the last song change. */
 	@OptIn(FlowPreview::class)
