@@ -11,14 +11,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -33,6 +31,7 @@ import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
 import eu.depau.loak.domain.repositories.PlayerStateRepository
 import eu.depau.loak.domain.repositories.SongRepository
+import eu.depau.loak.ui.core.InstantMix
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import eu.depau.loak.generated.resources.Res
@@ -48,6 +47,7 @@ import eu.depau.loak.generated.resources.notice_queue_loaded
 import eu.depau.loak.generated.resources.notice_queue_sent
 import eu.depau.loak.generated.resources.notice_removed_from_queue
 import eu.depau.loak.generated.resources.notice_server_unreachable
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 abstract class MediaPlayerViewModel(
@@ -76,6 +76,7 @@ abstract class MediaPlayerViewModel(
 		viewModelScope.launch {
 			restoreState()
 			observeAndSaveState()
+			observeAutoFill()
 		}
 	}
 
@@ -218,35 +219,26 @@ abstract class MediaPlayerViewModel(
 		)
 	}
 
-	fun playNow(song: DomainSong) {
-		clearQueue()
-		addToQueueSingle(song, notify = false)
-		playAt(0)
-		checkAndAutoFillQueue()
-	}
+	fun playNow(song: DomainSong) = playNow(listOf(song))
 
-	fun playNow(collection: DomainSongCollection, startIndex: Int = 0) {
-		clearQueue()
-		addToQueue(collection, notify = false)
-		playAt(startIndex)
-		checkAndAutoFillQueue()
-	}
+	fun playNow(collection: DomainSongCollection, startIndex: Int = 0) =
+		playNow(collection.orderedSongs(), startIndex)
 
-	fun playNow(songs: List<DomainSong>, startIndex: Int = 0) {
+	fun playNow(songs: List<DomainSong>, startIndex: Int = 0) = startQueue(songs, startIndex, mix = null)
+
+	private fun startQueue(songs: List<DomainSong>, startIndex: Int, mix: InstantMix?) {
+		// before clearQueue: platforms clear by copying the state, which keeps the mix
+		_uiState.update { it.copy(instantMix = mix) }
 		clearQueue()
 		addToQueue(songs, notify = false)
 		playAt(startIndex)
-		checkAndAutoFillQueue()
 	}
 
-	/** The seed's name and the songs of the last instant mix. */
-	data class InstantMix(val seedName: String, val songIds: Set<String>)
-
-	private val _instantMix = MutableStateFlow<InstantMix?>(null)
-
-	/** The last instant mix, while the queue holds only its songs (it may skip explicit ones). */
-	val instantMix: StateFlow<InstantMix?> = combine(_instantMix, _uiState) { mix, state ->
-		mix?.takeIf { state.queue.isNotEmpty() && state.queue.all { it.id in mix.songIds } }
+	/** The queue's instant mix, while the queue holds only its songs (it may skip explicit ones). */
+	val instantMix: StateFlow<InstantMix?> = uiState.map { state ->
+		state.instantMix?.takeIf { mix ->
+			state.queue.isNotEmpty() && state.queue.all { it.id in mix.songIds }
+		}
 	}.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
 	/**
@@ -269,8 +261,7 @@ abstract class MediaPlayerViewModel(
 			}
 			val songs = listOfNotNull(seed) + similar.filter { it.id != seed?.id }
 			val previous = uiState.value
-			_instantMix.value = InstantMix(seedName, songs.mapTo(HashSet()) { it.id })
-			playNow(songs)
+			startQueue(songs, 0, InstantMix(seedName, songs.mapTo(HashSet()) { it.id }))
 			snackBarManager.notifyWithUndo(Res.string.notice_instant_mix, seedName) {
 				replaceQueue(previous)
 			}
@@ -289,14 +280,29 @@ abstract class MediaPlayerViewModel(
 
 	private var autoFillJob: Job? = null
 
+	/** Checks for auto-fill whenever the songs left or the last song change. */
+	@OptIn(FlowPreview::class)
+	private fun observeAutoFill() {
+		// driven by the state, not by callers: platforms update the queue asynchronously, so a
+		// check right after a change still sees the old queue; the debounce lets a queue swap
+		// settle, since the player briefly reports the old queue's index against the new songs
+		viewModelScope.launch {
+			uiState
+				.map { (it.queue.size - it.currentIndex) to it.queue.lastOrNull()?.id }
+				.distinctUntilChanged()
+				.debounce(500.milliseconds)
+				.collect { checkAndAutoFillQueue() }
+		}
+	}
+
 	/** When one song is left, queues songs similar to it, or a random one if there are none. */
-	protected fun checkAndAutoFillQueue() {
-		// track changes and playNow can both ask while the server answers
+	private fun checkAndAutoFillQueue() {
+		// the state can change while the server answers
 		if (!preferenceManager.autoFillQueue || autoFillJob?.isActive == true) return
 
 		val state = uiState.value
 		val last = state.queue.lastOrNull() ?: return
-		if (state.queue.size - state.currentIndex > 1) return
+		if (state.currentIndex !in state.queue.indices || state.queue.size - state.currentIndex > 1) return
 
 		autoFillJob = viewModelScope.launch {
 			val similar = if (!connectivityManager.isOnline.value) emptyList() else try {
@@ -310,9 +316,6 @@ abstract class MediaPlayerViewModel(
 			val songs = similar.filter { it.id !in queued }
 				.ifEmpty { songRepository.getRandomSongs(1) }
 			addToQueue(songs, notify = false)
-			// platforms may update the queue asynchronously: until they do, a check would
-			// still see one song left and fill again
-			withTimeoutOrNull(5.seconds) { uiState.first { it.queue.lastOrNull()?.id != last.id } }
 		}
 	}
 
@@ -324,7 +327,6 @@ abstract class MediaPlayerViewModel(
 		if (savedState != null) {
 			_uiState.value = savedState
 			syncPlayerWithState(savedState)
-			checkAndAutoFillQueue()
 		}
 	}
 

@@ -18,5 +18,10 @@ data class PlayerUiState(
 	val playbackSpeed: Float = 1.0f,
 	val playbackBitrate: Int? = null,
 	val playbackSampleRate: Int? = null,
-	val playbackMimeType: String? = null
+	val playbackMimeType: String? = null,
+	val instantMix: InstantMix? = null
 )
+
+/** The seed's name and the songs of an instant mix. */
+@Serializable
+data class InstantMix(val seedName: String, val songIds: Set<String>)

@@ -527,7 +527,6 @@ class AndroidMediaPlayerViewModel(
 					override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 						updatePlaybackState()
 						skipUnavailableSong()
-						checkAndAutoFillQueue()
 					}
 
 					override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -589,7 +588,6 @@ class AndroidMediaPlayerViewModel(
 					syncPlayerWithState(state)
 					pendingSyncState = null
 				}
-				checkAndAutoFillQueue()
 			}
 		}
 	}
