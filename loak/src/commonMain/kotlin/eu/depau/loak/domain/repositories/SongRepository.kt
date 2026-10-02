@@ -43,7 +43,9 @@ class SongRepository(
 	/** Songs the server finds similar to a song, album or artist. */
 	suspend fun getSimilarSongs(id: String, count: Int = 50): List<DomainSong> {
 		// OpenSubsonic: getSimilarSongs takes all three id types, no need for getSimilarSongs2
-		return sessionManager.api.getSimilarSongs(id, count).map { it.toEntity().toDomainModel() }
+		// take(): subsonic-client leaves count out of the request, so the server sends its default
+		return sessionManager.api.getSimilarSongs(id, count).take(count)
+			.map { it.toEntity().toDomainModel() }
 	}
 
 	private suspend fun getLocalData(

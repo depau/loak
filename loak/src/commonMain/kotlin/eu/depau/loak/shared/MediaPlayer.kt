@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,10 +13,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -284,19 +287,32 @@ abstract class MediaPlayerViewModel(
 
 	abstract fun syncPlayerWithState(state: PlayerUiState)
 
+	private var autoFillJob: Job? = null
+
+	/** When one song is left, queues songs similar to it, or a random one if there are none. */
 	protected fun checkAndAutoFillQueue() {
-		if (!preferenceManager.autoFillQueue) return
+		// track changes and playNow can both ask while the server answers
+		if (!preferenceManager.autoFillQueue || autoFillJob?.isActive == true) return
 
 		val state = uiState.value
-		if (state.queue.isEmpty()) return
+		val last = state.queue.lastOrNull() ?: return
+		if (state.queue.size - state.currentIndex > 1) return
 
-		val remainingCount = state.queue.size - state.currentIndex
-
-		if (remainingCount <= 1) {
-			viewModelScope.launch {
-				val randomSongs = songRepository.getRandomSongs(1)
-				addToQueue(randomSongs, notify = false)
+		autoFillJob = viewModelScope.launch {
+			val similar = if (!connectivityManager.isOnline.value) emptyList() else try {
+				songRepository.getSimilarSongs(last.id, count = 10)
+			} catch (e: Exception) {
+				if (e is CancellationException) throw e
+				Logger.w("MediaPlayerViewModel", "could not fetch similar songs to auto-fill", e)
+				emptyList()
 			}
+			val queued = state.queue.mapTo(HashSet()) { it.id }
+			val songs = similar.filter { it.id !in queued }
+				.ifEmpty { songRepository.getRandomSongs(1) }
+			addToQueue(songs, notify = false)
+			// platforms may update the queue asynchronously: until they do, a check would
+			// still see one song left and fill again
+			withTimeoutOrNull(5.seconds) { uiState.first { it.queue.lastOrNull()?.id != last.id } }
 		}
 	}
 
