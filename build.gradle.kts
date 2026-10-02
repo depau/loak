@@ -20,7 +20,13 @@ subprojects {
 		resolutionStrategy {
 			force(
 				"org.jetbrains.skiko:skiko:0.152.0",
-				"org.jetbrains.skiko:skiko-wasm-js:0.152.0"
+				"org.jetbrains.skiko:skiko-wasm-js:0.152.0",
+				// JVM desktop: keep skiko-awt-runtime-all on the same 0.152.0 line as
+				// the forced skiko/awt glue. Without this the desktop classpath mixes
+				// skiko-awt-runtime-all:0.152.0-alpha04 (from ui-skiko alpha04) with
+				// skiko-awt:0.152.0, and MetalRenderer.getMtlDevice is missing from
+				// the older native lib -> UnsatisfiedLinkError, blank window at startup.
+				"org.jetbrains.skiko:skiko-awt-runtime-all:0.152.0"
 			)
 		}
 	}
