@@ -26,14 +26,17 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import org.jetbrains.compose.resources.stringResource
+import eu.depau.loak.ui.util.LocalWindowChrome
 
 /** The queue beside the content on expanded windows, on its own surface. */
 @Composable
 fun QueuePane(onClose: () -> Unit, modifier: Modifier = Modifier) {
+	// window controls on the right: start below the title bar row they sit in
+	val chrome = LocalWindowChrome.current?.takeUnless { it.controlsOnLeft }
 	Surface(
 		modifier = modifier
 			.windowInsetsPadding(WindowInsets.systemBars)
-			.padding(top = 8.dp, end = 16.dp, bottom = 16.dp)
+			.padding(top = chrome?.barHeight ?: 8.dp, end = 16.dp, bottom = 16.dp)
 			.width(360.dp)
 			.fillMaxHeight(),
 		shape = ContinuousRoundedRectangle(28.dp),

@@ -11,6 +11,11 @@ import androidx.compose.ui.graphics.Color
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.ToolbarPosition
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.add
+import androidx.compose.ui.Modifier
+import eu.depau.loak.ui.util.windowControlsInsets
+import eu.depau.loak.ui.util.windowDragArea
 
 @Composable
 fun SheetScaffold(
@@ -23,11 +28,11 @@ fun SheetScaffold(
 	val toolbarPosition = toolbarPosition ?: preferenceManager.nowPlayingToolbarPosition
 	Scaffold(
 		topBar = {
-			if (toolbarPosition == ToolbarPosition.Top) {
+			if (toolbarPosition == ToolbarPosition.Top) Box(Modifier.windowDragArea()) {
 				toolbar(
 					WindowInsets.systemBars.only(
 						WindowInsetsSides.Horizontal + WindowInsetsSides.Top
-					)
+					).add(windowControlsInsets())
 				)
 			}
 		},

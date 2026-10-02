@@ -74,6 +74,7 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
 import eu.depau.loak.ui.util.animatedTabIconPainter
 import eu.depau.loak.ui.viewmodel.RootViewModel
+import eu.depau.loak.ui.util.LocalWindowChrome
 
 private enum class NavItem(
 	val destination: Screen,
@@ -290,6 +291,11 @@ fun AppNavigationRail(modifier: Modifier = Modifier) {
 		modifier = modifier,
 		containerColor = MaterialTheme.colorScheme.surface
 	) {
+		// window controls on the left sit above the rail, in the title bar row
+		val chrome = LocalWindowChrome.current
+		if (chrome?.controlsOnLeft == true) {
+			Spacer(Modifier.height(chrome.barHeight))
+		}
 		Spacer(Modifier.height(12.dp))
 		tabs.forEach { tab ->
 			val item = tab.id.navItem()

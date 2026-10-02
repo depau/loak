@@ -34,6 +34,12 @@ import eu.depau.loak.ui.components.sheets.AccountSheet
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
+import androidx.compose.foundation.layout.add
+import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.Modifier
+import eu.depau.loak.di.PlatformType
+import eu.depau.loak.ui.util.windowControlsInsets
+import eu.depau.loak.ui.util.windowDragArea
 
 @Composable
 fun RootTopBar(
@@ -45,7 +51,34 @@ fun RootTopBar(
 	val navState by navViewModel.state.collectAsState()
 	val navConfig = (navState as? UiState.Success)?.data
 
+	val barActions: @Composable RowScope.() -> Unit = {
+		actions()
+		Actions(navConfig = navConfig)
+	}
+	val modifier = Modifier.windowDragArea()
+	val windowInsets = TopAppBarDefaults.windowInsets.add(windowControlsInsets())
+	val colors = TopAppBarDefaults.topAppBarColors(
+		scrolledContainerColor = MaterialTheme.colorScheme.surface
+	)
+
+	// desktop: the title stays pinned in the title bar row; the large title that collapses
+	// on scroll is a touch idiom
+	if (LocalPlatformContext.current.platformType == PlatformType.Desktop) {
+		TopAppBar(
+			modifier = modifier,
+			title = title,
+			actions = barActions,
+			// pinned: an unpinned bar is draggable (to collapse it), which would swallow the
+			// mouse drags that move the window; same state, so it still tints on scroll
+			scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(scrollBehavior.state),
+			colors = colors,
+			windowInsets = windowInsets,
+		)
+		return
+	}
+
 	MediumFlexibleTopAppBar(
+		modifier = modifier,
 		title = {
 			CompositionLocalProvider(
 				LocalTextStyle provides when (LocalTextStyle.current) {
@@ -56,14 +89,10 @@ fun RootTopBar(
 				title()
 			}
 		},
-		actions = {
-			actions()
-			Actions(navConfig = navConfig)
-		},
+		actions = barActions,
 		scrollBehavior = scrollBehavior,
-		colors = TopAppBarDefaults.topAppBarColors(
-			scrolledContainerColor = MaterialTheme.colorScheme.surface
-		),
+		colors = colors,
+		windowInsets = windowInsets,
 	)
 }
 

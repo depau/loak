@@ -29,6 +29,9 @@ import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.ArrowBack
+import androidx.compose.foundation.layout.add
+import eu.depau.loak.ui.util.windowControlsInsets
+import eu.depau.loak.ui.util.windowDragArea
 
 
 object NestedTopBarDefaults {
@@ -62,6 +65,7 @@ fun NestedTopBar(
 	colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors()
 ) {
 	TopAppBar(
+		modifier = Modifier.windowDragArea(),
 		title = title,
 		colors = colors,
 		actions = {
@@ -73,6 +77,7 @@ fun NestedTopBar(
 			)
 		},
 		navigationIcon = navigationAction,
+		windowInsets = TopAppBarDefaults.windowInsets.add(windowControlsInsets()),
 	)
 }
 

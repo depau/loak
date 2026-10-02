@@ -140,6 +140,7 @@ import eu.depau.loak.ui.screens.starred.StarredScreen
 import eu.depau.loak.ui.components.layouts.AppNavigationRail
 import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.ui.util.Material3Transitions
+import eu.depau.loak.ui.util.WindowChromeHost
 
 @OptIn(ExperimentalSerializationApi::class)
 private val config = SavedStateConfiguration {
@@ -219,126 +220,128 @@ fun App() {
 			LocalQueuePaneOpen provides queuePaneOpen
 		) {
 			LoakTheme {
-				Scaffold(
-					modifier = Modifier
-						.nestedScroll(scrollManager.connection)
-						// keyboards (desktop, web, tablets with one): space plays/pauses unless a
-						// text field or a focused button takes it first
-						.focusRequester(rootFocus)
-						.focusTarget()
-						.onKeyEvent { event ->
-							if (event.type != KeyEventType.KeyUp || event.key != Key.Spacebar) {
-								return@onKeyEvent false
+				WindowChromeHost {
+					Scaffold(
+						modifier = Modifier
+							.nestedScroll(scrollManager.connection)
+							// keyboards (desktop, web, tablets with one): space plays/pauses unless a
+							// text field or a focused button takes it first
+							.focusRequester(rootFocus)
+							.focusTarget()
+							.onKeyEvent { event ->
+								if (event.type != KeyEventType.KeyUp || event.key != Key.Spacebar) {
+									return@onKeyEvent false
+								}
+								val player = mediaPlayer
+								if (player.uiState.value.currentSong == null) return@onKeyEvent false
+								if (player.uiState.value.isPaused) player.resume() else player.pause()
+								true
+							},
+						snackbarHost = {
+							// sit above the mini player and nav bar when a screen shows them
+							val barHeight = scrollManager.barHeights.values.maxOrNull() ?: 0.dp
+							SnackbarHost(
+								hostState = snackBarState,
+								modifier = Modifier
+									.padding(bottom = barHeight)
+									.consumeWindowInsets(PaddingValues(bottom = barHeight))
+							) { snackBarData ->
+								LoakSnackBar(snackBarData = snackBarData)
 							}
-							val player = mediaPlayer
-							if (player.uiState.value.currentSong == null) return@onKeyEvent false
-							if (player.uiState.value.isPaused) player.resume() else player.pause()
-							true
 						},
-					snackbarHost = {
-						// sit above the mini player and nav bar when a screen shows them
-						val barHeight = scrollManager.barHeights.values.maxOrNull() ?: 0.dp
-						SnackbarHost(
-							hostState = snackBarState,
-							modifier = Modifier
-								.padding(bottom = barHeight)
-								.consumeWindowInsets(PaddingValues(bottom = barHeight))
-						) { snackBarData ->
-							LoakSnackBar(snackBarData = snackBarData)
-						}
-					},
-					contentWindowInsets = WindowInsets()
-				) { contentPadding ->
-					Row {
-						// wider windows: the tabs move from each screen's bottom bar into a rail
-						if (isLoggedIn && platformContext.isLandscape()) AppNavigationRail()
-						NavDisplay(
-							modifier = Modifier
-								.weight(1f)
-								.padding(
-									start = contentPadding
-										.calculateStartPadding(layoutDirection),
-									end = contentPadding
-										.calculateEndPadding(layoutDirection)
-								)
-								.fillMaxSize()
-								.background(MaterialTheme.colorScheme.surface),
-							backStack = backStack,
-							sceneStrategies = listOf(
-								remember { NowPlayingSceneStrategy() },
-								remember { BottomSheetSceneStrategy() },
-								rememberListDetailSceneStrategy()
-							),
-							entryDecorators = listOf(
-								rememberSaveableStateHolderNavEntryDecorator(),
+						contentWindowInsets = WindowInsets()
+					) { contentPadding ->
+						Row {
+							// wider windows: the tabs move from each screen's bottom bar into a rail
+							if (isLoggedIn && platformContext.isLandscape()) AppNavigationRail()
+							NavDisplay(
+								modifier = Modifier
+									.weight(1f)
+									.padding(
+										start = contentPadding
+											.calculateStartPadding(layoutDirection),
+										end = contentPadding
+											.calculateEndPadding(layoutDirection)
+									)
+									.fillMaxSize()
+									.background(MaterialTheme.colorScheme.surface),
+								backStack = backStack,
+								sceneStrategies = listOf(
+									remember { NowPlayingSceneStrategy() },
+									remember { BottomSheetSceneStrategy() },
+									rememberListDetailSceneStrategy()
+								),
+								entryDecorators = listOf(
+									rememberSaveableStateHolderNavEntryDecorator(),
 
-								// makes it so that ViewModels get destroyed if their
-								// associated screen is removed from the back stack
-								//
-								// this might not always be desirable, so the
-								// `PersistentViewModelStoreOwner` class is used for
-								// certain ViewModels to work around this
-								rememberViewModelStoreNavEntryDecorator()
-							),
-							onBack = {
-								if (backStack.size >= 2) {
-									backStack.removeLastOrNull()
+									// makes it so that ViewModels get destroyed if their
+									// associated screen is removed from the back stack
+									//
+									// this might not always be desirable, so the
+									// `PersistentViewModelStoreOwner` class is used for
+									// certain ViewModels to work around this
+									rememberViewModelStoreNavEntryDecorator()
+								),
+								onBack = {
+									if (backStack.size >= 2) {
+										backStack.removeLastOrNull()
+									}
+								},
+								entryProvider = entryProvider(backStack),
+								sharedTransitionScope = this@SharedTransitionLayout,
+								transitionSpec = {
+									if (platformContext.platformType == PlatformType.Web) {
+										// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
+										ContentTransform(EnterTransition.None, ExitTransition.None)
+									} else {
+										Material3Transitions.SharedXAxisEnterTransition(
+											density
+										) togetherWith Material3Transitions.SharedXAxisExitTransition(
+											density
+										)
+									}
+								},
+								popTransitionSpec = {
+									if (platformContext.platformType == PlatformType.Web) {
+										// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
+										ContentTransform(EnterTransition.None, ExitTransition.None)
+									} else {
+										Material3Transitions.SharedXAxisPopEnterTransition(
+											density
+										) togetherWith Material3Transitions.SharedXAxisPopExitTransition(
+											density
+										)
+									}
+								},
+								predictivePopTransitionSpec = {
+									if (preferenceManager.enablePredictiveBackAnimations) {
+										slideInHorizontally(
+											animationSpec = tween(300, easing = EaseOutQuart),
+											initialOffsetX = { -it }
+										) togetherWith slideOutHorizontally(
+											animationSpec = tween(300, easing = EaseOutQuart),
+											targetOffsetX = { it }
+										)
+									} else {
+										ContentTransform(EnterTransition.None, ExitTransition.None)
+									}
 								}
-							},
-							entryProvider = entryProvider(backStack),
-							sharedTransitionScope = this@SharedTransitionLayout,
-							transitionSpec = {
-								if (platformContext.platformType == PlatformType.Web) {
-									// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
-									ContentTransform(EnterTransition.None, ExitTransition.None)
-								} else {
-									Material3Transitions.SharedXAxisEnterTransition(
-										density
-									) togetherWith Material3Transitions.SharedXAxisExitTransition(
-										density
-									)
-								}
-							},
-							popTransitionSpec = {
-								if (platformContext.platformType == PlatformType.Web) {
-									// ponytail: instant transitions on web avoid LookaheadPass crashes & stuck layout
-									ContentTransform(EnterTransition.None, ExitTransition.None)
-								} else {
-									Material3Transitions.SharedXAxisPopEnterTransition(
-										density
-									) togetherWith Material3Transitions.SharedXAxisPopExitTransition(
-										density
-									)
-								}
-							},
-							predictivePopTransitionSpec = {
-								if (preferenceManager.enablePredictiveBackAnimations) {
-									slideInHorizontally(
-										animationSpec = tween(300, easing = EaseOutQuart),
-										initialOffsetX = { -it }
-									) togetherWith slideOutHorizontally(
-										animationSpec = tween(300, easing = EaseOutQuart),
-										targetOffsetX = { it }
-									)
-								} else {
-									ContentTransform(EnterTransition.None, ExitTransition.None)
-								}
+							)
+							AnimatedVisibility(
+								isLoggedIn && platformContext.isExpanded() && queuePaneOpen.value,
+								enter = expandHorizontally(),
+								exit = shrinkHorizontally()
+							) {
+								QueuePane(onClose = { queuePaneOpen.value = false })
 							}
-						)
-						AnimatedVisibility(
-							isLoggedIn && platformContext.isExpanded() && queuePaneOpen.value,
-							enter = expandHorizontally(),
-							exit = shrinkHorizontally()
-						) {
-							QueuePane(onClose = { queuePaneOpen.value = false })
 						}
 					}
-				}
-				// version check is annoying to do on iOS
-				if (preferenceManager.checkForUpdates
-					&& platformContext.platformType == PlatformType.Android
-				) {
-					ChangelogSheet()
+					// version check is annoying to do on iOS
+					if (preferenceManager.checkForUpdates
+						&& platformContext.platformType == PlatformType.Android
+					) {
+						ChangelogSheet()
+					}
 				}
 			}
 		}

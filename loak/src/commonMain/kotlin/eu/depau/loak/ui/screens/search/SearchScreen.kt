@@ -111,6 +111,9 @@ import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
 import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.ui.viewmodel.RootViewModel
 import eu.depau.loak.ui.util.loakAnimateItem
+import androidx.compose.foundation.layout.add
+import eu.depau.loak.ui.util.windowControlsInsets
+import eu.depau.loak.ui.util.windowDragArea
 
 enum class SearchCategory(val res: StringResource) {
 	ALL(Res.string.title_all),
@@ -181,9 +184,10 @@ fun SearchScreen(
 		topBar = {
 			Column(
 				modifier = Modifier
+					.windowDragArea()
 					.background(MaterialTheme.colorScheme.surface)
 					.padding(
-						TopAppBarDefaults.windowInsets.asPaddingValues()
+						TopAppBarDefaults.windowInsets.add(windowControlsInsets()).asPaddingValues()
 					)
 			) {
 				SearchScreenTopBar(

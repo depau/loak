@@ -1,0 +1,96 @@
+package eu.depau.loak.ui.util
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isLandscape
+
+/**
+ * A desktop window without an OS title bar (client-side decorations): the bars along the
+ * window's top edge double as the title bar, and [App][eu.depau.loak.App] draws [controls]
+ * in the top corner. Null on platforms that keep their own window chrome.
+ */
+@Immutable
+data class WindowChrome(
+	/** The controls sit at the window's left edge (macOS, some Linux layouts). */
+	val controlsOnLeft: Boolean,
+	/** Height of the title bar row; the controls are centred in it. */
+	val barHeight: Dp,
+	/** Makes a surface move the window when dragged (double-click maximizes). */
+	val dragArea: Modifier,
+	/**
+	 * Minimize / maximize / close, as the platform draws them. [darkTheme] is the app theme's,
+	 * so the native parts (traffic lights, caption glyphs) can match it rather than the OS.
+	 */
+	val controls: @Composable (darkTheme: Boolean) -> Unit,
+	/** Measured by App once the controls are laid out. */
+	val controlsWidth: Dp = 0.dp,
+)
+
+val LocalWindowChrome = compositionLocalOf<WindowChrome?> { null }
+
+/** Width of the app's navigation rail (Material's NavigationRail). */
+private val RailWidth = 80.dp
+
+/**
+ * Room a bar along the window's top edge leaves for the window controls. With the controls
+ * on the left and a navigation rail, the rail sits under them, so only what overhangs it.
+ */
+@Composable
+fun windowControlsInsets(): WindowInsets {
+	val chrome = LocalWindowChrome.current ?: return WindowInsets(0)
+	val room = chrome.controlsWidth + 8.dp
+	return when {
+		!chrome.controlsOnLeft -> WindowInsets(right = room)
+		LocalPlatformContext.current.isLandscape() ->
+			WindowInsets(left = (room - RailWidth).coerceAtLeast(0.dp))
+		else -> WindowInsets(left = room)
+	}
+}
+
+/** Lets a bar along the window's top edge move the window, where the window has no title bar. */
+@Composable
+fun Modifier.windowDragArea(): Modifier = then(LocalWindowChrome.current?.dragArea ?: Modifier)
+
+/**
+ * Draws [WindowChrome.controls] in the window's top corner over [content], and hands the
+ * measured controls width down so the top bars keep clear of them.
+ */
+@Composable
+fun WindowChromeHost(content: @Composable () -> Unit) {
+	val chrome = LocalWindowChrome.current ?: return content()
+	val density = LocalDensity.current
+	var controlsWidth by remember { mutableStateOf(0.dp) }
+	CompositionLocalProvider(LocalWindowChrome provides chrome.copy(controlsWidth = controlsWidth)) {
+		Box(Modifier.fillMaxSize()) {
+			content()
+			Box(
+				Modifier
+					.align(if (chrome.controlsOnLeft) Alignment.TopStart else Alignment.TopEnd)
+					.height(chrome.barHeight)
+					.then(chrome.dragArea)
+					.onSizeChanged { controlsWidth = with(density) { it.width.toDp() } }
+			) {
+				chrome.controls(MaterialTheme.colorScheme.surface.luminance() < .5f)
+			}
+		}
+	}
+}
