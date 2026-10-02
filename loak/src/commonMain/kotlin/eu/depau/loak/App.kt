@@ -176,7 +176,7 @@ fun App() {
 	val isLoggedIn by sessionManager.isLoggedIn.collectAsStateWithLifecycle()
 	val backStack = rememberNavBackStack(
 		config, if (isLoggedIn) {
-			Screen.Library()
+			Screen.Home()
 		} else {
 			Screen.Login
 		}
@@ -425,7 +425,7 @@ private fun entryProvider(
 
 	return androidx.navigation3.runtime.entryProvider {
 		// tabs
-		entry<Screen.Library>(metadata = navtabMetadata) {
+		entry<Screen.Home>(metadata = navtabMetadata) {
 			LibraryScreen()
 		}
 		entry<Screen.Starred>(metadata = navtabMetadata) {

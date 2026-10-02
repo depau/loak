@@ -39,7 +39,7 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.title_albums
 import eu.depau.loak.generated.resources.title_artists
 import eu.depau.loak.generated.resources.title_genres
-import eu.depau.loak.generated.resources.title_library
+import eu.depau.loak.generated.resources.title_home
 import eu.depau.loak.generated.resources.title_playlists
 import eu.depau.loak.generated.resources.title_radios
 import eu.depau.loak.generated.resources.title_search
@@ -59,12 +59,12 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Album
 import eu.depau.loak.icons.filled.Artist
 import eu.depau.loak.icons.filled.Genre
-import eu.depau.loak.icons.filled.LibraryMusic
+import eu.depau.loak.icons.filled.Home
 import eu.depau.loak.icons.filled.Radio
 import eu.depau.loak.icons.outlined.Album
 import eu.depau.loak.icons.outlined.Artist
 import eu.depau.loak.icons.outlined.Genre
-import eu.depau.loak.icons.outlined.LibraryMusic
+import eu.depau.loak.icons.outlined.Home
 import eu.depau.loak.icons.outlined.Note
 import eu.depau.loak.icons.outlined.PlaylistPlay
 import eu.depau.loak.icons.outlined.Radio
@@ -82,11 +82,11 @@ private enum class NavItem(
 	val iconUnselected: ImageVector = icon,
 	val label: StringResource
 ) {
-	LIBRARY(
-		destination = Screen.Library(),
-		icon = Icons.Filled.LibraryMusic,
-		iconUnselected = Icons.Outlined.LibraryMusic,
-		label = Res.string.title_library
+	HOME(
+		destination = Screen.Home(),
+		icon = Icons.Filled.Home,
+		iconUnselected = Icons.Outlined.Home,
+		label = Res.string.title_home
 	),
 	ALBUMS(
 		destination = Screen.AlbumList(),
@@ -248,7 +248,7 @@ fun BottomBar(
 }
 
 private fun NavbarTab.Id.navItem() = when (this) {
-	NavbarTab.Id.LIBRARY -> NavItem.LIBRARY
+	NavbarTab.Id.HOME -> NavItem.HOME
 	NavbarTab.Id.ALBUMS -> NavItem.ALBUMS
 	NavbarTab.Id.PLAYLISTS -> NavItem.PLAYLISTS
 	NavbarTab.Id.ARTISTS -> NavItem.ARTISTS

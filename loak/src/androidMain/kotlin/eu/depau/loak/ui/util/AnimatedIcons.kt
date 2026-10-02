@@ -16,7 +16,6 @@ import eu.depau.loak.ui.navigation.Screen
 actual fun animatedTabIconPainter(destination: Screen): Painter? {
 	val resourceProvider = koinInject<ResourceProvider>()
 	val res = when (destination) {
-		is Screen.Library -> resourceProvider.animLibrary
 		is Screen.PlaylistList -> resourceProvider.animPlaylist
 		is Screen.ArtistList -> resourceProvider.animArtist
 		else -> return null

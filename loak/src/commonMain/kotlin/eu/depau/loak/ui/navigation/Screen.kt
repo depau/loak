@@ -14,7 +14,7 @@ sealed interface Screen : NavKey {
 	// tabs
 	@Immutable
 	@Serializable
-	data class Library(
+	data class Home(
 		val nested: Boolean = false
 	) : Screen
 

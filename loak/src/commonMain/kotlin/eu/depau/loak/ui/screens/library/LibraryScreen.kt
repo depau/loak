@@ -17,7 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.title_library
+import eu.depau.loak.generated.resources.title_home
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -122,7 +122,7 @@ fun LibraryScreen() {
 	}
 
 	Scaffold(
-		topBar = { RootTopBar({ Text(stringResource(Res.string.title_library)) }, scrollBehavior) },
+		topBar = { RootTopBar({ Text(stringResource(Res.string.title_home)) }, scrollBehavior) },
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
 			RootBottomBar(scrolled = scrollManager.isTriggered)

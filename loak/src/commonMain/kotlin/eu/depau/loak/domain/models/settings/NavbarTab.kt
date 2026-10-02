@@ -9,7 +9,7 @@ data class NavbarTab(
 ) {
 	@Serializable
 	enum class Id {
-		LIBRARY,
+		HOME,
 		ALBUMS,
 		PLAYLISTS,
 		ARTISTS,

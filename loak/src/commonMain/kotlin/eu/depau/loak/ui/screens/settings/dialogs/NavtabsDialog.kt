@@ -125,7 +125,7 @@ private fun NavtabRow(
 			verticalAlignment = Alignment.CenterVertically
 		) {
 			Checkbox(
-				enabled = tab.id != NavbarTab.Id.LIBRARY,
+				enabled = tab.id != NavbarTab.Id.HOME,
 				checked = tab.visible,
 				onCheckedChange = { _ ->
 					onToggleVisibility()
