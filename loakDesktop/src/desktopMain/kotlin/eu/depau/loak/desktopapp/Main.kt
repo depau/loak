@@ -12,6 +12,7 @@ import androidx.compose.ui.window.rememberWindowState
 import dev.nucleusframework.application.DecoratedWindow
 import dev.nucleusframework.application.nucleusApplication
 import dev.nucleusframework.window.ControlButtonsDirection
+import dev.nucleusframework.window.NucleusDecoratedWindowTheme
 import dev.nucleusframework.window.WindowControls
 import dev.nucleusframework.window.WindowScaffold
 import dev.nucleusframework.window.windowDragArea
@@ -65,16 +66,19 @@ fun main(args: Array<String>) {
 					barHeight = titleBarHeight,
 					dragArea = Modifier.windowDragArea(),
 					controls = { darkTheme ->
-						// native parts follow the app theme, not the OS (traffic lights on macOS,
-						// caption glyphs on Windows)
-						WindowAppearance(
-							if (darkTheme) WindowAppearanceMode.Dark else WindowAppearanceMode.Light
-						)
-						// Windows caption buttons keep their native 32dp height, flush in the corner
-						WindowControls(
-							if (isWindows) Modifier.height(32.dp) else Modifier,
-							direction = direction,
-						)
+						// the controls follow the app theme, not the OS: the native parts through
+						// WindowAppearance (traffic lights on macOS), the drawn ones (GNOME/KDE,
+						// Windows glyphs) through Nucleus' theme, which defaults to dark
+						NucleusDecoratedWindowTheme(isDark = darkTheme) {
+							WindowAppearance(
+								if (darkTheme) WindowAppearanceMode.Dark else WindowAppearanceMode.Light
+							)
+							// Windows caption buttons keep their native 32dp height, in the corner
+							WindowControls(
+								if (isWindows) Modifier.height(32.dp) else Modifier,
+								direction = direction,
+							)
+						}
 					},
 				)
 				CompositionLocalProvider(LocalWindowChrome provides chrome) {
