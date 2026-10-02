@@ -336,6 +336,7 @@ class WebMediaPlayerViewModel(
 	}
 
 	override fun shufflePlay(collection: DomainSongCollection) {
+		playLog.recordCollection(collection)
 		val songs = collection.songs.shuffled()
 		_uiState.update { it.copy(queue = songs, currentIndex = -1, currentSong = null) }
 		playAt(0)

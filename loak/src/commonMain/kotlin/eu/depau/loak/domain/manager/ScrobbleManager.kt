@@ -10,6 +10,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import eu.depau.loak.data.database.entities.SyncActionType
 import kotlin.time.Clock
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import kotlin.time.Duration.Companion.seconds
 
 interface ScrobblePlayerSource {
@@ -25,7 +27,10 @@ class ScrobbleManager(
 	private val sessionManager: SessionManager,
 	private val scope: CoroutineScope,
 	private val preferenceManager: PreferenceManager
-) {
+) : KoinComponent {
+	// injected rather than passed in: each platform builds this class itself
+	private val playLog: PlayLogManager by inject()
+
 	private var currentMediaId: String? = null
 	private var hasScrobbledCurrent = false
 	private var hasSentNowPlaying = false
@@ -87,6 +92,7 @@ class ScrobbleManager(
 		val isValidSong = duration >= preferenceManager.minDurationToScrobble * 1000
 
 		if (isValidSong && playedEnoughPercent) {
+			currentMediaId?.let { playLog.recordSong(it) }
 			scrobbleSubmission(currentMediaId)
 			hasScrobbledCurrent = true
 		}

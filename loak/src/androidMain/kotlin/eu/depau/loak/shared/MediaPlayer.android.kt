@@ -935,6 +935,7 @@ class AndroidMediaPlayerViewModel(
 	}
 
 	override fun shufflePlay(collection: DomainSongCollection) {
+		playLog.recordCollection(collection)
 		viewModelScope.launch {
 			val (shuffledSongs, mediaItems) = withContext(Dispatchers.Default) {
 				val songs = collection.songs.shuffled()

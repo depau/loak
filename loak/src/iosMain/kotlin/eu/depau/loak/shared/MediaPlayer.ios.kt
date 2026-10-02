@@ -350,6 +350,7 @@ class IOSMediaPlayerViewModel(
 	}
 
 	override fun shufflePlay(collection: DomainSongCollection) {
+		playLog.recordCollection(collection)
 		val shuffledSongs = collection.songs.shuffled()
 		_uiState.update { state ->
 			state.copy(

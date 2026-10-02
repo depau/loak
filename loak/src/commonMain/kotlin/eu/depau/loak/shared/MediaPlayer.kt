@@ -1,5 +1,8 @@
 package eu.depau.loak.shared
 
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import eu.depau.loak.domain.manager.PlayLogManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -58,7 +61,10 @@ abstract class MediaPlayerViewModel(
 	protected val downloadManager: DownloadManager,
 	protected val preferenceManager: PreferenceManager,
 	protected val queueSyncManager: QueueSyncManager
-) : ViewModel() {
+) : ViewModel(), KoinComponent {
+	/** Records the playlists and albums started, for Home. */
+	protected val playLog: PlayLogManager by inject()
+
 
 	@Suppress("PropertyName")
 	protected val _uiState = MutableStateFlow(PlayerUiState())
@@ -222,8 +228,10 @@ abstract class MediaPlayerViewModel(
 
 	fun playNow(song: DomainSong) = playNow(listOf(song))
 
-	fun playNow(collection: DomainSongCollection, startIndex: Int = 0) =
+	fun playNow(collection: DomainSongCollection, startIndex: Int = 0) {
+		playLog.recordCollection(collection)
 		playNow(collection.orderedSongs(), startIndex)
+	}
 
 	fun playNow(songs: List<DomainSong>, startIndex: Int = 0) = startQueue(songs, startIndex, mix = null)
 
