@@ -82,7 +82,7 @@ fun main(args: Array<String>) {
 					},
 				)
 				CompositionLocalProvider(LocalWindowChrome provides chrome) {
-					App()
+					ProvideSystemTheme { App() }
 				}
 			}
 		}

@@ -27,6 +27,7 @@ kotlin {
 				implementation(libs.kotlinx.coroutines.swing)
 				implementation(libs.nucleus.application)
 				implementation(libs.nucleus.decorated.window.tao)
+				implementation(libs.nucleus.darkmode.detector)
 			}
 		}
 	}
