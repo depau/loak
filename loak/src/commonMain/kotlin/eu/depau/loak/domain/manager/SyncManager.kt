@@ -77,10 +77,11 @@ class SyncManager(
 				|| preferenceManager.lastFullSyncTime <= 0L
 			) {
 				Logger.i("SyncManager", "Syncing now because we haven't synced before")
-				// Web keeps the database in memory, so after a reload the
-				// albums are gone while lastFullSyncTime (persisted) is still
-				// recent — without force the recency gate below would skip the
-				// full pull and leave an empty library.
+				// Web can fall back to an in-memory database (no OPFS, or another
+				// tab holds it), so after a reload the albums are gone while
+				// lastFullSyncTime (persisted) is still recent — without force the
+				// recency gate below would skip the full pull and leave an empty
+				// library.
 				runSyncCycle(force = true)
 			}
 		}

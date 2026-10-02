@@ -77,11 +77,18 @@ function ensureSqlite() {
 
 function openDatabase(fileName) {
 	if (!/^\//.test(fileName)) fileName = '/' + fileName;
-	var api = sqliteApi;
-	// NOTE: OpfsDb (OPFS async VFS) blocks the worker on BEGIN/EXCLUSIVE when the
-	// opfs-async-proxy isn't wired; plain oo1.DB (in-memory) keeps the protocol
-	// fully working. Persistence is a later web enhancement.
-	return new api.oo1.DB(fileName);
+	// Persistent via the OPFS "SAH pool" VFS: synchronous access handles, no async
+	// proxy or COOP/COEP needed (OpfsDb, the async OPFS VFS, blocks the worker on
+	// BEGIN/EXCLUSIVE without the proxy). A pool is exclusive to the worker that
+	// installed it, and each Room database has its own worker, so one pool per
+	// database. Another tab holding it -> in-memory fallback.
+	var name = 'loak' + fileName.replace(/[^A-Za-z0-9]/g, '-');
+	return sqliteApi.installOpfsSAHPoolVfs({ name: name }).then(function (pool) {
+		return new pool.OpfsSAHPoolDb(fileName);
+	}, function (err) {
+		console.warn("[sqlite-worker] OPFS unavailable for " + fileName + ", using memory: " + fmtError(err));
+		return new sqliteApi.oo1.DB(fileName);
+	});
 }
 
 function prepareStatement(db, sql) {
@@ -152,9 +159,11 @@ function executeStep(record, bindings) {
 function handle(data) {
 	var cmd = data.cmd;
 	if (cmd === "open") {
-		var dbId = nextDbId++;
-		dbs.set(dbId, { db: openDatabase(data.fileName) });
-		return { databaseId: dbId };
+		return openDatabase(data.fileName).then(function (db) {
+			var dbId = nextDbId++;
+			dbs.set(dbId, { db: db });
+			return { databaseId: dbId };
+		});
 	}
 	if (cmd === "prepare") {
 		var rec = dbs.get(data.databaseId);
