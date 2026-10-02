@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_playlist
 import eu.depau.loak.generated.resources.action_add_to_queue
+import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.action_cancel_download
 import eu.depau.loak.generated.resources.action_delete_download
 import eu.depau.loak.generated.resources.action_download
@@ -45,6 +46,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.brand.Lastfm
@@ -53,6 +55,7 @@ import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
+import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.PlaylistAdd
 import eu.depau.loak.icons.outlined.Queue
@@ -78,6 +81,7 @@ fun ArtistSheet(
 	onDeleteDownloadAll: (() -> Unit)? = null,
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
+	val player = koinInject<MediaPlayerViewModel>()
 	val contentPadding = PaddingValues(horizontal = 16.dp)
 	val colors = ListItemDefaults.colors(
 		containerColor = Color.Transparent,
@@ -147,6 +151,17 @@ fun ArtistSheet(
 					contentPadding = contentPadding
 				)
 			}
+
+			ListItem(
+				content = { Text(stringResource(Res.string.action_instant_mix)) },
+				leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
+				onClick = {
+					player.playInstantMix(artist.id, artist.name)
+					onDismissRequest()
+				},
+				colors = colors,
+				contentPadding = contentPadding
+			)
 
 			if (onAddAllToPlaylist != null) {
 				ListItem(

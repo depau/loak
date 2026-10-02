@@ -33,6 +33,7 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_another_playlist
 import eu.depau.loak.generated.resources.action_add_to_playlist
 import eu.depau.loak.generated.resources.action_add_to_queue
+import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.action_cancel_download
 import eu.depau.loak.generated.resources.action_delete_download
 import eu.depau.loak.generated.resources.action_download
@@ -57,6 +58,7 @@ import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.manager.SleepTimerMode
@@ -73,6 +75,7 @@ import eu.depau.loak.icons.outlined.Bedtime
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
+import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.Info
 import eu.depau.loak.icons.outlined.PlaylistAdd
@@ -124,6 +127,7 @@ fun SongSheet(
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val sessionManager = koinInject<SessionManager>()
+	val player = koinInject<MediaPlayerViewModel>()
 
 	val sleepTimerManager = koinInject<SleepTimerManager>()
 	val sleepTimerMode by sleepTimerManager.mode.collectAsStateWithLifecycle()
@@ -227,6 +231,17 @@ fun SongSheet(
 						contentPadding = contentPadding
 					)
 				}
+
+				ListItem(
+					content = { Text(stringResource(Res.string.action_instant_mix)) },
+					leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
+					onClick = {
+						player.playInstantMix(song.id, song.title, seed = song)
+						onDismissRequest()
+					},
+					colors = colors,
+					contentPadding = contentPadding
+				)
 
 				if (onAddToPlaylist != null) {
 					ListItem(

@@ -240,6 +240,7 @@ fun ArtistDetailScreen(
 							)
 							ArtistActionButtons(
 								onPlay = { viewModel.playArtistAlbums(player) },
+								onMix = { player.playInstantMix(state.artist.id, state.artist.name) },
 								onDownload = {
 									showDownloadDialog = true
 								},

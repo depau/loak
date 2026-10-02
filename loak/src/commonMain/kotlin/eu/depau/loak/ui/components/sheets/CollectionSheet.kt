@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_playlist
 import eu.depau.loak.generated.resources.action_add_to_queue
+import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.action_cancel_download
 import eu.depau.loak.generated.resources.action_delete
 import eu.depau.loak.generated.resources.action_delete_download
@@ -48,6 +49,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.canUserShare
 import eu.depau.loak.domain.models.DomainAlbum
@@ -68,6 +70,7 @@ import eu.depau.loak.icons.outlined.Artist
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
+import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.PlaylistAdd
 import eu.depau.loak.icons.outlined.PlaylistRemove
@@ -104,6 +107,7 @@ fun CollectionSheet(
 	val preferenceManager = koinInject<PreferenceManager>()
 	val sessionManager = koinInject<SessionManager>()
 	val dbRepository = koinInject<DbRepository>()
+	val player = koinInject<MediaPlayerViewModel>()
 	val scope = rememberCoroutineScope()
 
 	val contentPadding = PaddingValues(horizontal = 16.dp)
@@ -193,6 +197,20 @@ fun CollectionSheet(
 					colors = colors,
 					contentPadding = contentPadding,
 					enabled = !collection?.songs.isNullOrEmpty()
+				)
+			}
+
+			// getSimilarSongs takes album ids, not playlist ones
+			if (collection is DomainAlbum) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_instant_mix)) },
+					leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
+					onClick = {
+						player.playInstantMix(collection.id, collection.name ?: "")
+						onDismissRequest()
+					},
+					colors = colors,
+					contentPadding = contentPadding
 				)
 			}
 

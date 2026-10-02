@@ -14,6 +14,8 @@ import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.mappers.toDomainModel
+import eu.depau.loak.data.database.mappers.toEntity
+import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.models.DomainFilter
 import eu.depau.loak.domain.models.DomainSong
@@ -27,7 +29,8 @@ class SongRepository(
 	private val albumDao: AlbumDao,
 	private val downloadDao: DownloadDao,
 	private val dbRepository: DbRepository,
-	private val syncManager: SyncManager
+	private val syncManager: SyncManager,
+	private val sessionManager: SessionManager
 ) {
 	suspend fun getAllSongs(): List<DomainSong> {
 		return songDao.getAllSongs().map { it.toDomainModel() }
@@ -35,6 +38,12 @@ class SongRepository(
 
 	suspend fun getRandomSongs(count: Int): List<DomainSong> {
 		return songDao.getRandomSongs(count).map { it.toDomainModel() }
+	}
+
+	/** Songs the server finds similar to a song, album or artist. */
+	suspend fun getSimilarSongs(id: String, count: Int = 50): List<DomainSong> {
+		// OpenSubsonic: getSimilarSongs takes all three id types, no need for getSimilarSongs2
+		return sessionManager.api.getSimilarSongs(id, count).map { it.toEntity().toDomainModel() }
 	}
 
 	private suspend fun getLocalData(

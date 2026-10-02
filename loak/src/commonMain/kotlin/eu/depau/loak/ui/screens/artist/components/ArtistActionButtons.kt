@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,6 +30,7 @@ import eu.depau.loak.ui.theme.ContinuousCapsule
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel_download
 import eu.depau.loak.generated.resources.action_delete_download
+import eu.depau.loak.generated.resources.action_mix
 import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.info_download_failed
 import org.jetbrains.compose.resources.stringResource
@@ -39,11 +41,13 @@ import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.DownloadOff
+import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.ui.theme.defaultFont
 
 @Composable
 fun ArtistActionButtons(
 	onPlay: () -> Unit,
+	onMix: () -> Unit,
 	onDownload: () -> Unit,
 	onCancelDownload: () -> Unit,
 	onDeleteDownload: () -> Unit,
@@ -92,6 +96,25 @@ fun ArtistActionButtons(
 					fontFamily = defaultFont(round = 100f)
 				)
 			}
+		}
+
+		FilledTonalButton(
+			onClick = onMix,
+			modifier = Modifier.weight(1f).height(56.dp),
+			shape = ContinuousCapsule
+		) {
+			Icon(
+				Icons.Outlined.InstantMix,
+				contentDescription = null,
+				modifier = Modifier.size(22.dp)
+			)
+			Text(
+				stringResource(Res.string.action_mix),
+				fontWeight = FontWeight.SemiBold,
+				fontSize = 16.sp,
+				fontFamily = defaultFont(round = 100f),
+				modifier = Modifier.padding(start = 8.dp)
+			)
 		}
 
 		OutlinedButton(

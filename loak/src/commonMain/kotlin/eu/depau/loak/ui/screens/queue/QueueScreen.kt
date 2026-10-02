@@ -39,6 +39,7 @@ import eu.depau.loak.generated.resources.action_clear_queue
 import eu.depau.loak.generated.resources.count_remaining_songs
 import eu.depau.loak.generated.resources.count_songs
 import eu.depau.loak.generated.resources.info_duration_left
+import eu.depau.loak.generated.resources.info_instant_mix
 import eu.depau.loak.generated.resources.info_no_queue
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -248,7 +249,9 @@ fun QueueScreen(pane: Boolean = false) {
 						)
 					}
 				}
-				pickedUpFromLabel(ago = true)?.let {
+				val instantMix by player.instantMix.collectAsStateWithLifecycle()
+				(pickedUpFromLabel(ago = true)
+					?: instantMix?.let { stringResource(Res.string.info_instant_mix, it.seedName) })?.let {
 					Text(
 						text = it,
 						style = MaterialTheme.typography.bodyMedium,

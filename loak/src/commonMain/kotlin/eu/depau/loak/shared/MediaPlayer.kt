@@ -2,15 +2,19 @@ package eu.depau.loak.shared
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
@@ -30,9 +34,11 @@ import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_added_to_queue
+import eu.depau.loak.generated.resources.notice_instant_mix
 import eu.depau.loak.generated.resources.notice_moved_play_next
 import eu.depau.loak.generated.resources.notice_moved_to_end
 import eu.depau.loak.generated.resources.notice_no_server_queue
+import eu.depau.loak.generated.resources.notice_no_similar_songs
 import eu.depau.loak.generated.resources.notice_play_next
 import eu.depau.loak.generated.resources.notice_queue_cleared
 import eu.depau.loak.generated.resources.notice_queue_loaded
@@ -228,6 +234,44 @@ abstract class MediaPlayerViewModel(
 		addToQueue(songs, notify = false)
 		playAt(startIndex)
 		checkAndAutoFillQueue()
+	}
+
+	/** The seed's name and the songs of the last instant mix. */
+	data class InstantMix(val seedName: String, val songIds: Set<String>)
+
+	private val _instantMix = MutableStateFlow<InstantMix?>(null)
+
+	/** The last instant mix, while the queue holds only its songs (it may skip explicit ones). */
+	val instantMix: StateFlow<InstantMix?> = combine(_instantMix, _uiState) { mix, state ->
+		mix?.takeIf { state.queue.isNotEmpty() && state.queue.all { it.id in mix.songIds } }
+	}.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+	/**
+	 * Replaces the queue with songs the server finds similar to [seedId] (a song, album or
+	 * artist id), with an undo. A [seed] song plays first.
+	 */
+	fun playInstantMix(seedId: String, seedName: String, seed: DomainSong? = null) {
+		viewModelScope.launch {
+			val similar = try {
+				songRepository.getSimilarSongs(seedId)
+			} catch (e: Exception) {
+				if (e is CancellationException) throw e
+				Logger.w("MediaPlayerViewModel", "could not fetch similar songs", e)
+				snackBarManager.notify(Res.string.notice_server_unreachable)
+				return@launch
+			}
+			if (similar.isEmpty()) {
+				snackBarManager.notify(Res.string.notice_no_similar_songs)
+				return@launch
+			}
+			val songs = listOfNotNull(seed) + similar.filter { it.id != seed?.id }
+			val previous = uiState.value
+			_instantMix.value = InstantMix(seedName, songs.mapTo(HashSet()) { it.id })
+			playNow(songs)
+			snackBarManager.notifyWithUndo(Res.string.notice_instant_mix, seedName) {
+				replaceQueue(previous)
+			}
+		}
 	}
 
 	fun togglePlay() {
