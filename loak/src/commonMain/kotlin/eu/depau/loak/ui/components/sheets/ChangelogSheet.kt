@@ -33,6 +33,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,9 +85,13 @@ class ChangelogViewModel(
 	fun checkForUpdates(currentVersion: String) {
 		viewModelScope.launch {
 			release.value = try {
-				val release: Release =
+				val response: HttpResponse =
 					updateClient.get("https://api.github.com/repos/depau/loak/releases/latest")
-						.body()
+				if (!response.status.isSuccess()) {
+					Logger.i("ChangelogViewModel", "update check failed (HTTP ${response.status.value})")
+					return@launch
+				}
+				val release: Release = response.body()
 				val remoteVersion = release.tag
 					.filter { it.isDigit() }
 					.toIntOrNull() ?: return@launch
@@ -96,6 +102,8 @@ class ChangelogViewModel(
 					release
 				else null
 			} catch (e: Exception) {
+				// non-2xx responses no longer reach this catch: a 404 (e.g. no release published
+				// yet) or 403 rate limit is an expected state, not an error worth reporting.
 				Logger.e("ChangelogViewModel", "couldn't check for updates", e)
 				null
 			}
