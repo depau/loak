@@ -55,7 +55,7 @@ fun rememberColorSchemeFromCoverArt(
 
 	val preferenceManager = koinInject<PreferenceManager>()
 	val inDarkTheme = isSystemInDarkTheme()
-	val isDark = remember(forceDark, preferenceManager.themeMode) {
+	val isDark = remember(forceDark, preferenceManager.themeMode, inDarkTheme) {
 		forceDark || when (preferenceManager.themeMode) {
 			ThemeMode.System -> inDarkTheme
 			ThemeMode.Dark -> true

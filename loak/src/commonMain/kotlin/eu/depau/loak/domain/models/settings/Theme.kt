@@ -64,7 +64,7 @@ enum class Theme(val title: StringResource) {
 		val platformContext = LocalPlatformContext.current
 		val inDarkTheme = isSystemInDarkTheme()
 		val preferenceManager = koinInject<PreferenceManager>()
-		val isDark = remember(preferenceManager.themeMode) {
+		val isDark = remember(preferenceManager.themeMode, inDarkTheme) {
 			when (preferenceManager.themeMode) {
 				ThemeMode.System -> inDarkTheme
 				ThemeMode.Dark -> true
