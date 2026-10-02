@@ -1,37 +1,57 @@
 package eu.depau.loak.desktopapp
 
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import dev.nucleusframework.application.DecoratedWindow
+import dev.nucleusframework.application.nucleusApplication
+import dev.nucleusframework.window.WindowControls
+import dev.nucleusframework.window.WindowScaffold
+import dev.nucleusframework.window.windowDragArea
 import eu.depau.loak.App
 import eu.depau.loak.di.initKoin
-import javax.imageio.ImageIO
+import org.jetbrains.skia.Image
 
 /**
- * Desktop (JVM) entry point. Boots Koin and hosts the shared Compose [App]
- * in a native resizable window.
+ * Desktop (JVM) entry point. Boots Koin and hosts the shared Compose [App] in a
+ * Nucleus decorated window: no OS title bar, the app draws its own (client-side
+ * decorations) with native-looking window controls.
  */
-fun main() {
+fun main(args: Array<String>) {
 	initKoin()
-	application {
-		val state = rememberWindowState(width = 1400.dp, height = 900.dp)
-		Window(
+	nucleusApplication(args) {
+		DecoratedWindow(
 			onCloseRequest = ::exitApplication,
 			title = "Lo'ak",
-			state = state
+			icon = remember { loadIcon() },
+			state = rememberWindowState(width = 1400.dp, height = 900.dp),
 		) {
-			LaunchedEffect(Unit) {
-				runCatching {
-					val stream = Thread.currentThread().contextClassLoader
-						?.getResourceAsStream("icons/loak.png")
-					if (stream != null) {
-						window.iconImage = ImageIO.read(stream)
+			WindowScaffold(
+				titleBar = {
+					Row(
+						modifier = Modifier.fillMaxWidth().height(40.dp).windowDragArea(),
+						verticalAlignment = Alignment.CenterVertically,
+					) {
+						Spacer(Modifier.weight(1f))
+						WindowControls()
 					}
 				}
+			) {
+				App()
 			}
-			App()
 		}
 	}
 }
+
+private fun loadIcon(): BitmapPainter? =
+	Thread.currentThread().contextClassLoader?.getResourceAsStream("icons/loak.png")?.use {
+		BitmapPainter(Image.makeFromEncoded(it.readAllBytes()).toComposeImageBitmap())
+	}

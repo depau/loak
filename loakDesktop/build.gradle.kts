@@ -25,6 +25,8 @@ kotlin {
 				implementation(libs.koin.core)
 				implementation(libs.ktor.client.okhttp)
 				implementation(libs.kotlinx.coroutines.swing)
+				implementation(libs.nucleus.application)
+				implementation(libs.nucleus.decorated.window.tao)
 			}
 		}
 	}
@@ -33,6 +35,12 @@ kotlin {
 compose.desktop {
 	application {
 		mainClass = "eu.depau.loak.desktopapp.MainKt"
+		// Nucleus' Tao window backend must own the macOS main thread (its Gradle
+		// plugin would add this; we only use the runtime libraries). Installers
+		// are built per host OS, so checking the build host is enough.
+		if (System.getProperty("os.name").startsWith("Mac")) {
+			jvmArgs("-XstartOnFirstThread")
+		}
 
 		nativeDistributions {
 			targetFormats(
