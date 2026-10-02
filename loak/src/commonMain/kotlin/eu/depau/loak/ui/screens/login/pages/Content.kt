@@ -1,6 +1,5 @@
 package eu.depau.loak.ui.screens.login.pages
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,12 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.ui.theme.ContinuousCapsule
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
@@ -44,7 +40,6 @@ import eu.depau.loak.generated.resources.action_log_in
 import eu.depau.loak.generated.resources.action_open_settings
 import eu.depau.loak.generated.resources.info_login_description
 import eu.depau.loak.generated.resources.notice_local_network_denied
-import eu.depau.loak.generated.resources.option_custom_headers
 import eu.depau.loak.generated.resources.subtitle_local_network_denied
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -57,6 +52,9 @@ import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.dialogs.FormDialog
 import eu.depau.loak.ui.core.LoginUiState
 import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.screens.settings.CustomHeadersItem
+import eu.depau.loak.ui.screens.settings.ThisDeviceGroup
+import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.theme.defaultFont
 
 @Composable
@@ -72,7 +70,6 @@ fun LoginScreenContent(innerPadding: PaddingValues) {
 
 	val haptics = LocalHapticFeedback.current
 	val backStack = LocalNavStack.current
-	val focusManager = LocalFocusManager.current
 
 	val instanceFocusRequester = remember { FocusRequester() }
 	val usernameFocusRequester = remember { FocusRequester() }
@@ -166,21 +163,14 @@ fun LoginScreenContent(innerPadding: PaddingValues) {
 
 				Spacer(Modifier.height(12.dp))
 
-				Text(
-					text = stringResource(Res.string.option_custom_headers),
-					color = MaterialTheme.colorScheme.primary,
-					textDecoration = TextDecoration.Underline,
-					modifier = Modifier
-						.padding(horizontal = 16.dp)
-						.clickable(onClick = dropUnlessResumed {
-							backStack.lastOrNull()?.let {
-								if (it is Screen.Login) {
-									backStack.add(Screen.Settings.CustomHeaders)
-									focusManager.clearFocus(true)
-								}
-							}
-						})
-				)
+				// same items as Settings > Server
+				Column(
+					modifier = Modifier.padding(horizontal = 16.dp),
+					verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
+				) {
+					CustomHeadersItem()
+					ThisDeviceGroup()
+				}
 
 				Spacer(Modifier.weight(2.25f))
 			}

@@ -71,10 +71,8 @@ import org.koin.compose.koinInject
 fun SettingsServerScreen() {
 	val platformContext = LocalPlatformContext.current
 	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
-	val backStack = LocalNavStack.current
 	val sessionManager = koinInject<SessionManager>()
 	val loginManager = koinInject<LoginManager>()
-	val preferenceManager = koinInject<PreferenceManager>()
 	val snackBarManager = koinInject<SnackBarManager>()
 	val settings = koinInject<Settings>()
 	val scope = rememberCoroutineScope()
@@ -85,7 +83,6 @@ fun SettingsServerScreen() {
 	val password = rememberTextFieldState(savedPassword)
 	var busy by remember { mutableStateOf(false) }
 	var error by remember { mutableStateOf<String?>(null) }
-	var deviceNameDialogOpen by rememberSaveable { mutableStateOf(false) }
 
 	val changed = instance.text.toString() != sessionManager.instanceUrl
 		|| username.text.toString() != sessionManager.username
@@ -166,23 +163,42 @@ fun SettingsServerScreen() {
 				) {
 					Text(stringResource(Res.string.action_save_and_reconnect))
 				}
-				SettingsNavItem(
-					onClick = dropUnlessResumed { backStack.add(Screen.Settings.CustomHeaders) },
-					content = { Text(stringResource(Res.string.option_custom_headers)) },
-					supportingContent = { Text(stringResource(Res.string.subtitle_custom_headers)) },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
-				)
+				CustomHeadersItem()
 			}
 
-			SettingsGroup(title = { Text(stringResource(Res.string.title_this_device)) }) {
-				SegmentedListItem(
-					onClick = { deviceNameDialogOpen = true },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1),
-					supportingContent = { Text(sessionManager.deviceName) },
-					content = { Text(stringResource(Res.string.option_device_name)) }
-				)
-			}
+			ThisDeviceGroup()
 		}
+	}
+}
+
+/** Opens the custom HTTP headers sent to the server; shared with the login screen. */
+@Composable
+fun CustomHeadersItem() {
+	val backStack = LocalNavStack.current
+	SettingsNavItem(
+		onClick = dropUnlessResumed { backStack.add(Screen.Settings.CustomHeaders) },
+		content = { Text(stringResource(Res.string.option_custom_headers)) },
+		supportingContent = { Text(stringResource(Res.string.subtitle_custom_headers)) },
+		shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+	)
+}
+
+/** The device name override; shared with the login screen. */
+@Composable
+fun ThisDeviceGroup() {
+	val sessionManager = koinInject<SessionManager>()
+	val preferenceManager = koinInject<PreferenceManager>()
+	var deviceNameDialogOpen by rememberSaveable { mutableStateOf(false) }
+	// read after the dialog writes it (deviceName isn't observable)
+	var deviceName by remember { mutableStateOf(sessionManager.deviceName) }
+
+	SettingsGroup(title = { Text(stringResource(Res.string.title_this_device)) }) {
+		SegmentedListItem(
+			onClick = { deviceNameDialogOpen = true },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1),
+			supportingContent = { Text(deviceName) },
+			content = { Text(stringResource(Res.string.option_device_name)) }
+		)
 	}
 
 	if (deviceNameDialogOpen) {
@@ -211,6 +227,7 @@ fun SettingsServerScreen() {
 					preferenceManager.deviceName = name.text.toString().trim()
 					// the client name carries the device name
 					sessionManager.refreshClient()
+					deviceName = sessionManager.deviceName
 					deviceNameDialogOpen = false
 				}) { Text(stringResource(Res.string.action_ok)) }
 			},
