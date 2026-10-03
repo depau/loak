@@ -1,6 +1,12 @@
 package eu.depau.loak.ui.screens.playlist
 
 import eu.depau.loak.icons.outlined.Flask
+import eu.depau.loak.icons.outlined.Search
+import eu.depau.loak.icons.outlined.SonicPath
+import eu.depau.loak.icons.filled.Sparkle
+import eu.depau.loak.generated.resources.title_describe_mix
+import eu.depau.loak.generated.resources.title_song_path
+import eu.depau.loak.generated.resources.action_ask_ai_playlist
 import eu.depau.loak.generated.resources.title_song_alchemy
 import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilter
 import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilterRow
@@ -236,6 +242,30 @@ fun PlaylistListScreen(
 							},
 							icon = { Icon(Icons.Outlined.Flask, null) },
 							text = { Text(stringResource(Res.string.title_song_alchemy)) }
+						)
+						if (audioMuseInfo?.let { it.soundSearch || it.lyricsSearch } == true) FloatingActionButtonMenuItem(
+							onClick = {
+								fabMenuExpanded = false
+								backStack.add(Screen.DescribeMix())
+							},
+							icon = { Icon(Icons.Outlined.Search, null) },
+							text = { Text(stringResource(Res.string.title_describe_mix)) }
+						)
+						if (audioMuseInfo?.canAsk == true) FloatingActionButtonMenuItem(
+							onClick = {
+								fabMenuExpanded = false
+								backStack.add(Screen.AskAI())
+							},
+							icon = { Icon(Icons.Filled.Sparkle, null) },
+							text = { Text(stringResource(Res.string.action_ask_ai_playlist)) }
+						)
+						if (audioMuseInfo != null) FloatingActionButtonMenuItem(
+							onClick = {
+								fabMenuExpanded = false
+								backStack.add(Screen.SongPath)
+							},
+							icon = { Icon(Icons.Outlined.SonicPath, null) },
+							text = { Text(stringResource(Res.string.title_song_path)) }
 						)
 						if (smart) FloatingActionButtonMenuItem(
 							onClick = {

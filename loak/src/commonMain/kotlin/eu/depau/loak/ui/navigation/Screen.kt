@@ -85,6 +85,14 @@ sealed interface Screen : NavKey {
 
 	@Immutable
 	@Serializable
+	data class DescribeMix(val prompt: String = "") : Screen
+
+	@Immutable
+	@Serializable
+	data object SongPath : Screen
+
+	@Immutable
+	@Serializable
 	data class Downloads(val tab: DownloadsTab = DownloadsTab.Songs) : Screen
 
 	@Immutable

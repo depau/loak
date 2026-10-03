@@ -43,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.domain.manager.AudioMuseManager
-import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.repositories.AudioMuseRepository
 import eu.depau.loak.generated.resources.*
@@ -81,7 +80,6 @@ fun AskAiScreen(prompt: String) {
 	val audioMuse = koinInject<AudioMuseManager>()
 	val repository = koinInject<AudioMuseRepository>()
 	val player = koinInject<MediaPlayerViewModel>()
-	val snackBarManager = koinInject<SnackBarManager>()
 	val info by audioMuse.info.collectAsState()
 	val scope = rememberCoroutineScope()
 	val input = rememberTextFieldState(prompt)
@@ -89,6 +87,7 @@ fun AskAiScreen(prompt: String) {
 	var songs by remember { mutableStateOf<List<DomainSong>>(emptyList()) }
 	var busy by remember { mutableStateOf(false) }
 	var request by remember { mutableStateOf("") }
+	var saving by remember { mutableStateOf(false) }
 	val title = stringResource(Res.string.action_ask_ai_playlist)
 	val ideas = listOf(
 		stringResource(Res.string.idea_ask_1),
@@ -143,12 +142,7 @@ fun AskAiScreen(prompt: String) {
 		bottomBar = {
 			Surface { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
 				if (songs.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-					OutlinedButton(onClick = {
-						scope.launch {
-							runCatching { repository.savePlaylist(request.take(60), songs.map { it.id }) }
-								.onSuccess { snackBarManager.notify(Res.string.notice_mix_saved, request.take(60)) }
-						}
-					}) {
+					OutlinedButton(onClick = { saving = true }) {
 						Icon(Icons.Outlined.PlaylistAdd, null, Modifier.size(18.dp))
 						Spacer(Modifier.size(6.dp))
 						Text(stringResource(Res.string.action_save))
@@ -240,4 +234,5 @@ fun AskAiScreen(prompt: String) {
 			}
 		}
 	}
+	if (saving) SaveSongsSheet(request.take(60), songs) { saving = false }
 }

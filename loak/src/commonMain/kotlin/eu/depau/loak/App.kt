@@ -2,6 +2,8 @@ package eu.depau.loak
 
 import eu.depau.loak.ui.screens.alchemy.AlchemyScreen
 import eu.depau.loak.ui.screens.alchemy.AskAiScreen
+import eu.depau.loak.ui.screens.alchemy.DescribeMixScreen
+import eu.depau.loak.ui.screens.alchemy.SongPathScreen
 import eu.depau.loak.ui.screens.login.INTEGRATIONS_VERSION
 import eu.depau.loak.ui.screens.login.SetupIntegrationsScreen
 import eu.depau.loak.ui.screens.library.LibraryScreen
@@ -622,6 +624,12 @@ private fun entryProvider(
 		}
 		entry<Screen.AskAI> {
 			AskAiScreen(it.prompt)
+		}
+		entry<Screen.DescribeMix> {
+			DescribeMixScreen(it.prompt)
+		}
+		entry<Screen.SongPath> {
+			SongPathScreen()
 		}
 		entry<Screen.Library>(metadata = navtabMetadata) {
 			LibraryScreen()

@@ -272,6 +272,9 @@ abstract class MediaPlayerViewModel(
 	/** Plays [songs] as they are, as a mix called [name] (AudioMuse-AI results), with an undo. */
 	fun playMix(songs: List<DomainSong>, name: String) = startInstantMix(name, null) { songs }
 
+	/** Plays the songs [fetch] returns as a mix called [name], with an undo. */
+	fun playMix(name: String, fetch: suspend () -> List<DomainSong>) = startInstantMix(name, null, fetch)
+
 	private fun startInstantMix(
 		seedName: String,
 		seed: DomainSong?,

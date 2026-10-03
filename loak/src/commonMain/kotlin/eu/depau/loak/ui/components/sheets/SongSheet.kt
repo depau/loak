@@ -4,6 +4,9 @@ import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.icons.outlined.Flask
 import eu.depau.loak.ui.screens.alchemy.toIngredient
 import eu.depau.loak.generated.resources.action_song_alchemy_with
+import eu.depau.loak.generated.resources.action_similar_lyrics_sound
+import eu.depau.loak.domain.repositories.AudioMuseRepository
+import eu.depau.loak.icons.outlined.Lyrics
 import androidx.compose.runtime.collectAsState
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.songsEditableBy
@@ -140,6 +143,7 @@ fun SongSheet(
 	val sessionManager = koinInject<SessionManager>()
 	val audioMuseInfo by koinInject<AudioMuseManager>().info.collectAsState()
 	val player = koinInject<MediaPlayerViewModel>()
+	val audioMuseRepository = koinInject<AudioMuseRepository>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 	val canFindSonicPaths by produceState(false) { value = player.canFindSonicPaths() }
 
@@ -278,6 +282,16 @@ fun SongSheet(
 						leadingContent = { Icon(Icons.Outlined.Flask, null) },
 						onClick = {
 							backStack.add(Screen.Alchemy(song.toIngredient()))
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+					if (audioMuseInfo?.lyricsSearch == true) ListItem(
+						content = { Text(stringResource(Res.string.action_similar_lyrics_sound)) },
+						leadingContent = { Icon(Icons.Outlined.Lyrics, null) },
+						onClick = {
+							player.playMix(song.title) { audioMuseRepository.similarLyricsAndSound(song.id) }
 							onDismissRequest()
 						},
 						colors = colors,

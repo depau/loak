@@ -53,9 +53,9 @@ class AudioMuseRepository(
 		ids.mapNotNull { byId[it]?.toDomainModel() }
 	}
 
-	private fun JsonElement.ids(key: String = "item_id") =
-		(this as? JsonArray ?: this.jsonObject["results"]!!.jsonArray).mapNotNull {
-			it.jsonObject[key]?.jsonPrimitive?.contentOrNull
+	private fun JsonElement.ids(list: String = "results") =
+		(this as? JsonArray ?: this.jsonObject[list]!!.jsonArray).mapNotNull {
+			it.jsonObject["item_id"]?.jsonPrimitive?.contentOrNull
 		}
 
 	/** Analysed songs matching [query] by title, artist or album. */
@@ -138,6 +138,22 @@ class AudioMuseRepository(
 		audioMuse.getJson("api/clap/concepts").jsonObject["categories"]?.jsonArray
 			?.flatMap { c -> c.jsonObject["terms"]!!.jsonArray.take(4).map { it.jsonObject["term"]!!.jsonPrimitive.content } }
 			.orEmpty()
+
+	/** Songs leading from [from] to [to] in [steps] steps; [exact] keeps exactly that many. */
+	suspend fun songPath(from: String, to: String, steps: Int, exact: Boolean): List<DomainSong> =
+		songs(audioMuse.getJson("api/find_path") {
+			parameter("start_song_id", from)
+			parameter("end_song_id", to)
+			parameter("max_steps", steps)
+			if (exact) parameter("path_fix_size", true)
+		}.ids("path"))
+
+	/** Songs close to [songId] in both lyrics and sound, the song first. */
+	suspend fun similarLyricsAndSound(songId: String, limit: Int = 50): List<DomainSong> =
+		songs(audioMuse.postJson("api/sem_grove/search", buildJsonObject {
+			put("item_id", JsonPrimitive(songId))
+			put("limit", JsonPrimitive(limit))
+		}).ids())
 
 	/** POST /api/alchemy. Needs at least one added ingredient. */
 	suspend fun alchemy(ingredients: List<AlchemyIngredient>, songs: Int, temperature: Float): AlchemyResult {
