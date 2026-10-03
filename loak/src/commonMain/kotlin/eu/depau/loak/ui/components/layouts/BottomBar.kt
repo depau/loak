@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.generated.resources.title_library
+import eu.depau.loak.icons.outlined.LibraryMusic
+import eu.depau.loak.icons.filled.LibraryMusic
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.WindowInsets
@@ -128,6 +131,14 @@ private enum class NavItem(
 		icon = Icons.Filled.Radio,
 		iconUnselected = Icons.Outlined.Radio,
 		label = Res.string.title_radios
+	),
+
+	/** Always there, last: the catch-all for everything not on the bar. */
+	LIBRARY(
+		destination = Screen.Library,
+		icon = Icons.Filled.LibraryMusic,
+		iconUnselected = Icons.Outlined.LibraryMusic,
+		label = Res.string.title_library
 	)
 }
 
@@ -153,17 +164,16 @@ fun BottomBar(
 	if (platformContext.isLandscape()) return
 
 	AnimatedContent(
-		preferenceManager.navigationBarStyle != NavigationBarStyle.Short && tabs.size > 1
+		preferenceManager.navigationBarStyle != NavigationBarStyle.Short && tabs.size > 0
 	) {
-		if (tabs.size < 2) return@AnimatedContent
+		if (tabs.isEmpty()) return@AnimatedContent
 		if (it) {
 			NavigationBar(
 				modifier = modifier,
 				containerColor = containerColor,
 				windowInsets = windowInsets
 			) {
-				tabs.forEach { tab ->
-					val item = tab.id.navItem()
+				(tabs.map { it.id.navItem() } + NavItem.LIBRARY).forEach { item ->
 					val selected = backStack.firstOrNull() == item.destination
 
 					NavigationBarItem(
@@ -209,8 +219,7 @@ fun BottomBar(
 				modifier = modifier,
 				containerColor = containerColor
 			) {
-				tabs.forEach { tab ->
-					val item = tab.id.navItem()
+				(tabs.map { it.id.navItem() } + NavItem.LIBRARY).forEach { item ->
 					val selected = backStack.firstOrNull() == item.destination
 
 					ShortNavigationBarItem(
@@ -297,8 +306,7 @@ fun AppNavigationRail(modifier: Modifier = Modifier) {
 			Spacer(Modifier.height(chrome.barHeight))
 		}
 		Spacer(Modifier.height(12.dp))
-		tabs.forEach { tab ->
-			val item = tab.id.navItem()
+		(tabs.map { it.id.navItem() } + NavItem.LIBRARY).forEach { item ->
 			val selected = backStack.firstOrNull() == item.destination
 			NavigationRailItem(
 				selected = selected,

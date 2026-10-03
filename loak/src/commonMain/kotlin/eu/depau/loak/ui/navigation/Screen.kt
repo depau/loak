@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.navigation
 
+import eu.depau.loak.ui.screens.library.DownloadsTab
 import androidx.compose.runtime.Immutable
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
@@ -66,6 +67,14 @@ sealed interface Screen : NavKey {
 		/** Null: the remembered sort. */
 		val listType: DomainSongListType? = null
 	) : Screen
+
+	@Immutable
+	@Serializable
+	data object Library : Screen
+
+	@Immutable
+	@Serializable
+	data class Downloads(val tab: DownloadsTab = DownloadsTab.Songs) : Screen
 
 	@Immutable
 	@Serializable

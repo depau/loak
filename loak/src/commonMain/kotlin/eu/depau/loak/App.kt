@@ -1,5 +1,7 @@
 package eu.depau.loak
 
+import eu.depau.loak.ui.screens.library.LibraryScreen
+import eu.depau.loak.ui.screens.library.DownloadsScreen
 import eu.depau.loak.ui.screens.settings.AudioMuseSettingsScreen
 import eu.depau.loak.ui.screens.settings.AudioMuseConnectScreen
 import androidx.compose.ui.input.key.type
@@ -602,6 +604,12 @@ private fun entryProvider(
 		}
 
 		// settings
+		entry<Screen.Library>(metadata = navtabMetadata) {
+			LibraryScreen()
+		}
+		entry<Screen.Downloads> {
+			DownloadsScreen(it.tab)
+		}
 		entry<Screen.Settings.Root>(metadata = listPane("settings")) {
 			SettingsScreen()
 		}
