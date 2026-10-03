@@ -82,6 +82,7 @@ import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.layouts.ArtGridItem
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
+import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.genre.components.GenreListScreenCard
@@ -93,8 +94,6 @@ import org.koin.compose.viewmodel.koinViewModel
 
 private const val TAB = "explore"
 
-private class Lens(val icon: ImageVector, val title: StringResource, val destination: NavKey)
-
 private class Tool(
 	val icon: ImageVector,
 	val title: StringResource,
@@ -105,8 +104,8 @@ private class Tool(
 )
 
 /**
- * Explore: ways into what's already in the library (Discover is for what isn't). The
- * AudioMuse-AI sections only show while it's connected.
+ * Explore: picks and tools for what's already in the library (Discover is for what isn't);
+ * the plain lists are in Library. The AudioMuse-AI sections only show while it's connected.
  */
 @Composable
 fun ExploreScreen() {
@@ -118,23 +117,15 @@ fun ExploreScreen() {
 	val backStack = LocalNavStack.current
 	val scrollBehavior = rootTopBarScrollBehavior()
 	val expanded = LocalPlatformContext.current.isExpanded()
-	// 6 or 12 columns: 2 or 4 lenses a row, 3 or 6 tiles
+	// 6 or 12 columns: 3 or 6 tiles a row, 2 or 4 tools
 	val columns = if (expanded) 12 else 6
 	val full: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
 	val gridState = rememberLazyGridState()
+	// opened from Library rather than as a tab
+	val nested = backStack.firstOrNull() != Screen.Explore
 
 	LaunchedEffect(info) { if (info != null && state.moods.isEmpty()) viewModel.refresh() }
 
-	val lenses = listOf(
-		Lens(Icons.Outlined.Album, Res.string.title_albums, Screen.AlbumList(nested = true)),
-		Lens(Icons.Outlined.RecentlyAdded, Res.string.lens_recently_added, Screen.AlbumList(true, DomainAlbumListType.Newest)),
-		Lens(Icons.Outlined.BarChart, Res.string.lens_most_played, Screen.AlbumList(true, DomainAlbumListType.Frequent)),
-		Lens(Icons.Outlined.Trophy, Res.string.lens_highest_rated, Screen.AlbumList(true, DomainAlbumListType.Highest)),
-		Lens(Icons.Outlined.Star, Res.string.title_starred, Screen.Starred(nested = true)),
-		Lens(Icons.Outlined.Shuffle, Res.string.lens_random, Screen.AlbumList(true, DomainAlbumListType.Random)),
-		Lens(Icons.Outlined.Calendar, Res.string.lens_by_year, Screen.AlbumList(true, DomainAlbumListType.Year)),
-		Lens(Icons.Outlined.Grid, Res.string.title_genres, Screen.GenreList(nested = true))
-	)
 	val colors = MaterialTheme.colorScheme
 	val tools = info?.let { i ->
 		listOfNotNull(
@@ -150,13 +141,14 @@ fun ExploreScreen() {
 	Scaffold(
 		modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
 		topBar = {
-			RootTopBar(
+			if (nested) NestedTopBar({ Text(stringResource(Res.string.title_explore)) })
+			else RootTopBar(
 				title = { Text(stringResource(Res.string.title_explore)) },
 				scrollBehavior = scrollBehavior,
 				subtitle = { Text(stringResource(Res.string.subtitle_explore)) }
 			)
 		},
-		bottomBar = { RootBottomBar(scrolled = LocalBottomBarScrollManager.current.isTriggered) }
+		bottomBar = { if (!nested) RootBottomBar(scrolled = LocalBottomBarScrollManager.current.isTriggered) }
 	) { innerPadding ->
 		LazyVerticalGrid(
 			columns = GridCells.Fixed(columns),
@@ -170,22 +162,8 @@ fun ExploreScreen() {
 			horizontalArrangement = Arrangement.spacedBy(8.dp),
 			verticalArrangement = Arrangement.spacedBy(8.dp)
 		) {
-			section(Res.string.title_browse)
-			items(lenses, span = { GridItemSpan(3) }) { lens ->
-				Surface(
-					onClick = dropUnlessResumed { backStack.add(lens.destination) },
-					shape = RoundedCornerShape(16.dp),
-					color = colors.surfaceContainerHigh
-				) {
-					Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-						Box(Modifier.size(32.dp).clip(CircleShape).background(colors.secondaryContainer), contentAlignment = Alignment.Center) {
-							Icon(lens.icon, null, Modifier.size(18.dp), tint = colors.onSecondaryContainer)
-						}
-						Text(stringResource(lens.title), maxLines = 1)
-					}
-				}
-			}
-
+			// a fixed first item: sections that load later are inserted below it, not above the view
+			item(key = "top", span = full) {}
 			if (state.genres.isNotEmpty()) {
 				section(Res.string.title_genres)
 				// 3 a row on phones, 3 wider ones on tablets: long names wrap less

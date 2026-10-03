@@ -68,7 +68,6 @@ import eu.depau.loak.generated.resources.title_quick_picks
 import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.title_similar_to
 import eu.depau.loak.generated.resources.title_speed_dial
-import eu.depau.loak.generated.resources.title_your_library
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Genre
 import eu.depau.loak.icons.outlined.History
@@ -104,7 +103,6 @@ import eu.depau.loak.ui.screens.home.components.SpeedDial
 import eu.depau.loak.ui.screens.home.components.SpeedDialLayout
 import eu.depau.loak.ui.screens.home.components.TAB
 import eu.depau.loak.ui.screens.home.viewmodels.HomeViewModel
-import eu.depau.loak.ui.screens.library.components.libraryScreenOverviewButton
 import eu.depau.loak.ui.screens.playlist.components.PlaylistListScreenGridItem
 import eu.depau.loak.ui.screens.playlist.viewmodels.PlaylistListViewModel
 import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
@@ -426,7 +424,7 @@ fun HomeFeed(
 		}
 
 		// on a genre's page the library shortcuts give way to its albums
-		if (footer != null) footer() else yourLibrary(columns)
+		footer?.invoke(this)
 	}
 
 	listenerSong?.let { song ->
@@ -454,23 +452,3 @@ fun HomeFeed(
 }
 
 /** The library's shortcuts, at the end of Home. */
-private fun LazyGridScope.yourLibrary(columns: Int) {
-	item(key = "library header", span = { GridItemSpan(maxLineSpan) }) {
-		ShelfHeader(stringResource(Res.string.title_your_library))
-	}
-	val buttons = listOf(
-		Triple(Icons.Outlined.Star, Res.string.option_sort_starred, Screen.Starred()),
-		Triple(Icons.Outlined.Shuffle, Res.string.option_sort_random, Screen.AlbumList(true, DomainAlbumListType.Random)),
-		Triple(Icons.Outlined.History, Res.string.option_sort_frequent, Screen.AlbumList(true, DomainAlbumListType.Frequent)),
-		Triple(Icons.Outlined.Genre, Res.string.title_genres, Screen.GenreList(true))
-	)
-	buttons.forEachIndexed { index, (icon, label, destination) ->
-		libraryScreenOverviewButton(
-			icon = icon,
-			label = label,
-			destination = destination,
-			start = index % columns == 0,
-			end = index % columns == columns - 1
-		)
-	}
-}

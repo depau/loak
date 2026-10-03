@@ -1,5 +1,17 @@
 package eu.depau.loak.ui.screens.library
 
+import eu.depau.loak.icons.outlined.RecentlyAdded
+import eu.depau.loak.icons.outlined.BarChart
+import eu.depau.loak.icons.outlined.Trophy
+import eu.depau.loak.icons.outlined.Shuffle
+import eu.depau.loak.icons.outlined.Calendar
+import eu.depau.loak.icons.outlined.Explore
+import eu.depau.loak.generated.resources.lens_recently_added
+import eu.depau.loak.generated.resources.lens_most_played
+import eu.depau.loak.generated.resources.lens_highest_rated
+import eu.depau.loak.generated.resources.lens_random
+import eu.depau.loak.generated.resources.lens_by_year
+import eu.depau.loak.generated.resources.title_explore
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -133,10 +145,17 @@ fun LibraryScreen() {
 			LibraryRow(Icons.Outlined.Genre, Res.string.title_genres, counts.genres, Screen.GenreList(nested = true))
 		),
 		listOf(
+			LibraryRow(Icons.Outlined.RecentlyAdded, Res.string.lens_recently_added, null, Screen.AlbumList(true, DomainAlbumListType.Newest)),
+			LibraryRow(Icons.Outlined.History, Res.string.title_recently_played, null, Screen.AlbumList(true, DomainAlbumListType.Recent)),
+			LibraryRow(Icons.Outlined.BarChart, Res.string.lens_most_played, null, Screen.AlbumList(true, DomainAlbumListType.Frequent)),
+			LibraryRow(Icons.Outlined.Trophy, Res.string.lens_highest_rated, null, Screen.AlbumList(true, DomainAlbumListType.Highest)),
+			LibraryRow(Icons.Outlined.Shuffle, Res.string.lens_random, null, Screen.AlbumList(true, DomainAlbumListType.Random)),
+			LibraryRow(Icons.Outlined.Calendar, Res.string.lens_by_year, null, Screen.AlbumList(true, DomainAlbumListType.Year)),
+			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, counts.starred, Screen.Starred(nested = true))
+		),
+		listOf(
 			LibraryRow(Icons.Outlined.PlaylistPlay, Res.string.title_playlists, counts.playlists, Screen.PlaylistList(nested = true)),
-			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, counts.starred, Screen.Starred(nested = true)),
-			LibraryRow(Icons.Outlined.History, Res.string.title_recently_played, null,
-				Screen.AlbumList(nested = true, listType = DomainAlbumListType.Recent)),
+			LibraryRow(Icons.Outlined.Explore, Res.string.title_explore, null, Screen.Explore),
 			LibraryRow(Icons.Outlined.Radio, Res.string.title_internet_radio, null, Screen.RadioList(nested = true)),
 			LibraryRow(Icons.Outlined.Share, Res.string.title_shares, null, Screen.ShareList)
 		)
@@ -148,9 +167,17 @@ fun LibraryScreen() {
 			LibraryRow(Icons.Outlined.Genre, Res.string.title_genres, null, null, enabled = false)
 		),
 		listOf(
-			LibraryRow(Icons.Outlined.PlaylistPlay, Res.string.title_playlists, null, null, enabled = false),
-			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, null, null, enabled = false),
+			LibraryRow(Icons.Outlined.RecentlyAdded, Res.string.lens_recently_added, null, null, enabled = false),
 			LibraryRow(Icons.Outlined.History, Res.string.title_recently_played, null, null, enabled = false),
+			LibraryRow(Icons.Outlined.BarChart, Res.string.lens_most_played, null, null, enabled = false),
+			LibraryRow(Icons.Outlined.Trophy, Res.string.lens_highest_rated, null, null, enabled = false),
+			LibraryRow(Icons.Outlined.Shuffle, Res.string.lens_random, null, null, enabled = false),
+			LibraryRow(Icons.Outlined.Calendar, Res.string.lens_by_year, null, null, enabled = false),
+			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, null, null, enabled = false)
+		),
+		listOf(
+			LibraryRow(Icons.Outlined.PlaylistPlay, Res.string.title_playlists, null, null, enabled = false),
+			LibraryRow(Icons.Outlined.Explore, Res.string.title_explore, null, null, enabled = false),
 			LibraryRow(Icons.Outlined.Radio, Res.string.title_internet_radio, null, null, enabled = false),
 			LibraryRow(Icons.Outlined.Share, Res.string.title_shares, null, null, enabled = false)
 		)
