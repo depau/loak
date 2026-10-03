@@ -1,6 +1,5 @@
 package eu.depau.loak.ui.util
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 
 /** A live update operation trailing the download on the desktop auto-updater. */
@@ -62,5 +61,3 @@ interface UpdateState {
  */
 val LocalUpdateController = compositionLocalOf<UpdateController?> { null }
 
-@Composable
-fun rememberUpdateController(): UpdateController? = LocalUpdateController.current
