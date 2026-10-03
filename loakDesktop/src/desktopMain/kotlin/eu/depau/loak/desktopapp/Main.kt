@@ -56,6 +56,13 @@ private val titleBarHeight = 64.dp
  * (client-side decorations) and App draws the native-looking window controls.
  */
 fun main(args: Array<String>) {
+	// Nucleus' Linux HiDPI step reads GNOME's scaling-factor and exports it as GDK_SCALE, which
+	// pins every window to that scale; Wayland compositors (niri, Sway, KDE…) don't use that
+	// setting. Setting the property makes it skip, so GTK takes each window's scale from the
+	// compositor and Nucleus re-scales when the window moves to another monitor.
+	if (System.getenv("WAYLAND_DISPLAY") != null && System.getProperty("sun.java2d.uiScale") == null) {
+		System.setProperty("sun.java2d.uiScale", "1")
+	}
 	initKoin()
 	initializeSentry()
 	nucleusApplication(args) {
