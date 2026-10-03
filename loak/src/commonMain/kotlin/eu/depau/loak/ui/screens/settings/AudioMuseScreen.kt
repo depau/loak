@@ -132,14 +132,44 @@ fun AudioMuseSettingsScreen() {
 			}
 		}
 
+		val toggles = when {
+			info?.canAsk == true -> 4
+			info != null -> 3
+			else -> 1
+		}
 		SettingsGroup(title = { Text(stringResource(Res.string.title_in_loak)) }) {
 			SettingsToggleItem(
 				content = { Text(stringResource(Res.string.option_audiomuse_tidy)) },
 				supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_tidy)) },
 				checked = preferenceManager.audioMuseIntegration,
 				onCheckedChange = { preferenceManager.audioMuseIntegration = it },
-				shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = toggles)
 			)
+			if (info != null) {
+				SettingsToggleItem(
+					content = { Text(stringResource(Res.string.option_audiomuse_home)) },
+					supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_home)) },
+					checked = preferenceManager.audioMuseHome,
+					onCheckedChange = { preferenceManager.audioMuseHome = it },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = toggles)
+				)
+				SettingsToggleItem(
+					content = { Text(stringResource(Res.string.option_audiomuse_describe)) },
+					supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_describe)) },
+					checked = preferenceManager.audioMuseDescribe,
+					onCheckedChange = { preferenceManager.audioMuseDescribe = it },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = toggles)
+				)
+			}
+			info?.takeIf { it.canAsk }?.let { info ->
+				SettingsToggleItem(
+					content = { Text(stringResource(Res.string.option_audiomuse_ask)) },
+					supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_ask, info.aiProviderName)) },
+					checked = preferenceManager.audioMuseAskAi,
+					onCheckedChange = { preferenceManager.audioMuseAskAi = it },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = toggles)
+				)
+			}
 		}
 
 		if (manager.isConfigured) {

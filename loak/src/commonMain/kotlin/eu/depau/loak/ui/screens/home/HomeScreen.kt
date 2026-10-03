@@ -174,7 +174,8 @@ fun HomeFeed(
 	val selectedGenre by viewModel.selectedGenre.collectAsStateWithLifecycle()
 	val player = koinInject<MediaPlayerViewModel>()
 	val audioMuse = koinInject<PreferenceManager>().audioMuseIntegration
-	val audioMuseConnected = koinInject<AudioMuseManager>().info.collectAsStateWithLifecycle().value != null
+	val audioMuseHome = koinInject<PreferenceManager>().audioMuseHome
+	val audioMuseConnected = audioMuseHome && koinInject<AudioMuseManager>().info.collectAsStateWithLifecycle().value != null
 	val canMix by produceState(false) { value = player.canMix() }
 	val persistentViewModelStoreOwner = koinInject<PersistentViewModelStoreOwner>()
 
@@ -311,7 +312,7 @@ fun HomeFeed(
 		horizontalSection(
 			title = Res.string.title_made_for_you,
 			destination = Screen.PlaylistList(true),
-			state = UiState.Success(if (audioMuse) state.madeForYou else emptyList()),
+			state = UiState.Success(if (audioMuse && audioMuseHome) state.madeForYou else emptyList()),
 			key = { it.id },
 			seeAll = false
 		) { playlist ->
@@ -332,7 +333,7 @@ fun HomeFeed(
 		horizontalSection(
 			title = Res.string.title_your_radios,
 			destination = Screen.PlaylistList(true, PlaylistKindFilter.Radios),
-			state = UiState.Success(if (audioMuse) state.radios else emptyList()),
+			state = UiState.Success(if (audioMuse && audioMuseHome) state.radios else emptyList()),
 			key = { it.id },
 			seeAll = true
 		) { playlist ->

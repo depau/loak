@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.AudioMuseManager
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.repositories.AlchemyIngredient
 import eu.depau.loak.domain.repositories.AudioMuseRepository
 import eu.depau.loak.generated.resources.*
@@ -86,7 +87,7 @@ fun MakeSomethingNew() {
 	val tools = listOfNotNull(
 		Tool(Icons.Outlined.Flask, Res.string.title_song_alchemy, Res.string.info_tool_alchemy, colors.tertiaryContainer, colors.onTertiaryContainer, Screen.Alchemy()),
 		Tool(Icons.Outlined.Search, Res.string.title_describe_mix, Res.string.info_tool_describe, colors.primaryContainer, colors.onPrimaryContainer, Screen.DescribeMix())
-			.takeIf { i.soundSearch || i.lyricsSearch },
+			.takeIf { (i.soundSearch || i.lyricsSearch) && koinInject<PreferenceManager>().audioMuseDescribe },
 		Tool(Icons.Outlined.SonicPath, Res.string.title_song_path, Res.string.info_tool_path, colors.secondaryContainer, colors.onSecondaryContainer, Screen.SongPath)
 	)
 	Column {

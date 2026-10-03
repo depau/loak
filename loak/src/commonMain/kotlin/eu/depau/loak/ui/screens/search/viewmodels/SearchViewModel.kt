@@ -1,6 +1,7 @@
 package eu.depau.loak.ui.screens.search.viewmodels
 
 import eu.depau.loak.domain.manager.AudioMuseManager
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.repositories.AudioMuseRepository
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.text.input.TextFieldState
@@ -28,6 +29,7 @@ class SearchViewModel(
 	private val repository: SearchRepository,
 	private val audioMuseRepository: AudioMuseRepository,
 	audioMuse: AudioMuseManager,
+	private val preferenceManager: PreferenceManager,
 	private val songRepository: SongRepository,
 	connectivityManager: ConnectivityManager,
 	downloadManager: DownloadManager
@@ -74,7 +76,7 @@ class SearchViewModel(
 
 	fun searchBySound(query: String = searchQuery.text.toString()) {
 		val q = query.trim()
-		if (q.isBlank() || audioMuseInfo.value?.soundSearch != true || q == soundQuery && soundState.value !is UiState.Error) return
+		if (q.isBlank() || audioMuseInfo.value?.soundSearch != true || !preferenceManager.audioMuseDescribe || q == soundQuery && soundState.value !is UiState.Error) return
 		soundQuery = q
 		viewModelScope.launch {
 			soundState.value = UiState.Loading()

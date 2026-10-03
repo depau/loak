@@ -183,6 +183,7 @@ fun SearchScreen(
 	val backStack = LocalNavStack.current
 	val soundState by viewModel.soundState.collectAsState()
 	val audioMuseInfo by viewModel.audioMuseInfo.collectAsState()
+	val audioMusePrefs = koinInject<PreferenceManager>()
 
 	val selectedCategory by viewModel.selectedCategory.collectAsState()
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -222,7 +223,7 @@ fun SearchScreen(
 						viewModel.selectedCategory.value = it
 						if (it == SearchCategory.SOUND) viewModel.searchBySound()
 					},
-					soundAvailable = audioMuseInfo?.soundSearch == true
+					soundAvailable = audioMuseInfo?.soundSearch == true && audioMusePrefs.audioMuseDescribe
 				)
 			}
 		},
@@ -525,7 +526,7 @@ fun SearchScreen(
 							}
 
 							// AudioMuse-AI's AI service: never automatic, a row that opens its screen
-							if (showAll && audioMuseInfo?.canAsk == true) {
+							if (showAll && audioMuseInfo?.canAsk == true && audioMusePrefs.audioMuseAskAi) {
 								item(span = { GridItemSpan(maxLineSpan) }) {
 									ListItem(
 										modifier = Modifier

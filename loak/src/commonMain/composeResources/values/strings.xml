@@ -564,6 +564,12 @@
 	<string name="option_audiomuse_integration">AudioMuse-AI playlists</string>
 	<string name="subtitle_audiomuse_integration">Tidy names, a badge, and warnings where AudioMuse-AI may undo your edits</string>
 	<string name="badge_ai">AI</string>
+	<string name="option_audiomuse_home">Made for you on Home</string>
+	<string name="subtitle_audiomuse_home">Sonic Fingerprint, Album of the Week, your radios, the AI clusters and moods</string>
+	<string name="option_audiomuse_describe">Describe a mix</string>
+	<string name="subtitle_audiomuse_describe">Search by sound and by lyrics, with AudioMuse-AI's own models</string>
+	<string name="option_audiomuse_ask">Ask AI for a playlist</string>
+	<string name="subtitle_audiomuse_ask">Uses the AI service set up in AudioMuse-AI (%1$s); each request may cost its owner money</string>
 	<string name="label_moods">Moods</string>
 	<string name="title_make_something_new">Make something new</string>
 	<string name="info_tool_alchemy">Blend songs and artists, take some away</string>

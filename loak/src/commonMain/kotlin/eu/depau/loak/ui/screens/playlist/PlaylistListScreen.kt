@@ -243,7 +243,7 @@ fun PlaylistListScreen(
 							icon = { Icon(Icons.Outlined.Flask, null) },
 							text = { Text(stringResource(Res.string.title_song_alchemy)) }
 						)
-						if (audioMuseInfo?.let { it.soundSearch || it.lyricsSearch } == true) FloatingActionButtonMenuItem(
+						if (audioMuseInfo?.let { it.soundSearch || it.lyricsSearch } == true && preferenceManager.audioMuseDescribe) FloatingActionButtonMenuItem(
 							onClick = {
 								fabMenuExpanded = false
 								backStack.add(Screen.DescribeMix())
@@ -251,7 +251,7 @@ fun PlaylistListScreen(
 							icon = { Icon(Icons.Outlined.Search, null) },
 							text = { Text(stringResource(Res.string.title_describe_mix)) }
 						)
-						if (audioMuseInfo?.canAsk == true) FloatingActionButtonMenuItem(
+						if (audioMuseInfo?.canAsk == true && preferenceManager.audioMuseAskAi) FloatingActionButtonMenuItem(
 							onClick = {
 								fabMenuExpanded = false
 								backStack.add(Screen.AskAI())

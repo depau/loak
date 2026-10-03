@@ -106,6 +106,15 @@ class PreferenceManager(
 	/** Tidy names, badges and warnings for AudioMuse-AI's playlists. */
 	var audioMuseIntegration by preference(true)
 
+	/** AudioMuse-AI's shelves on Home: Made for you, radios, moods, Make something new. */
+	var audioMuseHome by preference(true)
+
+	/** Describe a mix and search by sound. */
+	var audioMuseDescribe by preference(true)
+
+	/** Ask AI for a playlist (when AudioMuse-AI has an AI service). */
+	var audioMuseAskAi by preference(true)
+
 	/** Smart playlist tools (create, edit, rules) on servers that support them. */
 	var smartPlaylistsEnabled by preference(true)
 
