@@ -1,5 +1,10 @@
 package eu.depau.loak.ui.screens.genre
 
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isExpanded
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -69,6 +74,7 @@ fun GenreDetailScreen(
 	val selectedAlbumIsStarred by albumsViewModel.starred.collectAsStateWithLifecycle()
 	val selectedAlbumRating by albumsViewModel.rating.collectAsStateWithLifecycle()
 
+	val cardWidth = if (LocalPlatformContext.current.isExpanded()) 176.dp else 150.dp
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 
@@ -107,7 +113,7 @@ fun GenreDetailScreen(
 					seeAll = true
 				) { album ->
 					AlbumListScreenGridItem(
-						modifier = Modifier.width(150.dp),
+						modifier = Modifier.width(cardWidth),
 						tab = "genre",
 						album = album,
 						selected = album == selectedAlbum,
@@ -122,17 +128,23 @@ fun GenreDetailScreen(
 						onSetRating = { albumsViewModel.setRating(it) }
 					)
 				}
+				item(span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(12.dp)) }
+				// half the row each, whatever the column count
 				libraryScreenOverviewButton(
 					icon = Icons.Outlined.Note,
 					label = Res.string.title_songs,
 					destination = Screen.SongList(true, DomainSongListType.ByGenre(genreName)),
-					start = true
+					start = true,
+					end = false,
+					span = { GridItemSpan(maxLineSpan / 2) }
 				)
 				libraryScreenOverviewButton(
 					icon = Icons.Outlined.Album,
 					label = Res.string.title_albums,
 					destination = Screen.AlbumList(true, DomainAlbumListType.ByGenre(genreName)),
-					start = false
+					start = false,
+					end = true,
+					span = { GridItemSpan(maxLineSpan - maxLineSpan / 2) }
 				)
 			}
 		}

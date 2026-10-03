@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.home.components
 
+import eu.depau.loak.icons.outlined.Close
+import eu.depau.loak.ui.util.verticalWheelToParent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -104,6 +106,7 @@ fun SmallOutlinedButton(text: String, onClick: () -> Unit) {
 fun GenreChips(genres: List<String>, selected: String?, onSelect: (String?) -> Unit) {
 	val backStack = LocalNavStack.current
 	LazyRow(
+		modifier = Modifier.verticalWheelToParent(),
 		horizontalArrangement = Arrangement.spacedBy(8.dp),
 		contentPadding = PaddingValues(horizontal = 16.dp)
 	) {
@@ -111,7 +114,11 @@ fun GenreChips(genres: List<String>, selected: String?, onSelect: (String?) -> U
 			FilterChip(
 				selected = genre == selected,
 				onClick = { onSelect(if (genre == selected) null else genre) },
-				label = { Text(genre) }
+				label = { Text(genre) },
+				// the X tells that tapping it again clears the filter
+				trailingIcon = if (genre == selected) {
+					{ Icon(Icons.Outlined.Close, null, Modifier.size(18.dp)) }
+				} else null
 			)
 		}
 		item(key = "all genres") {

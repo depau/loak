@@ -1,5 +1,9 @@
 package eu.depau.loak.ui.screens.home
 
+import eu.depau.loak.ui.util.verticalWheelToParent
+import eu.depau.loak.ui.util.pageBy
+import eu.depau.loak.ui.util.HorizontalScrollArrows
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -307,24 +311,34 @@ fun HomeFeed(
 				)
 			}
 			item(key = "similar", span = full) {
-				LazyRow(
-					horizontalArrangement = Arrangement.spacedBy(12.dp),
-					contentPadding = PaddingValues(horizontal = 16.dp)
+				val rowState = rememberLazyListState()
+				HorizontalScrollArrows(
+					canScrollBackward = rowState.canScrollBackward,
+					canScrollForward = rowState.canScrollForward,
+					onBackward = { rowState.pageBy(-1) },
+					onForward = { rowState.pageBy(1) }
 				) {
-					items(similar, key = { it.id }) { artist ->
-						ArtistListScreenGridItem(
-							modifier = Modifier.width(cardWidth),
-							tab = TAB,
-							artist = artist,
-							selected = artist == selectedArtist,
-							selectedArtistAlbums = selectedArtistAlbums,
-							starred = selectedArtistIsStarred,
-							onSelect = { artistsViewModel.selectArtist(artist) },
-							onDeselect = { artistsViewModel.clearSelection() },
-							onSetStarred = { artistsViewModel.starArtist(it) },
-							onPlayNext = { artistsViewModel.playArtistAlbumsNext(player) },
-							onAddToQueue = { artistsViewModel.addArtistAlbumsToQueue(player) }
-						)
+					LazyRow(
+						modifier = Modifier.verticalWheelToParent(),
+						state = rowState,
+						horizontalArrangement = Arrangement.spacedBy(12.dp),
+						contentPadding = PaddingValues(horizontal = 16.dp)
+					) {
+						items(similar, key = { it.id }) { artist ->
+							ArtistListScreenGridItem(
+								modifier = Modifier.width(cardWidth),
+								tab = TAB,
+								artist = artist,
+								selected = artist == selectedArtist,
+								selectedArtistAlbums = selectedArtistAlbums,
+								starred = selectedArtistIsStarred,
+								onSelect = { artistsViewModel.selectArtist(artist) },
+								onDeselect = { artistsViewModel.clearSelection() },
+								onSetStarred = { artistsViewModel.starArtist(it) },
+								onPlayNext = { artistsViewModel.playArtistAlbumsNext(player) },
+								onAddToQueue = { artistsViewModel.addArtistAlbumsToQueue(player) }
+							)
+						}
 					}
 				}
 			}

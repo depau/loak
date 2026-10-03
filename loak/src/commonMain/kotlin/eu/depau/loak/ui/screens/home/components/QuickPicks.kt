@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.screens.home.components
 
+import eu.depau.loak.ui.util.verticalWheelToParent
+import eu.depau.loak.ui.util.pageBy
+import eu.depau.loak.ui.util.HorizontalScrollArrows
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -48,35 +51,42 @@ fun SongColumns(
 
 	BoxWithConstraints(Modifier.fillMaxWidth()) {
 		val width = columnWidth?.dp ?: (maxWidth - 16.dp - 48.dp)
-		LazyHorizontalGrid(
-			rows = GridCells.Fixed(4),
-			state = gridState,
-			flingBehavior = rememberSnapFlingBehavior(lazyGridState = gridState),
-			contentPadding = PaddingValues(horizontal = 4.dp),
-			modifier = Modifier.fillMaxWidth().height(ROW_HEIGHT * 4)
+		HorizontalScrollArrows(
+			canScrollBackward = gridState.canScrollBackward,
+			canScrollForward = gridState.canScrollForward,
+			onBackward = { gridState.pageBy(-1) },
+			onForward = { gridState.pageBy(1) }
 		) {
-			itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-				SongRow(
-					modifier = Modifier.width(width),
-					song = song,
-					selected = selection == song,
-					onClick = { onPlay(index) },
-					onLongClick = { viewModel.selectSong(song) },
-					isOnline = isOnline,
-					onDismissRequest = { viewModel.clearSongSelection() },
-					onRemoveStar = { viewModel.starSelectedSong(false) },
-					onAddStar = { viewModel.starSelectedSong(true) },
-					onShare = { onSetShareId(song.id) },
-					starredState = if (selection == song) starred else song.starredAt != null,
-					download = allDownloads.find { it.songId == song.id },
-					onDownload = { downloadManager.downloadSong(song) },
-					onCancelDownload = { downloadManager.cancelDownload(song.id) },
-					onDeleteDownload = { downloadManager.deleteDownload(song.id) },
-					onPlayNext = { player.playNextSingle(song) },
-					onAddToQueue = { player.addToQueueSingle(song) },
-					rating = rating,
-					onSetRating = { viewModel.rateSelectedSong(it) }
-				)
+			LazyHorizontalGrid(
+				rows = GridCells.Fixed(4),
+				state = gridState,
+				flingBehavior = rememberSnapFlingBehavior(lazyGridState = gridState),
+				contentPadding = PaddingValues(horizontal = 4.dp),
+				modifier = Modifier.fillMaxWidth().height(ROW_HEIGHT * 4).verticalWheelToParent()
+			) {
+				itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+					SongRow(
+						modifier = Modifier.width(width),
+						song = song,
+						selected = selection == song,
+						onClick = { onPlay(index) },
+						onLongClick = { viewModel.selectSong(song) },
+						isOnline = isOnline,
+						onDismissRequest = { viewModel.clearSongSelection() },
+						onRemoveStar = { viewModel.starSelectedSong(false) },
+						onAddStar = { viewModel.starSelectedSong(true) },
+						onShare = { onSetShareId(song.id) },
+						starredState = if (selection == song) starred else song.starredAt != null,
+						download = allDownloads.find { it.songId == song.id },
+						onDownload = { downloadManager.downloadSong(song) },
+						onCancelDownload = { downloadManager.cancelDownload(song.id) },
+						onDeleteDownload = { downloadManager.deleteDownload(song.id) },
+						onPlayNext = { player.playNextSingle(song) },
+						onAddToQueue = { player.addToQueueSingle(song) },
+						rating = rating,
+						onSetRating = { viewModel.rateSelectedSong(it) }
+					)
+				}
 			}
 		}
 	}

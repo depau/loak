@@ -1,5 +1,9 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.ui.util.verticalWheelToParent
+import eu.depau.loak.ui.util.pageBy
+import eu.depau.loak.ui.util.HorizontalScrollArrows
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,17 +53,27 @@ fun <T> LazyGridScope.horizontalSection(
 	header(title, destination = destination, active = seeAll)
 
 	item(span = { GridItemSpan(maxLineSpan) }) {
-		LazyRow(
-			horizontalArrangement = Arrangement.spacedBy(12.dp),
-			contentPadding = PaddingValues(horizontal = 16.dp)
+		val rowState = rememberLazyListState()
+		HorizontalScrollArrows(
+			canScrollBackward = rowState.canScrollBackward,
+			canScrollForward = rowState.canScrollForward,
+			onBackward = { rowState.pageBy(-1) },
+			onForward = { rowState.pageBy(1) }
 		) {
-			if (state is UiState.Loading && data.isEmpty()) {
-				items(8) {
-					ArtGridPlaceholder(Modifier.width(150.dp))
-				}
-			} else {
-				items(data, key = key) { item ->
-					itemContent(item)
+			LazyRow(
+				modifier = Modifier.verticalWheelToParent(),
+				state = rowState,
+				horizontalArrangement = Arrangement.spacedBy(12.dp),
+				contentPadding = PaddingValues(horizontal = 16.dp)
+			) {
+				if (state is UiState.Loading && data.isEmpty()) {
+					items(8) {
+						ArtGridPlaceholder(Modifier.width(150.dp))
+					}
+				} else {
+					items(data, key = key) { item ->
+						itemContent(item)
+					}
 				}
 			}
 		}

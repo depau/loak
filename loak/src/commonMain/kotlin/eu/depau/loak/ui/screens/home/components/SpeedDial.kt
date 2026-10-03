@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.home.components
 
+import eu.depau.loak.ui.util.verticalWheelToParent
+import eu.depau.loak.ui.util.HorizontalScrollArrows
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -91,21 +93,29 @@ fun SpeedDial(
 		}
 		val pageWidth = if (layout == SpeedDialLayout.Row) tile * 9 + gap * 8 else tile * 3 + gap * 2
 		Column {
-			HorizontalPager(
-				state = pagerState,
-				pageSize = PageSize.Fixed(pageWidth),
-				pageSpacing = 24.dp,
-				contentPadding = PaddingValues(horizontal = 16.dp),
-				verticalAlignment = Alignment.Top
-			) { page ->
-				val cells = pages[page]
-				val rows = if (layout == SpeedDialLayout.Row) listOf(cells) else cells.chunked(3)
-				Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-					rows.forEach { row ->
-						Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-							row.forEach { item ->
-								if (item == null) DiceTile(tile, onFeelingLucky)
-								else SpeedDialTile(item, tile, onPlayRadio)
+			HorizontalScrollArrows(
+				canScrollBackward = pagerState.canScrollBackward,
+				canScrollForward = pagerState.canScrollForward,
+				onBackward = { pagerState.animateScrollToPage(pagerState.currentPage - 1) },
+				onForward = { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+			) {
+				HorizontalPager(
+					state = pagerState,
+					modifier = Modifier.verticalWheelToParent(),
+					pageSize = PageSize.Fixed(pageWidth),
+					pageSpacing = 24.dp,
+					contentPadding = PaddingValues(horizontal = 16.dp),
+					verticalAlignment = Alignment.Top
+				) { page ->
+					val cells = pages[page]
+					val rows = if (layout == SpeedDialLayout.Row) listOf(cells) else cells.chunked(3)
+					Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+						rows.forEach { row ->
+							Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+								row.forEach { item ->
+									if (item == null) DiceTile(tile, onFeelingLucky)
+									else SpeedDialTile(item, tile, onPlayRadio)
+								}
 							}
 						}
 					}

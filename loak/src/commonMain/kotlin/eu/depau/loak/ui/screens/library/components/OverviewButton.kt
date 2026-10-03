@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.library.components
 
+import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,9 +34,10 @@ fun LazyGridScope.libraryScreenOverviewButton(
 	label: StringResource,
 	destination: NavKey,
 	start: Boolean,
-	end: Boolean = !start
+	end: Boolean = !start,
+	span: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(1) }
 ) {
-	item(span = { GridItemSpan(1) }) {
+	item(span = span) {
 		val backStack = LocalNavStack.current
 		Button(
 			modifier = Modifier
