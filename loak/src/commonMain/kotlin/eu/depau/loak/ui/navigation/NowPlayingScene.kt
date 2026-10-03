@@ -137,10 +137,26 @@ class NowPlayingScene<T : Any>(
 	// on LocalSheetState
 }
 
+/** The open player's back stack entry: the player draws itself over the window, so nothing here. */
+private class PlayerMarkerScene<T : Any>(
+	override val key: Any,
+	entry: NavEntry<T>,
+	override val previousEntries: List<NavEntry<T>>,
+	override val overlaidEntries: List<NavEntry<T>>
+) : OverlayScene<T> {
+	override val entries = listOf(entry)
+	override val content = @Composable {}
+	override fun equals(other: Any?) = other is PlayerMarkerScene<*> && key == other.key
+	override fun hashCode() = key.hashCode()
+}
+
 class NowPlayingSceneStrategy<T : Any> : SceneStrategy<T> {
 
 	override fun SceneStrategyScope<T>.calculateScene(entries: List<NavEntry<T>>): Scene<T>? {
 		val entry = entries.lastOrNull() ?: return null
+		if (entry.metadata[PlayerKey] == true) {
+			return PlayerMarkerScene(entry.contentKey, entry, entries.dropLast(1), entries.dropLast(1))
+		}
 		val maxWidth = entry.metadata[MaxWidthKey] ?: return null
 		val isTransparent = entry.metadata[IsTransparentKey] ?: return null
 
@@ -158,6 +174,9 @@ class NowPlayingSceneStrategy<T : Any> : SceneStrategy<T> {
 	companion object {
 		object MaxWidthKey : NavMetadataKey<Dp>
 		object IsTransparentKey : NavMetadataKey<Boolean>
+		object PlayerKey : NavMetadataKey<Boolean>
+
+		fun player() = metadata { put(PlayerKey, true) }
 
 		fun bottomSheet(
 			maxWidth: Dp = BottomSheetDefaults.SheetMaxWidth,

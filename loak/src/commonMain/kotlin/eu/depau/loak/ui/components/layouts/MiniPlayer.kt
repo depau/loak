@@ -9,7 +9,12 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import eu.depau.loak.ui.screens.nowPlaying.LocalPlayerSheet
+import eu.depau.loak.ui.screens.nowPlaying.playerPill
+import eu.depau.loak.ui.screens.nowPlaying.playerPillArt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -142,11 +147,9 @@ fun MiniPlayer(
 		if (detached) 16.dp else 0.dp
 	)
 
-	val onClick = dropUnlessResumed {
-		if (!backStack.contains(Screen.NowPlaying)) {
-			backStack.add(Screen.NowPlaying)
-		}
-	}
+	val playerSheet = LocalPlayerSheet.current
+	val onClick = { playerSheet.open() }
+	val drag = rememberDraggableState { playerSheet.dragBy(it) }
 
 	val hasSong = song != null
 	val isRadio = song?.id?.startsWith("radio_") == true
@@ -191,21 +194,14 @@ fun MiniPlayer(
 								alpha = 0.25f
 							)
 						)
-						.pointerInput(isInteractive) {
-							if (!isInteractive) return@pointerInput
-							var totalDrag = 0f
-							detectVerticalDragGestures(
-								onVerticalDrag = { _, dragAmount ->
-									totalDrag += dragAmount
-								},
-								onDragEnd = {
-									if (totalDrag < -150f) {
-										onClick()
-									}
-									totalDrag = 0f
-								}
-							)
-						},
+						// the open player grows out of here, following the finger
+						.playerPill(playerSheet, if (detached) 16.dp else 0.dp, NavigationBarDefaults.containerColor)
+						.draggable(
+							state = drag,
+							orientation = Orientation.Vertical,
+							enabled = isInteractive,
+							onDragStopped = { velocity -> playerSheet.settle(velocity) }
+						),
 					contentPadding = PaddingValues(
 						start = if (detached) 10.dp else 16.dp,
 						end = if (detached) 10.dp else 16.dp,
@@ -241,6 +237,7 @@ fun MiniPlayer(
 								contentDescription = null,
 								contentScale = ContentScale.Fit,
 								modifier = Modifier
+									.playerPillArt(playerSheet)
 									.size(if (detached) 48.dp else 50.dp)
 									.padding(if (playerState.isLoading) 8.dp else 0.dp)
 									.clip(

@@ -22,6 +22,8 @@ import eu.depau.loak.icons.filled.Note
 import eu.depau.loak.icons.outlined.Radio
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.screens.nowPlaying.LocalPlayerSheet
+import eu.depau.loak.ui.screens.nowPlaying.playerArt
 
 @Composable
 fun NowPlayingArtwork(
@@ -49,7 +51,9 @@ fun NowPlayingArtwork(
 			modifier = Modifier
 				.aspectRatio(1f)
 				.then(if (isLandscape) Modifier.fillMaxHeight() else Modifier.fillMaxSize())
-				.padding(padding),
+				.padding(padding)
+				// the open player's cover is where the mini player's one travels to
+				.then(if (playerState.currentSong?.id == song.id) Modifier.playerArt(LocalPlayerSheet.current) else Modifier),
 			shadowElevation = 8.dp,
 			onClick = onClick
 		)

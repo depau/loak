@@ -145,7 +145,6 @@ import eu.depau.loak.ui.screens.imageView.ImageViewScreen
 import eu.depau.loak.ui.screens.home.HomeScreen
 import eu.depau.loak.ui.screens.login.LoginScreen
 import eu.depau.loak.ui.screens.lyrics.LyricsScreen
-import eu.depau.loak.ui.screens.nowPlaying.NowPlayingScreen
 import eu.depau.loak.ui.screens.nowPlaying.PlaybackSpeedScreen
 import eu.depau.loak.ui.screens.playlist.PlaylistListScreen
 import eu.depau.loak.ui.screens.queue.QueueScreen
@@ -188,6 +187,11 @@ import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.ui.util.Material3Transitions
 import eu.depau.loak.ui.util.WindowChromeHost
 import eu.depau.loak.ui.screens.queue.queuePaneFits
+import eu.depau.loak.ui.screens.nowPlaying.LocalPlayerSheet
+import eu.depau.loak.ui.screens.nowPlaying.PlayerLayer
+import eu.depau.loak.ui.screens.nowPlaying.PlayerSheetState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalSerializationApi::class)
 private val config = SavedStateConfiguration {
@@ -269,6 +273,8 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 		}
 	}
 	val actions = AppActions(backStack, backInput, forwardHistory, mediaPlayer, inApp)
+	val playerScope = rememberCoroutineScope()
+	val playerSheet = remember(backStack) { PlayerSheetState(playerScope, backStack) }
 	menuBar(actions)
 	var mouseInUse by remember {
 		mutableStateOf(platformContext.platformType.let { it == PlatformType.Desktop || it == PlatformType.Web })
@@ -314,9 +320,11 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 			LocalSharedTransitionScope provides this@SharedTransitionLayout,
 			LocalBottomBarScrollManager provides scrollManager,
 			LocalQueuePaneOpen provides queuePaneOpen,
-			LocalMouseInUse provides mouseInUse
+			LocalMouseInUse provides mouseInUse,
+			LocalPlayerSheet provides playerSheet
 		) {
 			LoakTheme {
+				Box(Modifier.fillMaxSize()) {
 				WindowChromeHost(paneOpen = inApp && queuePaneFits() && queuePaneOpen.value) {
 					Scaffold(
 						modifier = Modifier
@@ -481,7 +489,11 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 							}
 						}
 					}
-					// version check is annoying to do on iOS
+				}
+				// the player covers the whole window, rail and queue pane included; it draws the
+				// window controls itself
+				if (inApp) PlayerLayer(playerSheet)
+				// version check is annoying to do on iOS
 					if (preferenceManager.checkForUpdates
 						&& platformContext.platformType == PlatformType.Android
 					) {
@@ -576,11 +588,8 @@ private fun entryProvider(
 				sharedTransitionKey = key.sharedTransitionKey
 			)
 		}
-		entry<Screen.NowPlaying>(
-			metadata = NowPlayingSceneStrategy.bottomSheet(maxWidth = Dp.Unspecified)
-		) {
-			NowPlayingScreen()
-		}
+		// the player itself is PlayerLayer, over the whole window; this entry only marks it open
+		entry<Screen.NowPlaying>(metadata = NowPlayingSceneStrategy.player()) {}
 		entry<Screen.Lyrics>(metadata = NowPlayingSceneStrategy.bottomSheet(isTransparent = true)) {
 			val player = koinInject<MediaPlayerViewModel>()
 			val playerState by player.uiState.collectAsState()

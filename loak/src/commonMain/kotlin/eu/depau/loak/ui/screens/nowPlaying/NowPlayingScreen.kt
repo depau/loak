@@ -45,14 +45,12 @@ import eu.depau.loak.ui.util.PaneWindowControls
 import eu.depau.loak.ui.util.WindowChromeHost
 import eu.depau.loak.ui.util.windowDragArea
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_lyrics
 import eu.depau.loak.generated.resources.action_navigate_back
@@ -63,7 +61,6 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.di.LocalSheetState
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.NowPlayingBackgroundStyle
 import eu.depau.loak.domain.models.settings.ToolbarPosition
@@ -89,11 +86,8 @@ fun NowPlayingScreen() {
 	val player = koinInject<MediaPlayerViewModel>()
 	val backStack = LocalNavStack.current
 
-	val currentScreen = backStack.lastOrNull()
-	val isPlayerCurrent = currentScreen is Screen.NowPlaying
-		|| currentScreen is Screen.Queue
-		|| currentScreen is Screen.PlaybackSpeed
-		|| currentScreen is Screen.SongDetailSheet
+	// the lyrics sheet covers the player: its content steps aside meanwhile
+	val isPlayerCurrent = backStack.lastOrNull() !is Screen.Lyrics
 
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 	val song = playerState.currentSong
@@ -101,17 +95,8 @@ fun NowPlayingScreen() {
 	val viewModel = koinViewModel<NowPlayingViewModel> { parametersOf(player) }
 	val songIsStarred by viewModel.songIsStarred.collectAsStateWithLifecycle()
 
-	val sheetState = LocalSheetState.current
-	val closeScope = rememberCoroutineScope()
-	val animateToDismiss = dropUnlessResumed {
-		closeScope.launch {
-			sheetState.hide()
-		}.invokeOnCompletion {
-			if (!sheetState.isVisible) {
-				backStack.remove(Screen.NowPlaying)
-			}
-		}
-	}
+	val playerSheet = LocalPlayerSheet.current
+	val animateToDismiss = { playerSheet.close() }
 
 	BoxWithConstraints(Modifier.fillMaxSize()) {
 		val layout = playerPaneLayout(maxWidth, maxHeight)

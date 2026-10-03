@@ -1,5 +1,12 @@
 package eu.depau.loak.ui.components.layouts
 
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import eu.depau.loak.ui.screens.nowPlaying.LocalPlayerSheet
+import eu.depau.loak.ui.screens.nowPlaying.playerPill
+import eu.depau.loak.ui.screens.nowPlaying.playerPillArt
+
 import androidx.compose.ui.text.style.TextOverflow
 import eu.depau.loak.ui.util.pickedUpFromLabel
 import androidx.compose.foundation.background
@@ -129,9 +136,9 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 			.memoryCachePolicy(CachePolicy.ENABLED)
 			.build()
 	}
-	val openPlayer = dropUnlessResumed {
-		if (!backStack.contains(Screen.NowPlaying)) backStack.add(Screen.NowPlaying)
-	}
+	val playerSheet = LocalPlayerSheet.current
+	val openPlayer = { playerSheet.open() }
+	val drag = rememberDraggableState { playerSheet.dragBy(it) }
 	val shape = ContinuousRoundedRectangle(28.dp)
 
 	Surface(
@@ -139,7 +146,15 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 			.windowInsetsPadding(WindowInsets.navigationBars)
 			.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
 			.fillMaxWidth()
-			.height(80.dp),
+			.height(80.dp)
+			// the open player grows out of the bar, following the finger
+			.playerPill(playerSheet, 28.dp, NavigationBarDefaults.containerColor)
+			.draggable(
+				state = drag,
+				orientation = Orientation.Vertical,
+				enabled = interactive,
+				onDragStopped = { velocity -> playerSheet.settle(velocity) }
+			),
 		shape = shape,
 		color = NavigationBarDefaults.containerColor,
 		shadowElevation = 6.dp
@@ -165,6 +180,7 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 							contentDescription = null,
 							contentScale = ContentScale.Crop,
 							modifier = Modifier
+								.playerPillArt(playerSheet)
 								.size(56.dp)
 								.clip(ContinuousRoundedRectangle(8.dp))
 								.background(MaterialTheme.colorScheme.surfaceVariant)
