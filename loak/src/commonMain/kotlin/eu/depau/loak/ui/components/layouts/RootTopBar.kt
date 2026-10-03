@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.Modifier
 import eu.depau.loak.di.PlatformType
 import eu.depau.loak.ui.util.windowControlsInsets
+import eu.depau.loak.ui.screens.queue.QueuePaneToggle
 import eu.depau.loak.ui.util.windowDragArea
 
 /**
@@ -133,6 +134,8 @@ private fun Actions(
 			}
 		}
 	}
+
+	QueuePaneToggle()
 
 	// wider windows have it at the bottom of the navigation rail
 	if (!LocalPlatformContext.current.isLandscape()) TooltipBox(stringResource(Res.string.title_account)) {

@@ -69,6 +69,7 @@ fun main(args: Array<String>) {
 					controlsOnLeft = controlsOnLeft,
 					barHeight = titleBarHeight,
 					dragArea = Modifier.windowDragArea(),
+					controlsInCorner = isWindows,
 					controls = { darkTheme ->
 						// the controls follow the app theme, not the OS: the native parts through
 						// WindowAppearance (traffic lights on macOS), the drawn ones (GNOME/KDE,

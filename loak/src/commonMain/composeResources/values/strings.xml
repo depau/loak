@@ -399,7 +399,8 @@
 	<string name="action_mix">Mix</string>
 	<string name="action_mix_to_here">Mix to here</string>
 	<string name="action_queue">Queue</string>
-	<string name="action_close_queue">Close queue</string>
+	<string name="action_show_queue">Show queue</string>
+	<string name="action_hide_queue">Hide queue</string>
 	<string name="action_volume">Volume</string>
 	<string name="action_reorder">Reorder</string>
 	<string name="action_remove_from_queue">Remove from queue</string>

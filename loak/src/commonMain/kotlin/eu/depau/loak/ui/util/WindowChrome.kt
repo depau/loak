@@ -41,8 +41,15 @@ data class WindowChrome(
 	 * so the native parts (traffic lights, caption glyphs) can match it rather than the OS.
 	 */
 	val controls: @Composable (darkTheme: Boolean) -> Unit,
+	/**
+	 * The controls must sit flush in the window's top corner (Windows: snap layouts open from
+	 * Maximize), so a pane under them docks to the window edge instead of floating.
+	 */
+	val controlsInCorner: Boolean = false,
 	/** Measured by App once the controls are laid out. */
 	val controlsWidth: Dp = 0.dp,
+	/** A pane along the controls' edge draws them in its header, so the top bars needn't. */
+	val controlsInPane: Boolean = false,
 )
 
 val LocalWindowChrome = compositionLocalOf<WindowChrome?> { null }
@@ -57,6 +64,7 @@ private val RailWidth = 80.dp
 @Composable
 fun windowControlsInsets(): WindowInsets {
 	val chrome = LocalWindowChrome.current ?: return WindowInsets(0)
+	if (chrome.controlsInPane) return WindowInsets(0)
 	val room = chrome.controlsWidth + 8.dp
 	return when {
 		!chrome.controlsOnLeft -> WindowInsets(right = room)
@@ -72,17 +80,21 @@ fun Modifier.windowDragArea(): Modifier = then(LocalWindowChrome.current?.dragAr
 
 /**
  * Draws [WindowChrome.controls] in the window's top corner over [content], and hands the
- * measured controls width down so the top bars keep clear of them.
+ * measured controls width down so the top bars keep clear of them. With [paneOpen], a pane
+ * along the right edge is showing: controls on the right move into its header instead.
  */
 @Composable
-fun WindowChromeHost(content: @Composable () -> Unit) {
+fun WindowChromeHost(paneOpen: Boolean, content: @Composable () -> Unit) {
 	val chrome = LocalWindowChrome.current ?: return content()
 	val density = LocalDensity.current
 	var controlsWidth by remember { mutableStateOf(0.dp) }
-	CompositionLocalProvider(LocalWindowChrome provides chrome.copy(controlsWidth = controlsWidth)) {
+	val inPane = paneOpen && !chrome.controlsOnLeft
+	CompositionLocalProvider(
+		LocalWindowChrome provides chrome.copy(controlsWidth = controlsWidth, controlsInPane = inPane)
+	) {
 		Box(Modifier.fillMaxSize()) {
 			content()
-			Box(
+			if (!inPane) Box(
 				Modifier
 					.align(if (chrome.controlsOnLeft) Alignment.TopStart else Alignment.TopEnd)
 					.height(chrome.barHeight)
@@ -92,5 +104,17 @@ fun WindowChromeHost(content: @Composable () -> Unit) {
 				chrome.controls(MaterialTheme.colorScheme.surface.luminance() < .5f)
 			}
 		}
+	}
+}
+
+/**
+ * The window controls, for the header of a pane along the window's right edge while
+ * [WindowChrome.controlsInPane]. Nothing otherwise.
+ */
+@Composable
+fun PaneWindowControls(modifier: Modifier = Modifier) {
+	val chrome = LocalWindowChrome.current?.takeIf { it.controlsInPane } ?: return
+	Box(modifier.then(chrome.dragArea)) {
+		chrome.controls(MaterialTheme.colorScheme.surface.luminance() < .5f)
 	}
 }

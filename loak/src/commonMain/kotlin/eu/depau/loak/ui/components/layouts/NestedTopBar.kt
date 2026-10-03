@@ -31,6 +31,7 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.ArrowBack
 import androidx.compose.foundation.layout.add
 import eu.depau.loak.ui.util.windowControlsInsets
+import eu.depau.loak.ui.screens.queue.QueuePaneToggle
 import eu.depau.loak.ui.util.windowDragArea
 
 
@@ -72,9 +73,11 @@ fun NestedTopBar(
 			Row(
 				modifier = Modifier.padding(end = 20.dp),
 				horizontalArrangement = Arrangement.spacedBy(8.dp),
-				verticalAlignment = Alignment.CenterVertically,
-				content = actions
-			)
+				verticalAlignment = Alignment.CenterVertically
+			) {
+				actions()
+				QueuePaneToggle()
+			}
 		},
 		navigationIcon = navigationAction,
 		windowInsets = TopAppBarDefaults.windowInsets.add(windowControlsInsets()),

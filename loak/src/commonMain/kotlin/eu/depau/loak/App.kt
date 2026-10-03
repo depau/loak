@@ -256,7 +256,7 @@ fun App() {
 			LocalQueuePaneOpen provides queuePaneOpen
 		) {
 			LoakTheme {
-				WindowChromeHost {
+				WindowChromeHost(paneOpen = inApp && queuePaneFits() && queuePaneOpen.value) {
 					Scaffold(
 						modifier = Modifier
 							.nestedScroll(scrollManager.connection)
@@ -397,7 +397,7 @@ fun App() {
 								enter = expandHorizontally(),
 								exit = shrinkHorizontally()
 							) {
-								QueuePane(onClose = { queuePaneOpen.value = false })
+								QueuePane()
 							}
 						}
 					}

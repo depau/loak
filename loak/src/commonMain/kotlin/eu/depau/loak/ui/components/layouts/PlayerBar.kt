@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarDefaults
@@ -47,14 +46,12 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.di.LocalQueuePaneOpen
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_next_song
 import eu.depau.loak.generated.resources.action_pause
 import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.action_previous_song
-import eu.depau.loak.generated.resources.action_queue
 import eu.depau.loak.generated.resources.action_repeat
 import eu.depau.loak.generated.resources.action_shuffle
 import eu.depau.loak.generated.resources.action_star
@@ -71,7 +68,6 @@ import eu.depau.loak.icons.filled.SkipNext
 import eu.depau.loak.icons.filled.SkipPrevious
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.KeyboardArrowDown
-import eu.depau.loak.icons.outlined.List
 import eu.depau.loak.icons.outlined.Repeat
 import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.icons.outlined.Star
@@ -90,7 +86,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import eu.depau.loak.ui.screens.queue.queuePaneFits
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -118,7 +113,6 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 	val nowPlayingViewModel = koinViewModel<NowPlayingViewModel> { parametersOf(player) }
 	val songIsStarred by nowPlayingViewModel.songIsStarred.collectAsState()
 	val backStack = LocalNavStack.current
-	val queuePaneOpen = LocalQueuePaneOpen.current
 	val volumeLabel = stringResource(Res.string.action_volume)
 	val isRadio = song?.id?.startsWith("radio_") == true
 	val interactive = enabled && song != null
@@ -259,8 +253,7 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 				BoxWithConstraints(Modifier.weight(1f)) {
 					// what fits, given the room: the open-player button always stays; the volume
 					// slider collapses into a button first, then the time goes
-					val showQueue = queuePaneFits()
-					val buttons = 48.dp * (1 + (if (showQueue) 1 else 0) + (if (player.volume != null) 1 else 0))
+					val buttons = 48.dp * (1 + (if (player.volume != null) 1 else 0))
 					val showTime = maxWidth >= buttons + TimeWidth
 					val roomy = maxWidth >= buttons + TimeWidth + InlineVolumeExtraWidth
 					Row(
@@ -296,19 +289,6 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 								)
 							} else {
 								VolumePopupButton(volume, player::setVolume, volumeLabel)
-							}
-						}
-						// the pane needs a wide window; narrower ones reach the queue from the player
-						if (showQueue) {
-							IconToggleButton(
-								checked = queuePaneOpen.value,
-								onCheckedChange = { queuePaneOpen.value = it },
-								colors = IconButtonDefaults.iconToggleButtonColors(
-									checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-									checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
-								)
-							) {
-								Icon(Icons.Outlined.List, stringResource(Res.string.action_queue))
 							}
 						}
 						IconButton(onClick = openPlayer, enabled = interactive) {
