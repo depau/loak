@@ -1,5 +1,6 @@
 package eu.depau.loak.di
 
+import eu.depau.loak.ui.screens.explore.ExploreViewModel
 import eu.depau.loak.ui.screens.alchemy.AlchemyViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -118,6 +119,7 @@ val viewModelModule = module {
 		)
 	}
 	viewModelOf(::SearchViewModel)
+	viewModelOf(::ExploreViewModel)
 	viewModelOf(::GenreListViewModel)
 	viewModelOf(::RadioListViewModel)
 	viewModelOf(::RadioCreateDialogViewModel)

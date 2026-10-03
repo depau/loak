@@ -73,6 +73,7 @@ fun RootTopBar(
 	title: @Composable () -> Unit,
 	scrollBehavior: TopAppBarScrollBehavior,
 	actions: @Composable RowScope.() -> Unit = {},
+	subtitle: (@Composable () -> Unit)? = null,
 ) {
 	val navViewModel = koinViewModel<NavtabsViewModel>()
 	val navState by navViewModel.state.collectAsState()
@@ -94,6 +95,7 @@ fun RootTopBar(
 		TopAppBar(
 			modifier = modifier,
 			title = title,
+			subtitle = subtitle ?: {},
 			actions = barActions,
 			// pinned (see rootTopBarScrollBehavior): an unpinned bar is also draggable, which
 			// would swallow the mouse drags that move the window
@@ -116,6 +118,7 @@ fun RootTopBar(
 				title()
 			}
 		},
+		subtitle = subtitle,
 		actions = barActions,
 		scrollBehavior = scrollBehavior,
 		colors = colors,

@@ -93,7 +93,6 @@ import eu.depau.loak.ui.screens.album.viewmodels.AlbumListViewModel
 import eu.depau.loak.ui.screens.artist.ArtistListScreenGridItem
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistListViewModel
 import eu.depau.loak.ui.screens.home.components.GenreChips
-import eu.depau.loak.ui.screens.home.components.MakeSomethingNew
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.ui.screens.home.components.ListenerRow
 import eu.depau.loak.ui.screens.home.components.MixCard
@@ -174,7 +173,6 @@ fun HomeFeed(
 	val player = koinInject<MediaPlayerViewModel>()
 	val audioMuse = koinInject<PreferenceManager>().audioMuseIntegration
 	val audioMuseHome = koinInject<PreferenceManager>().audioMuseHome
-	val audioMuseConnected = audioMuseHome && koinInject<AudioMuseManager>().info.collectAsStateWithLifecycle().value != null
 	val canMix by produceState(false) { value = player.canMix() }
 	val persistentViewModelStoreOwner = koinInject<PersistentViewModelStoreOwner>()
 
@@ -348,8 +346,6 @@ fun HomeFeed(
 				onAddToQueue = { player.addToQueue(playlist as DomainSongCollection) }
 			)
 		}
-
-		if (audioMuseConnected) item(key = "make something new", span = full) { MakeSomethingNew() }
 
 		state.sonicJourney?.let { (from, to) ->
 			item(key = "sonic journey", span = full) {

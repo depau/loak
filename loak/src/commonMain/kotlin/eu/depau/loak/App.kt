@@ -2,6 +2,9 @@ package eu.depau.loak
 
 import eu.depau.loak.ui.screens.alchemy.AlchemyScreen
 import eu.depau.loak.ui.screens.alchemy.AskAiScreen
+import eu.depau.loak.ui.screens.explore.ExploreScreen
+import eu.depau.loak.ui.screens.explore.MoodScreen
+import eu.depau.loak.ui.screens.explore.SoundMapScreen
 import eu.depau.loak.ui.screens.alchemy.DescribeMixScreen
 import eu.depau.loak.ui.screens.alchemy.SongPathScreen
 import eu.depau.loak.ui.screens.login.INTEGRATIONS_VERSION
@@ -630,6 +633,15 @@ private fun entryProvider(
 		}
 		entry<Screen.SongPath> {
 			SongPathScreen()
+		}
+		entry<Screen.Explore>(metadata = navtabMetadata) {
+			ExploreScreen()
+		}
+		entry<Screen.Mood> {
+			MoodScreen(it.mood)
+		}
+		entry<Screen.SoundMap> {
+			SoundMapScreen()
 		}
 		entry<Screen.Library>(metadata = navtabMetadata) {
 			LibraryScreen()

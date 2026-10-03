@@ -325,6 +325,28 @@ class HomeRepository(
 			.take(SHELF_SIZE)
 	}
 
+	/** Albums nobody has played yet, a different handful each day. */
+	fun neverPlayed(library: HomeLibrary): List<DomainAlbum> {
+		val day = (Clock.System.now().epochSeconds / 86_400).toInt()
+		return library.albums
+			.filter { it.playCount == 0 && it.lastPlayedAt == null }
+			.shuffled(kotlin.random.Random(day))
+			.take(SHELF_SIZE)
+	}
+
+	/** Songs barely played, by the artists played most. */
+	fun deepCuts(library: HomeLibrary, count: Int = 20): List<DomainSong> {
+		val top = library.songs.groupBy { it.artistId }
+			.mapValues { (_, songs) -> songs.sumOf { it.playCount } }
+			.filterValues { it > 0 }
+			.entries.sortedByDescending { it.value }.take(10).map { it.key }.toSet()
+		val day = (Clock.System.now().epochSeconds / 86_400).toInt()
+		return library.songs
+			.filter { it.artistId in top && it.playCount <= 3 && !it.isDisliked() }
+			.shuffled(kotlin.random.Random(day))
+			.take(count)
+	}
+
 	/**
 	 * What other users are playing.
 	 *

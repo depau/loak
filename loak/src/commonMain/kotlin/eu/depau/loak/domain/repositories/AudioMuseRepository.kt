@@ -34,6 +34,9 @@ data class AlchemyIngredient(
 	enum class Type(val api: String) { Song("song"), Artist("artist"), Playlist("playlist"), Mood("mood"), Radio("anchor") }
 }
 
+/** A song on the sound map; [style] is its top tag ("electronic", "rock"…). */
+class SoundMapPoint(val id: String, val x: Float, val y: Float, val style: String, val title: String, val artist: String)
+
 /** An alchemy's songs, plus what AudioMuse-AI needs to keep it as a radio. */
 class AlchemyResult(val songs: List<DomainSong>, val raw: JsonObject)
 
@@ -154,6 +157,26 @@ class AudioMuseRepository(
 			put("item_id", JsonPrimitive(songId))
 			put("limit", JsonPrimitive(limit))
 		}).ids())
+
+	/** Every analysed song placed on a 2D map by how it sounds, with its top style tag. */
+	// ponytail: kept for the app's run (about 1 MB); a fresh map needs a restart
+	private var soundMapCache: List<SoundMapPoint>? = null
+
+	suspend fun soundMap(): List<SoundMapPoint> = soundMapCache ?: fetchSoundMap().also { soundMapCache = it }
+
+	private suspend fun fetchSoundMap(): List<SoundMapPoint> =
+		audioMuse.getJson("api/map") { parameter("percent", 100) }.jsonObject["items"]!!.jsonArray.mapNotNull {
+			val o = it.jsonObject
+			val xy = o["embedding_2d"]?.jsonArray ?: return@mapNotNull null
+			SoundMapPoint(
+				id = o["item_id"]!!.jsonPrimitive.content,
+				x = xy[0].jsonPrimitive.content.toFloat(),
+				y = xy[1].jsonPrimitive.content.toFloat(),
+				style = o["mood_vector"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+				title = o["title"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+				artist = o["artist"]?.jsonPrimitive?.contentOrNull.orEmpty()
+			)
+		}
 
 	/** POST /api/alchemy. Needs at least one added ingredient. */
 	suspend fun alchemy(ingredients: List<AlchemyIngredient>, songs: Int, temperature: Float): AlchemyResult {
