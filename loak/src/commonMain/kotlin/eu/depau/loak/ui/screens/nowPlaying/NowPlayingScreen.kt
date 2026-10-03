@@ -90,7 +90,6 @@ fun NowPlayingScreen() {
 
 	val viewModel = koinViewModel<NowPlayingViewModel> { parametersOf(player) }
 	val songIsStarred by viewModel.songIsStarred.collectAsStateWithLifecycle()
-	val songRating by viewModel.songRating.collectAsStateWithLifecycle()
 
 	val sheetState = LocalSheetState.current
 	val closeScope = rememberCoroutineScope()
@@ -192,9 +191,7 @@ fun NowPlayingScreen() {
 								modifier = Modifier.weight(1f),
 								isLandscape = false,
 								songIsStarred = songIsStarred,
-								onSetSongIsStarred = { viewModel.starSong(it) },
-								songRating = songRating,
-								onSetSongRating = { viewModel.rateSong(it) }
+								onSetSongIsStarred = { viewModel.starSong(it) }
 							)
 						}
 						NowPlayingSidePane(
@@ -219,9 +216,7 @@ fun NowPlayingScreen() {
 							modifier = Modifier.weight(1f).fillMaxHeight(),
 							isLandscape = true,
 							songIsStarred = songIsStarred,
-							onSetSongIsStarred = { viewModel.starSong(it) },
-							songRating = songRating,
-							onSetSongRating = { viewModel.rateSong(it) }
+							onSetSongIsStarred = { viewModel.starSong(it) }
 						)
 					}
 				} else {
@@ -238,9 +233,7 @@ fun NowPlayingScreen() {
 							modifier = Modifier.weight(1f),
 							isLandscape = false,
 							songIsStarred = songIsStarred,
-							onSetSongIsStarred = { viewModel.starSong(it) },
-							songRating = songRating,
-							onSetSongRating = { viewModel.rateSong(it) }
+							onSetSongIsStarred = { viewModel.starSong(it) }
 						)
 					}
 				}

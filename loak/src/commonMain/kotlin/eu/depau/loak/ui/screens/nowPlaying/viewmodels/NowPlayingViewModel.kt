@@ -22,11 +22,8 @@ class NowPlayingViewModel(
 	val songIsStarred: StateFlow<Boolean>
 		field = MutableStateFlow(false)
 
-	val songRating: StateFlow<Int>
-		field = MutableStateFlow(0)
-
 	init {
-		// the star and rating only change on user action, and the player pushes
+		// the star only changes on user action, and the player pushes
 		// progress updates ~5×/s while playing; re-running Room queries on
 		// every emission is needless IO churn, so react to the current song only
 		val currentSong = player.uiState
@@ -41,12 +38,6 @@ class NowPlayingViewModel(
 				}
 				.collect { songIsStarred.value = it }
 		}
-
-		viewModelScope.launch {
-			currentSong.collect { song ->
-				if (song != null) songRating.value = songRepository.getSongRating(song)
-			}
-		}
 	}
 
 	fun starSong(starred: Boolean) {
@@ -56,17 +47,6 @@ class NowPlayingViewModel(
 					// optimistic: a song missing from the cache never makes the flow emit
 					songIsStarred.value = starred
 					songRepository.setSongStarred(song.id, starred)
-				}
-			}
-		}
-	}
-
-	fun rateSong(rating: Int) {
-		viewModelScope.launch {
-			runCatching {
-				player.uiState.value.currentSong?.let { song ->
-					songRating.value = rating
-					songRepository.rateSong(song, rating)
 				}
 			}
 		}

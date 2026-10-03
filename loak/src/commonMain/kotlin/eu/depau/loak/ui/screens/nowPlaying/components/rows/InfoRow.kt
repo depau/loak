@@ -32,9 +32,7 @@ import eu.depau.loak.ui.util.appendArtists
 @Composable
 fun NowPlayingInfoRow(
 	songIsStarred: Boolean,
-	onSetSongIsStarred: (Boolean) -> Unit,
-	songRating: Int,
-	onSetSongRating: (Int) -> Unit
+	onSetSongIsStarred: (Boolean) -> Unit
 ) {
 	val backStack = LocalNavStack.current
 	val player = koinInject<MediaPlayerViewModel>()
@@ -124,10 +122,7 @@ fun NowPlayingInfoRow(
 				songIsStarred = songIsStarred,
 				onSetSongIsStarred = onSetSongIsStarred
 			)
-			NowPlayingMoreButton(
-				songRating = songRating,
-				onSetSongRating = onSetSongRating
-			)
+			NowPlayingMoreButton()
 		}
 	}
 }

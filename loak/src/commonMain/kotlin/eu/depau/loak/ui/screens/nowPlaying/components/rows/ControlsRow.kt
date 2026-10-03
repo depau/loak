@@ -29,9 +29,7 @@ fun NowPlayingControlsRow(
 	modifier: Modifier = Modifier,
 	isLandscape: Boolean,
 	songIsStarred: Boolean,
-	onSetSongIsStarred: (Boolean) -> Unit,
-	songRating: Int,
-	onSetSongRating: (Int) -> Unit
+	onSetSongIsStarred: (Boolean) -> Unit
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	var visible by rememberSaveable { mutableStateOf(false) }
@@ -53,9 +51,7 @@ fun NowPlayingControlsRow(
 		Column {
 			NowPlayingInfoRow(
 				songIsStarred = songIsStarred,
-				onSetSongIsStarred = onSetSongIsStarred,
-				songRating = songRating,
-				onSetSongRating = onSetSongRating
+				onSetSongIsStarred = onSetSongIsStarred
 			)
 			NowPlayingProgressBar()
 			NowPlayingDurationsRow()
