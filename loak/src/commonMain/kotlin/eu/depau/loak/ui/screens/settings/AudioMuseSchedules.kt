@@ -97,7 +97,7 @@ private val dayNames = listOf(
 )
 
 @Composable
-private fun CronEntry.label() = taskNames[taskType]?.let { stringResource(it) } ?: name
+private fun CronEntry.label() = stringResource(taskNames.getValue(taskType))
 
 @Composable
 private fun describe(expr: String): String {
@@ -129,7 +129,8 @@ fun AudioMuseScheduleGroup(manager: AudioMuseManager) {
 	var reload by remember { mutableStateOf(0) }
 	val entries by produceState(emptyList<CronEntry>(), admin, reload) {
 		if (admin) value = runCatching {
-			manager.getJson("api/cron").jsonArray.map { CronEntry(it.jsonObject) }
+			// plugins' tasks only have internal ids: they're for AudioMuse-AI's own web page
+			manager.getJson("api/cron").jsonArray.map { CronEntry(it.jsonObject) }.filter { it.taskType in taskNames }
 		}.getOrDefault(value)
 	}
 	var editing by remember { mutableStateOf<CronEntry?>(null) }
