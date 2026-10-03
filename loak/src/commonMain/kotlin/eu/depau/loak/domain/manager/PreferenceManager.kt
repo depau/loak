@@ -3,6 +3,8 @@ package eu.depau.loak.domain.manager
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import eu.depau.loak.domain.manager.base.BasePreferenceManager
+import eu.depau.loak.domain.models.DomainArtistListType
+import eu.depau.loak.domain.models.DomainPlaylistListType
 import eu.depau.loak.domain.models.settings.AnimationStyle
 import eu.depau.loak.domain.models.settings.AppIconVariant
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
@@ -131,6 +133,15 @@ class PreferenceManager(
 	var albumListViewMode by preference(ListViewMode.Grid)
 	var playlistListViewMode by preference(ListViewMode.List)
 	var artistListViewMode by preference(ListViewMode.List)
+
+	// the library lists' last chosen sort; album/song sorts are JSON, blank = the default
+	var albumSorting by preference("")
+	var albumSortReversed by preference(false)
+	var songSorting by preference("")
+	var songSortReversed by preference(false)
+	var artistSorting by preference(DomainArtistListType.AlphabeticalByName)
+	var playlistSorting by preference(DomainPlaylistListType.Name)
+	var playlistSortReversed by preference(false)
 
 	// these values are bitmasks of `DomainFilter`
 	var albumFilters by preference(0)

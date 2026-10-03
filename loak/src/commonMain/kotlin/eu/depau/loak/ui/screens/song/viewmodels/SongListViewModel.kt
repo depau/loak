@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
@@ -26,7 +27,8 @@ import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.UiState
 
 class SongListViewModel(
-	initialListType: DomainSongListType = DomainSongListType.FrequentlyPlayed,
+	/** Null: the library's songs list, which starts from (and remembers) the last chosen sort. */
+	initialListType: DomainSongListType? = null,
 	initialFilters: Set<DomainFilter>? = null,
 	private val repository: SongRepository,
 	private val downloadManager: DownloadManager,
@@ -35,6 +37,8 @@ class SongListViewModel(
 	connectivityManager: ConnectivityManager,
 	syncManager: SyncManager
 ) : ViewModel() {
+	private val remembersSorting = initialListType == null
+
 	val songsState: StateFlow<UiState<ImmutableList<DomainSong>>>
 		field = MutableStateFlow<UiState<ImmutableList<DomainSong>>>(UiState.Loading())
 
@@ -55,10 +59,16 @@ class SongListViewModel(
 		field = MutableStateFlow(0)
 
 	val selectedSorting: StateFlow<DomainSongListType>
-		field = MutableStateFlow(initialListType)
+		field = MutableStateFlow(
+			initialListType
+				?: runCatching {
+					Json.decodeFromString<DomainSongListType>(preferenceManager.songSorting)
+				}.getOrNull()
+				?: DomainSongListType.FrequentlyPlayed
+		)
 
 	val selectedReversed: StateFlow<Boolean>
-		field = MutableStateFlow(false)
+		field = MutableStateFlow(remembersSorting && preferenceManager.songSortReversed)
 
 	val selectedFilters: StateFlow<Set<DomainFilter>>
 		field = MutableStateFlow(
@@ -130,11 +140,13 @@ class SongListViewModel(
 
 	fun setSorting(sorting: DomainSongListType) {
 		selectedSorting.value = sorting
+		if (remembersSorting) preferenceManager.songSorting = Json.encodeToString(sorting)
 		refreshSongs(false)
 	}
 
 	fun setReversed(reversed: Boolean) {
 		selectedReversed.value = reversed
+		if (remembersSorting) preferenceManager.songSortReversed = reversed
 		refreshSongs(false)
 	}
 

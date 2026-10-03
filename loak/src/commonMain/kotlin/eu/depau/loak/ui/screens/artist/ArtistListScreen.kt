@@ -56,7 +56,7 @@ import eu.depau.loak.ui.viewmodel.RootViewModel
 @Composable
 fun ArtistListScreen(
 	nested: Boolean = false,
-	listType: DomainArtistListType
+	listType: DomainArtistListType?
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val selectedViewMode = preferenceManager.artistListViewMode

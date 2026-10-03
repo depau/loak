@@ -35,10 +35,10 @@ class PlaylistListViewModel(
 		field = MutableStateFlow(null)
 
 	val selectedSorting: StateFlow<DomainPlaylistListType>
-		field = MutableStateFlow(DomainPlaylistListType.DateAdded)
+		field = MutableStateFlow(preferenceManager.playlistSorting)
 
 	val selectedReversed: StateFlow<Boolean>
-		field = MutableStateFlow(false)
+		field = MutableStateFlow(preferenceManager.playlistSortReversed)
 
 	val selectedFilters: StateFlow<Set<DomainFilter>>
 		field = MutableStateFlow(preferenceManager.playlistFilters.toDomainFilters())
@@ -84,11 +84,13 @@ class PlaylistListViewModel(
 
 	fun setSorting(sorting: DomainPlaylistListType) {
 		selectedSorting.value = sorting
+		preferenceManager.playlistSorting = sorting
 		refreshPlaylists(false)
 	}
 
 	fun setReversed(reversed: Boolean) {
 		selectedReversed.value = reversed
+		preferenceManager.playlistSortReversed = reversed
 		refreshPlaylists(false)
 	}
 

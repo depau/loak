@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
@@ -23,13 +24,16 @@ import eu.depau.loak.domain.repositories.AlbumRepository
 import eu.depau.loak.ui.core.UiState
 
 class AlbumListViewModel(
-	initialListType: DomainAlbumListType = DomainAlbumListType.AlphabeticalByName,
+	/** Null: the library's albums list, which starts from (and remembers) the last chosen sort. */
+	initialListType: DomainAlbumListType? = null,
 	initialFilters: Set<DomainFilter>? = null,
 	private val repository: AlbumRepository,
 	private val sessionManager: SessionManager,
 	private val preferenceManager: PreferenceManager,
 	syncManager: SyncManager
 ) : ViewModel() {
+	private val remembersSorting = initialListType == null
+
 	val albumsState: StateFlow<UiState<ImmutableList<DomainAlbum>>>
 		field = MutableStateFlow<UiState<ImmutableList<DomainAlbum>>>(UiState.Loading())
 
@@ -43,10 +47,16 @@ class AlbumListViewModel(
 		field = MutableStateFlow(0)
 
 	val listType: StateFlow<DomainAlbumListType>
-		field = MutableStateFlow(initialListType)
+		field = MutableStateFlow(
+			initialListType
+				?: runCatching {
+					Json.decodeFromString<DomainAlbumListType>(preferenceManager.albumSorting)
+				}.getOrNull()
+				?: DomainAlbumListType.AlphabeticalByName
+		)
 
 	val selectedReversed: StateFlow<Boolean>
-		field = MutableStateFlow(false)
+		field = MutableStateFlow(remembersSorting && preferenceManager.albumSortReversed)
 
 	val selectedFilters: StateFlow<Set<DomainFilter>>
 		field = MutableStateFlow(
@@ -117,11 +127,13 @@ class AlbumListViewModel(
 
 	fun setListType(newListType: DomainAlbumListType) {
 		listType.value = newListType
+		if (remembersSorting) preferenceManager.albumSorting = Json.encodeToString(newListType)
 		refreshAlbums(false)
 	}
 
 	fun setReversed(reversed: Boolean) {
 		selectedReversed.value = reversed
+		if (remembersSorting) preferenceManager.albumSortReversed = reversed
 		refreshAlbums(false)
 	}
 

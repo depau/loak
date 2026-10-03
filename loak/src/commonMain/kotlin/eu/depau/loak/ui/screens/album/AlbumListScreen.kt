@@ -56,7 +56,7 @@ import kotlin.time.Duration
 @Composable
 fun AlbumListScreen(
 	nested: Boolean = false,
-	listType: DomainAlbumListType
+	listType: DomainAlbumListType?
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val selectedViewMode = preferenceManager.albumListViewMode

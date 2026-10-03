@@ -35,14 +35,16 @@ sealed interface Screen : NavKey {
 	@Serializable
 	data class ArtistList(
 		val nested: Boolean = false,
-		val listType: DomainArtistListType = DomainArtistListType.AlphabeticalByName
+		/** Null: the remembered sort. */
+		val listType: DomainArtistListType? = null
 	) : Screen
 
 	@Immutable
 	@Serializable
 	data class AlbumList(
 		val nested: Boolean = false,
-		val listType: DomainAlbumListType = DomainAlbumListType.AlphabeticalByName
+		/** Null: the remembered sort. */
+		val listType: DomainAlbumListType? = null
 	) : Screen
 
 	@Immutable
@@ -61,7 +63,8 @@ sealed interface Screen : NavKey {
 	@Serializable
 	data class SongList(
 		val nested: Boolean = false,
-		val listType: DomainSongListType = DomainSongListType.FrequentlyPlayed
+		/** Null: the remembered sort. */
+		val listType: DomainSongListType? = null
 	) : Screen
 
 	@Immutable

@@ -51,7 +51,7 @@ import kotlin.time.Duration
 @Composable
 fun SongListScreen(
 	nested: Boolean,
-	listType: DomainSongListType
+	listType: DomainSongListType?
 ) {
 	val viewModel = koinViewModel<SongListViewModel>(
 		key = listType.toString(),

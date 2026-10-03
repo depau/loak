@@ -27,7 +27,8 @@ import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.core.inBackground
 
 class ArtistListViewModel(
-	initialListType: DomainArtistListType = DomainArtistListType.AlphabeticalByName,
+	/** Null: the library's artists list, which starts from (and remembers) the last chosen sort. */
+	initialListType: DomainArtistListType? = null,
 	initialFilters: Set<DomainFilter>? = null,
 	private val repository: ArtistRepository,
 	private val albumDao: AlbumDao,
@@ -35,6 +36,7 @@ class ArtistListViewModel(
 	private val preferenceManager: PreferenceManager,
 	connectivityManager: ConnectivityManager
 ) : ViewModel() {
+	private val remembersSorting = initialListType == null
 	private val isOnline = connectivityManager.isOnline
 
 	val artistsState: StateFlow<UiState<ImmutableList<DomainArtist>>>
@@ -50,7 +52,7 @@ class ArtistListViewModel(
 		field = MutableStateFlow(null)
 
 	val listType: StateFlow<DomainArtistListType>
-		field = MutableStateFlow(initialListType)
+		field = MutableStateFlow(initialListType ?: preferenceManager.artistSorting)
 
 	val selectedFilters: StateFlow<Set<DomainFilter>>
 		field = MutableStateFlow(
@@ -132,6 +134,7 @@ class ArtistListViewModel(
 
 	fun setListType(newListType: DomainArtistListType) {
 		listType.value = newListType
+		if (remembersSorting) preferenceManager.artistSorting = newListType
 		refreshArtists(false)
 	}
 
