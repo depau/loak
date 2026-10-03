@@ -24,12 +24,12 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
 import eu.depau.loak.domain.models.settings.MiniPlayerStyle
-import eu.depau.loak.ui.util.easedVerticalGradient
 
 @Composable
 fun RootBottomBar(
@@ -68,7 +68,10 @@ fun RootBottomBar(
 		}.then(
 			if (preferenceManager.miniPlayerStyle == MiniPlayerStyle.Detached)
 				Modifier.background(
-					Brush.easedVerticalGradient(color = MaterialTheme.colorScheme.surface.copy(alpha = shadowFadeProgress))
+					Brush.verticalGradient(
+						0f to Color.Transparent,
+						1f to MaterialTheme.colorScheme.surface.copy(alpha = shadowFadeProgress)
+					)
 				)
 			else Modifier
 		)
