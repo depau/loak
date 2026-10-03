@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import eu.depau.loak.di.LocalPlatformContext
@@ -36,7 +37,9 @@ fun SheetToolbar(
 	windowInsets: WindowInsets,
 	title: @Composable () -> Unit = {},
 	navigationIcon: @Composable () -> Unit,
-	actions: @Composable () -> Unit = {}
+	actions: @Composable () -> Unit = {},
+	/** Overrides the default: none on wide windows, 24 dp on compact ones. */
+	verticalPadding: Dp? = null
 ) {
 	val platformContext = LocalPlatformContext.current
 	val isLandscape = platformContext.sizeClass.widthSizeClass > WindowWidthSizeClass.Compact
@@ -45,7 +48,7 @@ fun SheetToolbar(
 			.fillMaxWidth()
 			.padding(
 				horizontal = 16.dp,
-				vertical = if (isLandscape) 0.dp else 24.dp
+				vertical = verticalPadding ?: if (isLandscape) 0.dp else 24.dp
 			)
 			.windowInsetsPadding(windowInsets),
 		horizontalArrangement = Arrangement.SpaceBetween,
