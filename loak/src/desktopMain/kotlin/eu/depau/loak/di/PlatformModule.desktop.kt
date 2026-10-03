@@ -13,6 +13,7 @@ import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.LinkManager
 import eu.depau.loak.domain.manager.LogManager
+import eu.depau.loak.domain.manager.MediaControlManager
 import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.domain.manager.ShareManager
 import eu.depau.loak.domain.manager.StorageManager
@@ -76,11 +77,13 @@ actual val platformModule = module {
 			queueSyncManager = get(),
 			syncManager = get(),
 			sessionManager = get(),
+			mediaControlManager = get(),
 			snackBarManager = get()
 		)
 	}
 
 	single<CoilPlatformContext> { CoilPlatformContext.INSTANCE }
+	singleOf(::MediaControlManager)
 	singleOf(::ShareManager)
 	singleOf(::StorageManager)
 	singleOf(::ConnectivityManager)

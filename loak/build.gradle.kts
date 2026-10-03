@@ -217,6 +217,7 @@ kotlin {
 				implementation(libs.kmpalette.core)
 				implementation(libs.mp3spi)
 				implementation(libs.nucleus.updater.runtime)
+				implementation(libs.nucleus.media.control)
 			}
 		}
 	}

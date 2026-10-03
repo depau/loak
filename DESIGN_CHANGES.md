@@ -96,6 +96,56 @@ that the app still has to catch up with. Items marked **[done]** are implemented
 - Not doing: marking every playlist in the sheet that contains the song (likely
   expensive).
 
+### AudioMuse-AI and smart playlists (proposal, not done)
+
+- **AudioMuse-AI awareness** (setting, on by default, in Server › Server features).
+  Name patterns: `_automatic` with an optional ` (n)` chunk number (regex
+  `_automatic(\s*\(\d+\))?$`; deleted and recreated on every clustering run),
+  `… by AudioMuse-AI` (scheduled: Sonic Fingerprint, Album of the Week; emptied
+  and refilled in place) and `_instant` (made on request, never touched again).
+  The suffix is hidden everywhere: lists, Home, speed dial, search, sheets,
+  snackbars, the startup playlist picker.
+- **Badges** go before the song count:
+  - **AI**, filled, with a sparkle: playlists AudioMuse-AI rebuilds.
+  - **AI**, outlined: `_instant` playlists.
+  - **Smart**, with a soundwave: Navidrome smart playlists.
+
+  Speed dial tiles get a round corner badge, top right; the pin stays top left.
+- **Sonic Fingerprint and Album of the Week** get gradient covers with their name
+  on them (like YT Music's My Supermix), and come first on Home's Made for you
+  shelf (overline "From AudioMuse-AI").
+- **Alchemy radios** (scheduled from Song Alchemy, refilled in place) carry the
+  filled AI badge, the subtitle "Radio · N songs", and sit after those two on
+  Made for you. Their names have no marker (AudioMuse-AI uses the anchor name), so
+  they are only spotted when an **AudioMuse-AI server** is set (optional; Server ›
+  Server features; URL + optional API token). Lo'ak reads `GET /api/radios`
+  (Bearer `API_TOKEN`) and matches enabled radios by exact name.
+- **Badge explanation**: tapping a badge on the playlist page opens a rich tooltip
+  (title, one-line why, actions: Keep a copy / Edit rules / Got it). Copy per badge
+  is on the Details page note. Board: Playlist — badge info.
+- **Soft read-only** (rebuilt playlists only): a notice on the detail page and a
+  warning in Edit playlist, both with **Keep a copy** (a regular playlist with the
+  clean name). They go into a bottom section of Save to playlist with "songs you
+  add here may disappear"; `_instant` ones stay in the main list. Edit keeps the
+  suffix when saving.
+- **Smart playlists**: detected by the Subsonic `validUntil` field (works on any
+  server that sets it). They are read-only: no remove, never offered as a save
+  target. The detail page shows a rules summary card and "updated N min ago".
+- **Smart playlist editor** (Navidrome 0.62+ only, through `/api/playlist` with a
+  JWT from `/auth/login` using the stored password): match all/any, rule cards,
+  nested groups, sort/order/limit, public. The create button turns into a menu
+  (Playlist / Smart playlist). A field picker has common fields plus "Other tag…".
+  Playlists imported from `.nsp` files are view-only (the next scan would
+  overwrite edits).
+- Boards: Home, Home (tablet, medium), Playlists, Playlist, Smart playlist,
+  New playlist menu, Playlist options, Edit playlist, Save to playlist (+ new),
+  Quick add, Already in playlist, Delete playlist, Remove from playlist, Create
+  playlist, Startup playlist, Search (tablet), Server, Smart playlist editor,
+  Rule field.
+- Fixes this would bring along: Home's Made for you shelf hands the stripped name
+  to Edit playlist, so saving it renames the playlist and drops the suffix. The
+  last-used quick-add path skips the `readOnly` check.
+
 ## Do it now, offer undo
 
 - **[done]** Destructive and list actions happen immediately with an "Undo" snackbar
@@ -142,7 +192,7 @@ that the app still has to catch up with. Items marked **[done]** are implemented
   artist, and the queue header shows "From Desktop · 2 min ago". Both go away
   once this device pushes the queue. A queue saved as `Lo'ak (X)` shows
   "From X"; any other client name is shown as is ("From Feishin"). Boards:
-  Library, queue picked up; Queue actions.
+  Queue actions (the Library, queue picked up board was dropped with the Library page).
 - **[done]** **Queue header controls** (phone queue, tablet queue pane, Up next tab of the
   tablet player): one ⋯ menu, no dedicated sync button. Items: server queue
   status, Send this queue to the server, Load the server queue (with undo);
@@ -345,5 +395,76 @@ Deferred / gaps (tracked here, not implemented):
   equaliser) are no-ops on desktop.
 - **Real network reachability** (`ConnectivityManager.isOnline` is always true
   on desktop); cellular is always false.
-- **Device-native media keys / NOW PLAYING integration** (MPRIS on Linux):
-  not implemented, so OS media keys don't control playback.
+- **[done]** **Device-native media keys / Now Playing integration** (MPRIS on Linux,
+  SMTC on Windows, Now Playing on macOS via Nucleus `MediaControlService`, plus web
+  `MediaSession` action handlers and in-app Compose media/space shortcuts).
+
+## Instant mix
+
+- **[done]** **Instant mix**: an "Instant mix" row in Song options (all
+  variants), Album options and Artist options, plus a Mix button on the Artist page.
+  It replaces the queue with up to 50 similar songs (undo snackbar) via
+  `getSimilarSongs(id)` for songs/albums, `getSimilarSongsID3(artistId)` for artists;
+  both already exist in subsonic-client. The app uses `getSimilarSongs` for all three
+  (OpenSubsonic says it takes artist ids too). The queue shows "Instant mix · <seed>" on
+  the line under the count, where "From Desktop" goes, while the queue holds only mix songs.
+  Empty result → "No similar songs found" snackbar, queue untouched.
+  Boards: Song options, Album options, Artist options, Song options (player), Artist,
+  Queue (instant mix), note on the Player page.
+- **[done]** **Auto-fill queue uses similar songs**: adds up to 10; same call with the current song,
+  falls back to a random song. Board: Playback.
+- **[done]** **Mix to here** (servers with the OpenSubsonic `sonicSimilarity` extension,
+  e.g. Navidrome + AudioMuse-AI): a Song options row that replaces the rest of the queue
+  with a path from the current song into the chosen one (`findSonicPath`, called by hand
+  because subsonic-client sends `stopSongId`), with undo. Board: Song options.
+- **[done]** **Tablet & desktop**: the options menu gets Instant mix (same composable as
+  the sheets); the queue pane shows the same label. Board: Options menu, note on the
+  Tablet & desktop page.
+- Not planned: similarity scores (`getSonicSimilarTracks`); nothing in the UI shows them.
+
+## Home (proposal)
+
+- **[done]** A **Home** tab replaces Library for now (nav: Home, Albums, Playlists,
+  Artists), modelled on YT Music Home / Home — Relax and limited to what OpenSubsonic
+  (Navidrome + AudioMuse-AI) can back. Boards: Home, Home — Electronic chip / Genre page
+  (Library page); the note beside them gives the data source for each shelf.
+- **Speed dial** (first, plain title): 3 pages of 3×3; page 1 ends with a dice tile (random song →
+  its radio). Playlists, albums and songs; lists show a caret and open, songs play their
+  radio. Pinned first, then most played playlists (local play log: the API has no playlist
+  play counts), frequent albums, top songs. Pins are kept on the device. A "Pin to speed
+  dial" row was added to Song, Album and Playlist options.
+- **Quick picks**: a 20-song snapshot (5 pages of 4); Play all plays exactly what's
+  shown, tapping a song plays its radio. Rebuilt after 30 min (never while on screen) or on
+  pull to refresh. About 10 recent listens + 6 sure likes + 4 similar-song discoveries. Skips
+  songs played more than 20 times in the last 5 days (local play log), and songs rated
+  1–2 stars.
+- **Genre chips**: top 10 by listening (frequent albums' play counts per genre), then an
+  "All genres" chip → Genres. A chip filters Home in place; a genre opened from Genres
+  pushes the same feed with its album grid at the end (one composable).
+- Other shelves: Mixed for you, Made for you (AudioMuse `_automatic` playlists), Sonic
+  journey (findSonicPath, `sonicSimilarity` only), Similar to <artist>, Recently added,
+  Forgotten favourites, Playing on your server (only while another user plays), Your library.
+- **Tablet & desktop**: same shelves. Expanded puts each Speed dial page in one row of 9
+  and shows two Quick picks columns side by side; Medium uses a 3×3 page with the next one
+  peeking in. Boards: Home, Home · medium (Tablet & desktop page).
+- Deferred: a YT Music-style **Library** tab returns later.
+- Implementation notes: the play log (song plays for 5 days, playlist/album starts) and
+  Speed dial pins are JSON in the settings, per device. Quick picks' "recent listening"
+  uses albums' last played date plus the play log, since songs carry no last played date
+  in subsonic-client. Playing on your server is a raw getNowPlaying call (subsonic-client
+  drops the songs).
+- **[done]** Mouse: a vertical wheel over Home's horizontal lists scrolls the page; the
+  lists show side arrows while hovered. The selected genre chip shows an X.
+- Not built yet: the full Speed dial page behind the chevron (reorder/unpin; the chevron
+  isn't shown), and on expanded windows Playing on your server / Your library stack
+  instead of sitting side by side.
+- Not feasible: podcasts/shows, videos, charts, trending, community, comments, recaps,
+  Long listens, AudioMuse text search and sonic fingerprint (AudioMuse REST, not Subsonic).
+- **[done]** **Instant mix buttons**: a small outlined Mix button (the instant-mix waves icon)
+  between Shuffle and Play on album and playlist pages, and next to Play all on Quick picks.
+  Small rather than large, since Play stays the main action and the artist page's large Mix
+  only exists because the artist page has no Shuffle. Albums seed by album id; playlists and
+  Quick picks mix the similar songs of 3 random songs (getSimilarSongs takes one id, never a
+  playlist). Shown only when the server finds similar songs: no API flag exists, so the app
+  probes a few random songs once per run. Boards: Album, Playlist, Smart playlist,
+  Already in playlist, LgAlbum, Home, HomeGenre, Home · tablet boards.

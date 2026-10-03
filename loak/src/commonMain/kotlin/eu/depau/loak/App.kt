@@ -260,18 +260,46 @@ fun App() {
 					Scaffold(
 						modifier = Modifier
 							.nestedScroll(scrollManager.connection)
-							// keyboards (desktop, web, tablets with one): space plays/pauses unless a
-							// text field or a focused button takes it first
+							// keyboards (desktop, web, tablets with one): space and the media keys
+							// control playback unless a text field or a focused button takes
+							// precedence. Media keys are consumed on key-down so a key held
+							// down doesn't repeat-toggle.
 							.focusRequester(rootFocus)
 							.focusTarget()
 							.onKeyEvent { event ->
-								if (event.type != KeyEventType.KeyUp || event.key != Key.Spacebar) {
-									return@onKeyEvent false
-								}
 								val player = mediaPlayer
 								if (player.uiState.value.currentSong == null) return@onKeyEvent false
-								if (player.uiState.value.isPaused) player.resume() else player.pause()
-								true
+								when (event.type) {
+									KeyEventType.KeyDown -> when (event.key) {
+										Key.Spacebar,
+										Key.MediaPlayPause -> {
+											if (player.uiState.value.isPaused) player.resume() else player.pause()
+											true
+										}
+										Key.MediaPlay -> {
+											player.resume()
+											true
+										}
+										Key.MediaPause -> {
+											player.pause()
+											true
+										}
+										Key.MediaStop -> {
+											player.pause()
+											true
+										}
+										Key.MediaNext -> {
+											player.next()
+											true
+										}
+										Key.MediaPrevious -> {
+											player.previous()
+											true
+										}
+										else -> false
+									}
+									else -> false
+								}
 							},
 						snackbarHost = {
 							// sit above the mini player and nav bar when a screen shows them

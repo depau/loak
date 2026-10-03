@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
+import eu.depau.loak.domain.manager.MediaControlManager
+import dev.nucleusframework.media.control.MediaControlEvent
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.ScrobbleManager
@@ -55,6 +57,7 @@ class DesktopMediaPlayerViewModel(
 	queueSyncManager: QueueSyncManager,
 	private val syncManager: SyncManager,
 	private val sessionManager: SessionManager,
+	private val mediaControlManager: MediaControlManager,
 	override val snackBarManager: SnackBarManager
 ) : MediaPlayerViewModel(
 	stateRepository = stateRepository,
@@ -80,8 +83,7 @@ class DesktopMediaPlayerViewModel(
 		preferenceManager = preferenceManager
 	)
 
-	override val volume: StateFlow<Float>
-		field = MutableStateFlow(preferenceManager.playerVolume)
+	override val volume = MutableStateFlow(preferenceManager.playerVolume)
 
 	init {
 		progressJob = viewModelScope.launch(Dispatchers.IO) {
@@ -95,12 +97,37 @@ class DesktopMediaPlayerViewModel(
 				}
 			}
 		}
+
+		// OS media controls (MPRIS / SMTC / Now Playing): media keys, shell widgets, headsets
+		mediaControlManager.start(uiState, volume, ::onMediaControlEvent)
+	}
+
+	private fun onMediaControlEvent(event: MediaControlEvent) {
+		val state = _uiState.value
+		val durationMs = state.currentSong?.duration?.inWholeMilliseconds ?: 0L
+		when (event) {
+			MediaControlEvent.Play -> if (state.currentSong != null) resume()
+			MediaControlEvent.Pause, MediaControlEvent.Stop -> pause()
+			MediaControlEvent.Toggle -> if (state.currentSong != null) togglePlay()
+			MediaControlEvent.Next -> next()
+			MediaControlEvent.Previous -> previous()
+			is MediaControlEvent.SeekBy -> if (durationMs > 0) {
+				seek(((state.progress * durationMs + event.offsetMs) / durationMs).coerceIn(0f, 1f))
+			}
+			is MediaControlEvent.SetPosition -> if (durationMs > 0) {
+				seek((event.positionMs.toFloat() / durationMs).coerceIn(0f, 1f))
+			}
+			is MediaControlEvent.SetVolume -> setVolume(event.volume.toFloat())
+			// the window and app lifecycle aren't the player's to raise or quit
+			MediaControlEvent.Raise, MediaControlEvent.Quit, is MediaControlEvent.OpenUri -> Unit
+		}
 	}
 
 	override fun onCleared() {
 		super.onCleared()
 		player.release()
 		progressJob?.cancel()
+		mediaControlManager.stop()
 	}
 
 	// --- stream URL ---
@@ -320,8 +347,10 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	override fun setVolume(value: Float) {
-		player.volume = value
-		preferenceManager.playerVolume = value
+		val v = value.coerceIn(0f, 1f)
+		volume.value = v
+		player.volume = v
+		preferenceManager.playerVolume = v
 	}
 
 	override fun syncPlayerWithState(state: PlayerUiState) {

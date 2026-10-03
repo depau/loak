@@ -84,6 +84,7 @@ class WebMediaPlayerViewModel(
 	init {
 		audio.volume = volume.value.toDouble()
 		setupAudioListeners()
+		setupMediaSession()
 		startProgressObserver()
 	}
 
@@ -103,14 +104,32 @@ class WebMediaPlayerViewModel(
 		})
 		audio.addEventListener("play", onEvent {
 			_uiState.update { it.copy(isPaused = false) }
+			BrowserMediaSession.setPlaybackState(true)
 		})
 		audio.addEventListener("pause", onEvent {
 			_uiState.update { it.copy(isPaused = true) }
+			BrowserMediaSession.setPlaybackState(false)
 		})
 		audio.addEventListener("error", onEvent {
 			Logger.e("WebMediaPlayer", "Audio element error: ${audio.currentSrc}")
 			_uiState.update { it.copy(isLoading = false) }
 		})
+	}
+	private fun setupMediaSession() {
+		if (!BrowserMediaSession.isSupported()) return
+		BrowserMediaSession.setActionHandlers(
+			onPlay = { if (_uiState.value.currentSong != null) resume() },
+			onPause = ::pause,
+			onStop = ::pause,
+			onNext = ::next,
+			onPrevious = ::previous,
+			onSeekTo = { seconds ->
+				val duration = audio.duration
+				if (duration.isFinite() && duration > 0) {
+					seek((seconds / duration).toFloat().coerceIn(0f, 1f))
+				}
+			}
+		)
 	}
 
 	private fun startProgressObserver() {
@@ -387,5 +406,6 @@ class WebMediaPlayerViewModel(
 	override fun onCleared() {
 		audio.pause()
 		stopAudio()
+		BrowserMediaSession.clear()
 	}
 }
