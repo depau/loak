@@ -2,6 +2,13 @@
 
 This file gives an agent (or any new contributor) everything needed to navigate and work on **Lo'ak** without a human walking you through it.
 
+## Agent workflow
+
+- Always load the ponytail skill in ultra mode.
+- For work spanning multiple conceptual changes, propose milestones with one conceptual change each. Once the user approves the plan, complete all approved milestones without stopping for confirmation between them.
+- When the user authorizes commits, commit each conceptual change separately without asking again. Credit Codex with `Co-authored-by: Codex <noreply@openai.com>` in each commit it contributes to.
+- Ask before creating branches. Never push unless explicitly authorized.
+
 ## What is this project?
 
 Lo'ak is a **fork of Navic** — a modern **(Open)Subsonic music streaming app for Android and iOS**: streaming, offline downloads/scrobbling, radio stations, lyrics (multiple providers + word-by-word), equaliser/ReplayGain/transcoding, home-screen widgets, sharing, and Android Auto support. The original upstream project was renamed to Lo'ak for this fork; upstream contribution policies (e.g. the old "no LLM-assisted contributions" rule) do **not** apply here.
