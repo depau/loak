@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
@@ -262,20 +263,22 @@ fun HomeFeed(
 			item(key = "quick picks header", span = full) {
 				val title = stringResource(Res.string.title_quick_picks)
 				ShelfHeader(title) {
-					if (canMix) {
-						OutlinedButton(
-							onClick = { player.playInstantMix(state.quickPicks, title) },
-							contentPadding = PaddingValues(0.dp),
-							modifier = Modifier.size(width = 40.dp, height = 32.dp)
-						) {
-							Icon(
-								Icons.Outlined.InstantMix,
-								stringResource(Res.string.action_instant_mix),
-								Modifier.size(18.dp)
-							)
+					Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+						if (canMix) {
+							OutlinedButton(
+								onClick = { player.playInstantMix(state.quickPicks, title) },
+								contentPadding = PaddingValues(0.dp),
+								modifier = Modifier.size(width = 40.dp, height = 32.dp)
+							) {
+								Icon(
+									Icons.Outlined.InstantMix,
+									stringResource(Res.string.action_instant_mix),
+									Modifier.size(18.dp)
+								)
+							}
 						}
+						SmallOutlinedButton(stringResource(Res.string.action_play_all)) { viewModel.playQuickPicks() }
 					}
-					SmallOutlinedButton(stringResource(Res.string.action_play_all)) { viewModel.playQuickPicks() }
 				}
 			}
 			item(key = "quick picks", span = full) {
