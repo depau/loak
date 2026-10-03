@@ -66,8 +66,15 @@ import eu.depau.loak.ui.theme.defaultFont
 
 @Composable
 fun SettingsScreen() {
+	// a detail screen on top: this list is its pane's left neighbour (or off screen)
+	val besideDetail = LocalNavStack.current.lastOrNull() !is Screen.Settings.Root
 	Scaffold(
-		topBar = { NestedTopBar({ Text(stringResource(Res.string.title_settings)) }) }
+		topBar = {
+			NestedTopBar(
+				{ Text(stringResource(Res.string.title_settings)) },
+				trailing = !besideDetail
+			)
+		}
 	) { innerPadding ->
 		Column(
 			modifier = Modifier

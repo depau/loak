@@ -63,7 +63,9 @@ fun NestedTopBar(
 	title: @Composable () -> Unit,
 	actions: @Composable RowScope.() -> Unit = {},
 	navigationAction: @Composable () -> Unit = NestedTopBarDefaults::NavigationAction,
-	colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors()
+	colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
+	/** False for a pane with another pane to its right (list-detail), which owns the bar's end. */
+	trailing: Boolean = true
 ) {
 	TopAppBar(
 		modifier = Modifier.windowDragArea(),
@@ -76,11 +78,12 @@ fun NestedTopBar(
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				actions()
-				QueuePaneToggle()
+				if (trailing) QueuePaneToggle()
 			}
 		},
 		navigationIcon = navigationAction,
-		windowInsets = TopAppBarDefaults.windowInsets.add(windowControlsInsets()),
+		windowInsets = if (trailing) TopAppBarDefaults.windowInsets.add(windowControlsInsets())
+			else TopAppBarDefaults.windowInsets,
 	)
 }
 
