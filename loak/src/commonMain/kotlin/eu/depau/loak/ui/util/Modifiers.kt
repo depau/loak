@@ -20,6 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToDown
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.draw.drawBehind
@@ -137,7 +141,7 @@ fun LazyStaggeredGridItemScope.loakAnimateItem(
  */
 fun Modifier.longPressOverChildren(onLongClick: () -> Unit): Modifier = pointerInput(onLongClick) {
 	awaitEachGesture {
-		val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+		val down = awaitAnyDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
 		// a right click opens the same menu at once
 		if (currentEvent.buttons.isSecondaryPressed) {
 			down.consume()
@@ -176,6 +180,24 @@ fun Modifier.longPressOverChildren(onLongClick: () -> Unit): Modifier = pointerI
 		} while (event.changes.any { it.pressed })
 	}
 }
+/**
+ * Reads events until the first down of any pointer button is received.
+ * Unlike [androidx.compose.foundation.gestures.awaitFirstDown], this does not ignore
+ * non-primary mouse buttons on desktop.
+ */
+private suspend fun AwaitPointerEventScope.awaitAnyDown(
+	requireUnconsumed: Boolean = false,
+	pass: PointerEventPass = PointerEventPass.Initial
+): PointerInputChange {
+	while (true) {
+		val event = awaitPointerEvent(pass)
+		val change = event.changes.firstOrNull {
+			if (requireUnconsumed) it.changedToDown() else it.changedToDownIgnoreConsumed()
+		}
+		if (change != null) return change
+	}
+}
+
 
 /**
  * Mouse right click, for the items whose long press opens their options: on desktop and web
@@ -184,7 +206,7 @@ fun Modifier.longPressOverChildren(onLongClick: () -> Unit): Modifier = pointerI
 fun Modifier.onSecondaryClick(onClick: (() -> Unit)?): Modifier =
 	if (onClick == null) this else pointerInput(onClick) {
 		awaitEachGesture {
-			val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+			val down = awaitAnyDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
 			if (currentEvent.buttons.isSecondaryPressed) {
 				down.consume()
 				var cancelled = false

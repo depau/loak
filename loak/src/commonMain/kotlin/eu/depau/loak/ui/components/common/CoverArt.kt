@@ -102,6 +102,12 @@ fun CoverArt(
 					onLongClick = onLongClick,
 					interactionSource = interactionSource
 				)
+			else if (onLongClick != null)
+				Modifier.onSecondaryClick(onLongClick).combinedClickable(
+					onClick = {},
+					onLongClick = onLongClick,
+					interactionSource = interactionSource
+				)
 			else Modifier
 		)
 		.then(
