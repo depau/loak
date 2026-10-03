@@ -24,6 +24,18 @@ import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.isLandscape
+import eu.depau.loak.di.isExpanded
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import eu.depau.loak.generated.resources.action_search_library
 import eu.depau.loak.domain.models.settings.NavbarConfig
 import eu.depau.loak.domain.models.settings.NavbarTab
 import eu.depau.loak.icons.Icons
@@ -120,7 +132,29 @@ private fun Actions(
 
 	var accountSheetOpen by rememberSaveable { mutableStateOf(false) }
 
-	if (!isSearchEnabled) {
+	// wide windows: a search field look-alike in every tab's bar, opening the search page
+	if (LocalPlatformContext.current.isExpanded()) {
+		Surface(
+			onClick = dropUnlessResumed { backStack.add(Screen.Search(nested = true)) },
+			modifier = Modifier.padding(end = 4.dp).width(360.dp).height(48.dp),
+			shape = CircleShape,
+			color = MaterialTheme.colorScheme.surfaceContainerHigh,
+			contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+		) {
+			Row(
+				modifier = Modifier.padding(horizontal = 16.dp),
+				verticalAlignment = Alignment.CenterVertically,
+				horizontalArrangement = Arrangement.spacedBy(12.dp)
+			) {
+				Icon(Icons.Outlined.Search, contentDescription = null)
+				Text(
+					stringResource(Res.string.action_search_library),
+					style = MaterialTheme.typography.bodyLarge,
+					maxLines = 1
+				)
+			}
+		}
+	} else if (!isSearchEnabled) {
 		TooltipBox(stringResource(Res.string.title_search)) {
 			IconButton(
 				onClick = dropUnlessResumed {

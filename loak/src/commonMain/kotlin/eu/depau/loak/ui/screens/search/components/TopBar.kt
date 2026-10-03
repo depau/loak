@@ -1,6 +1,16 @@
 package eu.depau.loak.ui.screens.search.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.CircleShape
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isExpanded
+import eu.depau.loak.generated.resources.action_search_library
+import eu.depau.loak.icons.outlined.Search
+import eu.depau.loak.ui.screens.queue.QueuePaneToggle
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -52,7 +62,10 @@ fun SearchScreenTopBar(
 		focusRequester.requestFocus()
 	}
 
+	// wide windows: the field is a filled pill, at most 720 dp wide
+	val expanded = LocalPlatformContext.current.isExpanded()
 	Row(
+		modifier = if (expanded) Modifier.height(72.dp).padding(end = 16.dp) else Modifier,
 		verticalAlignment = Alignment.CenterVertically
 	) {
 		if (nested) {
@@ -77,9 +90,19 @@ fun SearchScreenTopBar(
 		BasicTextField(
 			state = query,
 			modifier = Modifier
-				.weight(1f)
-				.height(72.dp)
-				.padding(start = if (nested) 0.dp else 18.dp)
+				.weight(1f, fill = !expanded)
+				.then(
+					if (expanded) Modifier
+						.padding(start = if (nested) 0.dp else 16.dp)
+						.widthIn(max = 720.dp)
+						.fillMaxWidth()
+						.height(56.dp)
+						.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+						.padding(start = 20.dp, end = 8.dp)
+					else Modifier
+						.height(72.dp)
+						.padding(start = if (nested) 0.dp else 18.dp)
+				)
 				.focusRequester(focusRequester),
 			lineLimits = TextFieldLineLimits.SingleLine,
 			keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -95,34 +118,46 @@ fun SearchScreenTopBar(
 			),
 			cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
 			decorator = { innerTextField ->
-				Box(contentAlignment = Alignment.CenterStart) {
-					if (query.text.isEmpty()) {
-						Text(
-							text = stringResource(Res.string.title_search),
-							color = MaterialTheme.colorScheme.onSurfaceVariant
-						)
+				Row(
+					verticalAlignment = Alignment.CenterVertically,
+					horizontalArrangement = Arrangement.spacedBy(12.dp)
+				) {
+					if (expanded) Icon(
+						Icons.Outlined.Search,
+						contentDescription = null,
+						tint = MaterialTheme.colorScheme.onSurfaceVariant
+					)
+					Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+						if (query.text.isEmpty()) {
+							Text(
+								text = stringResource(
+									if (expanded) Res.string.action_search_library else Res.string.title_search
+								),
+								color = MaterialTheme.colorScheme.onSurfaceVariant
+							)
+						}
+						innerTextField()
 					}
-					innerTextField()
+					if (expanded && query.text.isNotEmpty()) ClearButton(query)
 				}
 			}
 		)
-		Box(
+		if (expanded) QueuePaneToggle()
+		if (!expanded) Box(
 			modifier = Modifier.size(56.dp),
 			contentAlignment = Alignment.Center
 		) {
-			if (query.text.isNotEmpty()) {
-				IconButton(
-					modifier = Modifier.padding(horizontal = 8.dp),
-					onClick = {
-						query.clearText()
-					}
-				) {
-					Icon(
-						Icons.Outlined.Close,
-						contentDescription = stringResource(Res.string.action_clear_search)
-					)
-				}
-			}
+			if (query.text.isNotEmpty()) ClearButton(query, Modifier.padding(horizontal = 8.dp))
 		}
+	}
+}
+
+@Composable
+private fun ClearButton(query: TextFieldState, modifier: Modifier = Modifier) {
+	IconButton(modifier = modifier, onClick = { query.clearText() }) {
+		Icon(
+			Icons.Outlined.Close,
+			contentDescription = stringResource(Res.string.action_clear_search)
+		)
 	}
 }
