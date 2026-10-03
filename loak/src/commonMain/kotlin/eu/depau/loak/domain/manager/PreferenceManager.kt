@@ -109,6 +109,9 @@ class PreferenceManager(
 	/** Smart playlist tools (create, edit, rules) on servers that support them. */
 	var smartPlaylistsEnabled by preference(true)
 
+	/** The integrations list the user last saw on the setup wizard's last page. */
+	var integrationsSeen by preference(0)
+
 	// AudioMuse-AI's own API; an empty address means not connected
 	var audioMuseUrl by preference("")
 	var audioMuseUsername by preference("")

@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.login
 
+import eu.depau.loak.domain.manager.PreferenceManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,9 @@ import eu.depau.loak.ui.screens.settings.IntegrationsGroup
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
+/** Bump when an integration is added: users who saw an older list get the page again, once. */
+const val INTEGRATIONS_VERSION = 1
+
 /**
  * The setup wizard's last page, after the server: optional extras, like the end of a phone's
  * setup. Smart playlists are on when the server has them; AudioMuse-AI has a Set up button.
@@ -43,6 +47,7 @@ fun SetupIntegrationsScreen() {
 	val backStack = LocalNavStack.current
 	val sync by koinInject<SyncManager>().syncState.collectAsState()
 	val audioMuse by koinInject<AudioMuseManager>().info.collectAsState()
+	val preferenceManager = koinInject<PreferenceManager>()
 
 	Scaffold { innerPadding ->
 		Column(
@@ -69,8 +74,13 @@ fun SetupIntegrationsScreen() {
 			}
 			Row(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.End) {
 				Button(onClick = {
-					backStack.clear()
-					backStack.add(Screen.Home())
+					preferenceManager.integrationsSeen = INTEGRATIONS_VERSION
+					// shown over the app after an update: back to where it was
+					if (backStack.size > 1) backStack.removeLastOrNull()
+					else {
+						backStack.clear()
+						backStack.add(Screen.Home())
+					}
 				}) {
 					Text(stringResource(if (audioMuse != null) Res.string.action_start_listening else Res.string.action_done))
 				}

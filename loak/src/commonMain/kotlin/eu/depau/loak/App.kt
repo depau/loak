@@ -1,5 +1,6 @@
 package eu.depau.loak
 
+import eu.depau.loak.ui.screens.login.INTEGRATIONS_VERSION
 import eu.depau.loak.ui.screens.login.SetupIntegrationsScreen
 import eu.depau.loak.ui.screens.library.LibraryScreen
 import eu.depau.loak.ui.screens.library.DownloadsScreen
@@ -282,6 +283,12 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 	// fresh-login case on its own.
 	val permissionManager = koinInject<PermissionManager>()
 	var localNetworkDenied by rememberSaveable { mutableStateOf(false) }
+	// something new among the integrations since this user last looked: show the page once
+	LaunchedEffect(Unit) {
+		if (isLoggedIn && preferenceManager.integrationsSeen < INTEGRATIONS_VERSION) {
+			backStack.add(Screen.SetupIntegrations)
+		}
+	}
 	LaunchedEffect(Unit) {
 		if (platformContext.platformType != PlatformType.Android) return@LaunchedEffect
 		if (!isLoggedIn) return@LaunchedEffect
