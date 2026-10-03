@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.nowPlaying.components.controls
 
+import eu.depau.loak.ui.screens.nowPlaying.components.rows.LocalCompactTransport
+
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -114,6 +116,7 @@ fun NowPlayingMoreButton() {
 					expanded = false
 					sleepTimerSheetShown = true
 				},
+				showShuffleRepeat = LocalCompactTransport.current,
 				showPlaybackSpeed = true,
 				onPlaybackSpeed = {
 					expanded = false

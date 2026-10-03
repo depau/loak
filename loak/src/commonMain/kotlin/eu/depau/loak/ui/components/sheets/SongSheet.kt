@@ -98,6 +98,15 @@ import eu.depau.loak.icons.outlined.Queue
 import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.icons.outlined.Speed
+import eu.depau.loak.icons.outlined.Shuffle
+import eu.depau.loak.icons.outlined.Repeat
+import eu.depau.loak.icons.filled.ShuffleOn
+import eu.depau.loak.icons.filled.RepeatOn
+import eu.depau.loak.icons.filled.RepeatOneOn
+import eu.depau.loak.generated.resources.action_shuffle
+import eu.depau.loak.generated.resources.info_repeat_off
+import eu.depau.loak.generated.resources.info_repeat_one
+import eu.depau.loak.generated.resources.info_repeat_all
 import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.MarqueeText
@@ -137,6 +146,8 @@ fun SongSheet(
 	onSleepTimer: (() -> Unit)? = null,
 	showPlaybackSpeed: Boolean = false,
 	onPlaybackSpeed: (() -> Unit)? = null,
+	/** The player's transport row is too narrow for shuffle and repeat, so they show here. */
+	showShuffleRepeat: Boolean = false,
 	useSongTheme: Boolean = true
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
@@ -526,6 +537,57 @@ fun SongSheet(
 						onClick = {
 							onSleepTimer?.invoke()
 						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				if (showShuffleRepeat) {
+					val shuffle = playerState.isShuffleEnabled
+					ListItem(
+						content = {
+							Text(
+								stringResource(Res.string.action_shuffle),
+								color = if (shuffle) MaterialTheme.colorScheme.positive else Color.Unspecified
+							)
+						},
+						leadingContent = {
+							Icon(
+								if (shuffle) Icons.Filled.ShuffleOn else Icons.Outlined.Shuffle,
+								null,
+								tint = if (shuffle) MaterialTheme.colorScheme.positive else MaterialTheme.colorScheme.onSurfaceVariant
+							)
+						},
+						onClick = { player.toggleShuffle() },
+						colors = colors,
+						contentPadding = contentPadding
+					)
+					val repeat = playerState.repeatMode
+					ListItem(
+						content = {
+							Text(
+								stringResource(
+									when (repeat) {
+										1 -> Res.string.info_repeat_one
+										2 -> Res.string.info_repeat_all
+										else -> Res.string.info_repeat_off
+									}
+								),
+								color = if (repeat != 0) MaterialTheme.colorScheme.positive else Color.Unspecified
+							)
+						},
+						leadingContent = {
+							Icon(
+								when (repeat) {
+									1 -> Icons.Filled.RepeatOneOn
+									2 -> Icons.Filled.RepeatOn
+									else -> Icons.Outlined.Repeat
+								},
+								null,
+								tint = if (repeat != 0) MaterialTheme.colorScheme.positive else MaterialTheme.colorScheme.onSurfaceVariant
+							)
+						},
+						onClick = { player.toggleRepeat() },
 						colors = colors,
 						contentPadding = contentPadding
 					)

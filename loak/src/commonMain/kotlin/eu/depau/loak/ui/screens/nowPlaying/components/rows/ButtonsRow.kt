@@ -22,6 +22,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,8 +63,15 @@ import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.util.playPauseIconPainter
 
+/**
+ * The transport row is too narrow for five buttons with usable targets: shuffle and repeat
+ * move into the player's ⋮ sheet.
+ */
+val LocalCompactTransport = compositionLocalOf { false }
+
 @Composable
 fun NowPlayingButtonsRow() {
+	val compact = LocalCompactTransport.current
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsState()
 	val interactionSource = remember { MutableInteractionSource() }
@@ -109,7 +117,7 @@ fun NowPlayingButtonsRow() {
 		horizontalArrangement = Arrangement.spacedBy(16.dp),
 		verticalAlignment = Alignment.CenterVertically
 	) {
-		IconButton(
+		if (!compact) IconButton(
 			modifier = Modifier
 				.weight(1f)
 				.aspectRatio(1f)
@@ -202,7 +210,7 @@ fun NowPlayingButtonsRow() {
 				modifier = Modifier.size(32.dp)
 			)
 		}
-		IconButton(
+		if (!compact) IconButton(
 			modifier = Modifier
 				.weight(1f)
 				.aspectRatio(1f)

@@ -1,6 +1,7 @@
 package eu.depau.loak.ui.screens.nowPlaying.components
 
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -37,12 +38,11 @@ fun NowPlayingArtwork(
 
 	val isRadio = song.id.startsWith("radio_")
 
-	val padding by animateDpAsState(
-		targetValue = if (playerState.isPaused || playerState.currentSong?.id != song.id)
-			48.dp
-		else 16.dp
+	// proportional, so a thumbnail-sized cover keeps its art
+	val padding by animateFloatAsState(
+		targetValue = if (playerState.isPaused || playerState.currentSong?.id != song.id) .12f else .04f
 	)
-	Box(
+	BoxWithConstraints(
 		contentAlignment = Alignment.Center,
 		modifier = modifier
 	) {
@@ -51,7 +51,7 @@ fun NowPlayingArtwork(
 			modifier = Modifier
 				.aspectRatio(1f)
 				.then(if (isLandscape) Modifier.fillMaxHeight() else Modifier.fillMaxSize())
-				.padding(padding)
+				.padding(minOf(maxWidth, maxHeight) * padding)
 				// the open player's cover is where the mini player's one travels to
 				.then(if (playerState.currentSong?.id == song.id) Modifier.playerArt(LocalPlayerSheet.current) else Modifier),
 			shadowElevation = 8.dp,

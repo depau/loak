@@ -44,6 +44,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.runtime.CompositionLocalProvider
+import eu.depau.loak.ui.screens.nowPlaying.components.rows.LocalCompactTransport
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -103,7 +106,6 @@ fun NowPlayingScreen() {
 	BoxWithConstraints(Modifier.fillMaxSize()) {
 		val layout = playerPaneLayout(maxWidth, maxHeight)
 		val paneWidth = (maxWidth * .42f).coerceIn(300.dp, 520.dp)
-		val isLandscape = maxWidth > maxHeight
 		val chrome = LocalWindowChrome.current
 		playerSheet.sheetEnabled = layout == PlayerPaneLayout.Sheet
 		// the toolbar is the player's title bar: on top when it has a sheet below (and on
@@ -121,7 +123,8 @@ fun NowPlayingScreen() {
 									else Modifier
 								)
 								.then(if (chrome != null) Modifier.height(chrome.barHeight) else Modifier),
-							verticalPadding = if (chrome != null) 0.dp else null,
+							// slim: on top, every dp of it comes out of the cover
+							verticalPadding = if (chrome != null) 0.dp else 8.dp,
 							windowInsets = windowInsets,
 							title = { Text(stringResource(Res.string.title_now_playing)) },
 							navigationIcon = {
@@ -148,11 +151,12 @@ fun NowPlayingScreen() {
 							)
 						}
 						when (layout) {
-							PlayerPaneLayout.Beside -> NowPlayingBlock(
+							PlayerPaneLayout.Beside -> NowPlayingHero(
 								modifier = Modifier
 									.fillMaxSize()
 									.padding(contentPadding)
-									.padding(start = 24.dp, end = paneWidth + 40.dp, bottom = 16.dp),
+									.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+									.padding(end = paneWidth + 16.dp, bottom = 16.dp),
 								songIsStarred = songIsStarred,
 								onSetSongIsStarred = { viewModel.starSong(it) }
 							)
@@ -160,7 +164,6 @@ fun NowPlayingScreen() {
 							PlayerPaneLayout.Sheet -> PlayerWithSheet(
 								contentPadding = contentPadding,
 								song = song,
-								isLandscape = isLandscape,
 								songIsStarred = songIsStarred,
 								onSetSongIsStarred = { viewModel.starSong(it) }
 							)
@@ -201,46 +204,13 @@ private fun playerPaneLayout(width: Dp, height: Dp) = when {
 	else -> PlayerPaneLayout.Sheet
 }
 
-/** Cover above the song info and controls, as one centred block at most 520 dp wide. */
-@Composable
-private fun NowPlayingBlock(
-	modifier: Modifier,
-	songIsStarred: Boolean,
-	onSetSongIsStarred: (Boolean) -> Unit
-) {
-	// the toolbar may be at the bottom, leaving the status bar to keep clear of here
-	Box(
-		modifier.windowInsetsPadding(
-			WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
-		),
-		contentAlignment = Alignment.Center
-	) {
-		Column(
-			modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
-			horizontalAlignment = Alignment.CenterHorizontally,
-			verticalArrangement = Arrangement.Center
-		) {
-			NowPlayingArtworkPager(
-				// square, as large as the room left by the controls allows
-				modifier = Modifier.weight(1f, fill = false).aspectRatio(1f),
-				isLandscape = false
-			)
-			Spacer(Modifier.height(16.dp))
-			NowPlayingControlsRow(
-				isLandscape = false,
-				songIsStarred = songIsStarred,
-				onSetSongIsStarred = onSetSongIsStarred
-			)
-		}
-	}
-}
-
 /** Height of the peeking tabs and of the collapsed player's row over the raised sheet. */
 private val PeekHeight = 56.dp
+private val ShortPeekHeight = 40.dp
 private val HeaderHeight = 72.dp
 
 /** The smallest player that still works above a split: small cover, info and controls. */
-private val SplitPlayerHeight = 380.dp
+private val SplitPlayerHeight = 400.dp
 
 private fun seg(t: Float, a: Float, b: Float) = ((t - a) / (b - a)).coerceIn(0f, 1f)
 
@@ -253,7 +223,6 @@ private fun seg(t: Float, a: Float, b: Float) = ((t - a) / (b - a)).coerceIn(0f,
 private fun PlayerWithSheet(
 	contentPadding: PaddingValues,
 	song: DomainSong?,
-	isLandscape: Boolean,
 	songIsStarred: Boolean,
 	onSetSongIsStarred: (Boolean) -> Unit
 ) {
@@ -261,19 +230,22 @@ private fun PlayerWithSheet(
 	val density = LocalDensity.current
 	BoxWithConstraints(Modifier.fillMaxSize()) {
 		val h = constraints.maxHeight.toFloat()
+		// short screens: a slimmer peek leaves the controls room
+		val short = maxHeight < 480.dp
+		val peekHeight = if (short) ShortPeekHeight else PeekHeight
 		val (top, peek, header, splitMin) = with(density) {
 			listOf(
 				contentPadding.calculateTopPadding().toPx(),
-				PeekHeight.toPx() + WindowInsets.navigationBars.getBottom(this),
+				peekHeight.toPx() + WindowInsets.navigationBars.getBottom(this),
 				HeaderHeight.toPx(),
 				SplitPlayerHeight.toPx()
 			)
 		}
 		val peekTop = h - peek
 		val raisedTop = top + header
-		// a split only where the queue still gets about half the screen
+		// a split only where the queue still gets a good part of the screen
 		val splitTop = maxOf(top + splitMin, h * .5f)
-		sheet.splitAvailable = !isLandscape && peekTop - splitTop > h * .2f && h - splitTop >= h * .45f
+		sheet.splitAvailable = peekTop - splitTop > h * .2f && h - splitTop >= h * .4f
 		sheet.queueTravel = peekTop - raisedTop
 		val sheetTop = { q: Float ->
 			if (!sheet.splitAvailable) peekTop + (raisedTop - peekTop) * q
@@ -297,9 +269,8 @@ private fun PlayerWithSheet(
 					translationY = -seg(q, .5f, 1f) * 48.dp.toPx()
 				}
 		) {
-			NowPlayingCompact(
-				contentPadding = PaddingValues(vertical = 8.dp),
-				isLandscape = isLandscape,
+			NowPlayingHero(
+				modifier = Modifier.fillMaxSize().padding(vertical = if (short) 0.dp else 8.dp),
 				songIsStarred = songIsStarred,
 				onSetSongIsStarred = onSetSongIsStarred
 			)
@@ -328,7 +299,7 @@ private fun PlayerWithSheet(
 			color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .94f)
 		) {
 			Column {
-				Box(Modifier.fillMaxWidth().height(PeekHeight)) {
+				Box(Modifier.fillMaxWidth().height(peekHeight)) {
 					// grabber
 					Box(
 						Modifier
@@ -411,49 +382,88 @@ private fun CollapsedPlayerRow(song: DomainSong?, modifier: Modifier = Modifier)
 	}
 }
 
-/** Phones and small windows: cover and controls stacked, or side by side. */
+/**
+ * The cover and the controls, laid out for the room they get (which changes as the sheet
+ * rises): the cover above the controls when it can be at least [MinArt]; beside them in
+ * short, wide spaces; otherwise a thumbnail next to them. Short spaces drop the format line,
+ * and narrow ones move shuffle and repeat into the ⋮ sheet.
+ */
 @Composable
-private fun NowPlayingCompact(
-	contentPadding: PaddingValues,
-	isLandscape: Boolean,
+private fun NowPlayingHero(
+	modifier: Modifier,
 	songIsStarred: Boolean,
 	onSetSongIsStarred: (Boolean) -> Unit
 ) {
-	if (isLandscape) {
-		Row(
-			modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(contentPadding),
-			horizontalArrangement = Arrangement.SpaceEvenly,
-			verticalAlignment = Alignment.CenterVertically
-		) {
-			NowPlayingArtworkPager(
-				modifier = Modifier.weight(1f).fillMaxHeight(),
-				isLandscape = true
-			)
-			NowPlayingControlsRow(
-				modifier = Modifier.weight(1f).fillMaxHeight(),
-				isLandscape = true,
-				songIsStarred = songIsStarred,
-				onSetSongIsStarred = onSetSongIsStarred
-			)
+	SubcomposeLayout(modifier) { cs ->
+		val w = cs.maxWidth
+		val h = cs.maxHeight
+		val pad = (if (w < 360.dp.roundToPx()) 12.dp else if (w < 600.dp.roundToPx()) 20.dp else 24.dp).roundToPx()
+		val gap = 16.dp.roundToPx()
+		val minArt = MinArt.roundToPx()
+		fun controls(slot: String, width: Int, techInfo: Boolean) = subcompose(slot) {
+			CompositionLocalProvider(LocalCompactTransport provides (width < 300.dp.roundToPx())) {
+				NowPlayingControlsRow(
+					isLandscape = false,
+					songIsStarred = songIsStarred,
+					onSetSongIsStarred = onSetSongIsStarred,
+					showTechInfo = techInfo
+				)
+			}
+		}.first().measure(Constraints(maxWidth = width.coerceAtLeast(0)))
+		fun art(size: Int) = subcompose("art") {
+			NowPlayingArtworkPager(isLandscape = true)
+		}.first().measure(Constraints.fixed(size, size))
+
+		// 1. cover above, the big play button's row allowing; drop the format line if that helps
+		val cw = minOf(w - 2 * pad, 560.dp.roundToPx())
+		val artCap = (h * .55f).toInt().coerceIn(560.dp.roundToPx(), 720.dp.roundToPx())
+		for (tech in listOf(true, false)) {
+			val c = controls(if (tech) "v" else "v-short", cw, tech)
+			val a = minOf(w - 2 * pad, h - c.height - gap - 2 * pad, artCap)
+			if (a >= minArt) {
+				val art = art(a)
+				val y0 = ((h - (a + gap + c.height)) / 2).coerceAtLeast(0)
+				return@SubcomposeLayout layout(w, h) {
+					art.place((w - a) / 2, y0)
+					c.place((w - cw) / 2, y0 + a + gap)
+				}
+			}
 		}
-	} else {
-		Column(
-			modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(contentPadding),
-			horizontalAlignment = Alignment.CenterHorizontally,
-			verticalArrangement = Arrangement.Center
-		) {
-			NowPlayingArtworkPager(
-				modifier = Modifier.weight(1f).fillMaxWidth(),
-				isLandscape = false
-			)
-			NowPlayingControlsRow(
-				isLandscape = false,
-				songIsStarred = songIsStarred,
-				onSetSongIsStarred = onSetSongIsStarred
-			)
+		// 2. cover beside: short windows, landscape phones
+		if (w >= 440.dp.roundToPx()) {
+			val a = minOf(h - 2 * pad, ((w - 3 * pad) * .4f).toInt(), 440.dp.roundToPx())
+			val rw = w - a - 3 * pad
+			if (rw >= 200.dp.roundToPx() && a >= 96.dp.roundToPx()) {
+				var c = controls("h", rw, true)
+				if (c.height > h - 2 * pad) c = controls("h-short", rw, false)
+				val art = art(a)
+				return@SubcomposeLayout layout(w, h) {
+					art.place(pad, (h - a) / 2)
+					c.place(2 * pad + a, ((h - c.height) / 2).coerceAtLeast(0))
+				}
+			}
 		}
+		// 3. micro: a thumbnail beside the title, the seek bar and buttons under them
+		val micro = subcompose("m") {
+			CompositionLocalProvider(LocalCompactTransport provides (w - 2 * pad < 300.dp.roundToPx())) {
+				NowPlayingControlsRow(
+					isLandscape = false,
+					songIsStarred = songIsStarred,
+					onSetSongIsStarred = onSetSongIsStarred,
+					showTechInfo = false,
+					thumbnail = {
+						NowPlayingArtworkPager(Modifier.size(56.dp), isLandscape = true)
+						Spacer(Modifier.width(12.dp))
+					}
+				)
+			}
+		}.first().measure(Constraints(maxWidth = (w - 2 * pad).coerceAtLeast(0)))
+		layout(w, h) { micro.place(pad, ((h - micro.height) / 2).coerceAtLeast(0)) }
 	}
 }
+
+/** The smallest cover worth showing above the controls; below it, a thumbnail beside them. */
+private val MinArt = 128.dp
 
 @Composable
 private fun NowPlayingSidePane(

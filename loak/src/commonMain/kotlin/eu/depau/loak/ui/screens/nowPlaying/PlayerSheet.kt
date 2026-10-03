@@ -290,7 +290,8 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 	private companion object {
 		/** How far toward the pill a full back swipe pulls the player before letting go. */
 		const val BackScrub = .42f
-		const val FlingVelocity = 1200f
+		/** px/s: about Material's 125 dp/s fling threshold on common densities. */
+		const val FlingVelocity = 400f
 	}
 }
 
