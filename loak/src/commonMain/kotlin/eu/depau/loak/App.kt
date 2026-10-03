@@ -27,6 +27,7 @@ import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.runtime.DisposableEffect
 import androidx.navigationevent.DirectNavigationEventInput
 import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
+import androidx.navigationevent.compose.rememberNavigationEventDispatcherOwner
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import eu.depau.loak.di.LocalMouseInUse
@@ -259,10 +260,13 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 	val rootFocus = remember { FocusRequester() }
 	// keyboard and mouse back: the same path as Esc and the system back gesture
 	val backInput = remember { DirectNavigationEventInput() }
-	val backDispatcher = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher
+	val dispatcherOwner = rememberNavigationEventDispatcherOwner(
+		parent = LocalNavigationEventDispatcherOwner.current
+	)
+	val backDispatcher = dispatcherOwner.navigationEventDispatcher
 	DisposableEffect(backDispatcher) {
-		backDispatcher?.addInput(backInput)
-		onDispose { backDispatcher?.removeInput(backInput) }
+		backDispatcher.addInput(backInput)
+		onDispose { backDispatcher.removeInput(backInput) }
 	}
 	val forwardHistory = remember { ForwardHistory() }
 	LaunchedEffect(backStack) {
@@ -314,6 +318,7 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 
 	SharedTransitionLayout {
 		CompositionLocalProvider(
+			LocalNavigationEventDispatcherOwner provides dispatcherOwner,
 			LocalPlatformContext provides platformContext,
 			LocalNavStack provides backStack,
 			LocalSnackBarState provides snackBarState,
@@ -380,11 +385,35 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 							.pointerInput(Unit) {
 								if (platformContext.platformType != PlatformType.Desktop) return@pointerInput
 								awaitPointerEventScope {
+									var handlingNavButton = false
 									while (true) {
 										val event = awaitPointerEvent(PointerEventPass.Initial)
-										if (event.type != PointerEventType.Press) continue
-										if (event.buttons.isBackPressed) actions.back()
-										else if (event.buttons.isForwardPressed) actions.forward()
+										when (event.type) {
+											PointerEventType.Press -> {
+												if (event.buttons.isBackPressed) {
+													handlingNavButton = true
+													event.changes.forEach { it.consume() }
+													actions.back()
+												} else if (event.buttons.isForwardPressed) {
+													handlingNavButton = true
+													event.changes.forEach { it.consume() }
+													actions.forward()
+												}
+											}
+											PointerEventType.Move -> {
+												if (handlingNavButton) {
+													event.changes.forEach { it.consume() }
+												}
+											}
+											PointerEventType.Release -> {
+												if (handlingNavButton) {
+													event.changes.forEach { it.consume() }
+													if (!event.buttons.isBackPressed && !event.buttons.isForwardPressed) {
+														handlingNavButton = false
+													}
+												}
+											}
+										}
 									}
 								}
 							},

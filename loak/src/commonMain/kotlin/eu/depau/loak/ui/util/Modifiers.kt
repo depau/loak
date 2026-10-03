@@ -141,7 +141,19 @@ fun Modifier.longPressOverChildren(onLongClick: () -> Unit): Modifier = pointerI
 		// a right click opens the same menu at once
 		if (currentEvent.buttons.isSecondaryPressed) {
 			down.consume()
-			onLongClick()
+			var cancelled = false
+			do {
+				val event = awaitPointerEvent(PointerEventPass.Initial)
+				event.changes.forEach { change ->
+					if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+						cancelled = true
+					}
+					change.consume()
+				}
+			} while (event.changes.any { it.pressed })
+			if (!cancelled) {
+				onLongClick()
+			}
 			return@awaitEachGesture
 		}
 		val longPressed = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
@@ -175,7 +187,19 @@ fun Modifier.onSecondaryClick(onClick: (() -> Unit)?): Modifier =
 			val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
 			if (currentEvent.buttons.isSecondaryPressed) {
 				down.consume()
-				onClick()
+				var cancelled = false
+				do {
+					val event = awaitPointerEvent(PointerEventPass.Initial)
+					event.changes.forEach { change ->
+						if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+							cancelled = true
+						}
+						change.consume()
+					}
+				} while (event.changes.any { it.pressed })
+				if (!cancelled) {
+					onClick()
+				}
 			}
 		}
 	}

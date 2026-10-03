@@ -247,7 +247,7 @@ fun LyricsScreenContent(
 					}
 				},
 				modifier = Modifier
-					.padding(horizontal = 32.dp, vertical = linePaddingY)
+					.padding(horizontal = 16.dp)
 					.graphicsLayer {
 						scaleX = lineScale
 						scaleY = lineScale
@@ -268,7 +268,8 @@ fun LyricsScreenContent(
 							Modifier.blur(lineBlurRadius)
 						} else Modifier
 					)
-					.background(lineBackgroundColor, MaterialTheme.shapes.medium)
+					.background(lineBackgroundColor, MaterialTheme.shapes.medium),
+				contentPadding = PaddingValues(horizontal = 16.dp, vertical = linePaddingY)
 			)
 		}
 		providerName?.let { providerName ->

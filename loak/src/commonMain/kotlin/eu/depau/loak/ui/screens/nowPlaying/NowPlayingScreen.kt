@@ -296,7 +296,7 @@ private fun PlayerWithSheet(
 				}
 				.nestedScroll(sheet.sheetScroll),
 			shape = ContinuousRoundedRectangle(topStart = 28.dp, topEnd = 28.dp),
-			color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .94f)
+			color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .72f)
 		) {
 			Column {
 				Box(Modifier.fillMaxWidth().height(peekHeight)) {

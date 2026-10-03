@@ -126,6 +126,7 @@ import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
 import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.ui.viewmodel.RootViewModel
 import eu.depau.loak.ui.util.loakAnimateItem
+import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.layout.add
 import eu.depau.loak.ui.util.windowControlsInsets
 import eu.depau.loak.ui.util.windowDragArea
@@ -341,7 +342,8 @@ fun SearchScreen(
 									) {
 										ListItem(
 											modifier = Modifier
-												.background(MaterialTheme.colorScheme.surface),
+												.background(MaterialTheme.colorScheme.surface)
+												.onSecondaryClick { viewModel.selectSong(song) },
 											onClick = {
 												player.playNow(song)
 											},

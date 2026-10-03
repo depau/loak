@@ -4,6 +4,9 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
@@ -45,7 +48,9 @@ fun LyricsScreenKaraokeText(
 	isActive: Boolean,
 	isSynced: Boolean,
 	onClick: () -> Unit,
-	modifier: Modifier = Modifier
+	modifier: Modifier = Modifier,
+	/** Inside the tappable area, so the gaps between lines seek too. */
+	contentPadding: PaddingValues = PaddingValues()
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 
@@ -76,10 +81,16 @@ fun LyricsScreenKaraokeText(
 		animationSpec = spring(stiffness = Spring.StiffnessLow)
 	)
 
-	Box(modifier = modifier.clickable { onClick() }) {
+	Box(
+		modifier = modifier
+			.clip(MaterialTheme.shapes.medium)
+			.clickable { onClick() }
+			.padding(contentPadding)
+	) {
 		Text(
 			text = text,
 			fontSize = LocalLyricsFontSize.current,
+			lineHeight = LocalLyricsFontSize.current * 1.2f,
 			fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
 			textAlign = if (LocalLyricsCentered.current) TextAlign.Center else if (isRtl) TextAlign.End else TextAlign.Start,
 			style = MaterialTheme.typography.headlineLargeEmphasized,
@@ -93,6 +104,7 @@ fun LyricsScreenKaraokeText(
 			Text(
 				text = text,
 				fontSize = LocalLyricsFontSize.current,
+			lineHeight = LocalLyricsFontSize.current * 1.2f,
 				fontWeight = FontWeight.Bold,
 				textAlign = if (LocalLyricsCentered.current) TextAlign.Center else if (isRtl) TextAlign.End else TextAlign.Start,
 				style = MaterialTheme.typography.headlineLargeEmphasized,

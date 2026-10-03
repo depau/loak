@@ -2,6 +2,7 @@ package eu.depau.loak.ui.screens.home.components
 
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.ui.util.verticalWheelToParent
+import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -231,7 +232,7 @@ fun SonicJourneyCard(from: DomainSong, to: DomainSong, onPlay: () -> Unit) {
 @Composable
 fun ListenerRow(listener: ServerListener, onClick: () -> Unit, onLongClick: () -> Unit) {
 	ListItem(
-		modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
+		modifier = Modifier.onSecondaryClick(onLongClick).combinedClickable(onClick = onClick, onLongClick = onLongClick),
 		colors = ListItemDefaults.colors(containerColor = Color.Transparent),
 		leadingContent = {
 			CoverArt(coverArtId = listener.song.coverArtId, modifier = Modifier.size(48.dp), shape = RoundedCornerShape(8.dp))

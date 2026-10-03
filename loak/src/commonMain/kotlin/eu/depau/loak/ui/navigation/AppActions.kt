@@ -26,7 +26,12 @@ class AppActions(
 
 	val canGoBack get() = backStack.size > 1
 	/** The same path as Esc and the system back gesture, so sheets and screens can intercept it. */
-	fun back() = backInput.backCompleted()
+	fun back() {
+		val handled = runCatching { backInput.backCompleted() }.isSuccess
+		if (!handled && canGoBack) {
+			backStack.removeLastOrNull()
+		}
+	}
 
 	val canGoForward get() = forwardHistory.canGoForward
 	fun forward() = forwardHistory.forward(backStack)

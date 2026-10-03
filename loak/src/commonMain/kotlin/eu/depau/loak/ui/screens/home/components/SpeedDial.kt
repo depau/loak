@@ -7,6 +7,7 @@ import eu.depau.loak.icons.filled.Sparkle
 import eu.depau.loak.icons.outlined.Soundwave
 import eu.depau.loak.ui.util.verticalWheelToParent
 import eu.depau.loak.ui.util.HorizontalScrollArrows
+import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -151,6 +152,7 @@ private fun SpeedDialTile(
 		Modifier
 			.size(size)
 			.clip(RoundedCornerShape(12.dp))
+			.onSecondaryClick { menuShown = true }
 			.combinedClickable(
 				onClick = dropUnlessResumed {
 					when (item) {
