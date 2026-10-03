@@ -34,7 +34,9 @@ import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -61,6 +63,11 @@ import eu.depau.loak.ui.util.rememberScreenCornerRadius
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.unit.Velocity
 import org.koin.compose.koinInject
 
 /**
@@ -97,8 +104,27 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 	/** The cover in the open player, measured by it. */
 	var art by mutableStateOf(Rect.Zero)
 
+	/**
+	 * The Up next / Lyrics sheet under the player (compact layouts): 0 = peeking, .5 = split
+	 * (when [splitAvailable]), 1 = covering the player, which shrinks into its header.
+	 */
+	var queue by mutableFloatStateOf(0f)
+		private set
+	private var queueJob: Job? = null
+	/** The sheet shows the lyrics rather than the queue; the side pane's tab follows it too. */
+	var lyricsTab by mutableStateOf(false)
+	/** Set by the player's layout: whether there's a sheet, a split stop, and how far the sheet travels. */
+	var sheetEnabled = false
+	var splitAvailable = false
+	var queueTravel = 1000f
+	private var backOnQueue = false
+	private var dragOnQueue: Boolean? = null
+
+	/** How far up the sheet looks, a held back gesture included. */
+	val queueFraction get() = if (backOnQueue) queue * (1f - .55f * FastOutSlowInEasing.transform(scrub)) else queue
+
 	/** How open the player looks, a held back gesture included. */
-	val fraction get() = expand * (1f - BackScrub * FastOutSlowInEasing.transform(scrub))
+	val fraction get() = if (backOnQueue) expand else expand * (1f - BackScrub * FastOutSlowInEasing.transform(scrub))
 
 	/** Whether the player is drawn at all; the mini player hides its cover meanwhile. */
 	val isVisible get() = expand > 0f
@@ -111,6 +137,82 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 	fun dragBy(deltaPx: Float) {
 		job?.cancel()
 		expand = (expand - deltaPx / travel).coerceIn(0f, 1f)
+	}
+
+	/**
+	 * A drag on the open player: up raises the sheet, down lowers it and, once it's down,
+	 * closes the player. The first movement decides which, for the whole drag.
+	 */
+	fun dragPlayer(deltaPx: Float) {
+		val onQueue = dragOnQueue ?: (sheetEnabled && expand >= 1f && (queue > 0f || deltaPx < 0f)).also { dragOnQueue = it }
+		if (onQueue) dragQueue(deltaPx) else dragBy(deltaPx)
+	}
+
+	fun settlePlayer(velocityPx: Float) {
+		if (dragOnQueue == true) settleQueue(velocityPx) else settle(velocityPx)
+		dragOnQueue = null
+	}
+
+	fun dragQueue(deltaPx: Float) {
+		queueJob?.cancel()
+		queue = (queue - deltaPx / queueTravel).coerceIn(0f, 1f)
+	}
+
+	/** Ends a drag of the sheet: a fling goes on to the next stop that way, otherwise the nearest one. */
+	fun settleQueue(velocityPx: Float) {
+		val stops = if (splitAvailable) listOf(0f, .5f, 1f) else listOf(0f, 1f)
+		val to = when {
+			velocityPx < -FlingVelocity -> stops.firstOrNull { it > queue + .01f } ?: 1f
+			velocityPx > FlingVelocity -> stops.lastOrNull { it < queue - .01f } ?: 0f
+			else -> stops.minBy { abs(it - queue) }
+		}
+		runQueue(to, velocityPx)
+	}
+
+	fun showSheet(lyrics: Boolean) {
+		lyricsTab = lyrics
+		if (sheetEnabled) runQueue(1f, 0f)
+	}
+
+	fun hideSheet() = runQueue(0f, 0f)
+
+	private fun runQueue(to: Float, velocityPx: Float) {
+		queueJob?.cancel()
+		queueJob = scope.launch {
+			animate(
+				initialValue = queue,
+				targetValue = to,
+				initialVelocity = -velocityPx / queueTravel,
+				animationSpec = spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)
+			) { v, _ -> queue = v.coerceIn(0f, 1f) }
+		}
+	}
+
+	/** Hands the sheet's list scrolling over to the sheet: up raises it first, down lowers it once the list is at its top. */
+	val sheetScroll = object : NestedScrollConnection {
+		override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+			if (available.y < 0f && queue < 1f && source == NestedScrollSource.UserInput) {
+				dragQueue(available.y)
+				return Offset(0f, available.y)
+			}
+			return Offset.Zero
+		}
+
+		override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+			if (available.y > 0f && source == NestedScrollSource.UserInput) {
+				dragQueue(available.y)
+				return Offset(0f, available.y)
+			}
+			return Offset.Zero
+		}
+
+		override suspend fun onPreFling(available: Velocity): Velocity {
+			if (queue > 0f && queue < 1f) {
+				settleQueue(available.y)
+				return available
+			}
+			return Velocity.Zero
+		}
 	}
 
 	/** Ends a drag: a fling decides, otherwise whichever end is nearer. */
@@ -127,7 +229,9 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 	}
 
 	fun close(velocityPx: Float = 0f) {
-		backStack.removeAll { it is Screen.NowPlaying || it is Screen.Lyrics || it is Screen.Queue }
+		backStack.removeAll { it is Screen.NowPlaying }
+		queueJob?.cancel()
+		queue = 0f
 		run(0f, velocityPx)
 	}
 
@@ -137,14 +241,23 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 		if (t != target) run(t, 0f)
 	}
 
+	/** Back closes the sheet first, then the player. */
 	internal fun backProgress(progress: Float, fromRight: Boolean) {
+		if (scrub == 0f) backOnQueue = queue > 0f
 		scrub = progress
-		squeeze = progress
+		if (!backOnQueue) squeeze = progress
 		backFromRight = fromRight
 	}
 
-	/** The back gesture let go: carry on from where it left the player, into the pill. */
+	/** The back gesture let go: carry on from where it left the sheet or the player. */
 	internal fun backCompleted() {
+		if (backOnQueue || (scrub == 0f && queue > 0f)) {
+			queue = queueFraction
+			scrub = 0f
+			backOnQueue = false
+			hideSheet()
+			return
+		}
 		expand = fraction
 		scrub = 0f
 		scope.launch { animate(squeeze, 0f, animationSpec = tween(350)) { v, _ -> squeeze = v } }
@@ -155,8 +268,9 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 		scope.launch {
 			animate(scrub, 0f, animationSpec = spring(stiffness = Spring.StiffnessMedium)) { v, _ ->
 				scrub = v
-				squeeze = v
+				if (!backOnQueue) squeeze = v
 			}
+			backOnQueue = false
 		}
 	}
 
@@ -184,20 +298,23 @@ val LocalPlayerSheet = staticCompositionLocalOf<PlayerSheetState> { error("No Pl
 
 /** Reports a composable as the mini player the open player grows out of. */
 fun Modifier.playerPill(state: PlayerSheetState, corner: Dp, color: Color) = onGloballyPositioned {
-	state.pill = it.boundsInRoot()
+	state.pill = it.unclippedBounds()
 	state.pillCorner = corner
 	state.pillColor = color
 }
 
 /** The mini player's cover: the morph starts there, and it hides while the player is out. */
 fun Modifier.playerPillArt(state: PlayerSheetState) =
-	onGloballyPositioned { state.pillArt = it.boundsInRoot() }
+	onGloballyPositioned { state.pillArt = it.unclippedBounds() }
 		.graphicsLayer { alpha = if (state.isVisible) 0f else 1f }
 
 /** The open player's cover: the morph ends there, and it shows once the player is fully open. */
 fun Modifier.playerArt(state: PlayerSheetState) =
-	onGloballyPositioned { state.art = it.boundsInRoot() }
+	onGloballyPositioned { state.art = it.unclippedBounds() }
 		.graphicsLayer { alpha = if (state.fraction >= 1f) 1f else 0f }
+
+/** Bounds in root coordinates, not clipped by the ancestors (the cover can sit outside the growing surface). */
+private fun LayoutCoordinates.unclippedBounds() = Rect(positionInRoot(), size.toSize())
 
 private fun seg(t: Float, a: Float, b: Float) = ((t - a) / (b - a)).coerceIn(0f, 1f)
 
@@ -230,7 +347,7 @@ fun PlayerLayer(state: PlayerSheetState) {
 	val density = LocalDensity.current
 	val screenCorner = rememberScreenCornerRadius()
 	val appSurface = MaterialTheme.colorScheme.surface
-	val drag = rememberDraggableState { state.dragBy(it) }
+	val drag = rememberDraggableState { state.dragPlayer(it) }
 
 	BoxWithConstraints(Modifier.fillMaxSize()) {
 		val fullW = constraints.maxWidth
@@ -269,7 +386,7 @@ fun PlayerLayer(state: PlayerSheetState) {
 					.draggable(
 						state = drag,
 						orientation = Orientation.Vertical,
-						onDragStopped = { velocity -> state.settle(velocity) }
+						onDragStopped = { velocity -> state.settlePlayer(velocity) }
 					)
 			) {
 				// the open player at full size, seen through the growing surface

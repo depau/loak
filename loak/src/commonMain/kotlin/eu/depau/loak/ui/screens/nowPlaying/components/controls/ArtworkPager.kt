@@ -19,11 +19,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import org.koin.compose.koinInject
-import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.CoverArtTapAction
 import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.screens.nowPlaying.LocalPlayerSheet
 import eu.depau.loak.ui.screens.nowPlaying.components.NowPlayingArtwork
 
 @Composable
@@ -31,7 +30,7 @@ fun NowPlayingArtworkPager(
 	modifier: Modifier = Modifier,
 	isLandscape: Boolean
 ) {
-	val backStack = LocalNavStack.current
+	val playerSheet = LocalPlayerSheet.current
 	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsState()
@@ -86,7 +85,7 @@ fun NowPlayingArtworkPager(
 				isLandscape = isLandscape,
 				onClick = if (enabled) dropUnlessResumed {
 					when (tapAction) {
-						CoverArtTapAction.ShowLyrics -> backStack.add(Screen.Lyrics)
+						CoverArtTapAction.ShowLyrics -> playerSheet.showSheet(lyrics = true)
 						CoverArtTapAction.Disabled -> {}
 					}
 				} else null

@@ -1,26 +1,8 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
 @file:Suppress("UNCHECKED_CAST")
 
 package eu.depau.loak.ui.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SheetState
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.unit.Dp
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.rememberLifecycleOwner
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavMetadataKey
 import androidx.navigation3.runtime.get
@@ -29,115 +11,12 @@ import androidx.navigation3.scene.OverlayScene
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
-import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
-import eu.depau.loak.ui.components.sheets.ModalBottomSheet
-import eu.depau.loak.ui.theme.LoakTheme
-import eu.depau.loak.di.LocalSheetState
-import eu.depau.loak.ui.util.rememberColorSchemeForCurrentSong
-import eu.depau.loak.ui.util.rememberScreenCornerRadius
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
-import eu.depau.loak.di.LocalSnackBarState
-import eu.depau.loak.ui.components.snackbars.LoakSnackBar
 
-class NowPlayingScene<T : Any>(
-	override val key: Any,
-	private val entry: NavEntry<T>,
-	override val previousEntries: List<NavEntry<T>>,
-	override val overlaidEntries: List<NavEntry<T>>,
-	private val maxWidth: Dp,
-	private val isTransparent: Boolean,
-	private val onBack: () -> Unit
-) : OverlayScene<T> {
-
-	override val entries = listOf(entry)
-
-	lateinit var sheetState: SheetState
-
-	override val content = @Composable {
-		sheetState = rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded))
-		val lifecycleOwner = rememberLifecycleOwner()
-		val screenCornerRadius = rememberScreenCornerRadius()
-
-		// TODO: see if there's a way to do this w out private api
-		@Suppress("INVISIBLE_REFERENCE")
-		val expandProgress = sheetState.anchoredDraggableState.progress(
-			from = SheetValue.Hidden,
-			to = SheetValue.Expanded
-		)
-		val shape = remember(expandProgress, screenCornerRadius) {
-			if (expandProgress == 1f) {
-				RectangleShape
-			} else {
-				ContinuousRoundedRectangle(
-					topStart = screenCornerRadius,
-					topEnd = screenCornerRadius
-				)
-			}
-		}
-
-		LoakTheme(rememberColorSchemeForCurrentSong()) {
-			ModalBottomSheet(
-				containerColor = if (isTransparent) {
-					Color.Transparent
-				} else {
-					MaterialTheme.colorScheme.surface
-				},
-				onDismissRequest = onBack,
-				sheetState = sheetState,
-				sheetMaxWidth = maxWidth,
-				contentWindowInsets = { WindowInsets() },
-				dragHandle = null,
-				shape = shape
-			) {
-				CompositionLocalProvider(
-					LocalLifecycleOwner provides lifecycleOwner,
-					LocalSheetState provides sheetState
-				) {
-					Box(Modifier.fillMaxSize()) {
-						entry.Content()
-						val snackBarState = LocalSnackBarState.current
-						SnackbarHost(
-							hostState = snackBarState,
-							modifier = Modifier
-								.align(Alignment.BottomCenter)
-								.windowInsetsPadding(WindowInsets.navigationBars)
-								.padding(bottom = 16.dp)
-						) { snackBarData ->
-							LoakSnackBar(snackBarData = snackBarData)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	override fun equals(other: Any?): Boolean {
-		if (this === other) return true
-		if (other == null || this::class != other::class) return false
-
-		other as NowPlayingScene<*>
-
-		return key == other.key
-			&& entry == other.entry
-			&& maxWidth == other.maxWidth
-			&& isTransparent == other.isTransparent
-	}
-
-	override fun hashCode() = key.hashCode() * 31 +
-		entry.hashCode() * 31 +
-		maxWidth.hashCode() * 31 +
-		isTransparent.hashCode() * 31
-
-	// onRemove is intentionally not used, see the comment
-	// on LocalSheetState
-}
-
-/** The open player's back stack entry: the player draws itself over the window, so nothing here. */
+/**
+ * The open player's back stack entry. The player draws itself over the whole window
+ * ([PlayerLayer][eu.depau.loak.ui.screens.nowPlaying.PlayerLayer]), so this scene draws nothing
+ * and leaves the screen under it showing.
+ */
 private class PlayerMarkerScene<T : Any>(
 	override val key: Any,
 	entry: NavEntry<T>,
@@ -154,36 +33,13 @@ class NowPlayingSceneStrategy<T : Any> : SceneStrategy<T> {
 
 	override fun SceneStrategyScope<T>.calculateScene(entries: List<NavEntry<T>>): Scene<T>? {
 		val entry = entries.lastOrNull() ?: return null
-		if (entry.metadata[PlayerKey] == true) {
-			return PlayerMarkerScene(entry.contentKey, entry, entries.dropLast(1), entries.dropLast(1))
-		}
-		val maxWidth = entry.metadata[MaxWidthKey] ?: return null
-		val isTransparent = entry.metadata[IsTransparentKey] ?: return null
-
-		return NowPlayingScene(
-			key = entry.contentKey as T,
-			entry = entry,
-			previousEntries = entries.dropLast(1),
-			overlaidEntries = entries.dropLast(1),
-			maxWidth = maxWidth,
-			isTransparent = isTransparent,
-			onBack = onBack
-		)
+		if (entry.metadata[PlayerKey] != true) return null
+		return PlayerMarkerScene(entry.contentKey as T, entry, entries.dropLast(1), entries.dropLast(1))
 	}
 
 	companion object {
-		object MaxWidthKey : NavMetadataKey<Dp>
-		object IsTransparentKey : NavMetadataKey<Boolean>
 		object PlayerKey : NavMetadataKey<Boolean>
 
 		fun player() = metadata { put(PlayerKey, true) }
-
-		fun bottomSheet(
-			maxWidth: Dp = BottomSheetDefaults.SheetMaxWidth,
-			isTransparent: Boolean = false
-		) = metadata {
-			put(MaxWidthKey, maxWidth)
-			put(IsTransparentKey, isTransparent)
-		}
 	}
 }

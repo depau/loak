@@ -590,15 +590,6 @@ private fun entryProvider(
 		}
 		// the player itself is PlayerLayer, over the whole window; this entry only marks it open
 		entry<Screen.NowPlaying>(metadata = NowPlayingSceneStrategy.player()) {}
-		entry<Screen.Lyrics>(metadata = NowPlayingSceneStrategy.bottomSheet(isTransparent = true)) {
-			val player = koinInject<MediaPlayerViewModel>()
-			val playerState by player.uiState.collectAsState()
-			val song = playerState.currentSong
-			LyricsScreen(song)
-		}
-		entry<Screen.Queue>(metadata = BottomSheetSceneStrategy.bottomSheet()) {
-			QueueScreen()
-		}
 		entry<Screen.PlaybackSpeed>(metadata = BottomSheetSceneStrategy.bottomSheet()) {
 			PlaybackSpeedScreen()
 		}

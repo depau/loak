@@ -163,7 +163,6 @@ fun QueueScreenItem(
 							buildSongInfoString(
 								song = song,
 								onClickArtist = {
-									backStack.remove(Screen.Queue)
 									backStack.remove(Screen.NowPlaying)
 									backStack.add(Screen.ArtistDetail(it))
 								}

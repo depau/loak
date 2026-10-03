@@ -101,8 +101,8 @@ import kotlinx.collections.immutable.toImmutableList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-/** The queue, as a bottom sheet or, with [pane], as the side pane on expanded windows. */
-fun QueueScreen(pane: Boolean = false) {
+/** The queue: in the player's Up next sheet or pane, and the side pane on expanded windows. */
+fun QueueScreen() {
 	val viewModel = koinViewModel<QueueViewModel>()
 	val backStack = LocalNavStack.current
 	val player = koinInject<MediaPlayerViewModel>()
@@ -185,19 +185,6 @@ fun QueueScreen(pane: Boolean = false) {
 	val formattedDurationText = when (preferenceManager.queueInfoType) {
 		QueueInfoType.Full -> durationText
 		QueueInfoType.Remaining -> stringResource(Res.string.info_duration_left, durationText)
-	}
-
-	val sheetState = if (pane) null else LocalSheetState.current
-	val closeScope = rememberCoroutineScope()
-	val animateToDismiss = {
-		// the pane stays open next to the content
-		if (sheetState != null) closeScope.launch {
-			sheetState.hide()
-		}.invokeOnCompletion {
-			if (!sheetState.isVisible) {
-				backStack.remove(Screen.Queue)
-			}
-		}
 	}
 
 	Box(modifier = Modifier.fillMaxSize()) {
@@ -290,7 +277,6 @@ fun QueueScreen(pane: Boolean = false) {
 						onClick = dropUnlessResumed {
 							if (playerState.currentIndex != index) {
 								player.playAt(index)
-								animateToDismiss()
 							} else {
 								player.seek(0f)
 								player.resume()
@@ -319,19 +305,12 @@ fun QueueScreen(pane: Boolean = false) {
 				}
 			}
 		}
-		// The queue sheet covers the app's snackbar host, so undo snackbars show here too,
-		// under the header: the sheet's bottom edge is off-screen while it's half open.
-		if (!pane) SnackbarHost(
-			hostState = LocalSnackBarState.current,
-			modifier = Modifier.align(Alignment.TopCenter).padding(top = 52.dp)
-		) { LoakSnackBar(snackBarData = it) }
 	}
 
 	val selectedSong = selectedIndex?.let { queue.getOrNull(it) }
 	if (selectedIndex != null && selectedSong != null) {
 		val index = selectedIndex!!
 		val leaveQueue = {
-			backStack.remove(Screen.Queue)
 			backStack.remove(Screen.NowPlaying)
 		}
 		SongSheet(

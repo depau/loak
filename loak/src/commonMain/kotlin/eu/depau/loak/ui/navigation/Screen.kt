@@ -137,14 +137,6 @@ sealed interface Screen : NavKey {
 
 	@Immutable
 	@Serializable
-	data object Lyrics : Screen
-
-	@Immutable
-	@Serializable
-	data object Queue : Screen
-
-	@Immutable
-	@Serializable
 	data object PlaybackSpeed : Screen
 
 	@Immutable

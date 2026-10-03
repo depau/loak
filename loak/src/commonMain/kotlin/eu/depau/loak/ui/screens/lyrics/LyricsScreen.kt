@@ -52,7 +52,6 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenContent
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenLoadingView
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenPlaceholder
-import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenToolbar
 import eu.depau.loak.ui.screens.lyrics.dialogs.LyricsShareSheet
 import eu.depau.loak.ui.screens.lyrics.viewmodels.LyricsScreenViewModel
 import eu.depau.loak.ui.util.KeepScreenOn
@@ -60,9 +59,7 @@ import eu.depau.loak.ui.util.KeepScreenOn
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LyricsScreen(
-	song: DomainSong?,
-	/** In the now playing side pane: no toolbar, just the lines and a share button. */
-	pane: Boolean = false
+	song: DomainSong?
 ) {
 	val backStack = LocalNavStack.current
 
@@ -102,18 +99,6 @@ fun LyricsScreen(
 			wasPlayingBeforeSelection = !playerState.isPaused
 			player.pause()
 			isSelecting = true
-		}
-	}
-
-	val sheetState = if (pane) null else LocalSheetState.current
-	val closeScope = rememberCoroutineScope()
-	val animateToDismiss = {
-		if (sheetState != null) closeScope.launch {
-			sheetState.hide()
-		}.invokeOnCompletion {
-			if (!sheetState.isVisible) {
-				backStack.remove(Screen.Lyrics)
-			}
 		}
 	}
 
@@ -186,41 +171,22 @@ fun LyricsScreen(
 		}
 	}
 
-	if (pane) {
-		Box(Modifier.fillMaxSize()) {
-			body(PaddingValues())
-			// like the toolbar: first pick the lines, then share them
-			Row(Modifier.align(Alignment.TopEnd)) {
-				if (isSelecting) IconButton(onClick = toggleIsSelecting) {
-					Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
-				}
-				IconButton(
-					onClick = { if (isSelecting) shareSheetOpen = true else toggleIsSelecting() },
-					enabled = !isSelecting || selectedIndices.isNotEmpty()
-				) {
-					Icon(
-						if (isSelecting) Icons.Outlined.Check else Icons.Outlined.Share,
-						stringResource(Res.string.action_share_lyrics)
-					)
-				}
+	Box(Modifier.fillMaxSize()) {
+		body(PaddingValues())
+		// like the toolbar: first pick the lines, then share them
+		Row(Modifier.align(Alignment.TopEnd)) {
+			if (isSelecting) IconButton(onClick = toggleIsSelecting) {
+				Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
+			}
+			IconButton(
+				onClick = { if (isSelecting) shareSheetOpen = true else toggleIsSelecting() },
+				enabled = !isSelecting || selectedIndices.isNotEmpty()
+			) {
+				Icon(
+					if (isSelecting) Icons.Outlined.Check else Icons.Outlined.Share,
+					stringResource(Res.string.action_share_lyrics)
+				)
 			}
 		}
-		return
-	}
-
-	SheetScaffold(
-		toolbar = { windowInsets ->
-			LyricsScreenToolbar(
-				onDismissRequest = { animateToDismiss() },
-				onShare = { shareSheetOpen = true },
-				isSelecting = isSelecting,
-				toggleIsSelecting = toggleIsSelecting,
-				windowInsets = windowInsets,
-				selectedIndices = selectedIndices.toImmutableList()
-			)
-		},
-		toolbarPosition = ToolbarPosition.Top
-	) { contentPadding ->
-		body(contentPadding)
 	}
 }

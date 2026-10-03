@@ -32,7 +32,7 @@ class ForwardHistory {
 		closed.lastOrNull()?.let { backStack.add(it) }
 	}
 
-	private fun isOverlay(key: NavKey) = key is Screen.NowPlaying || key is Screen.Lyrics ||
-		key is Screen.Queue || key is Screen.PlaybackSpeed || key is Screen.SongDetailSheet ||
+	private fun isOverlay(key: NavKey) = key is Screen.NowPlaying ||
+		key is Screen.PlaybackSpeed || key is Screen.SongDetailSheet ||
 		key is Screen.ImageView
 }

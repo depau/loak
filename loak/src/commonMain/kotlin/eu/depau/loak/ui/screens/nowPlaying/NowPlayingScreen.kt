@@ -1,93 +1,96 @@
 package eu.depau.loak.ui.screens.nowPlaying
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.unit.Dp
-import androidx.compose.foundation.shape.CircleShape
-import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
-import eu.depau.loak.ui.screens.queue.QueueScreen
-import eu.depau.loak.ui.screens.lyrics.LyricsScreen
-import eu.depau.loak.domain.models.DomainSong
-import androidx.compose.ui.graphics.Color
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Surface
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import eu.depau.loak.ui.util.LocalWindowChrome
-import eu.depau.loak.ui.util.PaneWindowControls
-import eu.depau.loak.ui.util.WindowChromeHost
-import eu.depau.loak.ui.util.windowDragArea
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
+import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.domain.models.settings.NowPlayingBackgroundStyle
+import eu.depau.loak.domain.models.settings.ToolbarPosition
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_lyrics
 import eu.depau.loak.generated.resources.action_navigate_back
-import eu.depau.loak.generated.resources.action_queue
+import eu.depau.loak.generated.resources.action_pause
+import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.title_now_playing
+import eu.depau.loak.generated.resources.title_up_next
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.filled.Pause
+import eu.depau.loak.icons.filled.Play
+import eu.depau.loak.icons.outlined.KeyboardArrowDown
+import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.ui.components.common.BlendBackground
+import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.common.MarqueeText
+import eu.depau.loak.ui.components.layouts.SheetScaffold
+import eu.depau.loak.ui.components.layouts.TopBarButton
+import eu.depau.loak.ui.components.toolbars.SheetToolbar
+import eu.depau.loak.ui.screens.lyrics.LyricsScreen
+import eu.depau.loak.ui.screens.nowPlaying.components.controls.NowPlayingArtworkPager
+import eu.depau.loak.ui.screens.nowPlaying.components.rows.NowPlayingControlsRow
+import eu.depau.loak.ui.screens.nowPlaying.viewmodels.NowPlayingViewModel
+import eu.depau.loak.ui.screens.queue.QueueScreen
+import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
+import eu.depau.loak.ui.util.LocalWindowChrome
+import eu.depau.loak.ui.util.PaneWindowControls
+import eu.depau.loak.ui.util.WindowChromeHost
+import eu.depau.loak.ui.util.windowDragArea
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
-import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.models.settings.NowPlayingBackgroundStyle
-import eu.depau.loak.domain.models.settings.ToolbarPosition
-import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.outlined.KeyboardArrowDown
-import eu.depau.loak.icons.outlined.List
-import eu.depau.loak.icons.outlined.Lyrics
-import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.common.BlendBackground
-import eu.depau.loak.ui.components.layouts.SheetScaffold
-import eu.depau.loak.ui.components.layouts.TopBarButton
-import eu.depau.loak.ui.components.toolbars.SheetActionButton
-import eu.depau.loak.ui.components.toolbars.SheetToolbar
-import eu.depau.loak.ui.navigation.Screen
-import eu.depau.loak.ui.screens.nowPlaying.components.controls.NowPlayingArtworkPager
-import eu.depau.loak.ui.screens.nowPlaying.components.rows.NowPlayingControlsRow
-import eu.depau.loak.ui.screens.nowPlaying.viewmodels.NowPlayingViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingScreen() {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
-	val backStack = LocalNavStack.current
-
-	// the lyrics sheet covers the player: its content steps aside meanwhile
-	val isPlayerCurrent = backStack.lastOrNull() !is Screen.Lyrics
 
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 	val song = playerState.currentSong
@@ -96,23 +99,22 @@ fun NowPlayingScreen() {
 	val songIsStarred by viewModel.songIsStarred.collectAsStateWithLifecycle()
 
 	val playerSheet = LocalPlayerSheet.current
-	val animateToDismiss = { playerSheet.close() }
 
 	BoxWithConstraints(Modifier.fillMaxSize()) {
 		val layout = playerPaneLayout(maxWidth, maxHeight)
-		val paneWidth = if (maxWidth < 960.dp) 340.dp else 400.dp
+		val paneWidth = (maxWidth * .42f).coerceIn(300.dp, 520.dp)
 		val isLandscape = maxWidth > maxHeight
 		val chrome = LocalWindowChrome.current
-		// desktop: the player covers the app's title bar, so it brings its own: the toolbar
-		// moves to the top and the window controls follow (into the side pane when it shows)
+		playerSheet.sheetEnabled = layout == PlayerPaneLayout.Sheet
+		// the toolbar is the player's title bar: on top when it has a sheet below (and on
+		// desktop, where it moves the window and holds its controls)
 		WindowChromeHost(paneOpen = layout == PlayerPaneLayout.Beside) {
 			Box(Modifier.fillMaxSize()) {
 				SheetScaffold(
-					toolbarPosition = if (chrome != null) ToolbarPosition.Top else null,
+					toolbarPosition = if (chrome != null || layout == PlayerPaneLayout.Sheet) ToolbarPosition.Top else null,
 					toolbar = { windowInsets ->
 						SheetToolbar(
 							modifier = Modifier
-								.alpha(if (isPlayerCurrent) 1f else 0f)
 								// the side pane runs up to the window top, next to the toolbar
 								.then(
 									if (layout == PlayerPaneLayout.Beside) Modifier.padding(end = paneWidth + 16.dp)
@@ -121,12 +123,10 @@ fun NowPlayingScreen() {
 								.then(if (chrome != null) Modifier.height(chrome.barHeight) else Modifier),
 							verticalPadding = if (chrome != null) 0.dp else null,
 							windowInsets = windowInsets,
-							title = {
-								Text(stringResource(Res.string.title_now_playing))
-							},
+							title = { Text(stringResource(Res.string.title_now_playing)) },
 							navigationIcon = {
 								TopBarButton(
-									onClick = animateToDismiss,
+									onClick = { playerSheet.close() },
 									content = {
 										Icon(
 											imageVector = Icons.Outlined.KeyboardArrowDown,
@@ -134,22 +134,6 @@ fun NowPlayingScreen() {
 										)
 									}
 								)
-							},
-							actions = {
-								if (layout == PlayerPaneLayout.None) {
-									SheetActionButton(
-										icon = Icons.Outlined.Lyrics,
-										contentDescription = stringResource(Res.string.action_lyrics),
-										onClick = dropUnlessResumed { backStack.add(Screen.Lyrics) },
-										isStartRounded = true
-									)
-									SheetActionButton(
-										icon = Icons.Outlined.List,
-										contentDescription = stringResource(Res.string.action_queue),
-										onClick = dropUnlessResumed { backStack.add(Screen.Queue) },
-										isEndRounded = true
-									)
-								}
 							}
 						)
 					}
@@ -163,32 +147,19 @@ fun NowPlayingScreen() {
 								isPaused = playerState.isPaused
 							)
 						}
-						if (!isPlayerCurrent) return@Box
-						val block = @Composable { modifier: Modifier ->
-							NowPlayingBlock(
-								modifier = modifier,
+						when (layout) {
+							PlayerPaneLayout.Beside -> NowPlayingBlock(
+								modifier = Modifier
+									.fillMaxSize()
+									.padding(contentPadding)
+									.padding(start = 24.dp, end = paneWidth + 40.dp, bottom = 16.dp),
 								songIsStarred = songIsStarred,
 								onSetSongIsStarred = { viewModel.starSong(it) }
 							)
-						}
-						when (layout) {
-							PlayerPaneLayout.Beside -> block(
-								Modifier
-									.fillMaxSize()
-									.padding(contentPadding)
-									.padding(start = 24.dp, end = paneWidth + 40.dp, bottom = 16.dp)
-							)
 
-							PlayerPaneLayout.Below -> Column(
-								Modifier.fillMaxSize().padding(contentPadding).padding(16.dp),
-								verticalArrangement = Arrangement.spacedBy(16.dp)
-							) {
-								block(Modifier.weight(0.55f).fillMaxWidth())
-								NowPlayingSidePane(song = song, modifier = Modifier.weight(0.45f).fillMaxWidth())
-							}
-
-							PlayerPaneLayout.None -> NowPlayingCompact(
+							PlayerPaneLayout.Sheet -> PlayerWithSheet(
 								contentPadding = contentPadding,
+								song = song,
 								isLandscape = isLandscape,
 								songIsStarred = songIsStarred,
 								onSetSongIsStarred = { viewModel.starSong(it) }
@@ -196,7 +167,7 @@ fun NowPlayingScreen() {
 						}
 					}
 				}
-				if (layout == PlayerPaneLayout.Beside && isPlayerCurrent) {
+				if (layout == PlayerPaneLayout.Beside) {
 					// Windows: flush in the corner, under the caption buttons
 					val docked = chrome?.controlsInCorner == true
 					NowPlayingSidePane(
@@ -218,18 +189,16 @@ fun NowPlayingScreen() {
 	}
 }
 
-/** Where the player's Queue / Lyrics pane goes, by window size. */
-private enum class PlayerPaneLayout { Beside, Below, None }
+/** Where Up next and Lyrics go: a pane beside the player, or a sheet under it. */
+private enum class PlayerPaneLayout { Beside, Sheet }
 
 /**
- * Beside the cover and controls when the window is wide enough and not much taller than
- * wide; below them in tall windows (not phones); otherwise not at all: the toolbar's
- * buttons open them as sheets.
+ * A pane beside the cover and controls when the window is wide, or a wide landscape phone
+ * (which would otherwise get a sheet with a few rows visible); otherwise a sheet under them.
  */
 private fun playerPaneLayout(width: Dp, height: Dp) = when {
-	width >= 760.dp && width >= height * 0.85f -> PlayerPaneLayout.Beside
-	width >= 600.dp && height >= 960.dp -> PlayerPaneLayout.Below
-	else -> PlayerPaneLayout.None
+	width >= 840.dp || (width >= 640.dp && width > height * 1.5f) -> PlayerPaneLayout.Beside
+	else -> PlayerPaneLayout.Sheet
 }
 
 /** Cover above the song info and controls, as one centred block at most 520 dp wide. */
@@ -266,7 +235,183 @@ private fun NowPlayingBlock(
 	}
 }
 
-/** Phones and small windows: no pane; cover and controls stacked, or side by side. */
+/** Height of the peeking tabs and of the collapsed player's row over the raised sheet. */
+private val PeekHeight = 56.dp
+private val HeaderHeight = 72.dp
+
+/** The smallest player that still works above a split: small cover, info and controls. */
+private val SplitPlayerHeight = 380.dp
+
+private fun seg(t: Float, a: Float, b: Float) = ((t - a) / (b - a)).coerceIn(0f, 1f)
+
+/**
+ * Phones and small windows: the cover and controls, with the Up next / Lyrics sheet peeking
+ * under them. Dragging up raises the sheet: first to a split (the player shrinks above it,
+ * when there's room), then over the player, which collapses into a row under the toolbar.
+ */
+@Composable
+private fun PlayerWithSheet(
+	contentPadding: PaddingValues,
+	song: DomainSong?,
+	isLandscape: Boolean,
+	songIsStarred: Boolean,
+	onSetSongIsStarred: (Boolean) -> Unit
+) {
+	val sheet = LocalPlayerSheet.current
+	val density = LocalDensity.current
+	BoxWithConstraints(Modifier.fillMaxSize()) {
+		val h = constraints.maxHeight.toFloat()
+		val (top, peek, header, splitMin) = with(density) {
+			listOf(
+				contentPadding.calculateTopPadding().toPx(),
+				PeekHeight.toPx() + WindowInsets.navigationBars.getBottom(this),
+				HeaderHeight.toPx(),
+				SplitPlayerHeight.toPx()
+			)
+		}
+		val peekTop = h - peek
+		val raisedTop = top + header
+		// a split only where the queue still gets about half the screen
+		val splitTop = maxOf(top + splitMin, h * .5f)
+		sheet.splitAvailable = !isLandscape && peekTop - splitTop > h * .2f && h - splitTop >= h * .45f
+		sheet.queueTravel = peekTop - raisedTop
+		val sheetTop = { q: Float ->
+			if (!sheet.splitAvailable) peekTop + (raisedTop - peekTop) * q
+			else if (q <= .5f) peekTop + (splitTop - peekTop) * (q * 2f)
+			else splitTop + (raisedTop - splitTop) * (q * 2f - 1f)
+		}
+
+		// the player, given the room above the sheet: it shrinks into the split, then fades
+		// out as the sheet covers it
+		Box(
+			Modifier
+				.layout { measurable, constraints ->
+					val q = sheet.queueFraction
+					val height = (sheetTop(minOf(q, .5f)) - top).toInt().coerceAtLeast(0)
+					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
+					layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, top.toInt()) }
+				}
+				.graphicsLayer {
+					val q = sheet.queueFraction
+					alpha = 1f - seg(q, .55f, .85f)
+					translationY = -seg(q, .5f, 1f) * 48.dp.toPx()
+				}
+		) {
+			NowPlayingCompact(
+				contentPadding = PaddingValues(vertical = 8.dp),
+				isLandscape = isLandscape,
+				songIsStarred = songIsStarred,
+				onSetSongIsStarred = onSetSongIsStarred
+			)
+		}
+
+		// the collapsed player, over the raised sheet
+		CollapsedPlayerRow(
+			song = song,
+			modifier = Modifier
+				.layout { measurable, constraints ->
+					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, header.toInt()))
+					layout(constraints.maxWidth, header.toInt()) { placeable.place(0, top.toInt()) }
+				}
+				.graphicsLayer { alpha = seg(sheet.queueFraction, .7f, 1f) }
+		)
+
+		Surface(
+			modifier = Modifier
+				.layout { measurable, constraints ->
+					val y = sheetTop(sheet.queueFraction)
+					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, (h - raisedTop).toInt()))
+					layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, y.toInt()) }
+				}
+				.nestedScroll(sheet.sheetScroll),
+			shape = ContinuousRoundedRectangle(topStart = 28.dp, topEnd = 28.dp),
+			color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .94f)
+		) {
+			Column {
+				Box(Modifier.fillMaxWidth().height(PeekHeight)) {
+					// grabber
+					Box(
+						Modifier
+							.align(Alignment.TopCenter)
+							.padding(top = 6.dp)
+							.size(width = 32.dp, height = 4.dp)
+							.graphicsLayer { shape = CircleShape; clip = true }
+							.background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .4f))
+					)
+					SheetTabs(
+						lyrics = sheet.lyricsTab,
+						onSelect = { lyrics ->
+							if (sheet.queue < .25f) sheet.showSheet(lyrics) else sheet.lyricsTab = lyrics
+						},
+						modifier = Modifier.align(Alignment.BottomCenter)
+					)
+				}
+				Box(Modifier.weight(1f)) {
+					if (sheet.lyricsTab) LyricsScreen(song) else QueueScreen()
+				}
+			}
+		}
+	}
+}
+
+/** Up next / Lyrics: the sheet's handle and, on wide windows, the side pane's header. */
+@Composable
+private fun SheetTabs(lyrics: Boolean, onSelect: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+	val tab = if (lyrics) 1 else 0
+	// no full-width divider, and the M3 primary indicator: short, with rounded ends
+	PrimaryTabRow(
+		modifier = modifier,
+		selectedTabIndex = tab,
+		containerColor = Color.Transparent,
+		indicator = {
+			TabRowDefaults.PrimaryIndicator(
+				modifier = Modifier.tabIndicatorOffset(tab, matchContentSize = true),
+				width = Dp.Unspecified,
+				shape = CircleShape
+			)
+		},
+		divider = {}
+	) {
+		Tab(selected = !lyrics, onClick = { onSelect(false) }, text = { Text(stringResource(Res.string.title_up_next)) })
+		Tab(selected = lyrics, onClick = { onSelect(true) }, text = { Text(stringResource(Res.string.action_lyrics)) })
+	}
+}
+
+/** The player shrunk to a row: what's playing, and play / pause. Tapping it lowers the sheet. */
+@Composable
+private fun CollapsedPlayerRow(song: DomainSong?, modifier: Modifier = Modifier) {
+	val sheet = LocalPlayerSheet.current
+	val player = koinInject<MediaPlayerViewModel>()
+	val playerState by player.uiState.collectAsStateWithLifecycle()
+	Row(
+		modifier = modifier
+			.clickable(enabled = sheet.queue > .9f) { sheet.hideSheet() }
+			.padding(horizontal = 16.dp),
+		verticalAlignment = Alignment.CenterVertically,
+		horizontalArrangement = Arrangement.spacedBy(12.dp)
+	) {
+		CoverArt(
+			coverArtId = song?.coverArtId,
+			shape = ContinuousRoundedRectangle(10.dp),
+			modifier = Modifier.size(48.dp)
+		)
+		Column(Modifier.weight(1f)) {
+			MarqueeText(song?.title ?: "", style = MaterialTheme.typography.titleMedium)
+			MarqueeText(
+				song?.artistName ?: "",
+				style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+			)
+		}
+		IconButton(onClick = { if (playerState.isPaused) player.resume() else player.pause() }) {
+			Icon(
+				if (playerState.isPaused) Icons.Filled.Play else Icons.Filled.Pause,
+				stringResource(if (playerState.isPaused) Res.string.action_play else Res.string.action_pause)
+			)
+		}
+	}
+}
+
+/** Phones and small windows: cover and controls stacked, or side by side. */
 @Composable
 private fun NowPlayingCompact(
 	contentPadding: PaddingValues,
@@ -274,15 +419,9 @@ private fun NowPlayingCompact(
 	songIsStarred: Boolean,
 	onSetSongIsStarred: (Boolean) -> Unit
 ) {
-	val toolbarPosition = koinInject<PreferenceManager>().nowPlayingToolbarPosition
-	val padding = when {
-		isLandscape -> contentPadding
-		toolbarPosition == ToolbarPosition.Top -> contentPadding.plus(PaddingValues(bottom = 40.dp))
-		else -> contentPadding.plus(PaddingValues(top = 40.dp))
-	}
 	if (isLandscape) {
 		Row(
-			modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(padding),
+			modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(contentPadding),
 			horizontalArrangement = Arrangement.SpaceEvenly,
 			verticalAlignment = Alignment.CenterVertically
 		) {
@@ -299,7 +438,7 @@ private fun NowPlayingCompact(
 		}
 	} else {
 		Column(
-			modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(padding),
+			modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp).padding(contentPadding),
 			horizontalAlignment = Alignment.CenterHorizontally,
 			verticalArrangement = Arrangement.Center
 		) {
@@ -308,7 +447,6 @@ private fun NowPlayingCompact(
 				isLandscape = false
 			)
 			NowPlayingControlsRow(
-				modifier = Modifier.weight(1f),
 				isLandscape = false,
 				songIsStarred = songIsStarred,
 				onSetSongIsStarred = onSetSongIsStarred
@@ -323,7 +461,7 @@ private fun NowPlayingSidePane(
 	modifier: Modifier = Modifier,
 	docked: Boolean = false
 ) {
-	var tab by rememberSaveable { mutableStateOf(0) }
+	val sheet = LocalPlayerSheet.current
 	Surface(
 		modifier = modifier,
 		shape = if (docked) ContinuousRoundedRectangle(topStart = 28.dp, bottomStart = 28.dp)
@@ -334,37 +472,17 @@ private fun NowPlayingSidePane(
 			// the tab row is the title bar here: it moves the window and holds its controls.
 			// Its height is fixed: the controls fill whatever height they're given
 			Row(Modifier.height(if (docked) 56.dp else 48.dp).windowDragArea()) {
-				// no full-width divider, and the M3 primary indicator: short, with rounded ends
-				PrimaryTabRow(
-					modifier = Modifier.weight(1f).padding(top = if (docked) 8.dp else 0.dp),
-					selectedTabIndex = tab,
-					containerColor = Color.Transparent,
-					indicator = {
-						TabRowDefaults.PrimaryIndicator(
-							modifier = Modifier.tabIndicatorOffset(tab, matchContentSize = true),
-							width = Dp.Unspecified,
-							shape = CircleShape
-						)
-					},
-					divider = {}
-				) {
-					Tab(
-						selected = tab == 0,
-						onClick = { tab = 0 },
-						text = { Text(stringResource(Res.string.action_queue)) }
-					)
-					Tab(
-						selected = tab == 1,
-						onClick = { tab = 1 },
-						text = { Text(stringResource(Res.string.action_lyrics)) }
-					)
-				}
+				SheetTabs(
+					lyrics = sheet.lyricsTab,
+					onSelect = { sheet.lyricsTab = it },
+					modifier = Modifier.weight(1f).padding(top = if (docked) 8.dp else 0.dp)
+				)
 				PaneWindowControls(
 					if (docked) Modifier else Modifier.align(Alignment.CenterVertically).padding(end = 8.dp)
 				)
 			}
 			Box(Modifier.weight(1f).padding(top = 8.dp)) {
-				if (tab == 0) QueueScreen(pane = true) else LyricsScreen(song, pane = true)
+				if (sheet.lyricsTab) LyricsScreen(song) else QueueScreen()
 			}
 		}
 	}

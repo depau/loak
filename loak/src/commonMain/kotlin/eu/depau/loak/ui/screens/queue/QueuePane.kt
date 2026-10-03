@@ -86,7 +86,7 @@ fun QueuePane(modifier: Modifier = Modifier) {
 						.padding(end = if (docked) 0.dp else 8.dp)
 				)
 			}
-			QueueScreen(pane = true)
+			QueueScreen()
 		}
 	}
 }

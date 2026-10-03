@@ -59,7 +59,7 @@ class ForwardHistoryTest {
 	fun sheetsAreIgnored() {
 		val nav = Nav(listOf(home, album))
 		nav.set(home)
-		nav.set(home, Screen.Queue)
+		nav.set(home, Screen.PlaybackSpeed)
 		nav.set(home)
 		nav.forward()
 		assertEquals<List<NavKey>>(listOf(home, album), nav.stack)
