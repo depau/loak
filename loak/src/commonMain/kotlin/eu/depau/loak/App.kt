@@ -42,6 +42,8 @@ import kotlinx.coroutines.CancellationException
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy.Companion.detailPane
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy.Companion.listPane
@@ -78,6 +80,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
@@ -91,9 +94,13 @@ import eu.depau.loak.domain.manager.BottomBarScrollManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
 import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.ui.components.dialogs.DialogButton
+import eu.depau.loak.ui.components.dialogs.FormDialog
 import eu.depau.loak.ui.components.sheets.ChangelogSheet
+import eu.depau.loak.ui.components.sheets.DesktopUpdateSheet
 import eu.depau.loak.ui.components.snackbars.LoakSnackBar
 import eu.depau.loak.ui.navigation.BottomSheetSceneStrategy
 import eu.depau.loak.ui.navigation.NowPlayingSceneStrategy
@@ -114,6 +121,14 @@ import eu.depau.loak.ui.screens.playlist.PlaylistListScreen
 import eu.depau.loak.ui.screens.queue.QueueScreen
 import eu.depau.loak.ui.screens.radio.RadioListScreen
 import eu.depau.loak.ui.screens.search.SearchScreen
+import eu.depau.loak.util.instanceHost
+import eu.depau.loak.util.isPrivateHost
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.outlined.Error
+import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.action_open_settings
+import eu.depau.loak.generated.resources.notice_local_network_denied
+import eu.depau.loak.generated.resources.subtitle_local_network_denied
 import eu.depau.loak.ui.screens.settings.AudioEffectsScreen
 import eu.depau.loak.ui.screens.settings.BottomBarScreen
 import eu.depau.loak.ui.screens.settings.FontsScreen
@@ -212,6 +227,22 @@ fun App() {
 			if (preferenceManager.explicitContentPlayback == ExplicitContentPlayback.SkipForThisSession) {
 				preferenceManager.explicitContentPlayback = ExplicitContentPlayback.Allowed
 			}
+		}
+	}
+
+	// On a restored (already-logged-in) session the login screen never shows, so the
+	// ACCESS_LOCAL_NETWORK prompt it triggers is skipped. Android 16+ requires that
+	// permission to reach LAN hosts, so when the configured server is on a private
+	// address ask for it on startup instead. The login path still handles the
+	// fresh-login case on its own.
+	val permissionManager = koinInject<PermissionManager>()
+	var localNetworkDenied by rememberSaveable { mutableStateOf(false) }
+	LaunchedEffect(Unit) {
+		if (platformContext.platformType != PlatformType.Android) return@LaunchedEffect
+		if (!isLoggedIn) return@LaunchedEffect
+		if (!isPrivateHost(instanceHost(sessionManager.instanceUrl))) return@LaunchedEffect
+		if (!permissionManager.requestLocalNetworkPermission()) {
+			localNetworkDenied = true
 		}
 	}
 
@@ -347,6 +378,29 @@ fun App() {
 						&& platformContext.platformType == PlatformType.Android
 					) {
 						ChangelogSheet()
+					} else if (preferenceManager.checkForUpdates
+						&& platformContext.platformType == PlatformType.Desktop
+					) {
+						DesktopUpdateSheet()
+					}
+
+					if (localNetworkDenied) {
+						FormDialog(
+							onDismissRequest = { localNetworkDenied = false },
+							icon = { Icon(Icons.Outlined.Error, null) },
+							title = { Text(stringResource(Res.string.notice_local_network_denied)) },
+							content = { Text(stringResource(Res.string.subtitle_local_network_denied)) },
+							buttons = {
+								DialogButton(
+									onClick = {
+										localNetworkDenied = false
+										permissionManager.openPermissionsSettings()
+									},
+								) {
+									Text(stringResource(Res.string.action_open_settings))
+								}
+							}
+						)
 					}
 				}
 			}
