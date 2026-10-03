@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.settings
 
+import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -320,7 +321,8 @@ private fun ThemeAccentPicker(
 				// TODO: make a proper colour picker sheet
 				DropdownMenu(
 					expanded = expanded,
-					onDismissRequest = { expanded = false }
+					onDismissRequest = { expanded = false },
+					modifier = Modifier.escapeToDismiss { expanded = false }
 				) {
 					RingColorPicker(
 						color = {

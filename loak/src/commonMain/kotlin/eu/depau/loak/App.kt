@@ -191,6 +191,7 @@ import eu.depau.loak.ui.util.WindowChromeHost
 import eu.depau.loak.ui.screens.queue.queuePaneFits
 import eu.depau.loak.ui.screens.nowPlaying.LocalPlayerSheet
 import eu.depau.loak.ui.screens.nowPlaying.PlayerLayer
+import eu.depau.loak.ui.util.LocalRootFocus
 import eu.depau.loak.ui.screens.nowPlaying.PlayerSheetState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.rememberCoroutineScope
@@ -327,7 +328,8 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 			LocalBottomBarScrollManager provides scrollManager,
 			LocalQueuePaneOpen provides queuePaneOpen,
 			LocalMouseInUse provides mouseInUse,
-			LocalPlayerSheet provides playerSheet
+			LocalPlayerSheet provides playerSheet,
+			LocalRootFocus provides rootFocus
 		) {
 			LoakTheme {
 				Box(Modifier.fillMaxSize()) {

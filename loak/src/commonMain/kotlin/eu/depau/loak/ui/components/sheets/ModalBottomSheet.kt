@@ -56,6 +56,8 @@ fun ModalBottomSheet(
 		DropdownMenu(
 			expanded = true,
 			onDismissRequest = onDismissRequest,
+			// right-click menus: Esc closes them like the sheets
+			modifier = Modifier.escapeToDismiss(onDismissRequest),
 			shape = ContinuousRoundedRectangle(16.dp),
 			containerColor = containerColor
 		) {

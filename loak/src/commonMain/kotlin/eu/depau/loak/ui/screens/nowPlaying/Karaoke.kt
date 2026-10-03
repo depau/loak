@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.nowPlaying
 
+import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -110,6 +111,8 @@ fun Karaoke(state: PlayerSheetState) {
 		BoxWithConstraints(
 			Modifier
 				.fillMaxSize()
+				// going full screen (desktop) can drop the app's keyboard focus: take it here
+				.escapeToDismiss { state.karaoke = false }
 				.background(Color.Black)
 				// any tap shows the controls (a tap on a line also seeks to it); taps while
 				// they show keep them up

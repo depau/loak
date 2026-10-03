@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.queue
 
+import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -382,7 +383,11 @@ private fun QueueMenu(
 	onSaveToPlaylist: () -> Unit,
 	onClear: () -> Unit
 ) {
-	DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest) {
+	DropdownMenu(
+		expanded = expanded,
+		onDismissRequest = onDismissRequest,
+		modifier = Modifier.escapeToDismiss(onDismissRequest)
+	) {
 		val queueSyncManager = koinInject<QueueSyncManager>()
 		// fetched each time the menu opens
 		val remote by produceState<Result<ServerQueue?>?>(null) {

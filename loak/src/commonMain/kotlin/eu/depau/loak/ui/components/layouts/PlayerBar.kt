@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -374,7 +375,8 @@ private fun VolumePopupButton(volume: Float, onVolumeChange: (Float) -> Unit, la
 			expanded = open,
 			onDismissRequest = { open = false },
 			// opened by hover: don't take keyboard focus away from the app (space = play/pause)
-			properties = PopupProperties(focusable = !openedByHover)
+			properties = PopupProperties(focusable = !openedByHover),
+			modifier = if (openedByHover) Modifier else Modifier.escapeToDismiss { open = false }
 		) {
 			VerticalSlider(
 				state = sliderState,

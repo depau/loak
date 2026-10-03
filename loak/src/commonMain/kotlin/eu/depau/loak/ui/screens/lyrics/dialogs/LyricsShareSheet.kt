@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.lyrics.dialogs
 
+import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -278,7 +279,8 @@ fun LyricsShareSheet(
 						// TODO: make a proper colour picker sheet
 						DropdownMenu(
 							expanded = expanded,
-							onDismissRequest = { expanded = false }
+							onDismissRequest = { expanded = false },
+							modifier = Modifier.escapeToDismiss { expanded = false }
 						) {
 							CircularColorPicker(
 								color = { customHsv },

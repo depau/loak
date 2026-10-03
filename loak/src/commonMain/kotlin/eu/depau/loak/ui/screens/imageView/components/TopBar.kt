@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.imageView.components
 
+import eu.depau.loak.ui.util.escapeToDismiss
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -69,7 +71,8 @@ fun ImageViewScreenTopBar(
 				}
 				DropdownMenu(
 					expanded = expanded,
-					onDismissRequest = { expanded = false }
+					onDismissRequest = { expanded = false },
+					modifier = Modifier.escapeToDismiss { expanded = false }
 				) {
 					DropdownMenuItem(
 						text = { Text(stringResource(Res.string.action_share)) },

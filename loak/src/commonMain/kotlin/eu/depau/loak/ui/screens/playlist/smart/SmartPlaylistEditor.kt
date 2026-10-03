@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.playlist.smart
 
+import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -465,7 +466,11 @@ private fun <T> Dropdown(label: String, options: List<Pair<String, T>>, onPick: 
 			Text(label)
 			Icon(Icons.Outlined.KeyboardArrowDown, null, Modifier.size(18.dp))
 		}
-		DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+		DropdownMenu(
+			expanded = expanded,
+			onDismissRequest = { expanded = false },
+			modifier = Modifier.escapeToDismiss { expanded = false }
+		) {
 			options.forEach { (text, value) ->
 				DropdownMenuItem(text = { Text(text) }, onClick = {
 					expanded = false
