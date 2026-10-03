@@ -1,5 +1,19 @@
 package eu.depau.loak.ui.screens.playlist
 
+import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.domain.manager.NavidromeManager
+import androidx.compose.runtime.produceState
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
+import eu.depau.loak.icons.outlined.Close
+import eu.depau.loak.icons.outlined.Soundwave
+import eu.depau.loak.icons.outlined.PlaylistAdd
+import eu.depau.loak.generated.resources.action_smart_playlist
+import eu.depau.loak.generated.resources.action_playlist
+import eu.depau.loak.ui.screens.playlist.smart.SmartPlaylistEditor
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.scaleIn
@@ -105,6 +119,11 @@ fun PlaylistListScreen(
 	val scaleInSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
 
 	var createDialogShown by rememberSaveable { mutableStateOf(false) }
+	var smartEditorShown by rememberSaveable { mutableStateOf(false) }
+	val backStack = LocalNavStack.current
+	var fabMenuExpanded by rememberSaveable { mutableStateOf(false) }
+	val navidrome = koinInject<NavidromeManager>()
+	val canMakeSmart by produceState(false) { value = navidrome.serverInfo().canEditSmartPlaylists }
 
 	val gridState = rememberLazyGridState()
 
@@ -161,7 +180,40 @@ fun PlaylistListScreen(
 						.using(SizeTransform(clip = false))
 				}
 			) { notScrolled ->
-				if (notScrolled) {
+				if (notScrolled && canMakeSmart) {
+					FloatingActionButtonMenu(
+						expanded = fabMenuExpanded,
+						button = {
+							ToggleFloatingActionButton(
+								checked = fabMenuExpanded,
+								onCheckedChange = { fabMenuExpanded = it }
+							) {
+								Icon(
+									if (checkedProgress > .5f) Icons.Outlined.Close else Icons.Outlined.Add,
+									contentDescription = stringResource(Res.string.title_create_playlist),
+									modifier = Modifier.animateIcon({ checkedProgress })
+								)
+							}
+						}
+					) {
+						FloatingActionButtonMenuItem(
+							onClick = {
+								fabMenuExpanded = false
+								smartEditorShown = true
+							},
+							icon = { Icon(Icons.Outlined.Soundwave, null) },
+							text = { Text(stringResource(Res.string.action_smart_playlist)) }
+						)
+						FloatingActionButtonMenuItem(
+							onClick = {
+								fabMenuExpanded = false
+								createDialogShown = true
+							},
+							icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
+							text = { Text(stringResource(Res.string.action_playlist)) }
+						)
+					}
+				} else if (notScrolled) {
 					MediumFloatingActionButton(
 						shape = MaterialTheme.shapes.large,
 						containerColor = MaterialTheme.colorScheme.primary,
@@ -250,6 +302,18 @@ fun PlaylistListScreen(
 		onIdClear = { deletionId = null },
 		onRefresh = { viewModel.refreshPlaylists(false) }
 	)
+
+	if (smartEditorShown) {
+		SmartPlaylistEditor(
+			playlist = null,
+			details = null,
+			onDismissRequest = { smartEditorShown = false },
+			onSaved = { id ->
+				smartEditorShown = false
+				backStack.add(Screen.CollectionDetail(id, ""))
+			}
+		)
+	}
 
 	if (createDialogShown) {
 		PlaylistCreateDialog(

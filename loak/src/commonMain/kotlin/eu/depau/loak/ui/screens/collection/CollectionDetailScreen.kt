@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.collection
 
+import eu.depau.loak.domain.manager.SmartPlaylistDetails
+import eu.depau.loak.ui.screens.playlist.smart.SmartPlaylistEditor
 import eu.depau.loak.ui.screens.playlist.smart.SmartRulesCard
 import eu.depau.loak.ui.screens.collection.components.PlaylistRebuiltNotice
 import androidx.compose.foundation.background
@@ -98,6 +100,7 @@ fun CollectionDetailScreen(
 	val starred by viewModel.starred.collectAsState()
 
 	var shareId by remember { mutableStateOf<String?>(null) }
+	var editingRules by remember { mutableStateOf<SmartPlaylistDetails?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 
 	val albumInfoState by viewModel.albumInfoState.collectAsState()
@@ -196,7 +199,7 @@ fun CollectionDetailScreen(
 						CollectionDetailScreenHeadingRowButtons(collection = collection)
 						if (collection is DomainPlaylist) {
 							PlaylistRebuiltNotice(collection)
-							SmartRulesCard(collection)
+							SmartRulesCard(collection, onEdit = { editingRules = it })
 						}
 					}
 					LazyColumn(
@@ -227,7 +230,7 @@ fun CollectionDetailScreen(
 
 							if (collection is DomainPlaylist) item {
 								PlaylistRebuiltNotice(collection)
-								SmartRulesCard(collection)
+								SmartRulesCard(collection, onEdit = { editingRules = it })
 							}
 						}
 
@@ -427,6 +430,17 @@ fun CollectionDetailScreen(
 			onIdClear = { shareId = null; viewModel.clearSelection() },
 			expiry = shareExpiry,
 			onExpiryChange = { shareExpiry = it }
+		)
+
+		val rules = editingRules
+		if (rules != null && collection is DomainPlaylist) SmartPlaylistEditor(
+			playlist = collection,
+			details = rules,
+			onDismissRequest = { editingRules = null },
+			onSaved = {
+				editingRules = null
+				viewModel.refreshCollection(true)
+			}
 		)
 	}
 }
