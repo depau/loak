@@ -1,15 +1,18 @@
 package eu.depau.loak.ui.screens.settings
 
+import eu.depau.loak.generated.resources.info_audiomuse_not_connected
+import eu.depau.loak.generated.resources.info_audiomuse_connected
+import eu.depau.loak.generated.resources.info_smart_playlists_switch
+import eu.depau.loak.generated.resources.title_audiomuse
+import eu.depau.loak.generated.resources.title_integrations
+import androidx.compose.runtime.collectAsState
+import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.NavidromeManager
 import eu.depau.loak.domain.manager.ServerInfo
 import androidx.compose.runtime.produceState
 import eu.depau.loak.generated.resources.option_server_software
 import eu.depau.loak.generated.resources.option_smart_playlists
-import eu.depau.loak.generated.resources.info_smart_playlists_available
 import eu.depau.loak.generated.resources.info_smart_playlists_unavailable
-import eu.depau.loak.generated.resources.title_server_features
-import eu.depau.loak.generated.resources.option_audiomuse_integration
-import eu.depau.loak.generated.resources.subtitle_audiomuse_integration
 import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -179,19 +182,23 @@ fun SettingsServerScreen() {
 
 			ThisDeviceGroup()
 
-			ServerFeaturesGroup()
+			IntegrationsGroup()
 		}
 	}
 }
 
+/** What the server and AudioMuse-AI add: smart playlists, AudioMuse-AI. Also on the setup wizard. */
 @Composable
-private fun ServerFeaturesGroup() {
+fun IntegrationsGroup() {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val navidrome = koinInject<NavidromeManager>()
+	val audioMuse = koinInject<AudioMuseManager>()
+	val audioMuseInfo by audioMuse.info.collectAsState()
+	val backStack = LocalNavStack.current
 	val info by produceState<ServerInfo?>(null) { value = navidrome.serverInfo() }
 	val known = info?.type != null
 	val count = if (known) 3 else 2
-	SettingsGroup(title = { Text(stringResource(Res.string.title_server_features)) }) {
+	SettingsGroup(title = { Text(stringResource(Res.string.title_integrations)) }) {
 		info?.takeIf { known }?.let { info ->
 			SegmentedListItem(
 				onClick = {},
@@ -202,21 +209,26 @@ private fun ServerFeaturesGroup() {
 				}
 			)
 		}
+		val canSmart = info?.canEditSmartPlaylists == true
 		SettingsToggleItem(
-			content = { Text(stringResource(Res.string.option_audiomuse_integration)) },
-			supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_integration)) },
-			checked = preferenceManager.audioMuseIntegration,
-			onCheckedChange = { preferenceManager.audioMuseIntegration = it },
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 2, count = count)
-		)
-		SegmentedListItem(
-			onClick = {},
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 1, count = count),
 			content = { Text(stringResource(Res.string.option_smart_playlists)) },
 			supportingContent = {
 				Text(stringResource(
-					if (info?.canEditSmartPlaylists == true) Res.string.info_smart_playlists_available
-					else Res.string.info_smart_playlists_unavailable
+					if (canSmart) Res.string.info_smart_playlists_switch else Res.string.info_smart_playlists_unavailable
+				))
+			},
+			checked = canSmart && preferenceManager.smartPlaylistsEnabled,
+			enabled = canSmart,
+			onCheckedChange = { preferenceManager.smartPlaylistsEnabled = it },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 2, count = count)
+		)
+		SettingsNavItem(
+			onClick = dropUnlessResumed { backStack.add(Screen.Settings.AudioMuse) },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 1, count = count),
+			content = { Text(stringResource(Res.string.title_audiomuse)) },
+			supportingContent = {
+				Text(stringResource(
+					if (audioMuseInfo != null) Res.string.info_audiomuse_connected else Res.string.info_audiomuse_not_connected
 				))
 			}
 		)

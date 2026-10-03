@@ -105,6 +105,15 @@ class PreferenceManager(
 
 	/** Tidy names, badges and warnings for AudioMuse-AI's playlists. */
 	var audioMuseIntegration by preference(true)
+
+	/** Smart playlist tools (create, edit, rules) on servers that support them. */
+	var smartPlaylistsEnabled by preference(true)
+
+	// AudioMuse-AI's own API; an empty address means not connected
+	var audioMuseUrl by preference("")
+	var audioMuseUsername by preference("")
+	var audioMusePassword by preference("")
+	var audioMuseToken by preference("")
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
 

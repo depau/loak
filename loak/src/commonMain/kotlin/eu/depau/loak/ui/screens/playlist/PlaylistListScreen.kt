@@ -180,7 +180,7 @@ fun PlaylistListScreen(
 						.using(SizeTransform(clip = false))
 				}
 			) { notScrolled ->
-				if (notScrolled && canMakeSmart) {
+				if (notScrolled && canMakeSmart && preferenceManager.smartPlaylistsEnabled) {
 					FloatingActionButtonMenu(
 						expanded = fabMenuExpanded,
 						button = {

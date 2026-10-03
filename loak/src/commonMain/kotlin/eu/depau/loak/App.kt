@@ -1,5 +1,7 @@
 package eu.depau.loak
 
+import eu.depau.loak.ui.screens.settings.AudioMuseSettingsScreen
+import eu.depau.loak.ui.screens.settings.AudioMuseConnectScreen
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -617,6 +619,12 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.Server>(metadata = detailPane("settings")) {
 			SettingsServerScreen()
+		}
+		entry<Screen.Settings.AudioMuse>(metadata = detailPane("settings")) {
+			AudioMuseSettingsScreen()
+		}
+		entry<Screen.Settings.AudioMuseConnect>(metadata = detailPane("settings")) {
+			AudioMuseConnectScreen()
 		}
 		entry<Screen.Settings.Effects>(metadata = detailPane("settings")) {
 			AudioEffectsScreen()

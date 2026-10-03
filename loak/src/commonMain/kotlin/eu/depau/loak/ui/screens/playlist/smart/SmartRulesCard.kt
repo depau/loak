@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.domain.manager.NavidromeManager
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.Rule
@@ -49,7 +50,7 @@ fun SmartRulesCard(
 	modifier: Modifier = Modifier,
 	onEdit: ((SmartPlaylistDetails) -> Unit)? = null
 ) {
-	if (playlist.validUntil == null) return
+	if (playlist.validUntil == null || !koinInject<PreferenceManager>().smartPlaylistsEnabled) return
 	val navidrome = koinInject<NavidromeManager>()
 	val sessionManager = koinInject<SessionManager>()
 	val details by produceState<SmartPlaylistDetails?>(null, playlist.id, playlist.modifiedAt) {

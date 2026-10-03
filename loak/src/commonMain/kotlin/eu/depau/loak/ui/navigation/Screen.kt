@@ -205,5 +205,13 @@ sealed interface Screen : NavKey {
 		@Immutable
 		@Serializable
 		data object Equaliser : Settings
+
+		@Immutable
+		@Serializable
+		data object AudioMuse : Settings
+
+		@Immutable
+		@Serializable
+		data object AudioMuseConnect : Settings
 	}
 }
