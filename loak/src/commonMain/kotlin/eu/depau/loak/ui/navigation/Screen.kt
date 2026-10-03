@@ -206,6 +206,10 @@ sealed interface Screen : NavKey {
 
 		@Immutable
 		@Serializable
+		data object Tabs : Settings
+
+		@Immutable
+		@Serializable
 		data object NowPlaying : Settings
 
 		@Immutable

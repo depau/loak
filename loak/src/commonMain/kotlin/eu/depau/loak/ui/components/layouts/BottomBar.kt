@@ -266,6 +266,10 @@ fun BottomBar(
 	}
 }
 
+/** The tab's label and icon, as the bar shows them. */
+fun NavbarTab.Id.tabLabel() = navItem().label
+fun NavbarTab.Id.tabIcon() = navItem().iconUnselected
+
 private fun NavbarTab.Id.navItem() = when (this) {
 	NavbarTab.Id.HOME -> NavItem.HOME
 	NavbarTab.Id.ALBUMS -> NavItem.ALBUMS

@@ -35,6 +35,9 @@ import eu.depau.loak.generated.resources.subtitle_server
 import eu.depau.loak.generated.resources.title_about
 import eu.depau.loak.generated.resources.title_appearance
 import eu.depau.loak.generated.resources.title_bottom_app_bar
+import eu.depau.loak.generated.resources.title_tabs
+import eu.depau.loak.generated.resources.subtitle_tabs
+import eu.depau.loak.icons.filled.Explore
 import eu.depau.loak.generated.resources.title_data_storage
 import eu.depau.loak.generated.resources.title_developer
 import eu.depau.loak.generated.resources.title_now_playing
@@ -105,7 +108,7 @@ fun SettingsScreen() {
 					iconSize = 24.dp,
 					title = Res.string.title_appearance,
 					subtitle = Res.string.subtitle_appearance,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 6)
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 7)
 				)
 				PageRow(
 					destination = Screen.Settings.NowPlaying,
@@ -113,7 +116,7 @@ fun SettingsScreen() {
 					iconSize = 24.dp,
 					title = Res.string.title_now_playing,
 					subtitle = Res.string.subtitle_now_playing,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 6)
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 7)
 				)
 				PageRow(
 					destination = Screen.Settings.BottomAppBar,
@@ -121,7 +124,15 @@ fun SettingsScreen() {
 					iconSize = 24.dp,
 					title = Res.string.title_bottom_app_bar,
 					subtitle = Res.string.subtitle_bottom_app_bar,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 6)
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 7)
+				)
+				PageRow(
+					destination = Screen.Settings.Tabs,
+					icon = Icons.Filled.Explore,
+					iconSize = 24.dp,
+					title = Res.string.title_tabs,
+					subtitle = Res.string.subtitle_tabs,
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 7)
 				)
 				PageRow(
 					destination = Screen.Settings.Playback,
@@ -129,7 +140,7 @@ fun SettingsScreen() {
 					iconSize = 24.dp,
 					title = Res.string.title_playback,
 					subtitle = Res.string.subtitle_playback,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 6)
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 4, count = 7)
 				)
 				PageRow(
 					destination = Screen.Settings.DataStorage,
@@ -137,7 +148,7 @@ fun SettingsScreen() {
 					iconSize = 24.dp,
 					title = Res.string.title_data_storage,
 					subtitle = Res.string.subtitle_data_storage,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 4, count = 6)
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 5, count = 7)
 				)
 				PageRow(
 					destination = Screen.Settings.Developer,
@@ -145,7 +156,7 @@ fun SettingsScreen() {
 					iconSize = 24.dp,
 					title = Res.string.title_developer,
 					subtitle = Res.string.subtitle_developer,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 5, count = 6)
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 6, count = 7)
 				)
 			}
 			SettingsGroup {

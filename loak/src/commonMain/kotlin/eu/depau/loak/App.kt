@@ -161,6 +161,7 @@ import eu.depau.loak.generated.resources.notice_local_network_denied
 import eu.depau.loak.generated.resources.subtitle_local_network_denied
 import eu.depau.loak.ui.screens.settings.AudioEffectsScreen
 import eu.depau.loak.ui.screens.settings.BottomBarScreen
+import eu.depau.loak.ui.screens.settings.TabsScreen
 import eu.depau.loak.ui.screens.settings.FontsScreen
 import eu.depau.loak.ui.screens.settings.SettingsAboutScreen
 import eu.depau.loak.ui.screens.settings.SettingsAppIconScreen
@@ -657,6 +658,9 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.BottomAppBar>(metadata = detailPane("settings")) {
 			BottomBarScreen()
+		}
+		entry<Screen.Settings.Tabs>(metadata = detailPane("settings")) {
+			TabsScreen()
 		}
 		entry<Screen.Settings.NowPlaying>(metadata = detailPane("settings")) {
 			SettingsNowPlayingScreen()

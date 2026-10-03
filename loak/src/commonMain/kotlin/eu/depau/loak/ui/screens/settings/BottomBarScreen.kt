@@ -50,13 +50,17 @@ import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.screens.settings.components.SettingsNavItem
 import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
-import eu.depau.loak.ui.screens.settings.dialogs.NavtabsDialog
+import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.generated.resources.info_tabs_moved
+import androidx.compose.material3.TextButton
+import androidx.lifecycle.compose.dropUnlessResumed
 
 @Composable
 fun BottomBarScreen() {
 	val platformContext = LocalPlatformContext.current
 	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
-	var tabsDialogOpen by rememberSaveable { mutableStateOf(false) }
+	val backStack = LocalNavStack.current
 	val preferenceManager = koinInject<PreferenceManager>()
 
 	Scaffold(
@@ -111,7 +115,7 @@ fun BottomBarScreen() {
 						onChoiceSelected = { preferenceManager.navigationBarStyle = it },
 						content = { Text(stringResource(Res.string.option_navigation_bar_style)) },
 						label = { stringResource(it.displayName) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2)
 					)
 
 					SettingsChoiceItem(
@@ -120,14 +124,11 @@ fun BottomBarScreen() {
 						onChoiceSelected = { preferenceManager.navigationBarLabelVisibility = it },
 						content = { Text(stringResource(Res.string.option_navigation_bar_label_visibility)) },
 						label = { stringResource(it.displayName) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2)
 					)
-
-					SettingsNavItem(
-						onClick = { tabsDialogOpen = true },
-						content = { Text(stringResource(Res.string.option_navigation_bar_tabs)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3)
-					)
+				}
+				TextButton(onClick = dropUnlessResumed { backStack.add(Screen.Settings.Tabs) }) {
+					Text(stringResource(Res.string.info_tabs_moved))
 				}
 
 				SettingsGroup(title = { Text(stringResource(Res.string.title_mini_player)) }) {
@@ -163,9 +164,4 @@ fun BottomBarScreen() {
 			}
 		}
 	}
-
-	NavtabsDialog(
-		presented = tabsDialogOpen,
-		onDismissRequest = { tabsDialogOpen = false }
-	)
 }

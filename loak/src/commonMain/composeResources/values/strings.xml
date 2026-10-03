@@ -564,6 +564,14 @@
 	<string name="option_audiomuse_integration">AudioMuse-AI playlists</string>
 	<string name="subtitle_audiomuse_integration">Tidy names, a badge, and warnings where AudioMuse-AI may undo your edits</string>
 	<string name="badge_ai">AI</string>
+	<string name="title_tabs">Tabs</string>
+	<string name="subtitle_tabs">Choose and order the tabs</string>
+	<string name="title_tabs_on_bar">Tabs on the bar</string>
+	<string name="info_tabs_count">%1$d of %2$d</string>
+	<string name="info_tabs_limit">At most %1$d tabs, plus Library. Drag to reorder.</string>
+	<string name="info_tabs_turn_off">Turn a tab off first</string>
+	<string name="info_library_fixed">Always on, always last</string>
+	<string name="info_tabs_moved">Tabs are now in Settings › Tabs</string>
 	<string name="title_explore">Explore</string>
 	<string name="subtitle_explore">In your library</string>
 	<string name="title_browse">Browse</string>

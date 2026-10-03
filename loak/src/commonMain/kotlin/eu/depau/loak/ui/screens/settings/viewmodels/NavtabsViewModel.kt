@@ -15,14 +15,14 @@ class NavtabsViewModel(
 ) : ViewModel() {
 	private val json = Json
 
-	val state: StateFlow<UiState<NavbarConfig>>
-		field = MutableStateFlow<UiState<NavbarConfig>>(UiState.Loading())
+	// one config for every bar, rail and settings page: each gets its own view model
+	val state: StateFlow<UiState<NavbarConfig>> get() = shared
 
 	init {
-		try {
-			state.value = UiState.Success(loadConfig())
+		if (shared.value is UiState.Loading) try {
+			shared.value = UiState.Success(loadConfig())
 		} catch (e: Exception) {
-			state.value = UiState.Error(e)
+			shared.value = UiState.Error(e)
 		}
 	}
 
@@ -34,7 +34,7 @@ class NavtabsViewModel(
 	}
 
 	private fun setConfig(newConfig: NavbarConfig) {
-		state.value = UiState.Success(newConfig)
+		shared.value = UiState.Success(newConfig)
 		settings[NavbarConfig.KEY] = json.encodeToString(newConfig)
 	}
 
@@ -50,6 +50,8 @@ class NavtabsViewModel(
 
 	fun toggleVisibility(id: NavbarTab.Id) {
 		val config = (state.value as UiState.Success).data
+		val turningOn = config.tabs.any { it.id == id && !it.visible }
+		if (turningOn && config.tabs.count { it.visible } >= NavbarConfig.MAX_VISIBLE) return
 		setConfig(
 			config.copy(
 				tabs = config.tabs.map {
@@ -57,5 +59,9 @@ class NavtabsViewModel(
 				}
 			)
 		)
+	}
+
+	private companion object {
+		val shared = MutableStateFlow<UiState<NavbarConfig>>(UiState.Loading())
 	}
 }
