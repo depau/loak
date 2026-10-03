@@ -381,6 +381,8 @@
 	<string name="action_view_on_lastfm">View on last.fm</string>
 	<string name="action_view_on_musicbrainz">View on MusicBrainz</string>
 	<string name="action_lyrics">Lyrics</string>
+	<string name="action_karaoke">Full screen</string>
+	<string name="action_exit_karaoke">Exit full screen</string>
 	<string name="action_share_lyrics">Share lyrics</string>
 	<string name="action_update_app">Update</string>
 	<string name="action_play_next">Play next</string>

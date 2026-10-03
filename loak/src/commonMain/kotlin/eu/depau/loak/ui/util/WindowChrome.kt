@@ -61,6 +61,8 @@ data class WindowChrome(
 	val rightWidth: Dp = 0.dp,
 	/** A pane along the right edge draws the right controls in its header, so the top bars needn't. */
 	val controlsInPane: Boolean = false,
+	/** Puts the window in or out of full screen (karaoke). */
+	val setFullscreen: ((Boolean) -> Unit)? = null,
 ) {
 	val hasLeftControls get() = leftControls != null
 	val hasRightControls get() = rightControls != null

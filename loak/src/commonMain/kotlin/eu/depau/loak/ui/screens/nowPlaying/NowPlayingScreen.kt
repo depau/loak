@@ -318,7 +318,7 @@ private fun PlayerWithSheet(
 					)
 				}
 				Box(Modifier.weight(1f)) {
-					if (sheet.lyricsTab) LyricsScreen(song) else QueueScreen()
+					if (sheet.lyricsTab) LyricsScreen(song, onFullScreen = { sheet.karaoke = true }) else QueueScreen()
 				}
 			}
 		}
@@ -492,7 +492,7 @@ private fun NowPlayingSidePane(
 				)
 			}
 			Box(Modifier.weight(1f).padding(top = 8.dp)) {
-				if (sheet.lyricsTab) LyricsScreen(song) else QueueScreen()
+				if (sheet.lyricsTab) LyricsScreen(song, onFullScreen = { sheet.karaoke = true }) else QueueScreen()
 			}
 		}
 	}

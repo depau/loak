@@ -6,6 +6,8 @@ import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.outlined.Fullscreen
+import eu.depau.loak.generated.resources.action_karaoke
 import eu.depau.loak.generated.resources.action_cancel
 import eu.depau.loak.generated.resources.action_share_lyrics
 import eu.depau.loak.generated.resources.Res
@@ -59,7 +61,9 @@ import eu.depau.loak.ui.util.KeepScreenOn
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LyricsScreen(
-	song: DomainSong?
+	song: DomainSong?,
+	/** Shows the full-screen (karaoke) button. */
+	onFullScreen: (() -> Unit)? = null
 ) {
 	val backStack = LocalNavStack.current
 
@@ -173,8 +177,11 @@ fun LyricsScreen(
 
 	Box(Modifier.fillMaxSize()) {
 		body(PaddingValues())
-		// like the toolbar: first pick the lines, then share them
+		// first pick the lines, then share them; the full-screen button sits next to it
 		Row(Modifier.align(Alignment.TopEnd)) {
+			if (onFullScreen != null && !isSelecting) IconButton(onClick = onFullScreen) {
+				Icon(Icons.Outlined.Fullscreen, stringResource(Res.string.action_karaoke))
+			}
 			if (isSelecting) IconButton(onClick = toggleIsSelecting) {
 				Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
 			}

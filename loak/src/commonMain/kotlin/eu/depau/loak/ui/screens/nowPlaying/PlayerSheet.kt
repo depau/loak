@@ -113,6 +113,8 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 	private var queueJob: Job? = null
 	/** The sheet shows the lyrics rather than the queue; the side pane's tab follows it too. */
 	var lyricsTab by mutableStateOf(false)
+	/** The lyrics, full screen. */
+	var karaoke by mutableStateOf(false)
 	/** Set by the player's layout: whether there's a sheet, a split stop, and how far the sheet travels. */
 	var sheetEnabled = false
 	var splitAvailable = false
@@ -230,6 +232,7 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 
 	fun close(velocityPx: Float = 0f) {
 		backStack.removeAll { it is Screen.NowPlaying }
+		karaoke = false
 		queueJob?.cancel()
 		queue = 0f
 		run(0f, velocityPx)
@@ -334,7 +337,7 @@ fun PlayerLayer(state: PlayerSheetState) {
 	val navState = rememberNavigationEventState(NavigationEventInfo.None)
 	NavigationBackHandler(
 		state = navState,
-		isBackEnabled = state.isOpen && backStack.lastOrNull() is Screen.NowPlaying,
+		isBackEnabled = state.isOpen && !state.karaoke && backStack.lastOrNull() is Screen.NowPlaying,
 		onBackCompleted = state::backCompleted,
 		onBackCancelled = state::backCancelled
 	)
@@ -431,6 +434,8 @@ fun PlayerLayer(state: PlayerSheetState) {
 					)
 				}
 			}
+			// karaoke covers everything, the player included, in the song's colours
+			Karaoke(state)
 		}
 	}
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
+
+/** The lyrics' line size: karaoke mode makes it as large as the window allows. */
+val LocalLyricsFontSize = compositionLocalOf { 32.sp }
 
 @Composable
 fun LyricsScreenKaraokeText(
@@ -72,7 +76,7 @@ fun LyricsScreenKaraokeText(
 	Box(modifier = modifier.clickable { onClick() }) {
 		Text(
 			text = text,
-			fontSize = 32.sp,
+			fontSize = LocalLyricsFontSize.current,
 			fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
 			textAlign = if (isRtl) TextAlign.End else TextAlign.Start,
 			style = MaterialTheme.typography.headlineLargeEmphasized,
@@ -85,7 +89,7 @@ fun LyricsScreenKaraokeText(
 		if (isActive) {
 			Text(
 				text = text,
-				fontSize = 32.sp,
+				fontSize = LocalLyricsFontSize.current,
 				fontWeight = FontWeight.Bold,
 				textAlign = if (isRtl) TextAlign.End else TextAlign.Start,
 				style = MaterialTheme.typography.headlineLargeEmphasized,

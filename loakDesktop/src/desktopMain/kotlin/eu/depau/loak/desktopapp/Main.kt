@@ -94,12 +94,15 @@ fun main(args: Array<String>) {
 						content()
 					}
 				}
+				val window = (this@DecoratedWindow as TaoDecoratedWindowScope).window
+				val setFullscreen: (Boolean) -> Unit = { window.setFullscreen(it) }
 				val chrome = when {
 					isMac -> WindowChrome(
 						barHeight = titleBarHeight,
 						dragArea = Modifier.windowDragArea(),
 						leftControls = { dark -> themed(dark) { WindowControls() } },
 						rightControls = null,
+						setFullscreen = setFullscreen,
 					)
 					// Windows caption buttons keep their native 32dp height, flush in the corner
 					isWindows -> WindowChrome(
@@ -108,6 +111,7 @@ fun main(args: Array<String>) {
 						leftControls = null,
 						rightControls = { dark -> themed(dark) { WindowControls(Modifier.height(32.dp)) } },
 						controlsInCorner = true,
+						setFullscreen = setFullscreen,
 					)
 					else -> {
 						// Linux: the buttons can sit on both sides at once (close:minimize,maximize),
@@ -126,6 +130,7 @@ fun main(args: Array<String>) {
 							rightControls = side(layout.second),
 							// as far from the side edge as from the top: (64 - 24) / 2, less Nucleus' own 8
 							edgeInset = 12.dp,
+							setFullscreen = setFullscreen,
 						)
 					}
 				}
