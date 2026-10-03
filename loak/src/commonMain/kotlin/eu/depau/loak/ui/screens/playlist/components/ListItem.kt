@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.playlist.components
 
+import eu.depau.loak.ui.components.common.SpecialPlaylistCover
 import eu.depau.loak.ui.components.common.PlaylistBadgedText
 import eu.depau.loak.ui.components.common.displayName
 import eu.depau.loak.ui.util.onSecondaryClick
@@ -67,11 +68,14 @@ fun PlaylistListScreenListItem(
 		ListItem(
 			modifier = Modifier.onSecondaryClick(onSelect),
 			leadingContent = {
-				CoverArt(
-					coverArtId = playlist.coverArtId,
-					modifier = Modifier.size(50.dp),
-					shape = preferenceManager.coverArtShape.decreasedShape
-				)
+				Box {
+					CoverArt(
+						coverArtId = playlist.coverArtId,
+						modifier = Modifier.size(50.dp),
+						shape = preferenceManager.coverArtShape.decreasedShape
+					)
+					SpecialPlaylistCover(name, Modifier.matchParentSize(), showTitle = false)
+				}
 			},
 			content = { MarqueeText(name.display.ifEmpty { "[unknown playlist]" }) },
 			supportingContent = {

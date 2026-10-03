@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.home.components
 
+import eu.depau.loak.ui.components.common.SpecialPlaylistCover
 import eu.depau.loak.domain.models.PlaylistKind
 import eu.depau.loak.ui.components.common.displayName
 import eu.depau.loak.icons.filled.Sparkle
@@ -164,6 +165,9 @@ private fun SpeedDialTile(
 			)
 	) {
 		CoverArt(coverArtId = coverArtId, modifier = Modifier.size(size), shape = RoundedCornerShape(12.dp))
+		(item as? SpeedDialItem.Playlist)?.let {
+			SpecialPlaylistCover(it.playlist.displayName(), Modifier.matchParentSize(), showTitle = false)
+		}
 		Row(
 			modifier = Modifier
 				.align(Alignment.BottomStart)

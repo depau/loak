@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.playlist.components
 
+import eu.depau.loak.ui.components.common.SpecialPlaylistCover
 import eu.depau.loak.domain.models.PlaylistKind
 import eu.depau.loak.ui.components.common.PlaylistBadge
 import eu.depau.loak.ui.components.common.displayName
@@ -78,6 +79,7 @@ fun PlaylistListScreenGridItem(
 					append("\n${playlist.comment}\n")
 				}
 			},
+			coverOverlay = { SpecialPlaylistCover(name, Modifier.matchParentSize()) },
 			badge = if (name.kind == PlaylistKind.Regular) null else ({ PlaylistBadge(name.kind) }),
 			id = playlist.id,
 			tab = tab

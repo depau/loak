@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.collection.components
 
+import eu.depau.loak.ui.components.common.SpecialPlaylistCover
+import androidx.compose.foundation.layout.Box
 import eu.depau.loak.domain.models.PlaylistKind
 import eu.depau.loak.ui.components.common.PlaylistBadgedText
 import eu.depau.loak.ui.components.common.displayName
@@ -48,6 +50,7 @@ fun CollectionDetailScreenHeadingRow(
 	val title = playlistName?.display ?: collection.name
 	val sharedTransitionKey = "${tab}-${collection.id}-cover"
 	with(LocalSharedTransitionScope.current) {
+		Box {
 		CoverArt(
 			coverArtId = collection.coverArtId,
 			contentDescription = collection.name,
@@ -81,6 +84,10 @@ fun CollectionDetailScreenHeadingRow(
 				}
 			}
 		)
+		playlistName?.let {
+			SpecialPlaylistCover(it, Modifier.matchParentSize().padding(horizontal = 64.dp).alpha(titleAlpha))
+		}
+		}
 		Column(
 			modifier = Modifier
 				.padding(horizontal = 31.dp)

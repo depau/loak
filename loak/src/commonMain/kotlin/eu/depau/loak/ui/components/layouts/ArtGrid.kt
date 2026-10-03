@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.layouts
 
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Alignment
 import eu.depau.loak.ui.util.onSecondaryClick
@@ -102,6 +103,7 @@ fun ArtGridItem(
 	title: String,
 	subtitle: String? = null,
 	badge: (@Composable () -> Unit)? = null,
+	coverOverlay: (@Composable BoxScope.() -> Unit)? = null,
 	id: String,
 	// this parameter is a shitty workaround for shared element
 	// transitions being performed when switching between tabs
@@ -125,6 +127,7 @@ fun ArtGridItem(
 				}
 				.then(modifier)
 		) {
+			Box {
 			CoverArt(
 				coverArtId = coverArtId,
 				contentDescription = title,
@@ -146,6 +149,8 @@ fun ArtGridItem(
 					),
 				interactionSource = interactionSource
 			)
+				coverOverlay?.invoke(this)
+			}
 			Text(
 				text = title,
 				style = MaterialTheme.typography.titleSmallEmphasized,

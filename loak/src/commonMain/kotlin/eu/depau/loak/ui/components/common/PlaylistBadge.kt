@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.components.common
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.Brush
+import eu.depau.loak.domain.models.SPECIAL_AUDIOMUSE_PLAYLISTS
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -90,5 +93,32 @@ fun PlaylistBadgedText(kind: PlaylistKind, text: @Composable () -> Unit) {
 	) {
 		PlaylistBadge(kind)
 		text()
+	}
+}
+
+/**
+ * AudioMuse-AI's scheduled playlists get their own cover, like YT Music's My Supermix,
+ * drawn over the regular one. Nothing for other playlists.
+ */
+@Composable
+fun SpecialPlaylistCover(name: PlaylistName, modifier: Modifier = Modifier, showTitle: Boolean = true) {
+	if (name.kind != PlaylistKind.AudioMuseScheduled || name.display !in SPECIAL_AUDIOMUSE_PLAYLISTS) return
+	val colors = if (name.display == "Sonic Fingerprint")
+		listOf(Color(0xFFFF9E7A), Color(0xFF7B3FA0), Color(0xFF2B3F9A))
+	else listOf(Color(0xFFFFD36B), Color(0xFF2F6B5A), Color(0xFF1F3A6B))
+	Box(
+		modifier
+			.clip(koinInject<PreferenceManager>().coverArtShape.shape)
+			.background(Brush.linearGradient(colors))
+			.padding(10.dp)
+	) {
+		Icon(Icons.Filled.Sparkle, null, Modifier.size(22.dp), tint = Color.White.copy(alpha = .9f))
+		if (showTitle) Text(
+			name.display,
+			modifier = Modifier.align(Alignment.BottomStart),
+			color = Color.White,
+			style = MaterialTheme.typography.titleMedium,
+			fontWeight = FontWeight.Bold
+		)
 	}
 }
