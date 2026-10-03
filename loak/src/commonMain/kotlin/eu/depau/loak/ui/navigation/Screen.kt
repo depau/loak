@@ -81,6 +81,10 @@ sealed interface Screen : NavKey {
 
 	@Immutable
 	@Serializable
+	data class AskAI(val prompt: String = "") : Screen
+
+	@Immutable
+	@Serializable
 	data class Downloads(val tab: DownloadsTab = DownloadsTab.Songs) : Screen
 
 	@Immutable

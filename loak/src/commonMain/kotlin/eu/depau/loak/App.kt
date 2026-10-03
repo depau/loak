@@ -1,6 +1,7 @@
 package eu.depau.loak
 
 import eu.depau.loak.ui.screens.alchemy.AlchemyScreen
+import eu.depau.loak.ui.screens.alchemy.AskAiScreen
 import eu.depau.loak.ui.screens.login.INTEGRATIONS_VERSION
 import eu.depau.loak.ui.screens.login.SetupIntegrationsScreen
 import eu.depau.loak.ui.screens.library.LibraryScreen
@@ -618,6 +619,9 @@ private fun entryProvider(
 		// settings
 		entry<Screen.Alchemy> {
 			AlchemyScreen(it.seed)
+		}
+		entry<Screen.AskAI> {
+			AskAiScreen(it.prompt)
 		}
 		entry<Screen.Library>(metadata = navtabMetadata) {
 			LibraryScreen()

@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.search.viewmodels
 
+import eu.depau.loak.domain.manager.AudioMuseManager
+import eu.depau.loak.domain.repositories.AudioMuseRepository
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.snapshotFlow
@@ -24,6 +26,8 @@ import kotlin.time.Duration.Companion.milliseconds
 @OptIn(FlowPreview::class)
 class SearchViewModel(
 	private val repository: SearchRepository,
+	private val audioMuseRepository: AudioMuseRepository,
+	audioMuse: AudioMuseManager,
 	private val songRepository: SongRepository,
 	connectivityManager: ConnectivityManager,
 	downloadManager: DownloadManager
@@ -61,12 +65,40 @@ class SearchViewModel(
 		}
 	}
 
+	val audioMuseInfo = audioMuse.info
+
+	/** "Sounds like" results for [soundQuery]; searched on submit, not as you type. */
+	val soundState: StateFlow<UiState<List<DomainSong>>?>
+		field = MutableStateFlow<UiState<List<DomainSong>>?>(null)
+	private var soundQuery = ""
+
+	fun searchBySound(query: String = searchQuery.text.toString()) {
+		val q = query.trim()
+		if (q.isBlank() || audioMuseInfo.value?.soundSearch != true || q == soundQuery && soundState.value !is UiState.Error) return
+		soundQuery = q
+		viewModelScope.launch {
+			soundState.value = UiState.Loading()
+			soundState.value = try {
+				UiState.Success(audioMuseRepository.soundSearch(q))
+			} catch (e: Exception) {
+				if (e is CancellationException) throw e
+				UiState.Error(e)
+			}
+		}
+	}
+
 	/** Runs the current query again, e.g. after something in the results was deleted. */
 	fun refresh() {
 		viewModelScope.launch { search(searchQuery.text.toString()) }
 	}
 
 	private suspend fun search(query: String) {
+		// typing something else drops the last "sounds like"; Sound searches again
+		if (query.trim() != soundQuery) {
+			soundQuery = ""
+			soundState.value = null
+			if (selectedCategory.value == SearchCategory.SOUND) searchBySound(query)
+		}
 		if (query.isBlank()) {
 			searchState.value = UiState.Success(emptyList())
 			return

@@ -112,7 +112,7 @@ fun AlchemyScreen(seed: AlchemyIngredient?) {
 						Spacer(Modifier.size(6.dp))
 						Text(stringResource(Res.string.action_save))
 					}
-					Button(onClick = { player.playInstantMix(songs, title) }, enabled = songs.isNotEmpty()) {
+					Button(onClick = { player.playMix(songs, title) }, enabled = songs.isNotEmpty()) {
 						Icon(Icons.Filled.Play, null, Modifier.size(18.dp))
 						Spacer(Modifier.size(6.dp))
 						Text(stringResource(Res.string.action_play))

@@ -102,6 +102,43 @@ class AudioMuseRepository(
 			}
 			.sortedBy { it.label }
 
+	/** Songs that sound like [query] (CLAP, on AudioMuse-AI's server: no AI service involved). */
+	suspend fun soundSearch(query: String, limit: Int = 50, steering: List<Pair<String, Boolean>> = emptyList()): List<DomainSong> =
+		songs(audioMuse.postJson("api/clap/search", buildJsonObject {
+			put("query", JsonPrimitive(query))
+			put("limit", JsonPrimitive(limit))
+			if (steering.isNotEmpty()) put("steering", JsonArray(steering.map { (term, more) ->
+				buildJsonObject {
+					put("term", JsonPrimitive(term))
+					put("weight", JsonPrimitive(3))
+					put("direction", JsonPrimitive(if (more) "more" else "less"))
+				}
+			}))
+		}).ids())
+
+	/** Songs whose lyrics are about [query]. */
+	suspend fun lyricsSearch(query: String, limit: Int = 50): List<DomainSong> =
+		songs(audioMuse.postJson("api/lyrics/search/text", buildJsonObject {
+			put("query", JsonPrimitive(query))
+			put("limit", JsonPrimitive(limit))
+		}).ids())
+
+	/** Loads the sound model ahead of a search; it unloads after a while idle. */
+	suspend fun warmUpSoundSearch() {
+		runCatching { audioMuse.request("api/clap/warmup", post = true) {} }
+	}
+
+	/** Example queries AudioMuse-AI ships with. */
+	suspend fun soundIdeas(): List<String> =
+		audioMuse.getJson("api/clap/top_queries").jsonObject["queries"]?.jsonArray
+			?.map { it.jsonPrimitive.content }.orEmpty()
+
+	/** "More or less of" terms: a few from each kind (instrument, vocals, mood, tempo…). */
+	suspend fun soundConcepts(): List<String> =
+		audioMuse.getJson("api/clap/concepts").jsonObject["categories"]?.jsonArray
+			?.flatMap { c -> c.jsonObject["terms"]!!.jsonArray.take(4).map { it.jsonObject["term"]!!.jsonPrimitive.content } }
+			.orEmpty()
+
 	/** POST /api/alchemy. Needs at least one added ingredient. */
 	suspend fun alchemy(ingredients: List<AlchemyIngredient>, songs: Int, temperature: Float): AlchemyResult {
 		val body = buildJsonObject {

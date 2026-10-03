@@ -9,6 +9,9 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.preparePost
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.utils.io.readUTF8Line
 import io.ktor.client.request.put
 import io.ktor.client.request.delete
 import io.ktor.client.request.setBody
@@ -182,6 +185,25 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 		contentType(ContentType.Application.Json)
 		setBody(body.toString())
 	})
+
+	/** POSTs [body] and hands each server-sent event's data to [onEvent] as it arrives. */
+	suspend fun stream(path: String, body: JsonElement, onEvent: suspend (JsonObject) -> Unit) = withContext(IoDispatcher) {
+		if (usesLogin && !signedIn) signIn()
+		client.preparePost("$baseUrl/${path.trimStart('/')}") {
+			preferenceManager.audioMuseToken.takeIf { it.isNotBlank() }?.let { header("Authorization", "Bearer $it") }
+			contentType(ContentType.Application.Json)
+			setBody(body.toString())
+		}.execute { response ->
+			if (!response.status.isSuccess()) throw AudioMuseException(response.status.description, response.status)
+			val channel = response.bodyAsChannel()
+			while (true) {
+				val line = channel.readUTF8Line() ?: break
+				if (!line.startsWith("data:")) continue
+				runCatching { json.parseToJsonElement(line.removePrefix("data:").trim()).jsonObject }
+					.getOrNull()?.let { onEvent(it) }
+			}
+		}
+	}
 
 	private suspend fun parse(response: HttpResponse): JsonElement {
 		val text = response.bodyAsText()

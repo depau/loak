@@ -1,5 +1,9 @@
 package eu.depau.loak.ui.screens.search.components
 
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Alignment
+import eu.depau.loak.icons.filled.Sparkle
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.horizontalScroll
@@ -25,7 +29,9 @@ import eu.depau.loak.ui.screens.search.SearchCategory
 @Composable
 fun SearchScreenChips(
 	selectedCategory: SearchCategory,
-	onCategorySelect: (SearchCategory) -> Unit
+	onCategorySelect: (SearchCategory) -> Unit,
+	/** AudioMuse-AI's search by sound, after a divider. */
+	soundAvailable: Boolean = false
 ) {
 	Row(
 		modifier = Modifier
@@ -35,7 +41,8 @@ fun SearchScreenChips(
 			.selectableGroup(),
 		horizontalArrangement = Arrangement.spacedBy(8.dp)
 	) {
-		SearchCategory.entries.forEach { category ->
+		SearchCategory.entries.filter { it != SearchCategory.SOUND || soundAvailable }.forEach { category ->
+			if (category == SearchCategory.SOUND) VerticalDivider(Modifier.height(24.dp).align(Alignment.CenterVertically))
 			val isSelected = category == selectedCategory
 			FilterChip(
 				modifier = Modifier
@@ -63,6 +70,8 @@ fun SearchScreenChips(
 							modifier = Modifier.size(FilterChipDefaults.IconSize)
 						)
 					}
+				} else if (category == SearchCategory.SOUND) {
+					{ Icon(Icons.Filled.Sparkle, null, Modifier.size(FilterChipDefaults.IconSize)) }
 				} else {
 					null
 				}

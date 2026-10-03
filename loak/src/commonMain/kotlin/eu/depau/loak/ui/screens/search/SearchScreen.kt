@@ -1,5 +1,20 @@
 package eu.depau.loak.ui.screens.search
 
+import eu.depau.loak.generated.resources.filter_sound
+import eu.depau.loak.generated.resources.action_see_all
+import eu.depau.loak.generated.resources.info_ask_ai_row
+import eu.depau.loak.generated.resources.action_ask_ai_playlist
+import eu.depau.loak.generated.resources.info_by_sound_private
+import eu.depau.loak.generated.resources.info_by_sound
+import eu.depau.loak.generated.resources.title_sounds_like
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItemDefaults
+import eu.depau.loak.icons.outlined.ChevronForward
+import eu.depau.loak.icons.filled.Sparkle
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
@@ -120,7 +135,8 @@ enum class SearchCategory(val res: StringResource) {
 	SONGS(Res.string.title_songs),
 	PLAYLISTS(Res.string.title_playlists),
 	ARTISTS(Res.string.title_artists),
-	ALBUMS(Res.string.title_albums)
+	ALBUMS(Res.string.title_albums),
+	SOUND(Res.string.filter_sound)
 }
 
 // TODO: clean this up, holy shit
@@ -165,6 +181,8 @@ fun SearchScreen(
 
 	val player = koinInject<MediaPlayerViewModel>()
 	val backStack = LocalNavStack.current
+	val soundState by viewModel.soundState.collectAsState()
+	val audioMuseInfo by viewModel.audioMuseInfo.collectAsState()
 
 	val selectedCategory by viewModel.selectedCategory.collectAsState()
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -195,11 +213,16 @@ fun SearchScreen(
 					nested = nested,
 					onSearch = { submittedQuery ->
 						viewModel.addToSearchHistory(submittedQuery)
+						viewModel.searchBySound(submittedQuery)
 					}
 				)
 				SearchScreenChips(
 					selectedCategory = selectedCategory,
-					onCategorySelect = { viewModel.selectedCategory.value = it }
+					onCategorySelect = {
+						viewModel.selectedCategory.value = it
+						if (it == SearchCategory.SOUND) viewModel.searchBySound()
+					},
+					soundAvailable = audioMuseInfo?.soundSearch == true
 				)
 			}
 		},
@@ -235,7 +258,9 @@ fun SearchScreen(
 					val playlists =
 						if (showAll || selectedCategory == SearchCategory.PLAYLISTS) results.filterIsInstance<DomainPlaylist>() else emptyList()
 
-					if (query.text.isNotBlank() && albums.isEmpty() && artists.isEmpty() && songs.isEmpty() && playlists.isEmpty()) {
+					val soundSongs = if (showAll || selectedCategory == SearchCategory.SOUND) soundState?.data.orEmpty() else emptyList()
+					if (query.text.isNotBlank() && albums.isEmpty() && artists.isEmpty() && songs.isEmpty() && playlists.isEmpty()
+						&& soundSongs.isEmpty() && selectedCategory != SearchCategory.SOUND) {
 						ContentUnavailable(
 							icon = Icons.Outlined.NoSearchResults,
 							label = stringResource(Res.string.info_no_search_results)
@@ -461,6 +486,59 @@ fun SearchScreen(
 									rating = selectedAlbumRating,
 									onSetRating = { albumListViewModel.setRating(it) }
 								)
+							}
+							// AudioMuse-AI: songs that sound like the query, filled on submit
+							if (soundSongs.isNotEmpty() || (selectedCategory == SearchCategory.SOUND && soundState is UiState.Loading)) {
+								item(span = { GridItemSpan(maxLineSpan) }) {
+									Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+										Row(verticalAlignment = Alignment.CenterVertically) {
+											Text(
+												stringResource(Res.string.title_sounds_like, query.text.toString().trim()),
+												style = MaterialTheme.typography.headlineSmall,
+												modifier = Modifier.weight(1f)
+											)
+											if (showAll && soundSongs.size > 5) TextButton(onClick = {
+												viewModel.selectedCategory.value = SearchCategory.SOUND
+											}) { Text(stringResource(Res.string.action_see_all)) }
+										}
+										Text(
+											stringResource(
+												if (showAll) Res.string.info_by_sound else Res.string.info_by_sound_private,
+												query.text.toString().trim()
+											),
+											style = MaterialTheme.typography.bodySmall,
+											color = MaterialTheme.colorScheme.onSurfaceVariant
+										)
+										if (soundState is UiState.Loading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
+									}
+								}
+								val shown = if (showAll) soundSongs.take(5) else soundSongs
+								items(shown.size, span = { GridItemSpan(maxLineSpan) }) { index ->
+									val song = shown[index]
+									ListItem(
+										modifier = Modifier.clickable { player.playNow(soundSongs, soundSongs.indexOf(song)) },
+										leadingContent = { CoverArt(coverArtId = song.coverArtId, modifier = Modifier.size(50.dp)) },
+										headlineContent = { Text(song.title, maxLines = 1) },
+										supportingContent = { Text(song.artistName.orEmpty(), maxLines = 1) }
+									)
+								}
+							}
+
+							// AudioMuse-AI's AI service: never automatic, a row that opens its screen
+							if (showAll && audioMuseInfo?.canAsk == true) {
+								item(span = { GridItemSpan(maxLineSpan) }) {
+									ListItem(
+										modifier = Modifier
+											.padding(horizontal = 16.dp, vertical = 8.dp)
+											.clip(MaterialTheme.shapes.large)
+											.clickable { backStack.add(Screen.AskAI(query.text.toString().trim())) },
+										colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+										leadingContent = { Icon(Icons.Filled.Sparkle, null) },
+										headlineContent = { Text(stringResource(Res.string.action_ask_ai_playlist)) },
+										supportingContent = { Text(stringResource(Res.string.info_ask_ai_row, query.text.toString().trim())) },
+										trailingContent = { Icon(Icons.Outlined.ChevronForward, null) }
+									)
+								}
 							}
 						} else {
 							if (searchHistory.isNotEmpty()) {
