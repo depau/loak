@@ -62,38 +62,13 @@ valkyrie {
 	}
 }
 
-val generateBuildInfo = tasks.register("generateBuildInfo", Sync::class) {
-	description = "generate BuildInfo.kt"
-
-	from(
-		resources.text.fromString(
-			"""
-			|package eu.depau.loak.generated
-			|
-			|// BuildInfo carries no flags — update checks are on for every build.
-			|
-			""".trimMargin()
-		)
-	) {
-		rename { "BuildInfo.kt" }
-		into("eu/depau/loak/generated")
-	}
-
-	into(layout.buildDirectory.dir("generated/buildInfo/commonMain/kotlin"))
-}
-
 tasks.withType<KotlinCompilationTask<*>>().configureEach {
 	dependsOn("generateValkyrieImageVector")
-	dependsOn(generateBuildInfo)
 }
 
 // no idea why ksp tasks depend on valkyrie
 tasks.withType<KspAATask>().configureEach {
 	dependsOn("generateValkyrieImageVector")
-}
-
-kotlin.sourceSets.commonMain {
-	kotlin.srcDir(generateBuildInfo.map { it.destinationDir })
 }
 
 tasks.matching { it.name.startsWith("compileKotlinIos") }.configureEach {
