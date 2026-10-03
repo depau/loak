@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.playlist.dialogs
 
+import androidx.compose.material3.Surface
+import eu.depau.loak.generated.resources.info_audiomuse_edit_warning
 import eu.depau.loak.ui.components.common.displayName
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -69,6 +71,17 @@ fun EditPlaylistSheet(
 			verticalArrangement = Arrangement.spacedBy(12.dp)
 		) {
 			Text(stringResource(Res.string.title_edit_playlist), style = MaterialTheme.typography.titleLarge)
+			if (playlistName.kind.isRebuilt) Surface(
+				shape = MaterialTheme.shapes.large,
+				color = MaterialTheme.colorScheme.tertiaryContainer,
+				contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+			) {
+				Text(
+					stringResource(Res.string.info_audiomuse_edit_warning),
+					modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+					style = MaterialTheme.typography.bodyMedium
+				)
+			}
 			TextField(
 				state = name,
 				modifier = Modifier.fillMaxWidth(),

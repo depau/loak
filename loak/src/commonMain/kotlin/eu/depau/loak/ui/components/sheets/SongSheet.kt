@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.components.sheets
 
+import eu.depau.loak.domain.models.DomainPlaylist
+import eu.depau.loak.domain.models.songsEditableBy
 import eu.depau.loak.domain.repositories.HomeRepository
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -285,7 +287,7 @@ fun SongSheet(
 					)
 				}
 
-				if (onRemoveFromPlaylist != null && collection != null && collection !is DomainAlbum) {
+				if (onRemoveFromPlaylist != null && (collection as? DomainPlaylist)?.songsEditableBy(sessionManager.username) == true) {
 					ListItem(
 						content = { Text(stringResource(Res.string.action_remove_from_playlist)) },
 						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },

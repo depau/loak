@@ -23,3 +23,7 @@ data class DomainPlaylist(
 	val validUntil: Instant?,
 	override val songs: List<DomainSong>
 ) : DomainSongCollection
+
+/** Songs can be added and removed: the user owns it and it isn't smart or otherwise read-only. */
+fun DomainPlaylist.songsEditableBy(username: String?) =
+	owner == username && readOnly != true && validUntil == null

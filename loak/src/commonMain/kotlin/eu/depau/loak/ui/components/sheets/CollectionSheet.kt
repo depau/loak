@@ -392,7 +392,8 @@ fun CollectionSheet(
 				)
 			}
 
-			if (onDelete != null) {
+			// only the owner can delete it; the server refuses anyone else
+			if (onDelete != null && (collection !is DomainPlaylist || collection.owner == sessionManager.username)) {
 				ListItem(
 					content = { Text(stringResource(Res.string.action_delete)) },
 					leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },

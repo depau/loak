@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.collection
 
+import eu.depau.loak.ui.screens.collection.components.PlaylistRebuiltNotice
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -192,6 +193,7 @@ fun CollectionDetailScreen(
 							titleAlpha = 1f
 						)
 						CollectionDetailScreenHeadingRowButtons(collection = collection)
+						if (collection is DomainPlaylist) PlaylistRebuiltNotice(collection)
 					}
 					LazyColumn(
 						modifier = Modifier
@@ -218,6 +220,8 @@ fun CollectionDetailScreen(
 									collection = collection
 								)
 							}
+
+							if (collection is DomainPlaylist) item { PlaylistRebuiltNotice(collection) }
 						}
 
 						if (collection is DomainAlbum) {

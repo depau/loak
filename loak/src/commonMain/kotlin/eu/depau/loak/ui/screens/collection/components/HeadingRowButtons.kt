@@ -1,5 +1,17 @@
 package eu.depau.loak.ui.screens.collection.components
 
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.fillMaxWidth
+import eu.depau.loak.domain.models.DomainPlaylist
+import eu.depau.loak.icons.outlined.Refresh
+import eu.depau.loak.generated.resources.info_audiomuse_rebuilds
+import eu.depau.loak.generated.resources.action_make_a_copy
+import eu.depau.loak.ui.components.common.displayName
+import eu.depau.loak.ui.screens.playlist.dialogs.CopyPlaylistDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -210,4 +222,32 @@ fun CollectionDetailScreenHeadingRowButtons(
 			}
 		}
 	}
+}
+
+/** For playlists AudioMuse-AI rebuilds: edits may be lost, so offer a copy of the user's own. */
+@Composable
+fun PlaylistRebuiltNotice(playlist: DomainPlaylist, modifier: Modifier = Modifier) {
+	if (!playlist.displayName().kind.isRebuilt) return
+	var copying by rememberSaveable { mutableStateOf(false) }
+	Surface(
+		modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+		shape = MaterialTheme.shapes.large,
+		color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = .5f),
+		contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+	) {
+		Row(
+			modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+			verticalAlignment = Alignment.CenterVertically,
+			horizontalArrangement = Arrangement.spacedBy(12.dp)
+		) {
+			Icon(Icons.Outlined.Refresh, null, Modifier.size(20.dp))
+			Text(
+				stringResource(Res.string.info_audiomuse_rebuilds),
+				modifier = Modifier.weight(1f),
+				style = MaterialTheme.typography.bodySmall
+			)
+			TextButton(onClick = { copying = true }) { Text(stringResource(Res.string.action_make_a_copy)) }
+		}
+	}
+	if (copying) CopyPlaylistDialog(playlist = playlist, onDismissRequest = { copying = false })
 }
