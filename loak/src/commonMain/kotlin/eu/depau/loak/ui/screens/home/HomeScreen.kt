@@ -94,7 +94,6 @@ import eu.depau.loak.ui.screens.artist.ArtistListScreenGridItem
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistListViewModel
 import eu.depau.loak.ui.screens.home.components.GenreChips
 import eu.depau.loak.ui.screens.home.components.MakeSomethingNew
-import eu.depau.loak.ui.screens.home.components.MoodChips
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.ui.screens.home.components.ListenerRow
 import eu.depau.loak.ui.screens.home.components.MixCard
@@ -247,7 +246,6 @@ fun HomeFeed(
 		if (state.genres.isNotEmpty()) item(key = "genres", span = full) {
 			GenreChips(state.genres, selectedGenre, viewModel::selectGenre)
 		}
-		if (audioMuseConnected) item(key = "moods", span = full) { MoodChips() }
 
 		if (state.speedDial.isNotEmpty()) {
 			item(key = "speed dial header", span = full) {
