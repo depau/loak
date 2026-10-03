@@ -332,56 +332,60 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 			LocalRootFocus provides rootFocus
 		) {
 			LoakTheme {
-				Box(Modifier.fillMaxSize()) {
+				// on the parent of the app and the player: the player is drawn beside the app,
+				// not in it, and focus moves into it when it's clicked (desktop)
+				Box(
+					Modifier
+						.fillMaxSize()
+						// keyboards (desktop, web, tablets with one): F5 / Ctrl+R refresh the
+						// screen, / and Ctrl+F search, Ctrl+, opens settings, Alt+Left and
+						// Cmd+[ go back (Esc already does), Alt+Right and Cmd+] go forward,
+						// Ctrl+arrows skip tracks; space and the media keys control playback
+						// unless a text field or a focused button takes precedence. Media keys
+						// are consumed on key-down so a key held down doesn't repeat-toggle.
+						.focusRequester(rootFocus)
+						// Esc is back, before focus handling gets it: otherwise it only clears focus and
+						// nothing closes (the player, karaoke, the queue sheet). Popups (menus, sheets,
+						// dialogs) get their own key events and close themselves.
+						.onPreviewKeyEvent { event ->
+							if (event.key != Key.Escape) return@onPreviewKeyEvent false
+							if (event.type == KeyEventType.KeyDown) actions.back()
+							true
+						}
+						.focusTarget()
+						.onKeyEvent { event ->
+							if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+							val shortcut = event.isShortcutPressed
+							val key = event.key
+							val action: (() -> Unit)? = when {
+								key == Key.F5 || shortcut && key == Key.R -> actions::refresh
+								event.isAltPressed && key == Key.DirectionLeft ||
+									shortcut && key == Key.LeftBracket -> actions::back
+								event.isAltPressed && key == Key.DirectionRight ||
+									shortcut && key == Key.RightBracket ||
+									key == Key.Forward -> actions::forward
+								!inApp -> null
+								// '/' by character: it's shifted on many layouts
+								event.utf16CodePoint == '/'.code ||
+									shortcut && key == Key.F -> actions::search
+								shortcut && key == Key.Comma -> actions::settings
+								mediaPlayer.uiState.value.currentSong == null -> null
+								key == Key.Spacebar || key == Key.MediaPlayPause -> actions::playPause
+								key == Key.MediaPlay -> actions::play
+								key == Key.MediaPause || key == Key.MediaStop -> actions::pause
+								key == Key.MediaNext ||
+									shortcut && key == Key.DirectionRight -> actions::next
+								key == Key.MediaPrevious ||
+									shortcut && key == Key.DirectionLeft -> actions::previous
+								else -> null
+							}
+							action?.invoke()
+							action != null
+						}				) {
 				WindowChromeHost(paneOpen = inApp && queuePaneFits() && queuePaneOpen.value) {
 					Scaffold(
 						modifier = Modifier
 							.nestedScroll(scrollManager.connection)
-							// keyboards (desktop, web, tablets with one): F5 / Ctrl+R refresh the
-							// screen, / and Ctrl+F search, Ctrl+, opens settings, Alt+Left and
-							// Cmd+[ go back (Esc already does), Alt+Right and Cmd+] go forward,
-							// Ctrl+arrows skip tracks; space and the media keys control playback
-							// unless a text field or a focused button takes precedence. Media keys
-							// are consumed on key-down so a key held down doesn't repeat-toggle.
-							.focusRequester(rootFocus)
-							// Esc is back, before focus handling gets it: otherwise it only clears focus and
-							// nothing closes (the player, karaoke, the queue sheet). Popups (menus, sheets,
-							// dialogs) get their own key events and close themselves.
-							.onPreviewKeyEvent { event ->
-								if (event.key != Key.Escape) return@onPreviewKeyEvent false
-								if (event.type == KeyEventType.KeyDown) actions.back()
-								true
-							}
-							.focusTarget()
-							.onKeyEvent { event ->
-								if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-								val shortcut = event.isShortcutPressed
-								val key = event.key
-								val action: (() -> Unit)? = when {
-									key == Key.F5 || shortcut && key == Key.R -> actions::refresh
-									event.isAltPressed && key == Key.DirectionLeft ||
-										shortcut && key == Key.LeftBracket -> actions::back
-									event.isAltPressed && key == Key.DirectionRight ||
-										shortcut && key == Key.RightBracket ||
-										key == Key.Forward -> actions::forward
-									!inApp -> null
-									// '/' by character: it's shifted on many layouts
-									event.utf16CodePoint == '/'.code ||
-										shortcut && key == Key.F -> actions::search
-									shortcut && key == Key.Comma -> actions::settings
-									mediaPlayer.uiState.value.currentSong == null -> null
-									key == Key.Spacebar || key == Key.MediaPlayPause -> actions::playPause
-									key == Key.MediaPlay -> actions::play
-									key == Key.MediaPause || key == Key.MediaStop -> actions::pause
-									key == Key.MediaNext ||
-										shortcut && key == Key.DirectionRight -> actions::next
-									key == Key.MediaPrevious ||
-										shortcut && key == Key.DirectionLeft -> actions::previous
-									else -> null
-								}
-								action?.invoke()
-								action != null
-							}
 							// any mouse pointer, even just hovering, turns on mouse affordances
 							.pointerInput(mouseInUse) {
 								if (mouseInUse) return@pointerInput
