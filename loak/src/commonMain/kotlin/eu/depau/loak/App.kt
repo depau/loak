@@ -1,5 +1,6 @@
 package eu.depau.loak
 
+import eu.depau.loak.ui.screens.login.SetupIntegrationsScreen
 import eu.depau.loak.ui.screens.library.LibraryScreen
 import eu.depau.loak.ui.screens.library.DownloadsScreen
 import eu.depau.loak.ui.screens.settings.AudioMuseSettingsScreen
@@ -549,6 +550,9 @@ private fun entryProvider(
 		// misc
 		entry<Screen.Login> {
 			LoginScreen()
+		}
+		entry<Screen.SetupIntegrations> {
+			SetupIntegrationsScreen()
 		}
 		entry<Screen.ImageView>(metadata = imageViewMetadata) { key ->
 			ImageViewScreen(

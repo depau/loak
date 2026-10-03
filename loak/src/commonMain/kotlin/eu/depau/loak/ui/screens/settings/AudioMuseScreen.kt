@@ -47,6 +47,7 @@ import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.AudioMuseInfo
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.generated.resources.*
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Sparkle
@@ -247,8 +248,10 @@ private fun FeatureList(info: AudioMuseInfo) {
 fun AudioMuseConnectScreen() {
 	val manager = koinInject<AudioMuseManager>()
 	val preferenceManager = koinInject<PreferenceManager>()
+	val permissionManager = koinInject<PermissionManager>()
 	val backStack = LocalNavStack.current
 	val scope = rememberCoroutineScope()
+	val localNetworkNeeded = stringResource(Res.string.info_local_network_needed)
 	val address = rememberTextFieldState(preferenceManager.audioMuseUrl.ifBlank { "https://" })
 	val username = rememberTextFieldState(preferenceManager.audioMuseUsername)
 	val password = rememberTextFieldState(preferenceManager.audioMusePassword)
@@ -323,6 +326,12 @@ fun AudioMuseConnectScreen() {
 				busy = true
 				error = null
 				scope.launch {
+					// like the music server, it usually sits on a private address
+					if (!permissionManager.requestLocalNetworkPermission()) {
+						error = localNetworkNeeded
+						busy = false
+						return@launch
+					}
 					try {
 						connected = manager.connect(
 							url = address.text.toString(),

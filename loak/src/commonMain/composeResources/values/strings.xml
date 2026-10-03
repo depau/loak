@@ -564,6 +564,10 @@
 	<string name="option_audiomuse_integration">AudioMuse-AI playlists</string>
 	<string name="subtitle_audiomuse_integration">Tidy names, a badge, and warnings where AudioMuse-AI may undo your edits</string>
 	<string name="badge_ai">AI</string>
+	<string name="info_local_network_needed">Lo'ak needs access to your local network to reach AudioMuse-AI.</string>
+	<string name="title_a_few_more_things">A few more things</string>
+	<string name="info_a_few_more_things">Your server can do more. Turn on what you'd like; you can change it later in Settings › Server.</string>
+	<string name="action_start_listening">Start listening</string>
 	<string name="label_downloaded">Downloaded</string>
 	<string name="title_downloads">Downloads</string>
 	<string name="title_recently_played">Recently played</string>

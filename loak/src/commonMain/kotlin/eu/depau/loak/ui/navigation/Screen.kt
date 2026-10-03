@@ -87,6 +87,11 @@ sealed interface Screen : NavKey {
 	@Serializable
 	data object Login : Screen
 
+	/** The setup wizard's last page, right after logging in. */
+	@Immutable
+	@Serializable
+	data object SetupIntegrations : Screen
+
 	@Immutable
 	@Serializable
 	data class ImageView(
