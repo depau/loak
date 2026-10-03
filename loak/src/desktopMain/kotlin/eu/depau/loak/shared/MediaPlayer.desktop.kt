@@ -342,8 +342,9 @@ class DesktopMediaPlayerViewModel(
 	override fun seek(normalized: Float) {
 		if (player.duration <= 0) return
 		val targetMs = (player.duration * normalized).toLong()
-		player.seekTo(targetMs)
 		_uiState.update { it.copy(progress = normalized) }
+		// a seek back reopens the stream: network, so not on the UI thread
+		viewModelScope.launch(Dispatchers.IO) { player.seekTo(targetMs) }
 	}
 
 	override fun setVolume(value: Float) {
@@ -392,7 +393,15 @@ class DesktopMediaPlayerViewModel(
 
 		private var trackDurationMs: Long = 0
 		private var bytesPerSecond: Long = 0
+		private var frameSize: Int = 1
 		private var totalDecodedBytes: Long = 0
+		private var url: String? = null
+		/** Bumped by every new stream: a playback thread only touches the player while it's current. */
+		@Volatile private var session = 0
+		/** A seek forward the playback thread carries out: decode and drop up to this position. */
+		@Volatile private var pendingSeekMs: Long = -1
+		/** Where a seek is heading, shown as the position until the stream gets there. */
+		@Volatile private var seekingTo: Long = -1
 
 		override var currentPosition: Long = 0
 			private set
@@ -406,11 +415,15 @@ class DesktopMediaPlayerViewModel(
 
 		val ended: Boolean get() = atEnd
 
-		fun playUrl(url: String, durationMs: Long) {
+		/** [startMs] > 0 starts there (the playback thread skips ahead before any audio). */
+		fun playUrl(url: String, durationMs: Long, startMs: Long = 0, startPaused: Boolean = false) {
 			stopStream()
+			this.url = url
+			pendingSeekMs = if (startMs > 0) startMs else -1
+			seekingTo = pendingSeekMs
 			atEnd = false
 			playing = false
-			paused = false
+			paused = startPaused
 			currentPosition = 0
 			trackDurationMs = durationMs
 
@@ -457,6 +470,7 @@ class DesktopMediaPlayerViewModel(
 				stream = pcmStream
 
 				bytesPerSecond = (decodedFormat.sampleRate * decodedFormat.frameSize).toLong()
+				frameSize = decodedFormat.frameSize.coerceAtLeast(1)
 				totalDecodedBytes = if (durationMs > 0 && bytesPerSecond > 0) {
 					durationMs * bytesPerSecond / 1000L
 				} else {
@@ -468,13 +482,22 @@ class DesktopMediaPlayerViewModel(
 				line = l
 				l.open(decodedFormat)
 				applyVolumeToLine(l, volume)
-				l.start()
+				if (!startPaused) l.start()
 				playing = true
+				val mySession = ++session
+				val current = { session == mySession }
 
 				Thread {
 					try {
 						val buf = buffer
-						while (playing) {
+						while (playing && current()) {
+							val seek = pendingSeekMs
+							if (seek >= 0) {
+								pendingSeekMs = -1
+								skipTo(pcmStream, buf, seek)
+								l.flush()
+								seekingTo = -1
+							}
 							if (paused) {
 								Thread.sleep(50)
 								continue
@@ -482,26 +505,30 @@ class DesktopMediaPlayerViewModel(
 							val read = pcmStream.read(buf, 0, buf.size)
 							if (read < 0) {
 								l.drain()
-								atEnd = true
+								if (current()) atEnd = true
 								break
 							}
 							if (read > 0) {
 								l.write(buf, 0, read)
-								if (bytesPerSecond > 0) {
+								if (bytesPerSecond > 0 && current()) {
 									currentPosition += (read.toLong() * 1000L) / bytesPerSecond
 								}
 							}
 						}
 					} catch (e: Exception) {
-						Logger.e("DesktopAudioPlayer", "playback stream error", e)
+						if (current()) Logger.e("DesktopAudioPlayer", "playback stream error", e)
 					} finally {
+						// this thread's own line and stream; a newer stream may be playing by now
 						try {
 							l.drain()
 							l.stop()
 							l.close()
 						} catch (_: Exception) {}
-						playing = false
-						cleanupStream()
+						runCatching { pcmStream.close() }
+						if (current()) {
+							playing = false
+							cleanupStream()
+						}
 					}
 				}.start()
 			} catch (e: Exception) {
@@ -550,15 +577,40 @@ class DesktopMediaPlayerViewModel(
 			currentPosition = 0
 		}
 
-		@Suppress("UNUSED_PARAMETER")
+		/**
+		 * Java Sound streams only go forward: a seek ahead decodes and drops the audio up to the
+		 * target, a seek back reopens the stream and does the same from the start.
+		 * ponytail: seeking far into a long track re-downloads and decodes up to there; HTTP range
+		 * requests would need a byte offset per format.
+		 */
 		fun seekTo(ms: Long) {
-			// ponytail: Java Sound has no seamless seek and this player isn't a
-			// stream-restart loop yet. The UI updates progress (ViewModel-level);
-			// audio-side seeking needs a restart at a byte estimate — DESIGN_CHANGES.
+			val target = ms.coerceIn(0, trackDurationMs.takeIf { it > 0 } ?: Long.MAX_VALUE)
+			val url = url ?: return
+			if (target < currentPosition || !playing) {
+				runCatching { playUrl(url, trackDurationMs, target, startPaused = paused) }
+				return
+			}
+			seekingTo = target
+			pendingSeekMs = target
 		}
 
-		fun progress(): Float =
-			if (trackDurationMs > 0) (currentPosition.toFloat() / trackDurationMs.toFloat()).coerceIn(0f, 1f) else 0f
+		/** Reads and drops whole frames from [stream] until [currentPosition] reaches [ms]. */
+		private fun skipTo(stream: AudioInputStream, buf: ByteArray, ms: Long) {
+			if (bytesPerSecond <= 0) return
+			var left = (ms - currentPosition) * bytesPerSecond / 1000L
+			left -= left % frameSize
+			while (left > 0) {
+				val read = stream.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
+				if (read < 0) break
+				left -= read
+				currentPosition += read.toLong() * 1000L / bytesPerSecond
+			}
+		}
+
+		fun progress(): Float {
+			val position = seekingTo.takeIf { it >= 0 } ?: currentPosition
+			return if (trackDurationMs > 0) (position.toFloat() / trackDurationMs.toFloat()).coerceIn(0f, 1f) else 0f
+		}
 
 		var volume: Float = 1f
 			set(value) {
