@@ -23,11 +23,11 @@
 	<string name="title_delete_share">Delete share?</string>
 	<string name="title_create_share">Create share</string>
 	<string name="title_create_playlist">Create playlist</string>
-	<string name="title_create_radio">Add a radio</string>
+	<string name="title_create_radio">Add an internet radio</string>
 	<string name="title_albums">Albums</string>
 	<string name="title_songs">Songs</string>
 	<string name="title_artists">Artists</string>
-	<string name="title_radios">Radios</string>
+	<string name="title_radios">Internet radios</string>
 	<string name="title_all">All</string>
 	<string name="title_similar_artists">Similar artists</string>
 	<string name="title_discord_server">Discord server</string>
@@ -438,7 +438,7 @@
 	<string name="notice_created_playlist">Playlist %1$s created.</string>
 	<string name="notice_deleted_download">Download deleted.</string>
 	<string name="notice_removed_from_playlist">Removed from playlist.</string>
-	<string name="notice_created_radio">Radio %1$s added.</string>
+	<string name="notice_created_radio">Internet radio %1$s added.</string>
 	<string name="notice_added_to_queue">Added to queue.</string>
 	<string name="notice_play_next">Playing next.</string>
 	<string name="notice_instant_mix">Playing an instant mix from %1$s.</string>
@@ -527,7 +527,7 @@
 	<string name="info_not_available_offline">Not available offline</string>
 	<string name="info_no_queue">Nothing queued</string>
 	<string name="info_no_genres">No genres</string>
-	<string name="info_no_radios">No radios</string>
+	<string name="info_no_radios">No internet radios</string>
 	<string name="info_no_starred">Nothing's starred</string>
 	<string name="info_no_playlists_short">No playlists</string>
 	<string name="info_lyrics_provider">Lyrics provided by %1$s</string>
@@ -543,7 +543,7 @@
 	<string name="info_syncing_playlists">Syncing playlists...</string>
 	<string name="info_syncing_genres">Syncing genres...</string>
 	<string name="info_syncing_artists">Syncing artists...</string>
-	<string name="info_syncing_radios">Syncing radios...</string>
+	<string name="info_syncing_radios">Syncing internet radios...</string>
 	<string name="info_login_description">Log into a Subsonic compatible music server.</string>
 	<string name="info_exception_handler">This will immediately crash the application. Are you sure?</string>
 	<string name="info_streaming_quality">Higher quality presets will use more data. Transcoding can severely impact load times and cause lyrics to become unsynced. Select Lossless if you encounter any issues.</string>
@@ -694,7 +694,7 @@
 	<string name="label_downloaded">Downloaded</string>
 	<string name="title_downloads">Downloads</string>
 	<string name="title_recently_played">Recently played</string>
-	<string name="title_internet_radio">Internet radio</string>
+	<string name="title_internet_radio">Internet radios</string>
 	<string name="info_downloaded_only">Only what's on this device</string>
 	<string name="info_no_downloads">Nothing downloaded yet</string>
 	<string name="title_integrations">Integrations</string>
