@@ -2,6 +2,13 @@ package eu.depau.loak
 
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.pointerInput
+import eu.depau.loak.di.LocalMouseInUse
+import eu.depau.loak.ui.components.layouts.refreshNavEntryDecorator
+import eu.depau.loak.ui.components.layouts.refreshSlots
+import eu.depau.loak.util.isShortcutPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.Key
@@ -219,6 +226,9 @@ fun App() {
 	LaunchedEffect(queuePaneOpen.value) { preferenceManager.queuePaneOpen = queuePaneOpen.value }
 	val mediaPlayer = koinInject<MediaPlayerViewModel>()
 	val rootFocus = remember { FocusRequester() }
+	var mouseInUse by remember {
+		mutableStateOf(platformContext.platformType.let { it == PlatformType.Desktop || it == PlatformType.Web })
+	}
 	LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
 
 	LaunchedEffect(Unit) {
@@ -253,52 +263,65 @@ fun App() {
 			LocalSnackBarState provides snackBarState,
 			LocalSharedTransitionScope provides this@SharedTransitionLayout,
 			LocalBottomBarScrollManager provides scrollManager,
-			LocalQueuePaneOpen provides queuePaneOpen
+			LocalQueuePaneOpen provides queuePaneOpen,
+			LocalMouseInUse provides mouseInUse
 		) {
 			LoakTheme {
 				WindowChromeHost(paneOpen = inApp && queuePaneFits() && queuePaneOpen.value) {
 					Scaffold(
 						modifier = Modifier
 							.nestedScroll(scrollManager.connection)
-							// keyboards (desktop, web, tablets with one): space and the media keys
-							// control playback unless a text field or a focused button takes
+							// keyboards (desktop, web, tablets with one): F5 / Ctrl+R refresh the
+							// screen, space and the media keys control playback unless a text field or a focused button takes
 							// precedence. Media keys are consumed on key-down so a key held
 							// down doesn't repeat-toggle.
 							.focusRequester(rootFocus)
 							.focusTarget()
 							.onKeyEvent { event ->
+								if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+								if (event.key == Key.F5 || event.isShortcutPressed && event.key == Key.R) {
+									refreshSlots.lastOrNull { it.refresh != null }?.refresh?.invoke()
+									return@onKeyEvent true
+								}
 								val player = mediaPlayer
 								if (player.uiState.value.currentSong == null) return@onKeyEvent false
-								when (event.type) {
-									KeyEventType.KeyDown -> when (event.key) {
-										Key.Spacebar,
-										Key.MediaPlayPause -> {
-											if (player.uiState.value.isPaused) player.resume() else player.pause()
-											true
-										}
-										Key.MediaPlay -> {
-											player.resume()
-											true
-										}
-										Key.MediaPause -> {
-											player.pause()
-											true
-										}
-										Key.MediaStop -> {
-											player.pause()
-											true
-										}
-										Key.MediaNext -> {
-											player.next()
-											true
-										}
-										Key.MediaPrevious -> {
-											player.previous()
-											true
-										}
-										else -> false
+								when (event.key) {
+									Key.Spacebar,
+									Key.MediaPlayPause -> {
+										if (player.uiState.value.isPaused) player.resume() else player.pause()
+										true
+									}
+									Key.MediaPlay -> {
+										player.resume()
+										true
+									}
+									Key.MediaPause -> {
+										player.pause()
+										true
+									}
+									Key.MediaStop -> {
+										player.pause()
+										true
+									}
+									Key.MediaNext -> {
+										player.next()
+										true
+									}
+									Key.MediaPrevious -> {
+										player.previous()
+										true
 									}
 									else -> false
+								}
+							}
+							// any mouse pointer, even just hovering, turns on mouse affordances
+							.pointerInput(mouseInUse) {
+								if (mouseInUse) return@pointerInput
+								awaitPointerEventScope {
+									while (true) {
+										val event = awaitPointerEvent(PointerEventPass.Initial)
+										if (event.changes.any { it.type == PointerType.Mouse }) mouseInUse = true
+									}
 								}
 							},
 						snackbarHost = {
@@ -344,7 +367,8 @@ fun App() {
 									// this might not always be desirable, so the
 									// `PersistentViewModelStoreOwner` class is used for
 									// certain ViewModels to work around this
-									rememberViewModelStoreNavEntryDecorator()
+									rememberViewModelStoreNavEntryDecorator(),
+									remember { refreshNavEntryDecorator() }
 								),
 								onBack = {
 									if (backStack.size >= 2) {

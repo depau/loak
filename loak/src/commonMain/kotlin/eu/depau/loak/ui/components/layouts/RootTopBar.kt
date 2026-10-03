@@ -53,6 +53,8 @@ import eu.depau.loak.di.PlatformType
 import eu.depau.loak.ui.util.windowControlsInsets
 import eu.depau.loak.ui.screens.queue.QueuePaneToggle
 import eu.depau.loak.ui.util.windowDragArea
+import eu.depau.loak.generated.resources.action_refresh
+import eu.depau.loak.util.withShortcut
 
 /**
  * The scroll behaviour for [RootTopBar]. On desktop the bar is the window's title bar, under
@@ -132,6 +134,12 @@ private fun Actions(
 
 	var accountSheetOpen by rememberSaveable { mutableStateOf(false) }
 
+	refreshButtonSlot()?.let { slot ->
+		TooltipBox("${stringResource(Res.string.action_refresh)} (F5)") {
+			IconButton(onClick = { slot.refresh?.invoke() }) { RefreshIcon(slot) }
+		}
+	}
+
 	// wide windows: a search field look-alike in every tab's bar, opening the search page
 	if (LocalPlatformContext.current.isExpanded()) {
 		Surface(
@@ -155,7 +163,7 @@ private fun Actions(
 			}
 		}
 	} else if (!isSearchEnabled) {
-		TooltipBox(stringResource(Res.string.title_search)) {
+		TooltipBox(withShortcut(stringResource(Res.string.title_search), "F")) {
 			IconButton(
 				onClick = dropUnlessResumed {
 					backStack.add(Screen.Search(nested = true))

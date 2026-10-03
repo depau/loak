@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_navigate_back
+import eu.depau.loak.generated.resources.action_refresh
+import eu.depau.loak.ui.components.common.TooltipBox
 import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.icons.Icons
@@ -78,6 +80,11 @@ fun NestedTopBar(
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				actions()
+				refreshButtonSlot()?.let { slot ->
+					TooltipBox("${stringResource(Res.string.action_refresh)} (F5)") {
+						TopBarButton(onClick = { slot.refresh?.invoke() }) { RefreshIcon(slot) }
+					}
+				}
 				if (trailing) QueuePaneToggle()
 			}
 		},
