@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
@@ -102,6 +103,8 @@ fun QueueScreenItem(
 			}
 		},
 		backgroundContent = {
+			// the rows are translucent: only draw the action behind one being swiped
+			if (dismissState.dismissDirection == SwipeToDismissBoxValue.Settled) return@SwipeToDismissBox
 			val playNext = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
 			Box(
 				modifier = Modifier
@@ -133,7 +136,11 @@ fun QueueScreenItem(
 		content = {
 			Surface(
 				shadowElevation = elevation,
-				shape = itemShape.shape
+				shape = itemShape.shape,
+				// translucent over the pane or sheet, which may be tinted by the cover art;
+				// opaque while lifted for dragging
+				color = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh
+				else Color.Transparent
 			) {
 				SegmentedListItem(
 					onClick = onClick,
@@ -141,7 +148,9 @@ fun QueueScreenItem(
 					enabled = !isExplicit,
 					selected = isSelected,
 					colors = SegmentedListItemDefaults.segmentedColors(
-						selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+						containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .05f),
+						disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .03f),
+						selectedContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .12f),
 						selectedContentColor = MaterialTheme.colorScheme.primary,
 						selectedSupportingContentColor = MaterialTheme.colorScheme.primary
 							.copy(alpha = .7f)
