@@ -103,6 +103,7 @@ koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 mp3spi = { module = "com.googlecode.soundlibs:mp3spi", version.ref = "mp3spi" }
+nucleus-menu-macos = { module = "dev.nucleusframework:nucleus.menu-macos", version.ref = "nucleus" }
 nucleus-media-control = { module = "dev.nucleusframework:nucleus.media-control", version.ref = "nucleus" }
 kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 nucleus-system-color = { module = "dev.nucleusframework:nucleus.system-color", version.ref = "nucleus" }

@@ -58,6 +58,8 @@ kotlin {
 				implementation(libs.nucleus.updater.runtime)
 				implementation(libs.nucleus.decorated.window.tao)
 				implementation(libs.nucleus.darkmode.detector)
+				implementation(libs.nucleus.menu.macos)
+				implementation(libs.cmp.resources)
 			}
 		}
 	}

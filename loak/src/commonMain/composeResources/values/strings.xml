@@ -359,6 +359,15 @@
 	<string name="title_sleep_timer_songs">Songs</string>
 	<string name="option_playback_speed">Playback speed</string>
 	<string name="action_navigate_back">Navigate up</string>
+	<string name="action_back">Back</string>
+	<string name="action_forward">Forward</string>
+	<string name="action_about_app">About %1$s</string>
+	<string name="action_settings_menu">Settings…</string>
+	<string name="action_quit_app">Quit %1$s</string>
+	<string name="menu_view">View</string>
+	<string name="menu_go">Go</string>
+	<string name="menu_controls">Controls</string>
+	<string name="menu_window">Window</string>
 	<string name="action_log_out">Log out</string>
 	<string name="action_log_in">Log in</string>
 	<string name="action_view_shares">Shares</string>

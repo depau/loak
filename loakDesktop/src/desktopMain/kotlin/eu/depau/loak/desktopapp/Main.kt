@@ -112,7 +112,7 @@ fun main(args: Array<String>) {
 						if (quit) exitApplication()
 						quit
 					}) {
-						ProvideSystemTheme { App() }
+						ProvideSystemTheme { App(menuBar = { LoakMenuBar(it, ::exitApplication) }) }
 					}
 				}
 			}

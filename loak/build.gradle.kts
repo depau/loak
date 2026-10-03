@@ -32,6 +32,8 @@ configurations.all {
 // project/module naming (used by eu.depau.loak.generated.resources imports)
 compose.resources {
 	packageOfResClass = "eu.depau.loak.generated.resources"
+	// loakDesktop's menu bar uses the app's strings
+	publicResClass = true
 }
 
 valkyrie {

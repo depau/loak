@@ -8,6 +8,7 @@ import androidx.compose.ui.input.pointer.isBackPressed
 import androidx.compose.ui.input.pointer.isForwardPressed
 import androidx.compose.runtime.snapshotFlow
 import eu.depau.loak.ui.navigation.ForwardHistory
+import eu.depau.loak.ui.navigation.AppActions
 import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.runtime.DisposableEffect
@@ -17,7 +18,6 @@ import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import eu.depau.loak.di.LocalMouseInUse
 import eu.depau.loak.ui.components.layouts.refreshNavEntryDecorator
-import eu.depau.loak.ui.components.layouts.refreshSlots
 import eu.depau.loak.util.isShortcutPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.KeyEventType
@@ -185,8 +185,11 @@ private val config = SavedStateConfiguration {
 }
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
+/**
+ * @param menuBar the platform's menu bar, given the app's actions (the macOS one on desktop).
+ */
 @Composable
-fun App() {
+fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 	val platformContext = rememberPlatformContext()
 	val sessionManager = koinInject<SessionManager>()
 	val preferenceManager = koinInject<PreferenceManager>()
@@ -251,6 +254,8 @@ fun App() {
 			old = it
 		}
 	}
+	val actions = AppActions(backStack, backInput, forwardHistory, mediaPlayer, inApp)
+	menuBar(actions)
 	var mouseInUse by remember {
 		mutableStateOf(platformContext.platformType.let { it == PlatformType.Desktop || it == PlatformType.Web })
 	}
@@ -306,74 +311,32 @@ fun App() {
 							.focusTarget()
 							.onKeyEvent { event ->
 								if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-								if (event.key == Key.F5 || event.isShortcutPressed && event.key == Key.R) {
-									refreshSlots.lastOrNull { it.refresh != null }?.refresh?.invoke()
-									return@onKeyEvent true
-								}
-								if (event.isAltPressed && event.key == Key.DirectionLeft ||
-									event.isShortcutPressed && event.key == Key.LeftBracket
-								) {
-									backInput.backCompleted()
-									return@onKeyEvent true
-								}
-								if (event.isAltPressed && event.key == Key.DirectionRight ||
-									event.isShortcutPressed && event.key == Key.RightBracket ||
-									event.key == Key.Forward
-								) {
-									forwardHistory.forward(backStack)
-									return@onKeyEvent true
-								}
-								if (inApp) {
+								val shortcut = event.isShortcutPressed
+								val key = event.key
+								val action: (() -> Unit)? = when {
+									key == Key.F5 || shortcut && key == Key.R -> actions::refresh
+									event.isAltPressed && key == Key.DirectionLeft ||
+										shortcut && key == Key.LeftBracket -> actions::back
+									event.isAltPressed && key == Key.DirectionRight ||
+										shortcut && key == Key.RightBracket ||
+										key == Key.Forward -> actions::forward
+									!inApp -> null
 									// '/' by character: it's shifted on many layouts
-									if (event.utf16CodePoint == '/'.code ||
-										event.isShortcutPressed && event.key == Key.F
-									) {
-										if (backStack.lastOrNull() !is Screen.Search)
-											backStack.add(Screen.Search(nested = true))
-										return@onKeyEvent true
-									}
-									if (event.isShortcutPressed && event.key == Key.Comma) {
-										if (backStack.lastOrNull() !is Screen.Settings)
-											backStack.add(Screen.Settings.Root)
-										return@onKeyEvent true
-									}
+									event.utf16CodePoint == '/'.code ||
+										shortcut && key == Key.F -> actions::search
+									shortcut && key == Key.Comma -> actions::settings
+									mediaPlayer.uiState.value.currentSong == null -> null
+									key == Key.Spacebar || key == Key.MediaPlayPause -> actions::playPause
+									key == Key.MediaPlay -> actions::play
+									key == Key.MediaPause || key == Key.MediaStop -> actions::pause
+									key == Key.MediaNext ||
+										shortcut && key == Key.DirectionRight -> actions::next
+									key == Key.MediaPrevious ||
+										shortcut && key == Key.DirectionLeft -> actions::previous
+									else -> null
 								}
-								val player = mediaPlayer
-								if (player.uiState.value.currentSong == null) return@onKeyEvent false
-								when (event.key) {
-									Key.Spacebar,
-									Key.MediaPlayPause -> {
-										if (player.uiState.value.isPaused) player.resume() else player.pause()
-										true
-									}
-									Key.MediaPlay -> {
-										player.resume()
-										true
-									}
-									Key.MediaPause -> {
-										player.pause()
-										true
-									}
-									Key.MediaStop -> {
-										player.pause()
-										true
-									}
-									Key.MediaNext -> {
-										player.next()
-										true
-									}
-									Key.MediaPrevious -> {
-										player.previous()
-										true
-									}
-									Key.DirectionRight -> event.isShortcutPressed.also {
-										if (it) player.next()
-									}
-									Key.DirectionLeft -> event.isShortcutPressed.also {
-										if (it) player.previous()
-									}
-									else -> false
-								}
+								action?.invoke()
+								action != null
 							}
 							// any mouse pointer, even just hovering, turns on mouse affordances
 							.pointerInput(mouseInUse) {
@@ -392,8 +355,8 @@ fun App() {
 									while (true) {
 										val event = awaitPointerEvent(PointerEventPass.Initial)
 										if (event.type != PointerEventType.Press) continue
-										if (event.buttons.isBackPressed) backInput.backCompleted()
-										else if (event.buttons.isForwardPressed) forwardHistory.forward(backStack)
+										if (event.buttons.isBackPressed) actions.back()
+										else if (event.buttons.isForwardPressed) actions.forward()
 									}
 								}
 							},
