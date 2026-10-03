@@ -176,7 +176,6 @@ kotlin {
 			implementation(libs.androidx.sqlite.bundled)
 			implementation(libs.coil.gif)
 			implementation(libs.kmpalette.core)
-			implementation(libs.kmpalette.network)
 		}
 
 		iosMain.dependencies {
@@ -184,7 +183,6 @@ kotlin {
 			implementation(libs.androidx.sqlite.bundled)
 			implementation(libs.coil.gif)
 			implementation(libs.kmpalette.core)
-			implementation(libs.kmpalette.network)
 		}
 
 		wasmJsMain.dependencies {
