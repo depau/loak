@@ -1,9 +1,9 @@
 package eu.depau.loak.ui.screens.collection.components
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import eu.depau.loak.ui.components.common.SpecialPlaylistCover
 import androidx.compose.foundation.layout.Box
-import eu.depau.loak.domain.models.PlaylistKind
-import eu.depau.loak.ui.components.common.PlaylistBadgedText
 import eu.depau.loak.ui.components.common.displayName
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.core.tween
@@ -120,7 +120,11 @@ fun CollectionDetailScreenHeadingRow(
 					fontFamily = defaultFont(grade = 100, round = 100f)
 				)
 			}
-			PlaylistBadgedText(playlistName?.kind ?: PlaylistKind.Regular) {
+			Row(
+				verticalAlignment = Alignment.CenterVertically,
+				horizontalArrangement = Arrangement.spacedBy(6.dp)
+			) {
+			if (collection is DomainPlaylist && playlistName != null) PlaylistInfoBadge(collection, playlistName)
 			Text(
 				if (collection is DomainAlbum)
 					"${collection.genre ?: stringResource(Res.string.info_unknown_genre)} • ${

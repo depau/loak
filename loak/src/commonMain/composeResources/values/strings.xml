@@ -553,6 +553,14 @@
 	<string name="subtitle_audiomuse_integration">Tidy names, a badge, and warnings where AudioMuse-AI may undo your edits</string>
 	<string name="badge_ai">AI</string>
 	<string name="action_make_a_copy">Make a copy</string>
+	<string name="action_got_it">Got it</string>
+	<string name="title_badge_audiomuse">Made by AudioMuse-AI</string>
+	<string name="title_badge_audiomuse_instant">Made with AudioMuse-AI</string>
+	<string name="title_badge_smart">Smart playlist</string>
+	<string name="info_badge_audiomuse_automatic">AudioMuse-AI put together these songs that sound alike, and rebuilds the playlist each time it runs. Songs you add or remove here may be lost.</string>
+	<string name="info_badge_audiomuse_scheduled">AudioMuse-AI refills this playlist with new songs on a schedule. Songs you add or remove here may be lost.</string>
+	<string name="info_badge_audiomuse_instant">You created this playlist in AudioMuse-AI. It won't change it again, so it's yours to edit.</string>
+	<string name="info_badge_smart">The server picks the songs from a set of rules and refreshes them when you open the playlist. You can't add or remove songs by hand.</string>
 	<string name="info_audiomuse_rebuilds">AudioMuse-AI rebuilds this playlist. Your changes may be lost.</string>
 	<string name="info_audiomuse_edit_warning">AudioMuse-AI rebuilds this playlist on its next run. Your changes, or the whole playlist, may disappear.</string>
 	<string name="action_open">Open</string>
