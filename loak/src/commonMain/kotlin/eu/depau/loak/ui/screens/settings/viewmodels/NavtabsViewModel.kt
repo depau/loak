@@ -30,8 +30,7 @@ class NavtabsViewModel(
 		val raw = settings.getStringOrNull(NavbarConfig.KEY)
 			?: return NavbarConfig.default
 		val config: NavbarConfig = json.decodeFromString(raw)
-		return config.takeIf { it.version == NavbarConfig.VERSION }
-			?: NavbarConfig.default
+		return NavbarConfig.migrate(config)
 	}
 
 	private fun setConfig(newConfig: NavbarConfig) {
