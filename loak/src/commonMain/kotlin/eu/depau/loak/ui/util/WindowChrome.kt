@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -46,6 +47,11 @@ data class WindowChrome(
 	 * Maximize), so a pane under them docks to the window edge instead of floating.
 	 */
 	val controlsInCorner: Boolean = false,
+	/**
+	 * Extra room between the controls and the window's side edge, so they sit as far from it
+	 * as from the top (the drawn Linux controls); none where the platform places them.
+	 */
+	val edgeInset: Dp = 0.dp,
 	/** Measured by App once the controls are laid out. */
 	val controlsWidth: Dp = 0.dp,
 	/** A pane along the controls' edge draws them in its header, so the top bars needn't. */
@@ -59,16 +65,17 @@ private val RailWidth = 80.dp
 
 /**
  * Room a bar along the window's top edge leaves for the window controls. With the controls
- * on the left and a navigation rail, the rail sits under them, so only what overhangs it.
+ * on the left and a navigation rail, the rail sits under them, so only what overhangs it;
+ * bars over the whole window (the player) pass [besideRail] false.
  */
 @Composable
-fun windowControlsInsets(): WindowInsets {
+fun windowControlsInsets(besideRail: Boolean = true): WindowInsets {
 	val chrome = LocalWindowChrome.current ?: return WindowInsets(0)
 	if (chrome.controlsInPane) return WindowInsets(0)
 	val room = chrome.controlsWidth + 8.dp
 	return when {
 		!chrome.controlsOnLeft -> WindowInsets(right = room)
-		LocalPlatformContext.current.isLandscape() ->
+		besideRail && LocalPlatformContext.current.isLandscape() ->
 			WindowInsets(left = (room - RailWidth).coerceAtLeast(0.dp))
 		else -> WindowInsets(left = room)
 	}
@@ -99,6 +106,10 @@ fun WindowChromeHost(paneOpen: Boolean, content: @Composable () -> Unit) {
 					.align(if (chrome.controlsOnLeft) Alignment.TopStart else Alignment.TopEnd)
 					.height(chrome.barHeight)
 					.then(chrome.dragArea)
+					.padding(
+						start = if (chrome.controlsOnLeft) chrome.edgeInset else 0.dp,
+						end = if (chrome.controlsOnLeft) 0.dp else chrome.edgeInset
+					)
 					.onSizeChanged { controlsWidth = with(density) { it.width.toDp() } }
 			) {
 				chrome.controls(MaterialTheme.colorScheme.surface.luminance() < .5f)

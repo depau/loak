@@ -346,8 +346,9 @@ private fun NowPlayingSidePane(
 		color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f)
 	) {
 		Column {
-			// the tab row is the title bar here: it moves the window and holds its controls
-			Row(Modifier.windowDragArea()) {
+			// the tab row is the title bar here: it moves the window and holds its controls.
+			// Its height is fixed: the controls fill whatever height they're given
+			Row(Modifier.height(if (docked) 56.dp else 48.dp).windowDragArea()) {
 				// no full-width divider, and the M3 primary indicator: short, with rounded ends
 				PrimaryTabRow(
 					modifier = Modifier.weight(1f).padding(top = if (docked) 8.dp else 0.dp),

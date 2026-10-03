@@ -28,11 +28,12 @@ fun SheetScaffold(
 	val toolbarPosition = toolbarPosition ?: preferenceManager.nowPlayingToolbarPosition
 	Scaffold(
 		topBar = {
+			// sheets cover the whole window, rail included
 			if (toolbarPosition == ToolbarPosition.Top) Box(Modifier.windowDragArea()) {
 				toolbar(
 					WindowInsets.systemBars.only(
 						WindowInsetsSides.Horizontal + WindowInsetsSides.Top
-					).add(windowControlsInsets())
+					).add(windowControlsInsets(besideRail = false))
 				)
 			}
 		},

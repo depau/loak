@@ -3,7 +3,13 @@ package eu.depau.loak.desktopapp
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import java.util.function.Consumer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
@@ -60,7 +66,7 @@ fun main(args: Array<String>) {
 			) {
 				val nucleusOnLeft = !isWindows && (isMac || !rememberLinuxButtonLayout().controlsOnRight)
 				val controlsOnLeft = nucleusOnLeft ||
-					(!isMac && !isWindows && remember { gsettingsControlsOnLeft() })
+					(!isMac && !isWindows && rememberGsettingsControlsOnLeft())
 				// Nucleus put them on the right (its non-GNOME default): mirror its button row
 				val direction =
 					if (controlsOnLeft != nucleusOnLeft) ControlButtonsDirection.Rtl
@@ -70,6 +76,8 @@ fun main(args: Array<String>) {
 					barHeight = titleBarHeight,
 					dragArea = Modifier.windowDragArea(),
 					controlsInCorner = isWindows,
+					// as far from the side edge as from the top: (64 - 24) / 2, less Nucleus' own 8
+					edgeInset = if (isMac || isWindows) 0.dp else 12.dp,
 					controls = { darkTheme ->
 						// the controls follow the app theme, not the OS: the native parts through
 						// WindowAppearance (traffic lights on macOS), the drawn ones (GNOME/KDE,
@@ -103,15 +111,45 @@ private fun loadIcon(): BitmapPainter? =
 		BitmapPainter(Image.makeFromEncoded(it.readAllBytes()).toComposeImageBitmap())
 	}
 
+/** Nucleus' bridge to GSettings' `button-layout` key (not public API, hence reflection). */
+private val layoutBridge = runCatching {
+	Class.forName("dev.nucleusframework.window.NativeLayoutDirectionBridge")
+}.getOrNull()
+
 /**
  * Whether the desktop puts the window buttons on the left, from GNOME's `button-layout`
- * GSettings key. Nucleus reads that key only on GNOME, but other desktops keep it too
- * (KDE mirrors its own layout into it), so read it everywhere with Nucleus' own reader.
+ * GSettings key, following changes. Nucleus reads and watches that key only on GNOME, but
+ * other desktops keep it too (KDE mirrors its own layout into it), so read it everywhere
+ * through Nucleus' own bridge, and start its watcher where Nucleus doesn't.
  * ponytail: drop once Nucleus reads the layout on every desktop (button set still Nucleus').
  */
-private fun gsettingsControlsOnLeft(): Boolean = runCatching {
-	val layout = Class.forName("dev.nucleusframework.window.NativeLayoutDirectionBridge")
-		.getMethod("nativeGetButtonLayout").invoke(null) as String?
+@Composable
+private fun rememberGsettingsControlsOnLeft(): Boolean {
+	var onLeft by remember {
+		mutableStateOf(controlsOnLeft(runCatching {
+			layoutBridge?.getMethod("nativeGetButtonLayout")?.invoke(null) as String?
+		}.getOrNull()))
+	}
+	DisposableEffect(Unit) {
+		val listener = Consumer<String> { onLeft = controlsOnLeft(it) }
+		val bridge = layoutBridge?.getField("INSTANCE")?.get(null)
+		runCatching {
+			layoutBridge!!.getMethod("registerButtonLayoutListener", Consumer::class.java)
+				.invoke(bridge, listener)
+			val gnome = System.getenv("XDG_CURRENT_DESKTOP").orEmpty().contains("GNOME", true)
+			if (!gnome) layoutBridge.getMethod("nativeStartButtonLayoutObserving").invoke(null)
+		}
+		onDispose {
+			runCatching {
+				layoutBridge!!.getMethod("removeButtonLayoutListener", Consumer::class.java)
+					.invoke(bridge, listener)
+			}
+		}
+	}
+	return onLeft
+}
+
+/** `close` before the colon and not after it, in a `button-layout` value. */
+private fun controlsOnLeft(layout: String?): Boolean =
 	layout != null && "close" in layout.substringBefore(':', "") &&
 		"close" !in layout.substringAfter(':', layout)
-}.getOrDefault(false)
