@@ -1,5 +1,12 @@
 package eu.depau.loak.ui.screens.settings
 
+import eu.depau.loak.domain.manager.NavidromeManager
+import eu.depau.loak.domain.manager.ServerInfo
+import androidx.compose.runtime.produceState
+import eu.depau.loak.generated.resources.option_server_software
+import eu.depau.loak.generated.resources.option_smart_playlists
+import eu.depau.loak.generated.resources.info_smart_playlists_available
+import eu.depau.loak.generated.resources.info_smart_playlists_unavailable
 import eu.depau.loak.generated.resources.title_server_features
 import eu.depau.loak.generated.resources.option_audiomuse_integration
 import eu.depau.loak.generated.resources.subtitle_audiomuse_integration
@@ -180,13 +187,38 @@ fun SettingsServerScreen() {
 @Composable
 private fun ServerFeaturesGroup() {
 	val preferenceManager = koinInject<PreferenceManager>()
+	val navidrome = koinInject<NavidromeManager>()
+	val info by produceState<ServerInfo?>(null) { value = navidrome.serverInfo() }
+	val known = info?.type != null
+	val count = if (known) 3 else 2
 	SettingsGroup(title = { Text(stringResource(Res.string.title_server_features)) }) {
+		info?.takeIf { known }?.let { info ->
+			SegmentedListItem(
+				onClick = {},
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count),
+				content = { Text(stringResource(Res.string.option_server_software)) },
+				supportingContent = {
+					Text(listOfNotNull(info.type?.replaceFirstChar { it.uppercase() }, info.version).joinToString(" "))
+				}
+			)
+		}
 		SettingsToggleItem(
 			content = { Text(stringResource(Res.string.option_audiomuse_integration)) },
 			supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_integration)) },
 			checked = preferenceManager.audioMuseIntegration,
 			onCheckedChange = { preferenceManager.audioMuseIntegration = it },
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 2, count = count)
+		)
+		SegmentedListItem(
+			onClick = {},
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 1, count = count),
+			content = { Text(stringResource(Res.string.option_smart_playlists)) },
+			supportingContent = {
+				Text(stringResource(
+					if (info?.canEditSmartPlaylists == true) Res.string.info_smart_playlists_available
+					else Res.string.info_smart_playlists_unavailable
+				))
+			}
 		)
 	}
 }

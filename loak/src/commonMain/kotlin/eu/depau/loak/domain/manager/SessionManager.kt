@@ -34,6 +34,8 @@ class SessionManager(
 	/** The logged-in username, as entered at login. */
 	val username: String get() = settings.getString("username", "")
 	val instanceUrl: String get() = settings.getString("instanceUrl", "")
+	/** For servers' own APIs that log in with it (Navidrome's). */
+	val password: String get() = settings.getString("password", "")
 
 	/** This device's name, as shown to the user's other devices. */
 	val deviceName: String get() = preferenceManager.deviceName.ifBlank { systemDeviceName() }
