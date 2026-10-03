@@ -35,6 +35,14 @@ import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.di.LocalSheetState
 import eu.depau.loak.ui.util.rememberColorSchemeForCurrentSong
 import eu.depau.loak.ui.util.rememberScreenCornerRadius
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import eu.depau.loak.di.LocalSnackBarState
+import eu.depau.loak.ui.components.snackbars.LoakSnackBar
 
 class NowPlayingScene<T : Any>(
 	override val key: Any,
@@ -92,6 +100,16 @@ class NowPlayingScene<T : Any>(
 				) {
 					Box(Modifier.fillMaxSize()) {
 						entry.Content()
+						val snackBarState = LocalSnackBarState.current
+						SnackbarHost(
+							hostState = snackBarState,
+							modifier = Modifier
+								.align(Alignment.BottomCenter)
+								.windowInsetsPadding(WindowInsets.navigationBars)
+								.padding(bottom = 16.dp)
+						) { snackBarData ->
+							LoakSnackBar(snackBarData = snackBarData)
+						}
 					}
 				}
 			}

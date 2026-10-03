@@ -26,6 +26,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -89,6 +91,8 @@ fun CollectionDetailScreen(
 		key = collectionId,
 		parameters = { parametersOf(collectionId) }
 	)
+	LaunchedEffect(collectionId) { viewModel.revalidate() }
+
 
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
@@ -213,7 +217,27 @@ fun CollectionDetailScreen(
 						contentPadding = contentPadding.withoutTop(),
 						state = viewModel.listState
 					) {
-						if (collection == null) return@LazyColumn
+						if (collection == null) {
+							if (collectionState is UiState.Loading) {
+								item {
+									Box(
+										modifier = Modifier.fillMaxWidth().padding(48.dp),
+										contentAlignment = Alignment.Center
+									) {
+										CircularProgressIndicator()
+									}
+								}
+							} else if (collectionState is UiState.Error) {
+								item {
+									ContentUnavailable(
+										icon = Icons.Outlined.Note,
+										label = (collectionState as UiState.Error).error.message
+											?: stringResource(Res.string.info_no_songs)
+									)
+								}
+							}
+							return@LazyColumn
+						}
 
 						if (!expanded) {
 							item {

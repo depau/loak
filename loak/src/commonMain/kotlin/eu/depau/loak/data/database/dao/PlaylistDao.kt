@@ -81,6 +81,9 @@ interface PlaylistDao {
 	@Query("SELECT playlistId FROM PlaylistEntity")
 	suspend fun getAllPlaylistIds(): List<String>
 
+
+	@Query("SELECT DISTINCT songId FROM PlaylistSongCrossRef")
+	suspend fun getAllPlaylistSongIds(): List<String>
 	@Transaction
 	@Query("SELECT * FROM PlaylistEntity WHERE name LIKE '%' || :query || '%' COLLATE NOCASE")
 	suspend fun searchPlaylistsList(query: String): List<PlaylistWithSongs>

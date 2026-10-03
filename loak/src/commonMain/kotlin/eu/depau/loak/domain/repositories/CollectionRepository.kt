@@ -42,10 +42,8 @@ class CollectionRepository(
 			}
 
 			is DomainPlaylist -> {
-				val playlist = sessionManager.api.getPlaylist(collection.id)
-				playlistDao.insertPlaylist(playlist.toEntity())
-				dbRepository.syncPlaylistSongs(collection.id)
-				playlistDao.getPlaylistById(playlist.id)!!.toDomainModel()
+				dbRepository.syncPlaylistSongs(collection.id).getOrThrow()
+				playlistDao.getPlaylistById(collection.id)!!.toDomainModel()
 			}
 		}
 		return getLocalData(collectionId)
@@ -55,18 +53,39 @@ class CollectionRepository(
 		fullRefresh: Boolean,
 		collectionId: String
 	): Flow<UiState<DomainSongCollection>> = flow {
-		val localData = getLocalData(collectionId)
-		if (fullRefresh) {
-			emit(UiState.Loading(data = localData))
-			try {
-				emit(UiState.Success(data = refreshLocalData(collectionId)))
-			} catch (error: Exception) {
-				emit(UiState.Error(error = error, data = localData))
+		val localData = runCatching { getLocalData(collectionId) }.getOrNull()
+		if (localData != null) {
+			if (fullRefresh) {
+				emit(UiState.Loading(data = localData))
+				try {
+					emit(UiState.Success(data = refreshLocalData(collectionId)))
+				} catch (error: Exception) {
+					emit(UiState.Error(error = error, data = localData))
+				}
+			} else {
+				emit(UiState.Success(data = localData))
 			}
 		} else {
-			emit(UiState.Success(data = localData))
+			emit(UiState.Loading())
+			try {
+				emit(UiState.Success(data = refreshRemoteCollection(collectionId)))
+			} catch (error: Exception) {
+				emit(UiState.Error(error = error))
+			}
 		}
 	}.flowOn(IoDispatcher)
+
+	private suspend fun refreshRemoteCollection(collectionId: String): DomainSongCollection {
+		return try {
+			val album = sessionManager.api.getAlbum(collectionId)
+			songDao.updateSongsByAlbumId(album.id, album.songs.map { it.toEntity() })
+			albumDao.insertAlbum(album.toEntity())
+			albumDao.getAlbumById(album.id)!!.toDomainModel()
+		} catch (_: Exception) {
+			dbRepository.syncPlaylistSongs(collectionId).getOrThrow()
+			playlistDao.getPlaylistById(collectionId)!!.toDomainModel()
+		}
+	}
 
 	fun getOtherAlbums(artistId: String, albumId: String) = albumDao
 		.getAlbumsByArtistExcluding(artistId, albumId)

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.ImmutableList
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.action_save
 import eu.depau.loak.generated.resources.action_create
 import eu.depau.loak.generated.resources.action_new_playlist
 import eu.depau.loak.generated.resources.count_songs
@@ -103,6 +105,8 @@ fun PlaylistUpdateDialog(
 	) {
 		val state by viewModel.playlistsState.collectAsState()
 		val creating by viewModel.creating.collectAsState()
+		val selectedIds by viewModel.selectedPlaylistIds.collectAsState()
+		val saving by viewModel.saving.collectAsState()
 		var filter by rememberSaveable { mutableStateOf("") }
 		LaunchedEffect(Unit) { snapshotFlow { viewModel.filter.text.toString() }.collect { filter = it } }
 
@@ -181,7 +185,12 @@ fun PlaylistUpdateDialog(
 						Modifier.padding(16.dp)
 					)
 				}
-				LazyColumn(Modifier.heightIn(max = 480.dp)) {
+				LazyColumn(
+					modifier = Modifier
+						.fillMaxWidth()
+						.weight(1f, fill = false)
+						.heightIn(max = 480.dp)
+				) {
 					items(playlists + rebuilt, key = { it.first.id }) { (playlist, name) ->
 						if (rebuilt.firstOrNull()?.first == playlist) {
 							ListItem(
@@ -190,7 +199,7 @@ fun PlaylistUpdateDialog(
 							)
 						}
 						ListItem(
-							onClick = { viewModel.pick(playlist) },
+							onClick = { viewModel.togglePlaylist(playlist.id) },
 							content = { Text(name.display) },
 							supportingContent = {
 								PlaylistBadgedText(name.kind) {
@@ -203,10 +212,37 @@ fun PlaylistUpdateDialog(
 									modifier = Modifier.size(48.dp),
 									shape = MaterialTheme.shapes.small
 								)
+							},
+							trailingContent = {
+								Checkbox(
+									checked = playlist.id in selectedIds,
+									onCheckedChange = { viewModel.togglePlaylist(playlist.id) }
+								)
 							}
 						)
 					}
 				}
+			}
+		}
+
+		Button(
+			onClick = viewModel::saveSelected,
+			enabled = !saving && selectedIds.isNotEmpty(),
+			modifier = Modifier
+				.fillMaxWidth()
+				.padding(horizontal = 16.dp, vertical = 8.dp)
+		) {
+			if (saving) {
+				CircularProgressIndicator(
+					modifier = Modifier.size(18.dp),
+					color = MaterialTheme.colorScheme.onPrimary,
+					strokeWidth = 2.dp
+				)
+			} else {
+				Text(
+					if (selectedIds.size <= 1) stringResource(Res.string.action_save)
+					else stringResource(Res.string.action_save) + " (${selectedIds.size})"
+				)
 			}
 		}
 	}

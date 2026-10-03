@@ -24,8 +24,8 @@ import eu.depau.loak.util.Logger
 import dev.zt64.subsonic.api.model.Playlist as ApiPlaylist
 
 /**
- * Saving songs to a playlist: straight to the last-used one when there is one, otherwise
- * (or on "Change") through the save-to-playlist sheet.
+ * Saving songs to playlists: opens the sheet where playlists are selected with checkboxes
+ * and saved via confirmation button.
  */
 class PlaylistUpdateDialogViewModel(
 	private val songs: List<DomainSong>,
@@ -37,29 +37,34 @@ class PlaylistUpdateDialogViewModel(
 	val playlistsState: StateFlow<UiState<List<ApiPlaylist>>>
 		field = MutableStateFlow<UiState<List<ApiPlaylist>>>(UiState.Loading())
 
+	val selectedPlaylistIds: StateFlow<Set<String>>
+		field = MutableStateFlow(emptySet())
+
 	val creating: StateFlow<Boolean>
+		field = MutableStateFlow(false)
+
+	val saving: StateFlow<Boolean>
 		field = MutableStateFlow(false)
 
 	val filter = TextFieldState()
 	val newPlaylistName = TextFieldState()
 
-	private val _events = Channel<Event>()
+	private val _events = Channel<Event>(Channel.BUFFERED)
 	val events = _events.receiveAsFlow()
 
-	/** Saves to the last-used playlist, or asks the sheet to open. */
 	fun start() {
 		viewModelScope.launch {
-			val last = preferenceManager.lastPlaylistId
-			val playlist = if (last.isNotEmpty() && last != playlistToExclude) {
-				// it may have turned read-only (smart, or no longer shared) since
-				runCatching { sessionManager.api.getPlaylist(last) }.getOrNull()?.takeIf { it.readOnly != true }
-			} else null
-			if (playlist == null) {
-				_events.send(Event.ShowSheet)
-				loadPlaylists()
-			} else {
-				save(playlist, offerChange = true)
-			}
+			_events.send(Event.ShowSheet)
+			loadPlaylists()
+		}
+	}
+
+	fun togglePlaylist(playlistId: String) {
+		val current = selectedPlaylistIds.value
+		selectedPlaylistIds.value = if (playlistId in current) {
+			current - playlistId
+		} else {
+			current + playlistId
 		}
 	}
 
@@ -82,13 +87,6 @@ class PlaylistUpdateDialogViewModel(
 		}
 	}
 
-	fun pick(playlist: ApiPlaylist) {
-		viewModelScope.launch {
-			_events.send(Event.HideSheet)
-			save(playlist, offerChange = false)
-		}
-	}
-
 	fun createAndSave() {
 		val name = newPlaylistName.text.toString().trim()
 		if (name.isEmpty()) return
@@ -107,71 +105,49 @@ class PlaylistUpdateDialogViewModel(
 		}
 	}
 
-	/**
-	 * Adds the songs unless they are all already there: then the snackbar offers
-	 * "Add anyway" instead. Only [playlist] is fetched, one request.
-	 */
-	private suspend fun save(playlist: ApiPlaylist, offerChange: Boolean) {
-		// the host stays composed until its snackbar is resolved, so "Change" can reopen the sheet
-		try {
-			val existing = sessionManager.api.getPlaylist(playlist.id).songs.mapTo(HashSet()) { it.id }
-			preferenceManager.lastPlaylistId = playlist.id
-			if (songs.all { it.id in existing }) {
-				_events.send(Event.Dismiss)
-				snackBarManager.notify(
-					PlayerEvent(
-						Res.string.notice_already_in_playlist, listOf(shownName(playlist)),
-						action = Res.string.action_add_anyway,
-						onAction = {
-							// the sheet's scope may be gone by now
-							snackBarManager.launch {
-								add(playlist)
-								snackBarManager.notify(Res.string.notice_saved_to_playlist, shownName(playlist))
-							}
+	fun saveSelected() {
+		val selected = selectedPlaylistIds.value
+		if (selected.isEmpty()) return
+		val allPlaylists = (playlistsState.value as? UiState.Success)?.data ?: return
+		val targets = allPlaylists.filter { it.id in selected }
+		if (targets.isEmpty()) return
+
+		viewModelScope.launch {
+			saving.value = true
+			try {
+				var addedAnywhere = false
+				for (playlist in targets) {
+					try {
+						val existing = sessionManager.api.getPlaylist(playlist.id).songs.mapTo(HashSet()) { it.id }
+						val toAdd = songs.filterNot { it.id in existing }
+						if (toAdd.isNotEmpty()) {
+							sessionManager.api.updatePlaylist(playlist.id, songIdsToAdd = toAdd.map { it.id })
+							addedAnywhere = true
 						}
-					)
-				)
-				return
-			}
-			add(playlist, songs.filterNot { it.id in existing })
-			if (!offerChange) {
+					} catch (e: Exception) {
+						Logger.e("PlaylistUpdateDialogViewModel", "Failed to add songs to playlist ${playlist.id}", e)
+					}
+				}
+				preferenceManager.lastPlaylistId = targets.last().id
+
+				if (addedAnywhere) {
+					if (targets.size == 1) {
+						snackBarManager.notify(Res.string.notice_saved_to_playlist, shownName(targets.first()))
+					} else {
+						snackBarManager.notify(Res.string.notice_saved_to_playlist, "${targets.size} playlists")
+					}
+				} else {
+					if (targets.size == 1) {
+						snackBarManager.notify(Res.string.notice_already_in_playlist, shownName(targets.first()))
+					} else {
+						snackBarManager.notify(Res.string.notice_already_in_playlist, "${targets.size} playlists")
+					}
+				}
 				_events.send(Event.Dismiss)
-				snackBarManager.notify(Res.string.notice_saved_to_playlist, shownName(playlist))
-				return
+			} finally {
+				saving.value = false
 			}
-			// "Change" moves the songs: they come out of this playlist when another is picked
-			snackBarManager.notify(
-				PlayerEvent(
-					Res.string.notice_saved_to_playlist, listOf(shownName(playlist)),
-					action = Res.string.action_change,
-					onAction = {
-						viewModelScope.launch {
-							undoAdd(playlist, songs.filterNot { it.id in existing })
-							_events.send(Event.ShowSheet)
-							loadPlaylists()
-						}
-					},
-					onDismiss = { viewModelScope.launch { _events.send(Event.Dismiss) } }
-				)
-			)
-		} catch (e: Exception) {
-			Logger.e("PlaylistUpdateDialogViewModel", "Failed to add to playlist", e)
-			_events.send(Event.Dismiss)
 		}
-	}
-
-	private suspend fun add(playlist: ApiPlaylist, toAdd: List<DomainSong> = songs) {
-		sessionManager.api.updatePlaylist(playlist.id, songIdsToAdd = toAdd.map { it.id })
-	}
-
-	/** Takes back [added], which were just appended to the end of [playlist]. */
-	private suspend fun undoAdd(playlist: ApiPlaylist, added: List<DomainSong>) {
-		if (added.isEmpty()) return
-		val size = sessionManager.api.getPlaylist(playlist.id).songs.size
-		sessionManager.api.updatePlaylist(
-			playlist.id,
-			songIndicesToRemove = (size - added.size until size).toList()
-		)
 	}
 
 	enum class Event {

@@ -97,6 +97,7 @@ fun NowPlayingMoreButton() {
 					shareId = menuSong.id
 				},
 				onAddToPlaylist = {
+					expanded = false
 					playlistDialogShown = true
 				},
 				onTrackInfo = dropUnlessResumed {

@@ -130,23 +130,28 @@ class DbRepository(
 		if (totalPlaylists > 0) {
 			val completedPlaylists = AtomicInt(0)
 
-			coroutineScope {
+			val playlistSongIdSets = coroutineScope {
 				playlists.map { playlist ->
 					async {
 						concurrentRequestLimit.withPermit {
 							val playlistSongIds =
 								syncPlaylistSongs(playlist.playlistId).getOrThrow()
-							validSongIds.addAll(playlistSongIds)
 
 							val done = completedPlaylists.incrementAndGet()
 							val globalProgress = 0.75f + (0.25f * (done.toFloat() / totalPlaylists))
 							progressCallback(globalProgress, Res.string.info_syncing_playlists)
+							playlistSongIds
 						}
 					}
 				}.awaitAll()
 			}
+			for (set in playlistSongIdSets) {
+				validSongIds.addAll(set)
+			}
 		}
 
+		// Keep songs that are referenced in any playlist in the local database
+		validSongIds.addAll(playlistDao.getAllPlaylistSongIds())
 		albumDao.deleteObsoleteAlbums(validAlbumIds)
 		songDao.deleteObsoleteSongs(validSongIds)
 
@@ -311,9 +316,9 @@ class DbRepository(
 				throw e
 			}
 		}
+		playlistDao.insertPlaylist(playlist.toEntity())
 		val songEntities = playlist.songs.map { it.toEntity() }
 		val songIds = songEntities.map { it.songId }.toSet()
-
 		if (songEntities.isNotEmpty()) {
 			// Songs already exist from the album sync phase (most playlist
 			// songs belong to synced albums). A plain insert re-fires the PK;

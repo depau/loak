@@ -43,11 +43,92 @@ that the app still has to catch up with. Items marked **[done]** are implemented
 
 ## Navigation
 
-- **[done]** **Settings moves into the Account sheet** (first row); the gear icon is
-  removed from the tab top bars. Boards: Library, Albums, Playlists, Artists,
+- ~~**Settings moves into the Account sheet**~~ (superseded: the Settings button replaced
+  the Account sheet, see below); the gear icon is removed from the tab top bars. Boards: Library, Albums, Playlists, Artists,
   Account.
 - **[done]** **Nav bar keeps the originating tab selected** on pushed screens (album →
   Albums, genre/songs/starred/search/shares → Library, …).
+
+### Explore, default tabs and the Tabs page (2026-10-03)
+
+- **[done]** **Explore** tab ("In your library"): Browse lenses, Genres (top 5 + All
+  genres), Moods (AudioMuse-AI; tiles open a Mood page, not filters), Make something new
+  (moved from Home), Sound map (AudioMuse-AI `/api/map`, coloured by top style tag; tap a
+  dot, or Select area and draw to play/save), Off the beaten path (Forgotten favourites,
+  Never played, Deep cuts). Boards: Explore, Explore (tablet), Sound map, Sound map · select
+  an area, Mood · Relaxed.
+  Open: "See all" on the album shelves (no list for them yet), desktop shift+drag to select,
+  tablet layout sharing rows (Make something new + Sound map, the two album shelves).
+- **[done]** **Explore = picks and AI tools; Library = every list and destination but Home**
+  (overlap is fine). Library's groups: Songs · Albums · Artists · Genres / Recently added ·
+  Recently played · Most played · Highest rated · Random · By year · Starred / Playlists ·
+  Explore · Internet radios · Shares. Explore lost its Browse section; Home lost the "Your
+  library" tiles (Forgotten favourites stays on Home).
+- **[done]** **Default tabs: Home · Playlists · Explore · Library.** Untouched tab setups
+  get it; customised ones keep their tabs and get Explore, off. At most 4 tabs plus Library.
+- **[done]** **Tabs page** (Settings › Tabs), out of Bottom bar since on wide screens the bar
+  is a rail: bar preview, reorder, switches with the 4-tab limit, Library fixed last.
+  Boards: Tabs, Bottom Bar, Settings.
+
+### Five destinations (long-term vision, not to design or build yet)
+
+The user's target nav bar: **Home · Playlists · Explore · Discover · Library**.
+- **Home**: a general selection of music the user will like, plus a few suggestions to
+  spice things up (keep the current Home proposal, or close to it).
+- **Playlists**: the user's own playlists (incl. smart, AI and radios).
+- **Explore**: replaces the Albums tab by default. Options to explore the library:
+  browse lenses (Albums, Recently added, Most played, Highest rated, Starred, Random,
+  By year, Genres), Moods & genres grid, the AudioMuse-AI tools (Song alchemy,
+  Describe a mix, Song path), a Sound map (AudioMuse-AI `/api/map`), forgotten
+  favourites / never played / deep cuts.
+- **Discover**: only shown when the (future) Mixarr, Digarr and/or Lidarr integrations are
+  on. Only options for adding music that isn't in the library yet.
+- **Library**: like YT Music's, a non-curated entry point to the whole library: a button to
+  see all downloads or filter by downloads, then the lists of artists, albums, playlists,
+  songs, starred songs, genres, etc. It holds anything that would go missing when the
+  user removes the matching button from the bar.
+
+Decisions (2026-10-03):
+- **[done]** **Library is the catch-all and always present** (last slot, can't be removed). It lists
+  every content type and, under "Not on your bar", every destination that isn't on the
+  bar; bar items are shortcuts on top. Some overlap (e.g. Playlists tab and Library ›
+  Playlists) is fine. Designed: boards Library and Library · Downloaded filter on the Doop
+  canvas `8Z6oDB3Ara` (Downloaded chip filters every list, Downloads button opens the
+  downloads screen, auto-on when offline).
+- **Five tabs at most.**
+- **Names**: Explore (inside the library) and Discover (outside it) stay, as part of
+  Lo'ak's own vocabulary; "Get music" / "Add music" were rejected.
+- Avoid "Rediscover" inside Explore so it doesn't read as the Discover tab.
+- **Explore and Discover subtitles**: "In your library" under Explore, "Not in your library
+  yet" under Discover, to teach the difference.
+- **[done]** **Settings button replaces the Account button and sheet**: top right of each tab's top bar
+  on phones (where Account was; not in the bottom bar); at the bottom of the rail on tablet
+  and desktop, selected like a tab. Shares move to Library, Sleep timer stays in the
+  player, Log out moves to Settings › Server. Boards on `8Z6oDB3Ara`: Home, Library,
+  Library · tablet, Server (Integrations). The main canvas still shows Account everywhere.
+- **[done]** **Search**: "All" searches by name and, on submit, adds a "Sounds like …" section from
+  AudioMuse-AI (CLAP runs on its own server: CPU only, no AI service, so it's fine
+  automatically). The ✦ Sound chip shows only those. "Ask AI for a playlist" stays an
+  explicit row under the results, never automatic.
+- **[done]** **Ask AI for a playlist is its own feature**, separate from Describe a mix (which keeps
+  Sound and Lyrics, AudioMuse-AI's own models, no tokens). Same name and badge everywhere:
+  search row, Create menu entry (no badge: opening it spends nothing), its own screen,
+  settings row. Hidden everywhere (with
+  Rebuild's "Name them with AI") when `GET /api/config` reports `ai_model_provider: "NONE"`.
+- **[done]** Describe a mix's suggestions are labelled **Ideas**: `/api/clap/top_queries` is a fixed
+  list of example queries stored on the AudioMuse-AI server, not other users' searches.
+- **[done]** **Ask AI for a playlist** uses a sparkles icon everywhere (create menu, search row, its
+  screen). The search row opens the Ask AI screen with the query filled in; an amber box at
+  the top explains that messages go to the AI service set up in AudioMuse-AI and may cost
+  its owner money. Nothing is sent until Send, so there's no confirmation sheet and no
+  badge on entries that only open the screen. Boards: Search · All, Ask AI · opened from
+  search, Ask AI for a playlist.
+- **[done]** **"Uses tokens" badge** (amber, coin icon) only on actions that send something to the AI
+  service on their own: "Name them with AI" when rebuilding AI playlists and the scheduled
+  AI playlists named by AI. Tapping it opens a tooltip like the AI badges. Board: Rebuild
+  AI playlists · Uses tokens tooltip.
+- The setup wizard's Integrations page is where Mixarr/Digarr/Lidarr would be turned on,
+  and turning one on adds the Discover tab.
 
 ## Queue
 
@@ -72,16 +153,22 @@ that the app still has to catch up with. Items marked **[done]** are implemented
   Board: Starred.
 - ~~Play button colour~~: no change. It already follows the cover colours via
   Appearance → Dynamic theming; the near-black comes from a grey cover.
+- **[done]** **Artist top songs**: "Frequently played"
+  becomes "Top songs", styled like YouTube Music's Top songs and Home's Quick
+  picks (64dp rows, 48dp art, album • year, overflow menu). Phone: pages of four
+  rows, swiping sideways; tablet/desktop: two columns of two. Header has a
+  "Play all" pill (plays the top songs in order, replacing the queue) and a ›
+  to the full list. Order from the server's getTopSongs (in-library songs only),
+  falling back to most played. Boards: Artist, Artist (tablet & desktop).
 
 ## Playlists
 
-- **[done]** **Quick add**: "Add to playlist" in an options sheet saves straight to the
-  last-used playlist and shows a snackbar "Saved to X · Change"; "Change" opens
-  the save-to-playlist sheet. With no last-used playlist it opens the sheet
-  directly (YouTube Music-style). Board: Quick add.
-- **[done]** **Save-to-playlist sheet** replaces the checkbox dialog: filter field,
-  "New playlist" row, then playlists most recently used first; tapping one saves
-  and closes, no OK/Cancel. Board: Save to playlist.
+- ~~**Quick add**~~ (superseded by multi-playlist checkboxes): "Add to playlist" opens the
+  save-to-playlist sheet directly where playlists can be multi-selected with checkboxes
+  and confirmed with Save.
+- **[done]** **Save-to-playlist sheet**: filter field, "New playlist" row, then playlists
+  with checkboxes, most recently used first; confirmation button at the bottom saves to all
+  selected playlists.
 - **[done]** **Inline create**: "New playlist" turns into a name field + Create button in
   the sheet; the song goes into the new playlist. Replaces the Create playlist
   dialog in this flow. Board: Save to playlist (new).
@@ -96,55 +183,87 @@ that the app still has to catch up with. Items marked **[done]** are implemented
 - Not doing: marking every playlist in the sheet that contains the song (likely
   expensive).
 
-### AudioMuse-AI and smart playlists (proposal, not done)
+### AudioMuse-AI and smart playlists
 
-- **AudioMuse-AI awareness** (setting, on by default, in Server › Server features).
-  Name patterns: `_automatic` with an optional ` (n)` chunk number (regex
-  `_automatic(\s*\(\d+\))?$`; deleted and recreated on every clustering run),
-  `… by AudioMuse-AI` (scheduled: Sonic Fingerprint, Album of the Week; emptied
-  and refilled in place) and `_instant` (made on request, never touched again).
-  The suffix is hidden everywhere: lists, Home, speed dial, search, sheets,
-  snackbars, the startup playlist picker.
-- **Badges** go before the song count:
-  - **AI**, filled, with a sparkle: playlists AudioMuse-AI rebuilds.
-  - **AI**, outlined: `_instant` playlists.
-  - **Smart**, with a soundwave: Navidrome smart playlists.
+- **[done]** **AudioMuse-AI awareness** (setting, on by default, in Server › Server
+  features). Name patterns: `_automatic` with an optional ` (n)` chunk number
+  (regex `_automatic(\s*\(\d+\))?$`; deleted and recreated on every clustering
+  run), `… by AudioMuse-AI` (scheduled: Sonic Fingerprint, Album of the Week;
+  emptied and refilled in place) and `_instant` (made on request, never touched
+  again). The suffix is hidden everywhere: lists, Home, speed dial, search,
+  sheets, snackbars, the startup playlist picker.
+- **[done]** **Badges** before the song count: **AI** filled with a sparkle (playlists
+  AudioMuse-AI rebuilds), **AI** outlined (`_instant`), **Smart** with a soundwave
+  (Navidrome smart playlists). Speed dial tiles get a round corner badge, top
+  right; the pin stays top left. The app uses the theme's main accent pairs
+  (tertiary, secondary) instead of the canvas' light containers, which lost
+  contrast on cover-tinted pages.
+- **[done]** **Sonic Fingerprint and Album of the Week** get gradient covers with
+  their name on them, and come first on Home's Made for you shelf. (Not done:
+  the overline "From AudioMuse-AI"; the shelf keeps its plain title.)
+- **[done]** **Soft read-only** (rebuilt playlists only): a notice on the playlist page
+  and a warning in Edit playlist. Rebuilt playlists go into their own section at
+  the bottom of Save to playlist; `_instant` ones stay in the main list. Edit
+  keeps the suffix when saving.
+  - Not done: the Make a copy link inside the Edit playlist warning (the notice
+    and the options menu have it).
+- **[done]** **Badge explanation**: tapping the badge on the playlist page opens a rich
+  tooltip (who made it, whether edits stick; Make a copy for rebuilt ones).
+  - Not done: an "Edit rules" action in the Smart tooltip (the rules card has Edit).
+- **[done]** **Make a copy** (every playlist, in Playlist options): a dialog with the
+  name ("<name> (copy)", AudioMuse-AI suffix dropped) saves the current songs into
+  a new regular playlist of the user's, then a snackbar "Copied to <name> · Open".
+- **[done]** **Read-only gates**: Remove from playlist only on the user's own,
+  non-smart, non-read-only playlists; Delete only on the user's own.
+- **[done]** **Smart playlists**: detected by the Subsonic `validUntil` field. The
+  playlist page shows a rules summary card (from Navidrome's `/api`), with Edit
+  for the owner unless the playlist comes from a `.nsp` file.
+  - Not done: "updated N min ago" under the title.
+- **[done]** **Smart playlist editor** (Navidrome 0.62+ only, through `/api/playlist`
+  with a JWT from `/auth/login` using the stored password): name, description,
+  match all/any, rule cards, groups nesting to any depth (indent capped at two
+  levels, with a rail), sort/order/limit, public. The Playlists create button
+  turns into a FAB menu (Playlist / Smart playlist). Field picker with common
+  fields, song details, lists and "Other tag…". Server › Server features shows
+  the server software and whether smart playlists can be edited.
+- **On hold**: **Alchemy radios** (scheduled from Song Alchemy, refilled in place).
+  Their names carry no marker, so they'd need an optional **AudioMuse-AI server**
+  connection (Server › Server features; URL + optional API token; `GET
+  /api/radios`, Bearer `API_TOKEN`, matched by exact name). No direct AudioMuse-AI
+  connection for now; the Server board keeps the row as an idea.
+- Boards: Home, Home (tablet, medium), Playlists, Playlist, Playlist — badge info,
+  Smart playlist, New playlist menu, Playlist options, Edit playlist, Save to
+  playlist (+ new), Quick add, Already in playlist, Delete playlist, Remove from
+  playlist, Create playlist, Make a copy, Startup playlist, Search (tablet),
+  Server, Smart playlist editor, Rule field.
 
-  Speed dial tiles get a round corner badge, top right; the pin stays top left.
-- **Sonic Fingerprint and Album of the Week** get gradient covers with their name
-  on them (like YT Music's My Supermix), and come first on Home's Made for you
-  shelf (overline "From AudioMuse-AI").
-- **Alchemy radios** (scheduled from Song Alchemy, refilled in place) carry the
-  filled AI badge, the subtitle "Radio · N songs", and sit after those two on
-  Made for you. Their names have no marker (AudioMuse-AI uses the anchor name), so
-  they are only spotted when an **AudioMuse-AI server** is set (optional; Server ›
-  Server features; URL + optional API token). Lo'ak reads `GET /api/radios`
-  (Bearer `API_TOKEN`) and matches enabled radios by exact name.
-- **Badge explanation**: tapping a badge on the playlist page opens a rich tooltip
-  (title, one-line why, actions: Keep a copy / Edit rules / Got it). Copy per badge
-  is on the Details page note. Board: Playlist — badge info.
-- **Soft read-only** (rebuilt playlists only): a notice on the detail page and a
-  warning in Edit playlist, both with **Keep a copy** (a regular playlist with the
-  clean name). They go into a bottom section of Save to playlist with "songs you
-  add here may disappear"; `_instant` ones stay in the main list. Edit keeps the
-  suffix when saving.
-- **Smart playlists**: detected by the Subsonic `validUntil` field (works on any
-  server that sets it). They are read-only: no remove, never offered as a save
-  target. The detail page shows a rules summary card and "updated N min ago".
-- **Smart playlist editor** (Navidrome 0.62+ only, through `/api/playlist` with a
-  JWT from `/auth/login` using the stored password): match all/any, rule cards,
-  nested groups, sort/order/limit, public. The create button turns into a menu
-  (Playlist / Smart playlist). A field picker has common fields plus "Other tag…".
-  Playlists imported from `.nsp` files are view-only (the next scan would
-  overwrite edits).
-- Boards: Home, Home (tablet, medium), Playlists, Playlist, Smart playlist,
-  New playlist menu, Playlist options, Edit playlist, Save to playlist (+ new),
-  Quick add, Already in playlist, Delete playlist, Remove from playlist, Create
-  playlist, Startup playlist, Search (tablet), Server, Smart playlist editor,
-  Rule field.
-- Fixes this would bring along: Home's Made for you shelf hands the stripped name
-  to Edit playlist, so saving it renames the playlist and drops the suffix. The
-  last-used quick-add path skips the `readOnly` check.
+### AudioMuse-AI direct integration and setup wizard
+
+Mockups on the Doop canvas "Lo'ak — AudioMuse-AI integration" (`8Z6oDB3Ara`), merged into
+the main design. Supersedes the on-hold "AudioMuse-AI server" row above.
+- **[done]** Setup wizard: server, then an Integrations page (Smart playlists on when
+  Navidrome is detected; AudioMuse-AI Set up › Connect › Connected) while the library
+  syncs. Shown again to existing users whenever new integrations are added.
+- **[done]** Settings › Server › Integrations; AudioMuse-AI page (analysis status,
+  schedules, rebuild AI playlists, refresh radios, "In Lo'ak" switches); Schedule and
+  Rebuild sheets. Schedules and Rebuild only show to AudioMuse-AI admins (the server hides
+  `/api/cron` from everyone else).
+- **[done]** Home: Made for you, Make something new, Your radios shelf.
+- ~~Home moods chips~~ (dropped 2026-10-03): they played a mix while the genre chips beside
+  them filter Home, and AudioMuse-AI only returns the songs nearest a mood (up to the
+  alchemy maximum), too few to filter Home the same way. Moods stay as alchemy ingredients.
+- **[done]** Internet radio is called **Internet radios** everywhere (nav label, Library row,
+  its screen, Add an internet radio); "Radios" now means AudioMuse-AI's alchemy radios.
+- **[done]** Create menu entries; Playlists filter chips (All · Yours · AI · Radios ·
+  Smart); radio page.
+- **[done]** Song alchemy editor, ingredient picker, Save as playlist or radio.
+- **[done]** Describe a mix (Sound / Lyrics), Ask AI for a playlist, Song path, Search's
+  Sound chip and "Sounds like" section.
+- **[done]** Song options: Song alchemy with this, Similar lyrics and sound. Playlist
+  options: Use in song alchemy.
+- Open: "Rebuild AI playlists" in the playlist options (only in Settings for now);
+  "Remix" from Describe a mix results into Song alchemy; a "refine" link from Search's
+  "Sounds like" to Describe a mix.
 
 ## Do it now, offer undo
 
@@ -399,6 +518,36 @@ Deferred / gaps (tracked here, not implemented):
   SMTC on Windows, Now Playing on macOS via Nucleus `MediaControlService`, plus web
   `MediaSession` action handlers and in-app Compose media/space shortcuts).
 
+### Queue pane toggle and desktop player (2026-10-03, built)
+
+Boards: the six expanded Desktop window boards, plus the new "Queue pane open" and
+"Player" rows on the Desktop window page.
+
+- **[done]** **Queue toggle** (tablets too; also in nested bars and the search bar): the player bar's queue button goes; a sidebar toggle (Firefox's,
+  mirrored, panel on the right) sits right after Search in the top bar on every expanded
+  window. Outline when hidden, right panel filled when shown. Hidden when the pane can't fit.
+- **[done]** **Window controls inside the queue pane** (controls on the right, Linux): the pane runs
+  up to 8 dp from the window top and its header row (Queue + controls) is the title bar
+  there; the top bar ends at the pane. The pane's own close X goes (two X's side by side).
+  Fixes the pane being pushed below the title bar row.
+- **[done]** **Windows**: caption buttons stay flush in the corner (snap layouts, Fitts), so the pane
+  docks flush to the top/right/bottom edges with the caption buttons in its corner.
+- **[done]** **Player window controls**: the player is a sheet drawn over the app, so the controls
+  vanished; it draws its own. On desktop the Now Playing row moves to the top as the
+  title bar; the controls sit in the pane's tab row when the pane is beside, else at the
+  title row's end.
+- **[done]** **Player spacing**: 16 dp window margins, pane 8 from the top; cover + controls are one
+  centred block at most 520 dp wide (cover 300-480 dp), so the progress bar doesn't span
+  the whole window.
+- **[done]** **Player pane placement**: beside when width >= 760 dp and width >= 0.85 x height (pane
+  400 dp, 340 below 960 dp wide); below when taller than that and height >= 960 dp; else
+  Lyrics/Queue buttons open sheets. Today an expanded portrait window shows neither the
+  pane nor the buttons.
+- **[done]** **Search field on wide windows**: expanded top bars show a 360 dp "Search your
+  library" pill (every tab, even with Search on the rail) that opens the search page; the
+  search page's field is a filled pill up to 720 dp wide.
+- Not done: Album/Artist detail pages have their own top bars, so no queue toggle there yet.
+
 ## Instant mix
 
 - **[done]** **Instant mix**: an "Instant mix" row in Song options (all
@@ -468,3 +617,25 @@ Deferred / gaps (tracked here, not implemented):
   playlist). Shown only when the server finds similar songs: no API flag exists, so the app
   probes a few random songs once per run. Boards: Album, Playlist, Smart playlist,
   Already in playlist, LgAlbum, Home, HomeGenre, Home · tablet boards.
+
+### Refresh button and keyboard shortcuts (2026-10-03, built)
+
+Boards: the Desktop window page (all expanded, compact and queue-pane boards), plus
+the "Refresh button & keyboard shortcuts" note there.
+
+- **[done]** **Refresh button** left of Search (bar or icon) on screens with pull to refresh,
+  shown when a mouse is in use (desktop/web always; Android/iOS once a mouse pointer
+  hovers). Tooltip "Refresh (F5)".
+- **[done]** **Shortcuts** (Ctrl, ⌘ on Apple): F5 / Ctrl+R refresh, / / Ctrl+F search,
+  Ctrl+, settings, Esc leave search / close sheet, Alt+← / ⌘[ / mouse back = back,
+  Space play/pause (exists), Ctrl+→/← next/previous, Ctrl+Q quit (desktop).
+  Single-key shortcuts are ignored in text fields; tooltips name the shortcut.
+  Esc was already back on every platform. Ctrl+[ also goes back off Apple. The Settings
+  tooltip is skipped: Settings has no button with a tooltip (it's in the account sheet).
+- **[done]** **Forward**: Alt+→ / ⌘] / mouse forward button reopen what back closed
+  (browser-like; any other navigation forgets it; sheets are ignored). The mouse back
+  button goes back.
+- **[done]** **macOS menu bar** (Nucleus `NativeMenuBar`, macOS only): Lo'ak (About,
+  Settings… ⌘,, Quit ⌘Q), View (Refresh ⌘R), Go (Back ⌘[, Forward ⌘], Search ⌘F),
+  Controls (Play/Pause, Next ⌘→, Previous ⌘←), Window. Untested on a Mac.
+- Deferred: a shortcuts cheat sheet (Ctrl+/ or ?).
