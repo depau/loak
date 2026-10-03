@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.collection.components
 
+import eu.depau.loak.ui.components.common.displayName
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -54,7 +55,7 @@ fun CollectionDetailScreenTopBar(
 	NestedTopBar(
 		title = {
 			Text(
-				text = collection?.name.orEmpty(),
+				text = (collection as? DomainPlaylist)?.displayName()?.display ?: collection?.name.orEmpty(),
 				maxLines = 1,
 				overflow = TextOverflow.Ellipsis,
 				modifier = Modifier.alpha(titleAlpha)

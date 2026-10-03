@@ -1,5 +1,11 @@
 package eu.depau.loak.ui.screens.playlist.dialogs
 
+import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.models.parsePlaylistName
+import eu.depau.loak.ui.components.common.PlaylistBadgedText
+import org.koin.compose.koinInject
+import eu.depau.loak.generated.resources.title_audiomuse_section
+import eu.depau.loak.generated.resources.info_audiomuse_section
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -161,8 +167,12 @@ fun PlaylistUpdateDialog(
 			}
 			is UiState.Error -> Text("${s.error}", Modifier.padding(16.dp))
 			is UiState.Success -> {
-				val playlists = s.data.filter { it.name.contains(filter, ignoreCase = true) }
-				if (playlists.isEmpty()) {
+				val audioMuse = koinInject<PreferenceManager>().audioMuseIntegration
+				val (playlists, rebuilt) = s.data
+					.map { it to parsePlaylistName(it.name, it.validUntil != null, audioMuse) }
+					.filter { (_, name) -> name.display.contains(filter, ignoreCase = true) }
+					.partition { (_, name) -> !name.kind.isRebuilt }
+				if (playlists.isEmpty() && rebuilt.isEmpty()) {
 					Text(
 						stringResource(
 							if (s.data.isEmpty()) Res.string.info_no_playlists
@@ -172,12 +182,20 @@ fun PlaylistUpdateDialog(
 					)
 				}
 				LazyColumn(Modifier.heightIn(max = 480.dp)) {
-					items(playlists, key = { it.id }) { playlist ->
+					items(playlists + rebuilt, key = { it.first.id }) { (playlist, name) ->
+						if (rebuilt.firstOrNull()?.first == playlist) {
+							ListItem(
+								headlineContent = { Text(stringResource(Res.string.title_audiomuse_section)) },
+								supportingContent = { Text(stringResource(Res.string.info_audiomuse_section)) }
+							)
+						}
 						ListItem(
 							onClick = { viewModel.pick(playlist) },
-							content = { Text(playlist.name) },
+							content = { Text(name.display) },
 							supportingContent = {
-								Text(pluralStringResource(Res.plurals.count_songs, playlist.songCount, playlist.songCount))
+								PlaylistBadgedText(name.kind) {
+									Text(pluralStringResource(Res.plurals.count_songs, playlist.songCount, playlist.songCount))
+								}
 							},
 							leadingContent = {
 								CoverArt(

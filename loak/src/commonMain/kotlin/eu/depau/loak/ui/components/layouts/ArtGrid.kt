@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.components.layouts
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.core.tween
@@ -99,6 +101,7 @@ fun ArtGridItem(
 	coverArtId: String?,
 	title: String,
 	subtitle: String? = null,
+	badge: (@Composable () -> Unit)? = null,
 	id: String,
 	// this parameter is a shitty workaround for shared element
 	// transitions being performed when switching between tabs
@@ -151,14 +154,20 @@ fun ArtGridItem(
 				overflow = TextOverflow.Ellipsis
 			)
 			subtitle?.let {
-				Text(
-					text = subtitle,
-					style = MaterialTheme.typography.bodySmall,
-					color = MaterialTheme.colorScheme.onSurfaceVariant,
-					modifier = Modifier.fillMaxWidth(),
-					maxLines = 2,
-					overflow = TextOverflow.Ellipsis
-				)
+				Row(
+					verticalAlignment = Alignment.CenterVertically,
+					horizontalArrangement = Arrangement.spacedBy(6.dp)
+				) {
+					badge?.invoke()
+					Text(
+						text = subtitle,
+						style = MaterialTheme.typography.bodySmall,
+						color = MaterialTheme.colorScheme.onSurfaceVariant,
+						modifier = Modifier.fillMaxWidth(),
+						maxLines = 2,
+						overflow = TextOverflow.Ellipsis
+					)
+				}
 			}
 		}
 	}

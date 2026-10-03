@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.screens.playlist.components
 
+import eu.depau.loak.domain.models.PlaylistKind
+import eu.depau.loak.ui.components.common.PlaylistBadge
+import eu.depau.loak.ui.components.common.displayName
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -51,6 +54,8 @@ fun PlaylistListScreenGridItem(
 		.getCollectionDownloadStatus(playlist.songs.map { it.id })
 		.collectAsState(initial = DownloadStatus.NOT_DOWNLOADED)
 
+	val name = playlist.displayName()
+
 	Box(modifier) {
 		ArtGridItem(
 			onClick = dropUnlessResumed {
@@ -60,7 +65,7 @@ fun PlaylistListScreenGridItem(
 			},
 			onLongClick = onSelect,
 			coverArtId = playlist.coverArtId,
-			title = playlist.name ?: "[unknown playlist]",
+			title = name.display.ifEmpty { "[unknown playlist]" },
 			subtitle = buildString {
 				append(
 					pluralStringResource(
@@ -73,6 +78,7 @@ fun PlaylistListScreenGridItem(
 					append("\n${playlist.comment}\n")
 				}
 			},
+			badge = if (name.kind == PlaylistKind.Regular) null else ({ PlaylistBadge(name.kind) }),
 			id = playlist.id,
 			tab = tab
 		)

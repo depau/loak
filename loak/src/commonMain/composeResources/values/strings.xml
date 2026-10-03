@@ -548,6 +548,13 @@
 	<string name="subtitle_server">Address, account, this device's name</string>
 	<string name="title_connection">Connection</string>
 	<string name="title_this_device">This device</string>
+	<string name="title_server_features">Server features</string>
+	<string name="option_audiomuse_integration">AudioMuse-AI playlists</string>
+	<string name="subtitle_audiomuse_integration">Tidy names, a badge, and warnings where AudioMuse-AI may undo your edits</string>
+	<string name="badge_ai">AI</string>
+	<string name="title_audiomuse_section">AudioMuse-AI</string>
+	<string name="info_audiomuse_section">Rebuilt automatically: songs you add here may disappear</string>
+	<string name="badge_smart">Smart</string>
 	<string name="option_device_name">Device name</string>
 	<string name="info_device_name">Shown on your other devices when they pick up a queue saved here.</string>
 	<string name="info_device_name_default">Leave empty to use %1$s</string>

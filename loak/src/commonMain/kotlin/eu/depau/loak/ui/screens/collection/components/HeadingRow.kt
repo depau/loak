@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.screens.collection.components
 
+import eu.depau.loak.domain.models.PlaylistKind
+import eu.depau.loak.ui.components.common.PlaylistBadgedText
+import eu.depau.loak.ui.components.common.displayName
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -41,6 +44,8 @@ fun CollectionDetailScreenHeadingRow(
 	titleAlpha: Float
 ) {
 	val backStack = LocalNavStack.current
+	val playlistName = (collection as? DomainPlaylist)?.displayName()
+	val title = playlistName?.display ?: collection.name
 	val sharedTransitionKey = "${tab}-${collection.id}-cover"
 	with(LocalSharedTransitionScope.current) {
 		CoverArt(
@@ -84,7 +89,7 @@ fun CollectionDetailScreenHeadingRow(
 			horizontalAlignment = Alignment.CenterHorizontally
 		) {
 			Text(
-				collection.name ?: "[unknown album]",
+				title ?: "[unknown album]",
 				style = MaterialTheme.typography.headlineSmall,
 				textAlign = TextAlign.Center,
 				modifier = Modifier
@@ -108,6 +113,7 @@ fun CollectionDetailScreenHeadingRow(
 					fontFamily = defaultFont(grade = 100, round = 100f)
 				)
 			}
+			PlaylistBadgedText(playlistName?.kind ?: PlaylistKind.Regular) {
 			Text(
 				if (collection is DomainAlbum)
 					"${collection.genre ?: stringResource(Res.string.info_unknown_genre)} • ${
@@ -120,6 +126,7 @@ fun CollectionDetailScreenHeadingRow(
 				style = MaterialTheme.typography.bodySmall,
 				fontFamily = defaultFont(grade = 100, round = 100f)
 			)
+			}
 		}
 	}
 }

@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.playlist.dialogs
 
+import eu.depau.loak.ui.components.common.displayName
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,7 +54,8 @@ fun EditPlaylistSheet(
 	val sessionManager = koinInject<SessionManager>()
 	val snackBarManager = koinInject<SnackBarManager>()
 	val scope = rememberCoroutineScope()
-	val name = rememberTextFieldState(playlist.name.orEmpty())
+	val playlistName = playlist.displayName()
+	val name = rememberTextFieldState(playlistName.display)
 	val description = rememberTextFieldState(playlist.comment.orEmpty())
 	var public by remember { mutableStateOf(playlist.public == true) }
 	var saving by remember { mutableStateOf(false) }
@@ -97,7 +99,7 @@ fun EditPlaylistSheet(
 							try {
 								sessionManager.api.updatePlaylist(
 									playlist.id,
-									name = name.text.toString().trim(),
+									name = playlistName.rename(name.text.toString().trim()),
 									comment = description.text.toString(),
 									public = public
 								)

@@ -100,6 +100,9 @@ class PreferenceManager(
 	var startupPlaylistId by preference("")
 	/** Id of the playlist songs were last saved to; "Add to playlist" goes straight there. */
 	var lastPlaylistId by preference("")
+
+	/** Tidy names, badges and warnings for AudioMuse-AI's playlists. */
+	var audioMuseIntegration by preference(true)
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
 

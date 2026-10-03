@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.home
 
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.util.verticalWheelToParent
 import eu.depau.loak.ui.util.pageBy
 import eu.depau.loak.ui.util.HorizontalScrollArrows
@@ -166,6 +167,7 @@ fun HomeFeed(
 	val state by viewModel.state.collectAsStateWithLifecycle()
 	val selectedGenre by viewModel.selectedGenre.collectAsStateWithLifecycle()
 	val player = koinInject<MediaPlayerViewModel>()
+	val audioMuse = koinInject<PreferenceManager>().audioMuseIntegration
 	val canMix by produceState(false) { value = player.canMix() }
 	val persistentViewModelStoreOwner = koinInject<PersistentViewModelStoreOwner>()
 
@@ -299,7 +301,7 @@ fun HomeFeed(
 		horizontalSection(
 			title = Res.string.title_made_for_you,
 			destination = Screen.PlaylistList(true),
-			state = UiState.Success(state.madeForYou),
+			state = UiState.Success(if (audioMuse) state.madeForYou else emptyList()),
 			key = { it.id },
 			seeAll = false
 		) { playlist ->

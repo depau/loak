@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.playlist.components
 
+import eu.depau.loak.ui.components.common.PlaylistBadgedText
+import eu.depau.loak.ui.components.common.displayName
 import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -59,6 +61,8 @@ fun PlaylistListScreenListItem(
 		.getCollectionDownloadStatus(playlist.songs.map { it.id })
 		.collectAsState(initial = DownloadStatus.NOT_DOWNLOADED)
 
+	val name = playlist.displayName()
+
 	Box(modifier) {
 		ListItem(
 			modifier = Modifier.onSecondaryClick(onSelect),
@@ -69,8 +73,9 @@ fun PlaylistListScreenListItem(
 					shape = preferenceManager.coverArtShape.decreasedShape
 				)
 			},
-			content = { MarqueeText(playlist.name ?: "[unknown playlist]") },
+			content = { MarqueeText(name.display.ifEmpty { "[unknown playlist]" }) },
 			supportingContent = {
+				PlaylistBadgedText(name.kind) {
 				MarqueeText(
 					text = buildAnnotatedString {
 						append(
@@ -86,6 +91,7 @@ fun PlaylistListScreenListItem(
 						}
 					}
 				)
+				}
 			},
 			onClick = dropUnlessResumed {
 				scope.launch {

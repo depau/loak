@@ -1,5 +1,9 @@
 package eu.depau.loak.ui.screens.home.components
 
+import eu.depau.loak.domain.models.PlaylistKind
+import eu.depau.loak.ui.components.common.displayName
+import eu.depau.loak.icons.filled.Sparkle
+import eu.depau.loak.icons.outlined.Soundwave
 import eu.depau.loak.ui.util.verticalWheelToParent
 import eu.depau.loak.ui.util.HorizontalScrollArrows
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -137,7 +141,7 @@ private fun SpeedDialTile(
 	val player = koinInject<MediaPlayerViewModel>()
 	var menuShown by rememberSaveable { mutableStateOf(false) }
 	val (title, coverArtId) = when (item) {
-		is SpeedDialItem.Playlist -> item.playlist.name.orEmpty() to item.playlist.coverArtId
+		is SpeedDialItem.Playlist -> item.playlist.displayName().display to item.playlist.coverArtId
 		is SpeedDialItem.Album -> item.album.name.orEmpty() to item.album.coverArtId
 		is SpeedDialItem.Song -> item.song.title to item.song.coverArtId
 	}
@@ -180,6 +184,22 @@ private fun SpeedDialTile(
 			// a caret tells lists, which open, from songs, which play
 			if (item !is SpeedDialItem.Song) {
 				Icon(Icons.Outlined.ChevronForward, null, Modifier.size(14.dp), tint = Color.White)
+			}
+		}
+		val kind = (item as? SpeedDialItem.Playlist)?.playlist?.displayName()?.kind
+		if (kind != null && kind != PlaylistKind.Regular) {
+			Box(
+				Modifier
+					.align(Alignment.TopEnd)
+					.padding(6.dp)
+					.size(22.dp)
+					.background(Color.Black.copy(alpha = .45f), CircleShape),
+				contentAlignment = Alignment.Center
+			) {
+				Icon(
+					if (kind == PlaylistKind.Smart) Icons.Outlined.Soundwave else Icons.Filled.Sparkle,
+					null, Modifier.size(13.dp), tint = Color.White
+				)
 			}
 		}
 		if (item.pinned) {

@@ -1,5 +1,7 @@
 package eu.depau.loak.domain.repositories
 
+import eu.depau.loak.domain.models.PlaylistKind
+import eu.depau.loak.domain.models.parsePlaylistName
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
 import eu.depau.loak.data.database.dao.AlbumDao
@@ -274,11 +276,13 @@ class HomeRepository(
 			ids.mapNotNull { artists[it]?.toDomainModel() }
 		}
 
-	/** AudioMuse-AI's playlists of songs that sound alike, with its "_automatic" suffix cut. */
+	/** AudioMuse-AI's playlists: the scheduled ones (Sonic Fingerprint, …) first, then the clusters. */
 	suspend fun madeForYou(): List<DomainPlaylist> = withContext(IoDispatcher) {
 		playlistDao.getAllPlaylistsByName().map { it.toDomainModel() }
-			.filter { it.name.orEmpty().endsWith(AUTOMATIC, ignoreCase = true) }
-			.map { it.copy(name = it.name.orEmpty().dropLast(AUTOMATIC.length).trimEnd()) }
+			.map { it to parsePlaylistName(it.name, it.validUntil != null, audioMuse = true) }
+			.filter { (_, name) -> name.kind.isRebuilt }
+			.sortedBy { (_, name) -> name.kind != PlaylistKind.AudioMuseScheduled }
+			.map { it.first }
 	}
 
 	/** One of the top artists, changing daily, with the similar artists in the library. */
@@ -376,7 +380,6 @@ class HomeRepository(
 		private const val TAG = "HomeRepository"
 		private const val PINS_KEY = "speedDialPins"
 		private const val PICKS_KEY = "quickPicks"
-		private const val AUTOMATIC = "_automatic"
 		const val SPEED_DIAL_SIZE = 26 // 3 pages of 9, less the dice
 		const val PICKS_SIZE = 20
 		private const val SHELF_SIZE = 20

@@ -1,5 +1,9 @@
 package eu.depau.loak.ui.screens.settings
 
+import eu.depau.loak.generated.resources.title_server_features
+import eu.depau.loak.generated.resources.option_audiomuse_integration
+import eu.depau.loak.generated.resources.subtitle_audiomuse_integration
+import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -167,7 +171,23 @@ fun SettingsServerScreen() {
 			}
 
 			ThisDeviceGroup()
+
+			ServerFeaturesGroup()
 		}
+	}
+}
+
+@Composable
+private fun ServerFeaturesGroup() {
+	val preferenceManager = koinInject<PreferenceManager>()
+	SettingsGroup(title = { Text(stringResource(Res.string.title_server_features)) }) {
+		SettingsToggleItem(
+			content = { Text(stringResource(Res.string.option_audiomuse_integration)) },
+			supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_integration)) },
+			checked = preferenceManager.audioMuseIntegration,
+			onCheckedChange = { preferenceManager.audioMuseIntegration = it },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+		)
 	}
 }
 

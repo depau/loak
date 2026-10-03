@@ -188,6 +188,10 @@ kotlin {
 			implementation(libs.sentryKmp)
 		}
 
+		commonTest.dependencies {
+			implementation(kotlin("test"))
+		}
+
 		androidMain.dependencies {
 			implementation(libs.bundles.ktor.android)
 			implementation(libs.bundles.androidx.android)

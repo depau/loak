@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.playlist.viewmodels
 
+import eu.depau.loak.domain.models.parsePlaylistName
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -50,7 +51,8 @@ class PlaylistUpdateDialogViewModel(
 		viewModelScope.launch {
 			val last = preferenceManager.lastPlaylistId
 			val playlist = if (last.isNotEmpty() && last != playlistToExclude) {
-				runCatching { sessionManager.api.getPlaylist(last) }.getOrNull()
+				// it may have turned read-only (smart, or no longer shared) since
+				runCatching { sessionManager.api.getPlaylist(last) }.getOrNull()?.takeIf { it.readOnly != true }
 			} else null
 			if (playlist == null) {
 				_events.send(Event.ShowSheet)
@@ -60,6 +62,9 @@ class PlaylistUpdateDialogViewModel(
 			}
 		}
 	}
+
+	private fun shownName(playlist: ApiPlaylist) =
+		parsePlaylistName(playlist.name, playlist.validUntil != null, preferenceManager.audioMuseIntegration).display
 
 	fun loadPlaylists() {
 		viewModelScope.launch {
@@ -92,7 +97,7 @@ class PlaylistUpdateDialogViewModel(
 			try {
 				val playlist = sessionManager.api.createPlaylist(name = name, songIds = songs.map { it.id })
 				preferenceManager.lastPlaylistId = playlist.id
-				snackBarManager.notify(Res.string.notice_saved_to_playlist, playlist.name)
+				snackBarManager.notify(Res.string.notice_saved_to_playlist, shownName(playlist))
 				_events.send(Event.Dismiss)
 			} catch (e: Exception) {
 				Logger.e("PlaylistUpdateDialogViewModel", "Failed to create playlist", e)
@@ -115,13 +120,13 @@ class PlaylistUpdateDialogViewModel(
 				_events.send(Event.Dismiss)
 				snackBarManager.notify(
 					PlayerEvent(
-						Res.string.notice_already_in_playlist, listOf(playlist.name),
+						Res.string.notice_already_in_playlist, listOf(shownName(playlist)),
 						action = Res.string.action_add_anyway,
 						onAction = {
 							// the sheet's scope may be gone by now
 							snackBarManager.launch {
 								add(playlist)
-								snackBarManager.notify(Res.string.notice_saved_to_playlist, playlist.name)
+								snackBarManager.notify(Res.string.notice_saved_to_playlist, shownName(playlist))
 							}
 						}
 					)
@@ -131,13 +136,13 @@ class PlaylistUpdateDialogViewModel(
 			add(playlist, songs.filterNot { it.id in existing })
 			if (!offerChange) {
 				_events.send(Event.Dismiss)
-				snackBarManager.notify(Res.string.notice_saved_to_playlist, playlist.name)
+				snackBarManager.notify(Res.string.notice_saved_to_playlist, shownName(playlist))
 				return
 			}
 			// "Change" moves the songs: they come out of this playlist when another is picked
 			snackBarManager.notify(
 				PlayerEvent(
-					Res.string.notice_saved_to_playlist, listOf(playlist.name),
+					Res.string.notice_saved_to_playlist, listOf(shownName(playlist)),
 					action = Res.string.action_change,
 					onAction = {
 						viewModelScope.launch {

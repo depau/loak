@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.components.sheets
 
+import eu.depau.loak.domain.models.PlaylistKind
+import eu.depau.loak.ui.components.common.PlaylistBadgedText
+import eu.depau.loak.ui.components.common.displayName
 import eu.depau.loak.domain.repositories.HomeRepository
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -122,6 +125,7 @@ fun CollectionSheet(
 	// only the owner can rename it; playlists shared by others are read-only
 	val editablePlaylist = (collection as? DomainPlaylist)
 		?.takeIf { it.owner == sessionManager.username }
+	val playlistName = (collection as? DomainPlaylist)?.displayName()
 
 	// the edit sheet replaces this one rather than stacking on top
 	if (!editing) ModalBottomSheet(
@@ -146,8 +150,9 @@ fun CollectionSheet(
 					shape = preferenceManager.coverArtShape.decreasedShape
 				)
 			},
-			headlineContent = { MarqueeText(collection?.name.orEmpty()) },
+			headlineContent = { MarqueeText(playlistName?.display ?: collection?.name.orEmpty()) },
 			supportingContent = {
+				PlaylistBadgedText(playlistName?.kind ?: PlaylistKind.Regular) {
 				MarqueeText(
 					listOfNotNull(
 						(collection as? DomainAlbum)?.artistName,
@@ -159,6 +164,7 @@ fun CollectionSheet(
 						}
 					).joinToString(" • ")
 				)
+				}
 			},
 			colors = colors
 		)

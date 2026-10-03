@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.settings
 
+import eu.depau.loak.ui.components.common.displayName
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -205,7 +206,7 @@ fun SettingsPlaybackScreen() {
 							onChoiceSelected = { preferenceManager.startupPlaylistId = it?.id.orEmpty() },
 							content = { Text(stringResource(Res.string.option_startup_playlist)) },
 							label = {
-								it?.name ?: stringResource(Res.string.info_no_playlist_selected)
+								it?.displayName()?.display ?: stringResource(Res.string.info_no_playlist_selected)
 							},
 							shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
 						)
