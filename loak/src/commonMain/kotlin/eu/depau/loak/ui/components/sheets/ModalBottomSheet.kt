@@ -15,6 +15,9 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import eu.depau.loak.ui.util.escapeToDismiss
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -79,8 +82,15 @@ fun ModalBottomSheet(
 		dragHandle = dragHandle,
 		contentWindowInsets = contentWindowInsets,
 		properties = properties,
-		content = content,
-	)
+	) {
+		val scope = rememberCoroutineScope()
+		Column(
+			Modifier.escapeToDismiss {
+				scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() }
+			},
+			content = content
+		)
+	}
 
 	@Suppress("INVISIBLE_REFERENCE")
 	LaunchedEffect(Unit) {

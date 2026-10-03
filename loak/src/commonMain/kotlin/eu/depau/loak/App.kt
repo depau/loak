@@ -15,6 +15,7 @@ import eu.depau.loak.ui.screens.settings.AudioMuseSettingsScreen
 import eu.depau.loak.ui.screens.settings.AudioMuseConnectScreen
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isBackPressed
@@ -341,6 +342,14 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 							// unless a text field or a focused button takes precedence. Media keys
 							// are consumed on key-down so a key held down doesn't repeat-toggle.
 							.focusRequester(rootFocus)
+							// Esc is back, before focus handling gets it: otherwise it only clears focus and
+							// nothing closes (the player, karaoke, the queue sheet). Popups (menus, sheets,
+							// dialogs) get their own key events and close themselves.
+							.onPreviewKeyEvent { event ->
+								if (event.key != Key.Escape) return@onPreviewKeyEvent false
+								if (event.type == KeyEventType.KeyDown) actions.back()
+								true
+							}
 							.focusTarget()
 							.onKeyEvent { event ->
 								if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
