@@ -254,10 +254,29 @@ abstract class MediaPlayerViewModel(
 	 * Replaces the queue with songs the server finds similar to [seedId] (a song, album or
 	 * artist id), with an undo. A [seed] song plays first.
 	 */
-	fun playInstantMix(seedId: String, seedName: String, seed: DomainSong? = null) {
+	fun playInstantMix(seedId: String, seedName: String, seed: DomainSong? = null) =
+		startInstantMix(seedName, seed) { songRepository.getSimilarSongs(seedId) }
+
+	/**
+	 * An instant mix seeded by a few of [songs], for lists the server can't take as a seed
+	 * (playlists, Quick picks).
+	 */
+	fun playInstantMix(songs: List<DomainSong>, name: String) = startInstantMix(name, null) {
+		// ponytail: 3 random seeds, one call each; more seeds would cost more calls
+		val lists = songs.shuffled().take(3).map { songRepository.getSimilarSongs(it.id, count = 20) }
+		(0 until (lists.maxOfOrNull { it.size } ?: 0))
+			.flatMap { i -> lists.mapNotNull { it.getOrNull(i) } }
+			.distinctBy { it.id }
+	}
+
+	private fun startInstantMix(
+		seedName: String,
+		seed: DomainSong?,
+		fetchSimilar: suspend () -> List<DomainSong>
+	) {
 		viewModelScope.launch {
 			val similar = try {
-				songRepository.getSimilarSongs(seedId)
+				fetchSimilar()
 			} catch (e: Exception) {
 				if (e is CancellationException) throw e
 				Logger.w("MediaPlayerViewModel", "could not fetch similar songs", e)
@@ -275,6 +294,27 @@ abstract class MediaPlayerViewModel(
 				replaceQueue(previous)
 			}
 		}
+	}
+
+	// ponytail: probed once per run; a server switch in Settings keeps the old answer
+	private var canMix: Boolean? = null
+
+	/**
+	 * Whether the server finds similar songs at all. The API can't tell, so this asks about a
+	 * few random songs: servers without similarity answer with nothing or an error.
+	 */
+	suspend fun canMix(): Boolean {
+		canMix?.let { return it }
+		if (!connectivityManager.isOnline.value) return false
+		// an empty library is still syncing: ask again later
+		val seeds = songRepository.getRandomSongs(3).ifEmpty { return false }
+		return try {
+			seeds.any { songRepository.getSimilarSongs(it.id, count = 1).isNotEmpty() }
+		} catch (e: Exception) {
+			if (e is CancellationException) throw e
+			Logger.w("MediaPlayerViewModel", "could not probe for similar songs", e)
+			false
+		}.also { canMix = it }
 	}
 
 	fun togglePlay() {

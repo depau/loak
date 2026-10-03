@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import eu.depau.loak.ui.theme.ContinuousCapsule
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_delete_download
+import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.action_shuffle
 import eu.depau.loak.generated.resources.info_download_failed
@@ -38,6 +40,7 @@ import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Play
@@ -45,6 +48,7 @@ import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.DownloadOff
+import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.theme.defaultFont
@@ -57,6 +61,7 @@ fun CollectionDetailScreenHeadingRowButtons(
 	val snackBarManager = koinInject<SnackBarManager>()
 	val downloadManager = koinInject<DownloadManager>()
 	val scope = rememberCoroutineScope()
+	val canMix by produceState(false) { value = player.canMix() }
 
 	val downloadStatus by downloadManager
 		.getCollectionDownloadStatus(collection.songs.map { it.id })
@@ -87,6 +92,28 @@ fun CollectionDetailScreenHeadingRowButtons(
 				contentDescription = stringResource(Res.string.action_shuffle),
 				modifier = Modifier.size(24.dp)
 			)
+		}
+		if (canMix) {
+			OutlinedButton(
+				modifier = Modifier.size(width = 52.dp, height = buttonHeight),
+				onClick = {
+					// getSimilarSongs takes album ids, not playlist ones
+					if (collection is DomainAlbum) {
+						player.playInstantMix(collection.id, collection.name.orEmpty())
+					} else {
+						player.playInstantMix(collection.songs, collection.name.orEmpty())
+					}
+				},
+				shape = buttonShape,
+				contentPadding = PaddingValues(0.dp),
+				enabled = collection.songs.isNotEmpty()
+			) {
+				Icon(
+					Icons.Outlined.InstantMix,
+					contentDescription = stringResource(Res.string.action_instant_mix),
+					modifier = Modifier.size(24.dp)
+				)
+			}
 		}
 		Button(
 			modifier = Modifier.weight(1f).height(buttonHeight),

@@ -20,7 +20,9 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -58,12 +61,14 @@ import eu.depau.loak.generated.resources.title_made_for_you
 import eu.depau.loak.generated.resources.title_mixed_for_you
 import eu.depau.loak.generated.resources.title_playing_on_server
 import eu.depau.loak.generated.resources.title_quick_picks
+import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.title_similar_to
 import eu.depau.loak.generated.resources.title_speed_dial
 import eu.depau.loak.generated.resources.title_your_library
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Genre
 import eu.depau.loak.icons.outlined.History
+import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.shared.MediaPlayerViewModel
@@ -161,6 +166,7 @@ fun HomeFeed(
 	val state by viewModel.state.collectAsStateWithLifecycle()
 	val selectedGenre by viewModel.selectedGenre.collectAsStateWithLifecycle()
 	val player = koinInject<MediaPlayerViewModel>()
+	val canMix by produceState(false) { value = player.canMix() }
 	val persistentViewModelStoreOwner = koinInject<PersistentViewModelStoreOwner>()
 
 	// the cards' options menus, as on the library's screens
@@ -252,7 +258,21 @@ fun HomeFeed(
 
 		if (state.quickPicks.isNotEmpty()) {
 			item(key = "quick picks header", span = full) {
-				ShelfHeader(stringResource(Res.string.title_quick_picks)) {
+				val title = stringResource(Res.string.title_quick_picks)
+				ShelfHeader(title) {
+					if (canMix) {
+						OutlinedButton(
+							onClick = { player.playInstantMix(state.quickPicks, title) },
+							contentPadding = PaddingValues(0.dp),
+							modifier = Modifier.size(width = 40.dp, height = 32.dp)
+						) {
+							Icon(
+								Icons.Outlined.InstantMix,
+								stringResource(Res.string.action_instant_mix),
+								Modifier.size(18.dp)
+							)
+						}
+					}
 					SmallOutlinedButton(stringResource(Res.string.action_play_all)) { viewModel.playQuickPicks() }
 				}
 			}
