@@ -86,6 +86,7 @@ fun NowPlayingArtworkPager(
 				onClick = if (enabled) dropUnlessResumed {
 					when (tapAction) {
 						CoverArtTapAction.ShowLyrics -> playerSheet.showSheet(lyrics = true)
+						CoverArtTapAction.TogglePlayback -> player.togglePlay()
 						CoverArtTapAction.Disabled -> {}
 					}
 				} else null

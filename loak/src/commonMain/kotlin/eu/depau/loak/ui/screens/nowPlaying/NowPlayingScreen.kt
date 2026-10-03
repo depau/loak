@@ -476,7 +476,8 @@ private fun NowPlayingSidePane(
 		modifier = modifier,
 		shape = if (docked) ContinuousRoundedRectangle(topStart = 28.dp, bottomStart = 28.dp)
 		else ContinuousRoundedRectangle(28.dp),
-		color = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f)
+		// opaque enough that the queue's secondary text reads over a bright cover
+		color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .72f)
 	) {
 		Column {
 			// the tab row is the title bar here: it moves the window and holds its controls.

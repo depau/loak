@@ -35,6 +35,9 @@ import eu.depau.loak.domain.manager.PreferenceManager
 /** The lyrics' line size: karaoke mode makes it as large as the window allows. */
 val LocalLyricsFontSize = compositionLocalOf { 32.sp }
 
+/** Karaoke on wide windows: the lines are centred. */
+val LocalLyricsCentered = compositionLocalOf { false }
+
 @Composable
 fun LyricsScreenKaraokeText(
 	text: String,
@@ -78,7 +81,7 @@ fun LyricsScreenKaraokeText(
 			text = text,
 			fontSize = LocalLyricsFontSize.current,
 			fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
-			textAlign = if (isRtl) TextAlign.End else TextAlign.Start,
+			textAlign = if (LocalLyricsCentered.current) TextAlign.Center else if (isRtl) TextAlign.End else TextAlign.Start,
 			style = MaterialTheme.typography.headlineLargeEmphasized,
 			color = if (lyricsBrightInactive) Color.White.copy(alpha = alphaTransition * 0.4f)
 			else MaterialTheme.colorScheme.onSurface.copy(alpha = alphaTransition * 0.4f),
@@ -91,7 +94,7 @@ fun LyricsScreenKaraokeText(
 				text = text,
 				fontSize = LocalLyricsFontSize.current,
 				fontWeight = FontWeight.Bold,
-				textAlign = if (isRtl) TextAlign.End else TextAlign.Start,
+				textAlign = if (LocalLyricsCentered.current) TextAlign.Center else if (isRtl) TextAlign.End else TextAlign.Start,
 				style = MaterialTheme.typography.headlineLargeEmphasized,
 				color = Color.White,
 				modifier = Modifier
@@ -151,10 +154,15 @@ fun LyricsScreenKaraokeText(
 												end = Offset(endX, 0f)
 											)
 
+											// the mask covers everything the line may draw, not just its box: at
+											// large sizes descenders and overhangs reach past it, and anything the
+											// mask misses would show fully lit ahead of time
+											val top = if (i == 0) 0f else lineTop
+											val bottom = if (i == layout.lineCount - 1) size.height else lineBottom
 											drawRect(
 												brush = brush,
-												topLeft = Offset(lineLeft, lineTop),
-												size = Size(lineWidth, lineBottom - lineTop),
+												topLeft = Offset(0f, top),
+												size = Size(size.width, bottom - top),
 												blendMode = BlendMode.SrcIn
 											)
 											accumulatedWidth += lineWidth

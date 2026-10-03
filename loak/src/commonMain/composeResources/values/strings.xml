@@ -196,6 +196,7 @@
 	<string name="option_cover_art_action">Cover art tap action</string>
 	<string name="option_cover_art_action_disabled">Disabled</string>
 	<string name="option_cover_art_action_show_lyrics">Show lyrics</string>
+	<string name="option_cover_art_action_toggle_playback">Play / pause</string>
 	<string name="option_equaliser">Equaliser</string>
 	<string name="option_equaliser_mode">Equaliser source</string>
 	<string name="option_equaliser_mode_disabled">Disabled</string>

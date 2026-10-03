@@ -89,7 +89,7 @@ class PreferenceManager(
 	var nowPlayingToolbarPosition by preference(ToolbarPosition.Bottom)
 	var nowPlayingSongInfo by preference(true)
 	var nowPlayingSliderStyle by preference(NowPlayingSliderStyle.Squiggly)
-	var nowPlayingCoverArtAction by preference(CoverArtTapAction.ShowLyrics)
+	var nowPlayingCoverArtAction by preference(CoverArtTapAction.TogglePlayback)
 	var customHeaders by preference("")
 	/** Shown on other devices as where a synced queue came from; blank = the system name. */
 	var deviceName by preference("")

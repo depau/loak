@@ -21,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -59,6 +62,8 @@ fun LyricsScreenContent(
 	val preferenceManager = koinInject<PreferenceManager>()
 
 	val listState = rememberLazyListState()
+	val centered = LocalLyricsCentered.current
+	val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
 	val lyrics = data?.lines
 	val isSynced = data?.isSynced == true
@@ -246,6 +251,16 @@ fun LyricsScreenContent(
 					.graphicsLayer {
 						scaleX = lineScale
 						scaleY = lineScale
+						// grow from the side the text hangs from, so a long line doesn't spill
+						// past the padding (centred lines grow both ways)
+						transformOrigin = TransformOrigin(
+							when {
+								centered -> .5f
+								rtl -> 1f
+								else -> 0f
+							},
+							.5f
+						)
 						translationY = lineOffsetY.toPx()
 					}
 					.then(

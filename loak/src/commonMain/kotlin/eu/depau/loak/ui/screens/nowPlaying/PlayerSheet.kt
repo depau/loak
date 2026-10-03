@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -369,6 +371,8 @@ fun PlayerLayer(state: PlayerSheetState) {
 		Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .4f * f)))
 
 		LoakTheme(rememberColorSchemeForCurrentSong()) {
+			// no Surface draws the player, so nothing else sets its text and icon colour
+			CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
 			val surface = MaterialTheme.colorScheme.surface
 			val from = state.pillColor.takeIf { it != Color.Unspecified } ?: appSurface
 			Box(
@@ -436,6 +440,7 @@ fun PlayerLayer(state: PlayerSheetState) {
 			}
 			// karaoke covers everything, the player included, in the song's colours
 			Karaoke(state)
+			}
 		}
 	}
 }

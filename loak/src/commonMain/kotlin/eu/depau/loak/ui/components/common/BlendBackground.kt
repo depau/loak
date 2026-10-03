@@ -146,7 +146,8 @@ fun BlendBackground(
 				.fillMaxSize()
 				.drawWithContent {
 					drawContent()
-					drawRect(color = Color.Black.copy(alpha = 0.4f))
+					// bright covers (saturated reds, whites) need this much for light text on top
+					drawRect(color = Color.Black.copy(alpha = 0.5f))
 				}
 		)
 	}

@@ -64,6 +64,8 @@ import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.BlendBackground
 import eu.depau.loak.ui.screens.lyrics.LyricsScreen
 import eu.depau.loak.ui.screens.lyrics.components.LocalLyricsFontSize
+import eu.depau.loak.ui.screens.lyrics.components.LocalLyricsCentered
+import androidx.compose.foundation.layout.fillMaxHeight
 import eu.depau.loak.ui.screens.nowPlaying.components.controls.NowPlayingProgressBar
 import eu.depau.loak.ui.util.Immersive
 import eu.depau.loak.ui.util.KeepScreenOn
@@ -125,16 +127,19 @@ fun Karaoke(state: PlayerSheetState) {
 			BlendBackground(coverArtId = song?.coverArtId, isPaused = playerState.isPaused)
 			Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .35f)))
 			// as large as the window allows: about a seventh of the height, or 11 lines' width
+			val wide = maxWidth >= 600.dp
 			val size = minOf(maxWidth.value / 11f, maxHeight.value / 7f).coerceIn(20f, 64f).sp
 			Box(
 				Modifier
-					.fillMaxSize()
-					.windowInsetsPadding(WindowInsets.safeDrawing)
-					.padding(top = 24.dp)
-					.widthIn(max = 960.dp)
 					.align(Alignment.Center)
+					.fillMaxHeight()
+					.windowInsetsPadding(WindowInsets.safeDrawing)
+					.padding(top = 24.dp, start = 24.dp, end = 24.dp)
+					.widthIn(max = 960.dp)
+					.fillMaxWidth()
 			) {
-				CompositionLocalProvider(LocalLyricsFontSize provides size) {
+				// centred where lines are short next to the window's width
+				CompositionLocalProvider(LocalLyricsFontSize provides size, LocalLyricsCentered provides wide) {
 					LyricsScreen(song)
 				}
 			}
