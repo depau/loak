@@ -1,5 +1,12 @@
 package eu.depau.loak.ui.components.sheets
 
+import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.domain.manager.AudioMuseManager
+import eu.depau.loak.icons.outlined.Flask
+import eu.depau.loak.domain.repositories.AlchemyIngredient
+import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.generated.resources.action_use_in_alchemy
+import androidx.compose.runtime.collectAsState
 import eu.depau.loak.generated.resources.action_make_a_copy
 import eu.depau.loak.icons.outlined.Copy
 import eu.depau.loak.ui.screens.playlist.dialogs.CopyPlaylistDialog
@@ -130,6 +137,8 @@ fun CollectionSheet(
 	val editablePlaylist = (collection as? DomainPlaylist)
 		?.takeIf { it.owner == sessionManager.username }
 	val playlistName = (collection as? DomainPlaylist)?.displayName()
+	val audioMuseInfo by koinInject<AudioMuseManager>().info.collectAsState()
+	val backStack = LocalNavStack.current
 
 	// the edit sheet replaces this one rather than stacking on top
 	if (!editing && !copying) ModalBottomSheet(
@@ -364,6 +373,19 @@ fun CollectionSheet(
 					content = { Text(stringResource(Res.string.action_edit_playlist)) },
 					leadingContent = { Icon(Icons.Outlined.Edit, null) },
 					onClick = { editing = true },
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
+			if (collection is DomainPlaylist && audioMuseInfo != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_use_in_alchemy)) },
+					leadingContent = { Icon(Icons.Outlined.Flask, null) },
+					onClick = {
+						backStack.add(Screen.Alchemy(AlchemyIngredient(collection.id, AlchemyIngredient.Type.Playlist, playlistName?.display ?: collection.name.orEmpty())))
+						onDismissRequest()
+					},
 					colors = colors,
 					contentPadding = contentPadding
 				)

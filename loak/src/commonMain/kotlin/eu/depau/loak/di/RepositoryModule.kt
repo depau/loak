@@ -8,6 +8,7 @@ import eu.depau.loak.domain.repositories.CollectionRepository
 import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.domain.repositories.GenreRepository
 import eu.depau.loak.domain.repositories.HomeRepository
+import eu.depau.loak.domain.repositories.AudioMuseRepository
 import eu.depau.loak.domain.repositories.LyricsRepository
 import eu.depau.loak.domain.repositories.PlayerStateRepository
 import eu.depau.loak.domain.repositories.PlaylistRepository
@@ -30,4 +31,5 @@ val repositoryModule = module {
 	singleOf(::RadioRepository)
 	singleOf(::PlayerStateRepository)
 	singleOf(::HomeRepository)
+	singleOf(::AudioMuseRepository)
 }

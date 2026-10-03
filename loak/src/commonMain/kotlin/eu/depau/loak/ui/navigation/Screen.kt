@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.navigation
 
+import eu.depau.loak.domain.repositories.AlchemyIngredient
 import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilter
 import eu.depau.loak.ui.screens.library.DownloadsTab
 import androidx.compose.runtime.Immutable
@@ -73,6 +74,10 @@ sealed interface Screen : NavKey {
 	@Immutable
 	@Serializable
 	data object Library : Screen
+
+	@Immutable
+	@Serializable
+	data class Alchemy(val seed: AlchemyIngredient? = null) : Screen
 
 	@Immutable
 	@Serializable

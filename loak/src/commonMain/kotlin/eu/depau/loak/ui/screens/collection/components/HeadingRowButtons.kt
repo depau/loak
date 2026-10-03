@@ -1,5 +1,9 @@
 package eu.depau.loak.ui.screens.collection.components
 
+import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.domain.repositories.AlchemyIngredient
+import eu.depau.loak.generated.resources.action_edit
 import eu.depau.loak.generated.resources.action_resume
 import eu.depau.loak.generated.resources.action_pause
 import eu.depau.loak.generated.resources.label_variety_adventurous
@@ -274,6 +278,7 @@ fun RadioCard(playlist: DomainPlaylist, modifier: Modifier = Modifier) {
 	val radios by audioMuse.radios.collectAsState()
 	val radio = radios.find { it.name == playlist.name } ?: return
 	val scope = rememberCoroutineScope()
+	val backStack = LocalNavStack.current
 	val variety = stringResource(when {
 		radio.temperature < 0.4 -> Res.string.label_variety_focused
 		radio.temperature < 1.2 -> Res.string.label_variety_balanced
@@ -308,6 +313,9 @@ fun RadioCard(playlist: DomainPlaylist, modifier: Modifier = Modifier) {
 					}
 				}
 			}) { Text(stringResource(if (radio.enabled) Res.string.action_pause else Res.string.action_resume)) }
+			TextButton(onClick = {
+				backStack.add(Screen.Alchemy(AlchemyIngredient("${radio.anchorId}", AlchemyIngredient.Type.Radio, radio.name)))
+			}) { Text(stringResource(Res.string.action_edit)) }
 		}
 	}
 }

@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.playlist
 
+import eu.depau.loak.icons.outlined.Flask
+import eu.depau.loak.generated.resources.title_song_alchemy
 import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilter
 import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilterRow
 import eu.depau.loak.domain.manager.AudioMuseManager
@@ -138,6 +140,7 @@ fun PlaylistListScreen(
 	// the kind chips: who made each playlist, and how
 	var kindFilter by rememberSaveable { mutableStateOf(initialKind) }
 	val radios by koinInject<AudioMuseManager>().radios.collectAsState()
+	val audioMuseInfo by koinInject<AudioMuseManager>().info.collectAsState()
 	val radioNames = remember(radios) { radios.mapTo(HashSet()) { it.name } }
 	val username = koinInject<SessionManager>().username
 	val kinds = remember(playlistsState, radioNames, preferenceManager.audioMuseIntegration) {
@@ -209,7 +212,8 @@ fun PlaylistListScreen(
 						.using(SizeTransform(clip = false))
 				}
 			) { notScrolled ->
-				if (notScrolled && canMakeSmart && preferenceManager.smartPlaylistsEnabled) {
+				val smart = canMakeSmart && preferenceManager.smartPlaylistsEnabled
+				if (notScrolled && (smart || audioMuseInfo != null)) {
 					FloatingActionButtonMenu(
 						expanded = fabMenuExpanded,
 						button = {
@@ -225,7 +229,15 @@ fun PlaylistListScreen(
 							}
 						}
 					) {
-						FloatingActionButtonMenuItem(
+						if (audioMuseInfo != null) FloatingActionButtonMenuItem(
+							onClick = {
+								fabMenuExpanded = false
+								backStack.add(Screen.Alchemy())
+							},
+							icon = { Icon(Icons.Outlined.Flask, null) },
+							text = { Text(stringResource(Res.string.title_song_alchemy)) }
+						)
+						if (smart) FloatingActionButtonMenuItem(
 							onClick = {
 								fabMenuExpanded = false
 								smartEditorShown = true

@@ -1,5 +1,6 @@
 package eu.depau.loak.di
 
+import eu.depau.loak.ui.screens.alchemy.AlchemyViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -35,6 +36,9 @@ import eu.depau.loak.ui.screens.song.viewmodels.SongListViewModel
 import eu.depau.loak.ui.viewmodel.RootViewModel
 
 val viewModelModule = module {
+	// a song, artist, playlist, mood or radio to start from, or nothing
+	viewModel { params -> AlchemyViewModel(params.getOrNull(), get(), get()) }
+
 	// no parameter: Home; a genre name: that genre's page
 	viewModel { params ->
 		HomeViewModel(
