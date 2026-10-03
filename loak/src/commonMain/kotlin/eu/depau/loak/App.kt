@@ -5,6 +5,9 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isBackPressed
+import androidx.compose.ui.input.pointer.isForwardPressed
+import androidx.compose.runtime.snapshotFlow
+import eu.depau.loak.ui.navigation.ForwardHistory
 import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.runtime.DisposableEffect
@@ -240,6 +243,14 @@ fun App() {
 		backDispatcher?.addInput(backInput)
 		onDispose { backDispatcher?.removeInput(backInput) }
 	}
+	val forwardHistory = remember { ForwardHistory() }
+	LaunchedEffect(backStack) {
+		var old = backStack.toList()
+		snapshotFlow { backStack.toList() }.collect {
+			forwardHistory.onChange(old, it)
+			old = it
+		}
+	}
 	var mouseInUse by remember {
 		mutableStateOf(platformContext.platformType.let { it == PlatformType.Desktop || it == PlatformType.Web })
 	}
@@ -287,10 +298,10 @@ fun App() {
 							.nestedScroll(scrollManager.connection)
 							// keyboards (desktop, web, tablets with one): F5 / Ctrl+R refresh the
 							// screen, / and Ctrl+F search, Ctrl+, opens settings, Alt+Left and
-							// Cmd+[ go back (Esc already does), Ctrl+arrows skip tracks; space and
-							// the media keys control playback unless a text field or a focused button takes
-							// precedence. Media keys are consumed on key-down so a key held
-							// down doesn't repeat-toggle.
+							// Cmd+[ go back (Esc already does), Alt+Right and Cmd+] go forward,
+							// Ctrl+arrows skip tracks; space and the media keys control playback
+							// unless a text field or a focused button takes precedence. Media keys
+							// are consumed on key-down so a key held down doesn't repeat-toggle.
 							.focusRequester(rootFocus)
 							.focusTarget()
 							.onKeyEvent { event ->
@@ -303,6 +314,13 @@ fun App() {
 									event.isShortcutPressed && event.key == Key.LeftBracket
 								) {
 									backInput.backCompleted()
+									return@onKeyEvent true
+								}
+								if (event.isAltPressed && event.key == Key.DirectionRight ||
+									event.isShortcutPressed && event.key == Key.RightBracket ||
+									event.key == Key.Forward
+								) {
+									forwardHistory.forward(backStack)
 									return@onKeyEvent true
 								}
 								if (inApp) {
@@ -367,14 +385,15 @@ fun App() {
 									}
 								}
 							}
-							// desktop mice's back button (Android turns it into a back key itself)
+							// desktop mice's back and forward buttons (Android turns them into keys)
 							.pointerInput(Unit) {
 								if (platformContext.platformType != PlatformType.Desktop) return@pointerInput
 								awaitPointerEventScope {
 									while (true) {
 										val event = awaitPointerEvent(PointerEventPass.Initial)
-										if (event.type == PointerEventType.Press && event.buttons.isBackPressed)
-											backInput.backCompleted()
+										if (event.type != PointerEventType.Press) continue
+										if (event.buttons.isBackPressed) backInput.backCompleted()
+										else if (event.buttons.isForwardPressed) forwardHistory.forward(backStack)
 									}
 								}
 							},
