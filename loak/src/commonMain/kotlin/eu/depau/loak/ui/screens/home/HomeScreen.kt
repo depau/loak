@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,6 +73,7 @@ import eu.depau.loak.ui.components.dialogs.DeletionEndpoint
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
+import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.layouts.horizontalSection
 import eu.depau.loak.ui.components.sheets.SongSheet
 import eu.depau.loak.ui.core.UiState
@@ -111,7 +111,7 @@ fun HomeScreen() {
 	val persistentViewModelStoreOwner = koinInject<PersistentViewModelStoreOwner>()
 	val viewModel = koinViewModel<HomeViewModel>(viewModelStoreOwner = persistentViewModelStoreOwner)
 	val state by viewModel.state.collectAsStateWithLifecycle()
-	val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+	val scrollBehavior = rootTopBarScrollBehavior()
 	val gridState = rememberLazyGridState()
 
 	val rootViewModel = koinInject<RootViewModel>()

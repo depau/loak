@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,6 +29,7 @@ import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
+import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.snackbars.ErrorSnackBar
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
@@ -53,7 +53,7 @@ fun GenreListScreen(
 	// show the cache at once, then pick up server changes
 	LaunchedEffect(Unit) { viewModel.revalidate() }
 	val genresState by viewModel.genresState.collectAsState()
-	val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+	val scrollBehavior = rootTopBarScrollBehavior()
 
 	val rootViewModel = koinInject<RootViewModel>()
 	LaunchedEffect(Unit) {

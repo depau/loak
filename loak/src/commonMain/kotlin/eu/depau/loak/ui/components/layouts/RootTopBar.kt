@@ -41,6 +41,17 @@ import eu.depau.loak.di.PlatformType
 import eu.depau.loak.ui.util.windowControlsInsets
 import eu.depau.loak.ui.util.windowDragArea
 
+/**
+ * The scroll behaviour for [RootTopBar]. On desktop the bar is the window's title bar, under
+ * the window controls, so it stays pinned: a collapsing state would shrink it even when
+ * wrapped in a pinned behaviour, as the bar sizes itself from the state's height offset.
+ */
+@Composable
+fun rootTopBarScrollBehavior(): TopAppBarScrollBehavior =
+	if (LocalPlatformContext.current.platformType == PlatformType.Desktop)
+		TopAppBarDefaults.pinnedScrollBehavior()
+	else TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
 @Composable
 fun RootTopBar(
 	title: @Composable () -> Unit,
@@ -68,9 +79,9 @@ fun RootTopBar(
 			modifier = modifier,
 			title = title,
 			actions = barActions,
-			// pinned: an unpinned bar is draggable (to collapse it), which would swallow the
-			// mouse drags that move the window; same state, so it still tints on scroll
-			scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(scrollBehavior.state),
+			// pinned (see rootTopBarScrollBehavior): an unpinned bar is also draggable, which
+			// would swallow the mouse drags that move the window
+			scrollBehavior = scrollBehavior,
 			colors = colors,
 			windowInsets = windowInsets,
 		)
