@@ -315,7 +315,7 @@ fun AppNavigationRail(modifier: Modifier = Modifier) {
 	) {
 		// window controls on the left sit above the rail, in the title bar row
 		val chrome = LocalWindowChrome.current
-		if (chrome?.controlsOnLeft == true) {
+		if (chrome?.hasLeftControls == true) {
 			Spacer(Modifier.height(chrome.barHeight))
 		}
 		Spacer(Modifier.height(12.dp))

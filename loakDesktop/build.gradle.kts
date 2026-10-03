@@ -62,6 +62,9 @@ kotlin {
 				implementation(libs.cmp.resources)
 			}
 		}
+		val desktopTest by getting {
+			dependencies { implementation(kotlin("test")) }
+		}
 	}
 }
 

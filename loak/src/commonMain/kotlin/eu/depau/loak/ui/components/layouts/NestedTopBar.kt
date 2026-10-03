@@ -89,8 +89,8 @@ fun NestedTopBar(
 			}
 		},
 		navigationIcon = navigationAction,
-		windowInsets = if (trailing) TopAppBarDefaults.windowInsets.add(windowControlsInsets())
-			else TopAppBarDefaults.windowInsets,
+		// a list pane with a detail pane to its right only meets the window's left edge
+		windowInsets = TopAppBarDefaults.windowInsets.add(windowControlsInsets(right = trailing)),
 	)
 }
 

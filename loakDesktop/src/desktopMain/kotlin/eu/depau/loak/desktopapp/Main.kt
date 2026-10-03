@@ -24,7 +24,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.rememberWindowState
 import dev.nucleusframework.application.DecoratedWindow
 import dev.nucleusframework.application.nucleusApplication
-import dev.nucleusframework.window.ControlButtonsDirection
+import dev.nucleusframework.window.DecoratedWindowScope
+import dev.nucleusframework.window.WindowControlType
+import dev.nucleusframework.window.WindowControlsRenderer
+import dev.nucleusframework.window.tao.TaoDecoratedWindowScope
+import dev.nucleusframework.window.utils.linux.LinuxTitleBarButton
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.Alignment
 import dev.nucleusframework.window.NucleusDecoratedWindowTheme
 import dev.nucleusframework.window.WindowControls
 import dev.nucleusframework.window.WindowScaffold
@@ -78,36 +85,50 @@ fun main(args: Array<String>) {
 				titleBar = { Spacer(Modifier.fillMaxWidth().height(titleBarHeight)) },
 				titleBarPlacement = TitleBarPlacement.Overlay(passThroughToContent = true),
 			) {
-				val nucleusOnLeft = !isWindows && (isMac || !rememberLinuxButtonLayout().controlsOnRight)
-				val controlsOnLeft = nucleusOnLeft ||
-					(!isMac && !isWindows && rememberGsettingsControlsOnLeft())
-				// Nucleus put them on the right (its non-GNOME default): mirror its button row
-				val direction =
-					if (controlsOnLeft != nucleusOnLeft) ControlButtonsDirection.Rtl
-					else ControlButtonsDirection.Auto
-				val chrome = WindowChrome(
-					controlsOnLeft = controlsOnLeft,
-					barHeight = titleBarHeight,
-					dragArea = Modifier.windowDragArea(),
-					controlsInCorner = isWindows,
-					// as far from the side edge as from the top: (64 - 24) / 2, less Nucleus' own 8
-					edgeInset = if (isMac || isWindows) 0.dp else 12.dp,
-					controls = { darkTheme ->
-						// the controls follow the app theme, not the OS: the native parts through
-						// WindowAppearance (traffic lights on macOS), the drawn ones (GNOME/KDE,
-						// Windows glyphs) through Nucleus' theme, which defaults to dark
-						NucleusDecoratedWindowTheme(isDark = darkTheme) {
-							WindowAppearance(
-								if (darkTheme) WindowAppearanceMode.Dark else WindowAppearanceMode.Light
-							)
-							// Windows caption buttons keep their native 32dp height, in the corner
-							WindowControls(
-								if (isWindows) Modifier.height(32.dp) else Modifier,
-								direction = direction,
-							)
+				// the controls follow the app theme, not the OS: the native parts through
+				// WindowAppearance (traffic lights on macOS), the drawn ones (GNOME/KDE, Windows
+				// glyphs) through Nucleus' theme, which defaults to dark
+				val themed = @Composable { darkTheme: Boolean, content: @Composable () -> Unit ->
+					NucleusDecoratedWindowTheme(isDark = darkTheme) {
+						WindowAppearance(if (darkTheme) WindowAppearanceMode.Dark else WindowAppearanceMode.Light)
+						content()
+					}
+				}
+				val chrome = when {
+					isMac -> WindowChrome(
+						barHeight = titleBarHeight,
+						dragArea = Modifier.windowDragArea(),
+						leftControls = { dark -> themed(dark) { WindowControls() } },
+						rightControls = null,
+					)
+					// Windows caption buttons keep their native 32dp height, flush in the corner
+					isWindows -> WindowChrome(
+						barHeight = titleBarHeight,
+						dragArea = Modifier.windowDragArea(),
+						leftControls = null,
+						rightControls = { dark -> themed(dark) { WindowControls(Modifier.height(32.dp)) } },
+						controlsInCorner = true,
+					)
+					else -> {
+						// Linux: the buttons can sit on both sides at once (close:minimize,maximize),
+						// which Nucleus' own layout drops, so each side gets its own row
+						val nucleus = rememberLinuxButtonLayout()
+						val layout = rememberGsettingsButtonLayout()?.let(::parseButtonLayout)
+							?: nucleus.buttons.let { if (nucleus.controlsOnRight) emptyList<LinuxTitleBarButton>() to it else it to emptyList() }
+						val side = { slots: List<LinuxTitleBarButton> ->
+							if (slots.isEmpty()) null
+							else @Composable { dark: Boolean -> themed(dark) { LinuxControls(slots) } }
 						}
-					},
-				)
+						WindowChrome(
+							barHeight = titleBarHeight,
+							dragArea = Modifier.windowDragArea(),
+							leftControls = side(layout.first),
+							rightControls = side(layout.second),
+							// as far from the side edge as from the top: (64 - 24) / 2, less Nucleus' own 8
+							edgeInset = 12.dp,
+						)
+					}
+				}
 				val updateController = remember { DesktopUpdaterManager() }
 				CompositionLocalProvider(
 					LocalWindowChrome provides chrome,
@@ -138,21 +159,21 @@ private val layoutBridge = runCatching {
 }.getOrNull()
 
 /**
- * Whether the desktop puts the window buttons on the left, from GNOME's `button-layout`
- * GSettings key, following changes. Nucleus reads and watches that key only on GNOME, but
- * other desktops keep it too (KDE mirrors its own layout into it), so read it everywhere
- * through Nucleus' own bridge, and start its watcher where Nucleus doesn't.
- * ponytail: drop once Nucleus reads the layout on every desktop (button set still Nucleus').
+ * The desktop's window button layout, from GNOME's `button-layout` GSettings key, following
+ * changes. Nucleus reads and watches that key only on GNOME, but other desktops keep it too
+ * (KDE mirrors its own layout into it), so read it everywhere through Nucleus' own bridge, and
+ * start its watcher where Nucleus doesn't. Null where the key can't be read.
+ * ponytail: drop once Nucleus reads split layouts on every desktop.
  */
 @Composable
-private fun rememberGsettingsControlsOnLeft(): Boolean {
-	var onLeft by remember {
-		mutableStateOf(controlsOnLeft(runCatching {
+private fun rememberGsettingsButtonLayout(): String? {
+	var layout by remember {
+		mutableStateOf(runCatching {
 			layoutBridge?.getMethod("nativeGetButtonLayout")?.invoke(null) as String?
-		}.getOrNull()))
+		}.getOrNull())
 	}
 	DisposableEffect(Unit) {
-		val listener = Consumer<String> { onLeft = controlsOnLeft(it) }
+		val listener = Consumer<String> { layout = it }
 		val bridge = layoutBridge?.getField("INSTANCE")?.get(null)
 		runCatching {
 			layoutBridge!!.getMethod("registerButtonLayoutListener", Consumer::class.java)
@@ -167,10 +188,41 @@ private fun rememberGsettingsControlsOnLeft(): Boolean {
 			}
 		}
 	}
-	return onLeft
+	return layout
 }
 
-/** `close` before the colon and not after it, in a `button-layout` value. */
-private fun controlsOnLeft(layout: String?): Boolean =
-	layout != null && "close" in layout.substringBefore(':', "") &&
-		"close" !in layout.substringAfter(':', layout)
+/**
+ * The window buttons before and after the colon of a `button-layout` value, in order, e.g.
+ * `close:minimize,maximize` -> ([Close], [Minimize, Maximize]). Other entries (appmenu,
+ * spacer, icon) are skipped. Null for a value without any of the three buttons.
+ */
+internal fun parseButtonLayout(layout: String): Pair<List<LinuxTitleBarButton>, List<LinuxTitleBarButton>>? {
+	fun side(part: String) = part.split(',').mapNotNull {
+		when (it.trim()) {
+			"close" -> LinuxTitleBarButton.CLOSE
+			"minimize" -> LinuxTitleBarButton.MINIMIZE
+			"maximize" -> LinuxTitleBarButton.MAXIMIZE
+			else -> null
+		}
+	}
+	val result = side(layout.substringBefore(':')) to side(layout.substringAfter(':', ""))
+	return result.takeIf { it.first.isNotEmpty() || it.second.isNotEmpty() }
+}
+
+/** One side's window buttons, drawn by Nucleus' platform renderer and wired to the window. */
+@Composable
+private fun DecoratedWindowScope.LinuxControls(buttons: List<LinuxTitleBarButton>) {
+	val window = (this as TaoDecoratedWindowScope).window
+	Row(Modifier.fillMaxHeight(), verticalAlignment = Alignment.CenterVertically) {
+		for (button in buttons) {
+			val (type, onClick) = when (button) {
+				LinuxTitleBarButton.CLOSE -> WindowControlType.Close to window::requestUserClose
+				LinuxTitleBarButton.MINIMIZE -> WindowControlType.Minimize to window::minimize
+				LinuxTitleBarButton.MAXIMIZE ->
+					(if (state.isMaximized) WindowControlType.Restore else WindowControlType.Maximize) to
+						{ window.setMaximized(!state.isMaximized) }
+			}
+			WindowControlsRenderer.Platform.Control(type, state, onClick)
+		}
+	}
+}
