@@ -50,9 +50,10 @@ fun PlaylistBadge(kind: PlaylistKind, modifier: Modifier = Modifier) {
 	if (kind == PlaylistKind.Regular) return
 	val colors = MaterialTheme.colorScheme
 	val (container, content) = when (kind) {
-		PlaylistKind.Smart -> colors.primaryContainer to colors.onPrimaryContainer
+		// the main accent pairs: the *Container ones lose contrast in cover-derived schemes
+		PlaylistKind.Smart -> colors.secondary to colors.onSecondary
 		PlaylistKind.AudioMuseInstant -> Color.Transparent to colors.tertiary
-		else -> colors.tertiaryContainer to colors.onTertiaryContainer
+		else -> colors.tertiary to colors.onTertiary
 	}
 	val shape = RoundedCornerShape(6.dp)
 	Row(

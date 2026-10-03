@@ -232,8 +232,8 @@ fun PlaylistRebuiltNotice(playlist: DomainPlaylist, modifier: Modifier = Modifie
 	Surface(
 		modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
 		shape = MaterialTheme.shapes.large,
-		color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = .5f),
-		contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+		color = MaterialTheme.colorScheme.surfaceContainerHigh,
+		contentColor = MaterialTheme.colorScheme.onSurfaceVariant
 	) {
 		Row(
 			modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),

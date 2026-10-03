@@ -73,8 +73,8 @@ fun EditPlaylistSheet(
 			Text(stringResource(Res.string.title_edit_playlist), style = MaterialTheme.typography.titleLarge)
 			if (playlistName.kind.isRebuilt) Surface(
 				shape = MaterialTheme.shapes.large,
-				color = MaterialTheme.colorScheme.tertiaryContainer,
-				contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+				color = MaterialTheme.colorScheme.surfaceContainerHighest,
+				contentColor = MaterialTheme.colorScheme.onSurface
 			) {
 				Text(
 					stringResource(Res.string.info_audiomuse_edit_warning),
