@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.screens.settings
 
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import eu.depau.loak.generated.resources.action_log_out
 import eu.depau.loak.generated.resources.info_audiomuse_not_connected
 import eu.depau.loak.generated.resources.info_audiomuse_connected
 import eu.depau.loak.generated.resources.info_smart_playlists_switch
@@ -87,6 +90,7 @@ fun SettingsServerScreen() {
 	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	val sessionManager = koinInject<SessionManager>()
 	val loginManager = koinInject<LoginManager>()
+	val backStack = LocalNavStack.current
 	val snackBarManager = koinInject<SnackBarManager>()
 	val settings = koinInject<Settings>()
 	val scope = rememberCoroutineScope()
@@ -183,6 +187,15 @@ fun SettingsServerScreen() {
 			ThisDeviceGroup()
 
 			IntegrationsGroup()
+
+			OutlinedButton(
+				onClick = {
+					loginManager.logout()
+					backStack.clear()
+					backStack.add(Screen.Login)
+				},
+				colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+			) { Text(stringResource(Res.string.action_log_out)) }
 		}
 	}
 }

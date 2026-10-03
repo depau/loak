@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.icons.outlined.Settings
+import eu.depau.loak.generated.resources.title_settings
 import eu.depau.loak.generated.resources.title_library
 import eu.depau.loak.icons.outlined.LibraryMusic
 import eu.depau.loak.icons.filled.LibraryMusic
@@ -20,7 +22,6 @@ import eu.depau.loak.di.isLandscape
 import eu.depau.loak.generated.resources.title_account
 import eu.depau.loak.icons.outlined.AccountCircle
 import eu.depau.loak.ui.components.common.TooltipBox
-import eu.depau.loak.ui.components.sheets.AccountSheet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -285,7 +286,7 @@ private fun rememberOnTabSelected(): (Screen) -> Unit {
 	}
 }
 
-/** The tabs in a navigation rail, for windows wider than a phone. Account sits at the bottom. */
+/** The tabs in a navigation rail, for windows wider than a phone. Settings sits at the bottom. */
 @Composable
 fun AppNavigationRail(modifier: Modifier = Modifier) {
 	val viewModel = koinViewModel<NavtabsViewModel>()
@@ -294,8 +295,6 @@ fun AppNavigationRail(modifier: Modifier = Modifier) {
 	val tabs = ((state as? UiState.Success)?.data ?: NavbarConfig.default)
 		.tabs.filter { tab -> tab.visible }
 	val onTabSelected = rememberOnTabSelected()
-	var accountSheetOpen by rememberSaveable { mutableStateOf(false) }
-
 	NavigationRail(
 		modifier = modifier,
 		containerColor = MaterialTheme.colorScheme.surface
@@ -316,15 +315,14 @@ fun AppNavigationRail(modifier: Modifier = Modifier) {
 			)
 		}
 		Spacer(Modifier.weight(1f))
-		TooltipBox(stringResource(Res.string.title_account)) {
-			IconButton(onClick = { accountSheetOpen = true }) {
-				Icon(Icons.Outlined.AccountCircle, stringResource(Res.string.title_account))
-			}
-		}
+		// Settings sits at the bottom and behaves like a tab
+		val inSettings = backStack.firstOrNull() is Screen.Settings
+		NavigationRailItem(
+			selected = inSettings,
+			onClick = dropUnlessResumed { onTabSelected(Screen.Settings.Root) },
+			icon = { Icon(Icons.Outlined.Settings, null) },
+			label = { Text(stringResource(Res.string.title_settings), maxLines = 1) }
+		)
 		Spacer(Modifier.height(16.dp))
-	}
-
-	if (accountSheetOpen) {
-		AccountSheet(onDismissRequest = { accountSheetOpen = false })
 	}
 }

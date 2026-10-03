@@ -59,6 +59,7 @@ import eu.depau.loak.icons.outlined.Note
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.layouts.NestedTopBar
+import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
@@ -67,11 +68,15 @@ import eu.depau.loak.ui.theme.defaultFont
 @Composable
 fun SettingsScreen() {
 	// a detail screen on top: this list is its pane's left neighbour (or off screen)
-	val besideDetail = LocalNavStack.current.lastOrNull() !is Screen.Settings.Root
+	val backStack = LocalNavStack.current
+	val besideDetail = backStack.lastOrNull() !is Screen.Settings.Root
+	val isTab = backStack.firstOrNull() is Screen.Settings
 	Scaffold(
 		topBar = {
 			NestedTopBar(
 				{ Text(stringResource(Res.string.title_settings)) },
+				// opened as a tab from the rail: nothing to go back to
+				navigationAction = { if (!isTab) NestedTopBarDefaults.NavigationAction() },
 				trailing = !besideDetail
 			)
 		}

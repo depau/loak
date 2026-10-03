@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.icons.outlined.Settings
+import eu.depau.loak.generated.resources.title_settings
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,7 +44,6 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.AccountCircle
 import eu.depau.loak.icons.outlined.Search
 import eu.depau.loak.ui.components.common.TooltipBox
-import eu.depau.loak.ui.components.sheets.AccountSheet
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
@@ -132,7 +133,6 @@ private fun Actions(
 		it.id == NavbarTab.Id.SEARCH && it.visible
 	} == true
 
-	var accountSheetOpen by rememberSaveable { mutableStateOf(false) }
 
 	refreshButtonSlot()?.let { slot ->
 		TooltipBox("${stringResource(Res.string.action_refresh)} (F5)") {
@@ -180,18 +180,12 @@ private fun Actions(
 	QueuePaneToggle()
 
 	// wider windows have it at the bottom of the navigation rail
-	if (!LocalPlatformContext.current.isLandscape()) TooltipBox(stringResource(Res.string.title_account)) {
-		IconButton(onClick = {
-			accountSheetOpen = true
-		}) {
+	if (!LocalPlatformContext.current.isLandscape()) TooltipBox(stringResource(Res.string.title_settings)) {
+		IconButton(onClick = dropUnlessResumed { backStack.add(Screen.Settings.Root) }) {
 			Icon(
-				imageVector = Icons.Outlined.AccountCircle,
-				contentDescription = stringResource(Res.string.title_account)
+				imageVector = Icons.Outlined.Settings,
+				contentDescription = stringResource(Res.string.title_settings)
 			)
 		}
-	}
-
-	if (accountSheetOpen) {
-		AccountSheet(onDismissRequest = { accountSheetOpen = false })
 	}
 }
