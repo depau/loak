@@ -93,6 +93,9 @@ import eu.depau.loak.ui.screens.album.viewmodels.AlbumListViewModel
 import eu.depau.loak.ui.screens.artist.ArtistListScreenGridItem
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistListViewModel
 import eu.depau.loak.ui.screens.home.components.GenreChips
+import eu.depau.loak.ui.screens.home.components.MakeSomethingNew
+import eu.depau.loak.ui.screens.home.components.MoodChips
+import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.ui.screens.home.components.ListenerRow
 import eu.depau.loak.ui.screens.home.components.MixCard
 import eu.depau.loak.ui.screens.home.components.ShelfHeader
@@ -171,6 +174,7 @@ fun HomeFeed(
 	val selectedGenre by viewModel.selectedGenre.collectAsStateWithLifecycle()
 	val player = koinInject<MediaPlayerViewModel>()
 	val audioMuse = koinInject<PreferenceManager>().audioMuseIntegration
+	val audioMuseConnected = koinInject<AudioMuseManager>().info.collectAsStateWithLifecycle().value != null
 	val canMix by produceState(false) { value = player.canMix() }
 	val persistentViewModelStoreOwner = koinInject<PersistentViewModelStoreOwner>()
 
@@ -242,6 +246,7 @@ fun HomeFeed(
 		if (state.genres.isNotEmpty()) item(key = "genres", span = full) {
 			GenreChips(state.genres, selectedGenre, viewModel::selectGenre)
 		}
+		if (audioMuseConnected) item(key = "moods", span = full) { MoodChips() }
 
 		if (state.speedDial.isNotEmpty()) {
 			item(key = "speed dial header", span = full) {
@@ -344,6 +349,8 @@ fun HomeFeed(
 				onAddToQueue = { player.addToQueue(playlist as DomainSongCollection) }
 			)
 		}
+
+		if (audioMuseConnected) item(key = "make something new", span = full) { MakeSomethingNew() }
 
 		state.sonicJourney?.let { (from, to) ->
 			item(key = "sonic journey", span = full) {

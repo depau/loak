@@ -564,6 +564,11 @@
 	<string name="option_audiomuse_integration">AudioMuse-AI playlists</string>
 	<string name="subtitle_audiomuse_integration">Tidy names, a badge, and warnings where AudioMuse-AI may undo your edits</string>
 	<string name="badge_ai">AI</string>
+	<string name="label_moods">Moods</string>
+	<string name="title_make_something_new">Make something new</string>
+	<string name="info_tool_alchemy">Blend songs and artists, take some away</string>
+	<string name="info_tool_describe">“Rainy night jazz”</string>
+	<string name="info_tool_path">From one song to another</string>
 	<string name="badge_uses_tokens">Uses tokens</string>
 	<string name="info_uses_tokens">This sends a request to the AI service set up in AudioMuse-AI (%1$s). It may cost whoever runs that server money.</string>
 	<string name="title_on_a_schedule">On a schedule</string>
