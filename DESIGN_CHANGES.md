@@ -41,6 +41,30 @@ that the app still has to catch up with. Items marked **[done]** are implemented
 - **[done]** **Star instead of Next**: the mini player's second button is Star; skipping
   is already a swipe on the mini player. All phone boards.
 
+## Player (redesign, proposal A)
+
+Designed on the Doop canvas "Lo'ak — Player redesign" (yClZJzHgXS), then built and merged
+into the Lo'ak canvas's Player page as screenshots of the app (2026-10-03).
+
+- **[done]** **The player grows out of the mini player** (or the floating player bar),
+  following the finger both ways; the cover travels from the thumbnail. It's a layer over
+  the whole window, no longer a modal sheet. Boards: Mini player, Opening (drag).
+- **[done]** **Predictive back** pulls the player toward the pill while held and closes
+  into it; back closes the Up next / Lyrics sheet first. Board: Predictive back (held).
+- **[done]** **Up next / Lyrics sheet** peeking under the controls: drag up to a split
+  (when the queue keeps ≥ 40% of the screen) and then over the player, which collapses
+  into a row. The separate Queue and Lyrics sheets are gone. Boards: Split, Queue, Lyrics.
+- **[done]** **Pane on wide windows**: ≥ 840 dp, or landscape phones wider than 1.5× their
+  height (was 760 dp / 0.85, plus a "Below" layout, now gone). Pane 300 to 520 dp.
+- **[done]** **Size-adaptive cover and controls**: cover above / beside / thumbnail by room;
+  shuffle and repeat move to ⋮ under 300 dp. Stress-tested at 14 sizes on the proposal canvas.
+- **[done]** **Karaoke**: full-screen lyrics from a ⛶ button next to Share.
+- **[done]** **Tap the cover to play / pause** (new default cover tap action).
+- **[done]** **Window controls on both sides** of the title bar on Linux.
+- Not verified: the edge back swipe inside karaoke on Android (synthetic swipes only
+  revealed the system bars; back key, Esc and the exit button work). iOS keeps the status
+  bar in karaoke.
+
 ## Navigation
 
 - ~~**Settings moves into the Account sheet**~~ (superseded: the Settings button replaced
