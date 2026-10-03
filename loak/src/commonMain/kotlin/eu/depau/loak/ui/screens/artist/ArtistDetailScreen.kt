@@ -10,6 +10,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import eu.depau.loak.generated.resources.action_play_all
+import eu.depau.loak.generated.resources.title_top_songs
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.outlined.ChevronForward
+import eu.depau.loak.ui.screens.home.components.ShelfHeader
+import eu.depau.loak.ui.screens.home.components.SmallOutlinedButton
+import eu.depau.loak.ui.util.HorizontalScrollArrows
+import eu.depau.loak.ui.util.pageBy
+import eu.depau.loak.ui.util.verticalWheelToParent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -59,7 +73,6 @@ import eu.depau.loak.generated.resources.count_albums
 import eu.depau.loak.generated.resources.info_bulk_download_warning
 import eu.depau.loak.generated.resources.notice_deleted_download
 import eu.depau.loak.generated.resources.notice_download_started
-import eu.depau.loak.generated.resources.option_sort_frequent
 import eu.depau.loak.generated.resources.title_albums
 import eu.depau.loak.generated.resources.title_bulk_download
 import eu.depau.loak.generated.resources.title_similar_artists
@@ -72,6 +85,7 @@ import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isExpanded
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SnackBarManager
@@ -277,80 +291,90 @@ fun ArtistDetailScreen(
 							) {
 								state.topSongs.takeIf { state.topSongs.isNotEmpty() }
 									?.let { songs ->
-										Row(
-											modifier = Modifier
-												.heightIn(min = 32.dp)
-												.padding(top = 8.dp)
-												.padding(horizontal = 16.dp)
-												.fillMaxWidth(),
-											verticalAlignment = Alignment.CenterVertically,
-											horizontalArrangement = Arrangement.SpaceBetween
-										) {
-											Text(
-												stringResource(Res.string.option_sort_frequent),
-												style = MaterialTheme.typography.titleMediumEmphasized,
-												fontWeight = FontWeight(600)
-											)
-											Text(
-												stringResource(Res.string.action_see_all),
-												style = MaterialTheme.typography.labelLarge,
-												color = MaterialTheme.colorScheme.primary,
-												modifier = Modifier.clickable(onClick = dropUnlessResumed {
+										ShelfHeader(stringResource(Res.string.title_top_songs)) {
+											Row(verticalAlignment = Alignment.CenterVertically) {
+												SmallOutlinedButton(stringResource(Res.string.action_play_all)) {
+													viewModel.playTopSongs(player)
+												}
+												IconButton(onClick = dropUnlessResumed {
 													backStack.add(
 														Screen.SongList(
 															nested = true,
 															listType = DomainSongListType.ByArtist(state.artist.id)
 														)
 													)
-												})
-											)
+												}) {
+													Icon(
+														Icons.Outlined.ChevronForward,
+														stringResource(Res.string.action_see_all)
+													)
+												}
+											}
 										}
-										LazyHorizontalGrid(
-											rows = GridCells.Fixed(3),
-											state = gridState,
-											flingBehavior = rememberSnapFlingBehavior(lazyGridState = gridState),
-											modifier = Modifier.fillMaxWidth().height(250.dp)
-										) {
-											itemsIndexed(songs) { index, song ->
-												val download =
-													allDownloads.find { it.songId == song.id }
-												SongRow(
-													modifier = Modifier.weight(1f),
-													song = song,
-													selected = selection == song,
-													onClick = {
-														if (playerState.currentSong?.id != song.id) {
-															player.playNow(songs, index)
-														} else {
-															player.togglePlay()
-														}
-													},
-													onLongClick = {
-														viewModel.selectSong(song)
-													},
-													onDismissRequest = { viewModel.clearSelection() },
-													starredState = if (selection == song) selectedSongIsStarred else song.starredAt != null,
-													onAddStar = { viewModel.starSelectedSong() },
-													onRemoveStar = { viewModel.unstarSelectedSong() },
-													download = download,
-													onDownload = { viewModel.downloadSong(song) },
-													onCancelDownload = {
-														viewModel.cancelDownload(
-															song.id
+										// like Home's Quick picks: pages of four rows on phones, two columns of
+										// two on wide windows
+										val expanded = LocalPlatformContext.current.isExpanded()
+										val rows = if (expanded) 2 else 4
+										BoxWithConstraints(Modifier.fillMaxWidth()) {
+											val rowWidth = if (expanded) (maxWidth - 32.dp) / 2 else maxWidth - 64.dp
+											HorizontalScrollArrows(
+												canScrollBackward = gridState.canScrollBackward,
+												canScrollForward = gridState.canScrollForward,
+												onBackward = { gridState.pageBy(-1) },
+												onForward = { gridState.pageBy(1) }
+											) {
+												LazyHorizontalGrid(
+													rows = GridCells.Fixed(rows),
+													state = gridState,
+													flingBehavior = rememberSnapFlingBehavior(lazyGridState = gridState),
+													contentPadding = PaddingValues(horizontal = 4.dp),
+													modifier = Modifier
+														.fillMaxWidth()
+														.height(80.dp * rows)
+														.verticalWheelToParent()
+												) {
+													itemsIndexed(songs) { index, song ->
+														val download =
+															allDownloads.find { it.songId == song.id }
+														SongRow(
+															modifier = Modifier.width(rowWidth),
+															song = song,
+															selected = selection == song,
+															onClick = {
+																if (playerState.currentSong?.id != song.id) {
+																	viewModel.playTopSongs(player, index)
+																} else {
+																	player.togglePlay()
+																}
+															},
+															onLongClick = {
+																viewModel.selectSong(song)
+															},
+															onDismissRequest = { viewModel.clearSelection() },
+															starredState = if (selection == song) selectedSongIsStarred else song.starredAt != null,
+															onAddStar = { viewModel.starSelectedSong() },
+															onRemoveStar = { viewModel.unstarSelectedSong() },
+															download = download,
+															onDownload = { viewModel.downloadSong(song) },
+															onCancelDownload = {
+																viewModel.cancelDownload(
+																	song.id
+																)
+															},
+															onDeleteDownload = {
+																viewModel.deleteDownload(
+																	song.id
+																)
+															},
+															onPlayNext = { player.playNextSingle(song) },
+															onAddToQueue = { player.addToQueueSingle(song) },
+															onShare = { shareId = song.id },
+															isOnline = isOnline,
+															rating = selectedSongRating,
+															onSetRating = { viewModel.rateSelectedSong(it) }
 														)
-													},
-													onDeleteDownload = {
-														viewModel.deleteDownload(
-															song.id
-														)
-													},
-													onPlayNext = { player.playNextSingle(song) },
-													onAddToQueue = { player.addToQueueSingle(song) },
-													onShare = { shareId = song.id },
-													isOnline = isOnline,
-													rating = selectedSongRating,
-													onSetRating = { viewModel.rateSelectedSong(it) }
-												)
+													}
+												}
 											}
 										}
 									}

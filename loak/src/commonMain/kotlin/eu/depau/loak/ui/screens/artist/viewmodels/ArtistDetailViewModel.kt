@@ -132,6 +132,16 @@ class ArtistDetailViewModel(
 					)
 				)
 
+				// the server's top songs replace the most played when it has any
+				runCatching { songRepository.getTopSongs(domainArtist.name) }
+					.onSuccess { top ->
+						val current = (artistState.value as? UiState.Success)?.data
+						if (top.isNotEmpty() && current != null) {
+							artistState.value = UiState.Success(current.copy(topSongs = top))
+						}
+					}
+					.onFailure { Logger.e("ArtistDetailViewModel", "Failed to fetch top songs", it) }
+
 				repository.fetchArtistMetadata(artistId)
 					.onSuccess { updatedArtist ->
 						val currentState = (artistState.value as? UiState.Success)?.data
@@ -261,6 +271,10 @@ class ArtistDetailViewModel(
 			}
 			player.playAt(0)
 		}
+	}
+
+	fun playTopSongs(player: MediaPlayerViewModel, index: Int = 0) {
+		(artistState.value as? UiState.Success)?.data?.let { player.playNow(it.topSongs, index) }
 	}
 
 	fun downloadSong(song: DomainSong) {

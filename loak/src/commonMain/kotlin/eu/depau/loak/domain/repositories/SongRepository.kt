@@ -47,6 +47,12 @@ class SongRepository(
 		return songDao.getRandomSongs(count).map { it.toDomainModel() }
 	}
 
+	/** The artist's most popular songs (Last.fm-based on Navidrome), in order. */
+	suspend fun getTopSongs(artistName: String, count: Int = 50): List<DomainSong> {
+		return sessionManager.api.getTopSongs(artistName, count).take(count)
+			.map { it.toEntity().toDomainModel() }
+	}
+
 	/** Songs the server finds similar to a song, album or artist. */
 	suspend fun getSimilarSongs(id: String, count: Int = 50): List<DomainSong> {
 		// OpenSubsonic: getSimilarSongs takes all three id types, no need for getSimilarSongs2

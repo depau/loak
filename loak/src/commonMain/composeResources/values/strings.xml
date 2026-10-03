@@ -379,6 +379,7 @@
 	<string name="action_instant_mix">Instant mix</string>
 	<string name="title_speed_dial">Speed dial</string>
 	<string name="title_quick_picks">Quick picks</string>
+	<string name="title_top_songs">Top songs</string>
 	<string name="action_play_all">Play all</string>
 	<string name="action_feeling_lucky">Feeling lucky: play a random song's radio</string>
 	<string name="title_mixed_for_you">Mixed for you</string>
