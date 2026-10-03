@@ -216,6 +216,7 @@ kotlin {
 				implementation(libs.androidx.sqlite.bundled)
 				implementation(libs.kmpalette.core)
 				implementation(libs.mp3spi)
+				implementation(libs.nucleus.updater.runtime)
 			}
 		}
 	}

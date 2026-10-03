@@ -25,8 +25,10 @@ import dev.nucleusframework.window.TitleBarPlacement
 import dev.nucleusframework.window.WindowAppearance
 import dev.nucleusframework.window.WindowAppearanceMode
 import dev.nucleusframework.window.utils.linux.rememberLinuxButtonLayout
+import eu.depau.loak.ui.util.LocalUpdateController
 import eu.depau.loak.ui.util.LocalWindowChrome
 import eu.depau.loak.ui.util.WindowChrome
+import eu.depau.loak.domain.manager.DesktopUpdaterManager
 
 private val os = System.getProperty("os.name")
 private val isMac = os.startsWith("Mac")
@@ -83,7 +85,11 @@ fun main(args: Array<String>) {
 						}
 					},
 				)
-				CompositionLocalProvider(LocalWindowChrome provides chrome) {
+				val updateController = remember { DesktopUpdaterManager() }
+				CompositionLocalProvider(
+					LocalWindowChrome provides chrome,
+					LocalUpdateController provides updateController,
+				) {
 					ProvideSystemTheme { App() }
 				}
 			}

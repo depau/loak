@@ -193,6 +193,20 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get install -y libfuse2t64
 
+      # The Nucleus updater compares the app version (nucleus.app.version) against the
+      # release manifest, so on a v* tag the packaged version must be the tag with the v
+      # stripped (v1.0.0-alpha58 -> 1.0.0-alpha58). Non-tag builds keep the neutral
+      # "1.0.0", which matches no published release, so they never announce an update.
+      - name: Compute package version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "package_version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "package_version=1.0.0" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build desktop package
         shell: bash
         run: |
@@ -201,16 +215,17 @@ jobs:
           # multi-format packageDistributionForCurrentOS task graph collides.
           case "${{ runner.os }}" in
             macOS)
-              ./gradlew :loakDesktop:packageDmg --stacktrace
+              ./gradlew :loakDesktop:packageDmg --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              ./gradlew :loakDesktop:packageZip --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
               ;;
             Windows)
-              ./gradlew :loakDesktop:packageMsi --stacktrace
-              ./gradlew :loakDesktop:packageExe --stacktrace
+              ./gradlew :loakDesktop:packageMsi --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              ./gradlew :loakDesktop:packageExe --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
               ;;
               *)
-              ./gradlew :loakDesktop:packageDeb --stacktrace
-              ./gradlew :loakDesktop:packageRpm --stacktrace
-              ./gradlew :loakDesktop:packageAppImage --stacktrace
+              ./gradlew :loakDesktop:packageDeb --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              ./gradlew :loakDesktop:packageRpm --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              ./gradlew :loakDesktop:packageAppImage --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
               ;;
           esac
       - name: Build portable archive
@@ -218,7 +233,8 @@ jobs:
         run: |
           # Linux: tar.gz preserves executable bits on launchers and shared libs.
           # Windows: zip is the portable standard (built via PowerShell).
-          # macOS: zip of Loak.app is the payload format for auto-updaters (Sparkle).
+          # macOS needs NO manual archive: TargetFormat.Zip now builds the
+          # auto-updatable zip (with blockmap) via electron-builder.
           case "${{ runner.os }}" in
             Linux)
               tar -czf "loakDesktop/build/compose/binaries/main/Loak-Linux.tar.gz" \
@@ -228,9 +244,6 @@ jobs:
               powershell -NoProfile -Command \
                 "Compress-Archive -Path 'loakDesktop/build/compose/binaries/main/app/*' -DestinationPath 'loakDesktop/build/compose/binaries/main/Loak-Windows.zip' -Force"
               ;;
-            macOS)
-              (cd loakDesktop/build/compose/binaries/main/app && zip -r "../Loak-macOS.zip" .)
-              ;;
           esac
 
       - name: Collect desktop installers
@@ -238,15 +251,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          # packageDistributionForCurrentOS writes installers straight into
-          # build/compose/binaries/main/app/ alongside the unpacked runtime.
+          # packageDistributionForCurrentOS writes installers + their .blockmap
+          # companions into build/compose/binaries/main/{,app/}. Keep installers,
+          # the portable archives, and the blockmap companions (the updater needs
+          # .blockmap for differential downloads on subsequent updates). If a format
+          # emitted its own latest-*.yml (MSI/Portable do), collect it too.
           while IFS= read -r -d '' f; do
             case "$f" in
-              *.deb|*.rpm|*.AppImage|*.msi|*.exe|*.dmg|*.pkg) cp "$f" dist/ ;;
+              *.deb|*.rpm|*.AppImage|*.msi|*.exe|*.dmg|*.pkg|*.zip|*.tar.gz|*.blockmap|latest-*.yml) cp "$f" dist/ ;;
             esac
           done < <(find loakDesktop/build/compose/binaries/main -type f -print0)
-          cp loakDesktop/build/compose/binaries/main/*.tar.gz dist/ 2>/dev/null || true
-          cp loakDesktop/build/compose/binaries/main/*.zip dist/ 2>/dev/null || true
           ls -la dist/
 
       - name: Upload desktop artifact
@@ -314,10 +328,35 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download Artifacts
+      - name: Download Android artifacts
         uses: actions/download-artifact@v7
         with:
-          path: artifacts
+          name: loak-release-android
+          path: artifacts/release-assets-android
+
+      # The Nucleus generate-update-yml/publish-release composite actions scan
+      # for `release-assets-*` directories; one per OS keeps the per-platform
+      # latest-*.yml / alpha-*.yml manifests unambiguous (desktop artifacts
+      # keep their `.blockmap` companions from the build-desktop step).
+      - name: Download Linux desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-ubuntu-latest
+          path: artifacts/release-assets-linux
+          merge-multiple: true
+
+      - name: Download macOS desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-macos-26
+          path: artifacts/release-assets-macos
+          merge-multiple: true
+
+      - name: Download Windows desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-windows-latest
+          path: artifacts/release-assets-windows
           merge-multiple: true
 
       - name: Checkout repository (full history for release notes)
@@ -325,18 +364,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create Release
+      # Version = tag minus the leading v; this must match the packaged
+      # nucleus.app.version (build-desktop passes -PpackageVersion=${{ tag#v }})
+      # and the release tag, so the updater's getDownloadUrl resolves
+      # /releases/download/v{version}/{file}.
+      - name: Compute release version
+        id: version
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          shopt -s nullglob globstar
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-          # Release notes = commits since the previous tag (empty if none)
-          BODY=$(git log --oneline --no-merges "$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)..HEAD" 2>/dev/null || true)
+      - name: Generate update YML
+        uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.5.18
+        with:
+          artifacts-path: artifacts
+          version: ${{ steps.version.outputs.version }}
+          channel: alpha
 
-          gh release create "$GITHUB_REF_NAME" artifacts/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" \
-            --notes "$BODY" \
-            --draft
+      # Published as `prerelease` on purpose (publish-release auto-generates
+      # notes): GitHub's /releases/latest/* endpoints and the alpha channel
+      # lookup only resolve published, non-draft releases — the auto-updater
+      # cannot reach a draft.
+      - name: Publish Release
+        uses: NucleusFramework/Nucleus/.github/actions/publish-release@v2.5.18
+        with:
+          artifacts-path: artifacts
+          tag: ${{ github.ref_name }}
+          release-type: prerelease

@@ -4,6 +4,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import dev.nucleusframework.core.runtime.NucleusApp
 import eu.depau.loak.util.systemDeviceName
 
 /**
@@ -20,7 +21,9 @@ actual fun rememberPlatformContext(): PlatformContext {
 		object : PlatformContext {
 			override val platformType = PlatformType.Desktop
 			override val name = name
-			override val appVersion = "desktop"
+			// The packaged app's version (nucleus.app.properties); null under
+			// `./gradlew run`, so fall back to a stable label.
+			override val appVersion = NucleusApp.version ?: "desktop"
 			override val colorScheme = null
 			override val sizeClass = sizeClass
 		}

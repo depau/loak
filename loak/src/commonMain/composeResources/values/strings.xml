@@ -475,6 +475,12 @@
 	<string name="info_dynamic_replay_gain">Dynamic ReplayGain</string>
 	<string name="info_track_replay_gain_effective">ReplayGain effective value</string>
 	<string name="info_update">Version "%1$s" has been released</string>
+	<string name="info_update_checking">Checking for updates…</string>
+	<string name="info_update_downloading_percent">Downloading %1$s… %2$d%%</string>
+	<string name="info_update_ready">Update ready to install</string>
+	<string name="info_update_installing">Installing update…</string>
+	<string name="action_update_install_restart">Install &amp; restart</string>
+	<string name="action_update_later">Later</string>
 	<string name="info_shared_by">Shared by %1$s</string>
 	<string name="info_share_expires_in">Expires in %1$s</string>
 	<string name="info_share_expires_never">Never expires</string>
