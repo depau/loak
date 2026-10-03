@@ -552,6 +552,11 @@
 	<string name="option_audiomuse_integration">AudioMuse-AI playlists</string>
 	<string name="subtitle_audiomuse_integration">Tidy names, a badge, and warnings where AudioMuse-AI may undo your edits</string>
 	<string name="badge_ai">AI</string>
+	<string name="action_make_a_copy">Make a copy</string>
+	<string name="action_open">Open</string>
+	<string name="info_copy_playlist">Saves the songs of %1$s, as they are now, in a new playlist of yours.</string>
+	<string name="label_playlist_copy_name">%1$s (copy)</string>
+	<string name="notice_copied_playlist">Copied to %1$s</string>
 	<string name="title_audiomuse_section">AudioMuse-AI</string>
 	<string name="info_audiomuse_section">Rebuilt automatically: songs you add here may disappear</string>
 	<string name="badge_smart">Smart</string>

@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.components.sheets
 
+import eu.depau.loak.generated.resources.action_make_a_copy
+import eu.depau.loak.icons.outlined.Copy
+import eu.depau.loak.ui.screens.playlist.dialogs.CopyPlaylistDialog
 import eu.depau.loak.domain.models.PlaylistKind
 import eu.depau.loak.ui.components.common.PlaylistBadgedText
 import eu.depau.loak.ui.components.common.displayName
@@ -122,13 +125,14 @@ fun CollectionSheet(
 	)
 	var linkToOpen by rememberSaveable { mutableStateOf<String?>(null) }
 	var editing by rememberSaveable { mutableStateOf(false) }
+	var copying by rememberSaveable { mutableStateOf(false) }
 	// only the owner can rename it; playlists shared by others are read-only
 	val editablePlaylist = (collection as? DomainPlaylist)
 		?.takeIf { it.owner == sessionManager.username }
 	val playlistName = (collection as? DomainPlaylist)?.displayName()
 
 	// the edit sheet replaces this one rather than stacking on top
-	if (!editing) ModalBottomSheet(
+	if (!editing && !copying) ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
 		menuOnWideWindows = true,
 		contentWindowInsets = {
@@ -365,6 +369,16 @@ fun CollectionSheet(
 				)
 			}
 
+			if (collection is DomainPlaylist) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_make_a_copy)) },
+					leadingContent = { Icon(Icons.Outlined.Copy, null) },
+					onClick = { copying = true },
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
 			if (onShare != null && sessionManager.canUserShare()) {
 				ListItem(
 					content = { Text(stringResource(Res.string.action_share)) },
@@ -430,6 +444,16 @@ fun CollectionSheet(
 			},
 			// pull the new name into the local cache the lists read from
 			onSaved = { scope.launch { dbRepository.syncPlaylists() } }
+		)
+	}
+
+	if (copying && collection is DomainPlaylist) {
+		CopyPlaylistDialog(
+			playlist = collection,
+			onDismissRequest = {
+				copying = false
+				onDismissRequest()
+			}
 		)
 	}
 
