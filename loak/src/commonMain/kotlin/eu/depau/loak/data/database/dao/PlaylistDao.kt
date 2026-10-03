@@ -37,15 +37,15 @@ interface PlaylistDao {
 	suspend fun insertPlaylistSongCrossRefs(crossRefs: List<PlaylistSongCrossRef>)
 
 	@Transaction
-	@Query("SELECT * FROM PlaylistEntity ORDER BY name ASC")
+	@Query("SELECT * FROM PlaylistEntity ORDER BY name COLLATE NOCASE ASC")
 	suspend fun getAllPlaylistsByName(): List<PlaylistWithSongs>
 
 	@Transaction
-	@Query("SELECT * FROM PlaylistEntity ORDER BY createdAt DESC")
+	@Query("SELECT * FROM PlaylistEntity ORDER BY createdAt ASC")
 	suspend fun getAllPlaylistsByDateAdded(): List<PlaylistWithSongs>
 
 	@Transaction
-	@Query("SELECT * FROM PlaylistEntity ORDER BY duration DESC")
+	@Query("SELECT * FROM PlaylistEntity ORDER BY duration ASC")
 	suspend fun getAllPlaylistsByDuration(): List<PlaylistWithSongs>
 
 	@Transaction
@@ -53,7 +53,7 @@ interface PlaylistDao {
 	suspend fun getAllPlaylistsRandom(): List<PlaylistWithSongs>
 
 	@Transaction
-	@Query("SELECT * FROM PlaylistEntity ORDER BY name ASC")
+	@Query("SELECT * FROM PlaylistEntity ORDER BY name COLLATE NOCASE ASC")
 	fun getAllPlaylistsFlow(): Flow<List<PlaylistWithSongs>>
 
 	@Transaction
