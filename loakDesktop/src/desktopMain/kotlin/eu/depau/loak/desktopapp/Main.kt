@@ -11,6 +11,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import java.util.function.Consumer
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.dp
@@ -99,7 +106,14 @@ fun main(args: Array<String>) {
 					LocalWindowChrome provides chrome,
 					LocalUpdateController provides updateController,
 				) {
-					ProvideSystemTheme { App() }
+					// Ctrl+Q quits (macOS has its own Cmd+Q)
+					Box(Modifier.onPreviewKeyEvent {
+						val quit = !isMac && it.type == KeyEventType.KeyDown && it.isCtrlPressed && it.key == Key.Q
+						if (quit) exitApplication()
+						quit
+					}) {
+						ProvideSystemTheme { App() }
+					}
 				}
 			}
 		}

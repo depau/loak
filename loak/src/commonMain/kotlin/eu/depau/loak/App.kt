@@ -3,6 +3,13 @@ package eu.depau.loak
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isBackPressed
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.utf16CodePoint
+import androidx.compose.runtime.DisposableEffect
+import androidx.navigationevent.DirectNavigationEventInput
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import eu.depau.loak.di.LocalMouseInUse
@@ -226,6 +233,13 @@ fun App() {
 	LaunchedEffect(queuePaneOpen.value) { preferenceManager.queuePaneOpen = queuePaneOpen.value }
 	val mediaPlayer = koinInject<MediaPlayerViewModel>()
 	val rootFocus = remember { FocusRequester() }
+	// keyboard and mouse back: the same path as Esc and the system back gesture
+	val backInput = remember { DirectNavigationEventInput() }
+	val backDispatcher = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher
+	DisposableEffect(backDispatcher) {
+		backDispatcher?.addInput(backInput)
+		onDispose { backDispatcher?.removeInput(backInput) }
+	}
 	var mouseInUse by remember {
 		mutableStateOf(platformContext.platformType.let { it == PlatformType.Desktop || it == PlatformType.Web })
 	}
@@ -272,7 +286,9 @@ fun App() {
 						modifier = Modifier
 							.nestedScroll(scrollManager.connection)
 							// keyboards (desktop, web, tablets with one): F5 / Ctrl+R refresh the
-							// screen, space and the media keys control playback unless a text field or a focused button takes
+							// screen, / and Ctrl+F search, Ctrl+, opens settings, Alt+Left and
+							// Cmd+[ go back (Esc already does), Ctrl+arrows skip tracks; space and
+							// the media keys control playback unless a text field or a focused button takes
 							// precedence. Media keys are consumed on key-down so a key held
 							// down doesn't repeat-toggle.
 							.focusRequester(rootFocus)
@@ -282,6 +298,27 @@ fun App() {
 								if (event.key == Key.F5 || event.isShortcutPressed && event.key == Key.R) {
 									refreshSlots.lastOrNull { it.refresh != null }?.refresh?.invoke()
 									return@onKeyEvent true
+								}
+								if (event.isAltPressed && event.key == Key.DirectionLeft ||
+									event.isShortcutPressed && event.key == Key.LeftBracket
+								) {
+									backInput.backCompleted()
+									return@onKeyEvent true
+								}
+								if (inApp) {
+									// '/' by character: it's shifted on many layouts
+									if (event.utf16CodePoint == '/'.code ||
+										event.isShortcutPressed && event.key == Key.F
+									) {
+										if (backStack.lastOrNull() !is Screen.Search)
+											backStack.add(Screen.Search(nested = true))
+										return@onKeyEvent true
+									}
+									if (event.isShortcutPressed && event.key == Key.Comma) {
+										if (backStack.lastOrNull() !is Screen.Settings)
+											backStack.add(Screen.Settings.Root)
+										return@onKeyEvent true
+									}
 								}
 								val player = mediaPlayer
 								if (player.uiState.value.currentSong == null) return@onKeyEvent false
@@ -311,6 +348,12 @@ fun App() {
 										player.previous()
 										true
 									}
+									Key.DirectionRight -> event.isShortcutPressed.also {
+										if (it) player.next()
+									}
+									Key.DirectionLeft -> event.isShortcutPressed.also {
+										if (it) player.previous()
+									}
 									else -> false
 								}
 							}
@@ -321,6 +364,17 @@ fun App() {
 									while (true) {
 										val event = awaitPointerEvent(PointerEventPass.Initial)
 										if (event.changes.any { it.type == PointerType.Mouse }) mouseInUse = true
+									}
+								}
+							}
+							// desktop mice's back button (Android turns it into a back key itself)
+							.pointerInput(Unit) {
+								if (platformContext.platformType != PlatformType.Desktop) return@pointerInput
+								awaitPointerEventScope {
+									while (true) {
+										val event = awaitPointerEvent(PointerEventPass.Initial)
+										if (event.type == PointerEventType.Press && event.buttons.isBackPressed)
+											backInput.backCompleted()
 									}
 								}
 							},
