@@ -171,7 +171,7 @@ fun SearchScreen(
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 	var playlistDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
 
-	val rootViewModel = koinViewModel<RootViewModel>()
+	val rootViewModel = koinInject<RootViewModel>()
 	LaunchedEffect(Unit) {
 		rootViewModel.events.collect { event ->
 			if (event is RootViewModel.Event.ScrollToTop) {

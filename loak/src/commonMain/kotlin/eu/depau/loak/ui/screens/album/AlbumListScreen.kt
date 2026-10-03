@@ -96,7 +96,7 @@ fun AlbumListScreen(
 		)
 	}
 
-	val rootViewModel = koinViewModel<RootViewModel>()
+	val rootViewModel = koinInject<RootViewModel>()
 	LaunchedEffect(Unit) {
 		rootViewModel.events.collect { event ->
 			if (event is RootViewModel.Event.ScrollToTop) {

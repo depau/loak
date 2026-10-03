@@ -154,5 +154,5 @@ val viewModelModule = module {
 	}
 	viewModelOf(::NavtabsViewModel)
 	viewModelOf(::LyricsPriorityViewModel)
-	viewModelOf(::RootViewModel)
+	single { RootViewModel() }
 }

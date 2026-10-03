@@ -55,7 +55,7 @@ fun GenreListScreen(
 	val genresState by viewModel.genresState.collectAsState()
 	val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-	val rootViewModel = koinViewModel<RootViewModel>()
+	val rootViewModel = koinInject<RootViewModel>()
 	LaunchedEffect(Unit) {
 		rootViewModel.events.collect { event ->
 			if (event is RootViewModel.Event.ScrollToTop) {

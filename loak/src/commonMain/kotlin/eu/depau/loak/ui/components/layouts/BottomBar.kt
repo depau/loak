@@ -260,7 +260,7 @@ private fun NavbarTab.Id.navItem() = when (this) {
 
 @Composable
 private fun rememberOnTabSelected(): (Screen) -> Unit {
-	val rootViewModel = koinViewModel<RootViewModel>()
+	val rootViewModel = koinInject<RootViewModel>()
 	val backStack = LocalNavStack.current
 	// A tab tap resets the stack to that tab, so the stack's root is the tab the user is in,
 	// and it stays selected on the screens pushed from it

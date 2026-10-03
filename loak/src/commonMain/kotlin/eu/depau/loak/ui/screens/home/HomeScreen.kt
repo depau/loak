@@ -114,7 +114,7 @@ fun HomeScreen() {
 	val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 	val gridState = rememberLazyGridState()
 
-	val rootViewModel = koinViewModel<RootViewModel>()
+	val rootViewModel = koinInject<RootViewModel>()
 	LaunchedEffect(Unit) {
 		rootViewModel.events.collect { event ->
 			if (event is RootViewModel.Event.ScrollToTop) gridState.animateScrollToItem(0)

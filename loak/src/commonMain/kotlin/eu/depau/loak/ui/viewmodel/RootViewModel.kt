@@ -1,19 +1,19 @@
 package eu.depau.loak.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.launch
 
-class RootViewModel : ViewModel() {
+/**
+ * Events from the app's chrome to the screens, such as a tap on the tab already open.
+ * A Koin single: the navigation rail sits outside the screens' ViewModel stores, so a
+ * ViewModel here gave the rail and the screens separate instances.
+ */
+class RootViewModel {
 	val events: SharedFlow<Event>
-		field = MutableSharedFlow<Event>()
+		field = MutableSharedFlow<Event>(extraBufferCapacity = 1)
 
 	fun requestScrollToTop() {
-		viewModelScope.launch {
-			events.emit(Event.ScrollToTop)
-		}
+		events.tryEmit(Event.ScrollToTop)
 	}
 
 	sealed class Event {

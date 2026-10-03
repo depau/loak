@@ -82,7 +82,7 @@ fun RadioListScreen(
 	var createDialogShown by rememberSaveable { mutableStateOf(false) }
 	val preferenceManager = koinInject<PreferenceManager>()
 
-	val rootViewModel = koinViewModel<RootViewModel>()
+	val rootViewModel = koinInject<RootViewModel>()
 	LaunchedEffect(Unit) {
 		rootViewModel.events.collect { event ->
 			if (event is RootViewModel.Event.ScrollToTop) {

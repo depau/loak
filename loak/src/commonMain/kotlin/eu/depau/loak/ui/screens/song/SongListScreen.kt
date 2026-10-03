@@ -89,7 +89,7 @@ fun SongListScreen(
 		)
 	}
 
-	val rootViewModel = koinViewModel<RootViewModel>()
+	val rootViewModel = koinInject<RootViewModel>()
 	val listState = rememberLazyListState()
 	LaunchedEffect(Unit) {
 		rootViewModel.events.collect { event ->
