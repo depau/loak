@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.components.common
 
+import eu.depau.loak.icons.outlined.Note
+import androidx.compose.foundation.layout.fillMaxSize
 import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -108,7 +110,15 @@ fun CoverArt(
 			else Modifier
 		)
 
-	if (coverArtId.isNullOrBlank()) return Box(commonModifier)
+	// no art: a note, so the box still shows on surfaces of the same colour
+	if (coverArtId.isNullOrBlank()) return Box(commonModifier, contentAlignment = Alignment.Center) {
+		Icon(
+			Icons.Outlined.Note,
+			null,
+			Modifier.fillMaxSize(0.4f),
+			tint = MaterialTheme.colorScheme.onSurfaceVariant
+		)
+	}
 	SubcomposeAsyncImage(
 		model = model,
 		imageLoader = imageLoader,

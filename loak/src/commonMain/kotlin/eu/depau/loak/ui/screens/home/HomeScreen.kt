@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.home
 
+import eu.depau.loak.di.LocalNavStack
+import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilter
 import eu.depau.loak.generated.resources.title_your_radios
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -170,6 +172,7 @@ fun HomeFeed(
 	val selectedGenre by viewModel.selectedGenre.collectAsStateWithLifecycle()
 	val player = koinInject<MediaPlayerViewModel>()
 	val audioMuse = koinInject<PreferenceManager>().audioMuseIntegration
+	val backStack = LocalNavStack.current
 	val audioMuseHome = koinInject<PreferenceManager>().audioMuseHome
 	val canMix by produceState(false) { value = player.canMix() }
 	val persistentViewModelStoreOwner = koinInject<PersistentViewModelStoreOwner>()
@@ -355,7 +358,8 @@ fun HomeFeed(
 			item(key = "similar header", span = full) {
 				ShelfHeader(
 					stringResource(Res.string.title_similar_to, seed.name),
-					leading = { CoverArt(coverArtId = seed.coverArtId, modifier = Modifier.size(40.dp)) }
+					leading = { CoverArt(coverArtId = seed.coverArtId, modifier = Modifier.size(40.dp)) },
+					onClick = dropUnlessResumed { backStack.add(Screen.ArtistDetail(seed.id)) }
 				)
 			}
 			item(key = "similar", span = full) {

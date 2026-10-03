@@ -63,12 +63,16 @@ import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.navigation.Screen
 import org.jetbrains.compose.resources.stringResource
 
-/** A shelf title with an optional action on the right, like the library's headers. */
+/**
+ * A shelf title with an optional action on the right, like the library's headers. With
+ * [onClick] the title is a link: tappable, with a chevron after it like Speed dial's.
+ */
 @Composable
 fun ShelfHeader(
 	title: String,
 	modifier: Modifier = Modifier,
 	leading: (@Composable () -> Unit)? = null,
+	onClick: (() -> Unit)? = null,
 	action: (@Composable () -> Unit)? = null
 ) {
 	Row(
@@ -79,13 +83,26 @@ fun ShelfHeader(
 		verticalAlignment = Alignment.CenterVertically,
 		horizontalArrangement = Arrangement.spacedBy(12.dp)
 	) {
-		leading?.invoke()
-		Text(
-			title,
-			style = MaterialTheme.typography.titleMediumEmphasized,
-			fontWeight = FontWeight(600),
-			modifier = Modifier.weight(1f).semantics { heading() }
-		)
+		Row(
+			modifier = Modifier.weight(1f),
+			verticalAlignment = Alignment.CenterVertically
+		) {
+			Row(
+				modifier = if (onClick != null) Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)
+				else Modifier,
+				verticalAlignment = Alignment.CenterVertically,
+				horizontalArrangement = Arrangement.spacedBy(12.dp)
+			) {
+				leading?.invoke()
+				Text(
+					title,
+					style = MaterialTheme.typography.titleMediumEmphasized,
+					fontWeight = FontWeight(600),
+					modifier = Modifier.weight(1f, fill = false).semantics { heading() }
+				)
+				if (onClick != null) Icon(Icons.Outlined.ChevronForward, null, Modifier.size(20.dp))
+			}
+		}
 		action?.invoke()
 	}
 }
