@@ -143,6 +143,7 @@ fun AudioMuseSettingsScreen() {
 		}
 
 		if (manager.isConfigured) {
+			AudioMuseScheduleGroup(manager)
 			SettingsGroup(title = { Text(stringResource(Res.string.title_audiomuse_connection)) }) {
 				SettingsNavItem(
 					onClick = dropUnlessResumed { backStack.add(Screen.Settings.AudioMuseConnect) },
