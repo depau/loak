@@ -10,6 +10,7 @@ import eu.depau.loak.data.database.dao.PlaylistDao
 import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.manager.PlayLogManager
+import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.DomainAlbum
@@ -77,7 +78,8 @@ class HomeRepository(
 	private val sessionManager: SessionManager,
 	private val queueSyncManager: QueueSyncManager,
 	private val playLog: PlayLogManager,
-	private val settings: Settings
+	private val settings: Settings,
+	private val audioMuse: AudioMuseManager
 ) {
 	private val json = Json { ignoreUnknownKeys = true }
 
@@ -283,6 +285,13 @@ class HomeRepository(
 			.filter { (_, name) -> name.kind.isRebuilt }
 			.sortedBy { (_, name) -> name.kind != PlaylistKind.AudioMuseScheduled }
 			.map { it.first }
+	}
+
+	/** AudioMuse-AI's radios, as their playlists on the server. Empty without a connection. */
+	suspend fun radios(): List<DomainPlaylist> = withContext(IoDispatcher) {
+		val names = audioMuse.refreshRadios().filter { it.enabled }.mapTo(HashSet()) { it.name }
+		if (names.isEmpty()) return@withContext emptyList()
+		playlistDao.getAllPlaylistsByName().map { it.toDomainModel() }.filter { it.name in names }
 	}
 
 	/** One of the top artists, changing daily, with the similar artists in the library. */

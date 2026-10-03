@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.collection.components
 
+import eu.depau.loak.generated.resources.info_badge_audiomuse_radio
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.RichTooltip
@@ -42,6 +43,8 @@ fun PlaylistInfoBadge(playlist: DomainPlaylist, name: PlaylistName) {
 		PlaylistKind.Smart -> Res.string.title_badge_smart to Res.string.info_badge_smart
 		PlaylistKind.AudioMuseInstant ->
 			Res.string.title_badge_audiomuse_instant to Res.string.info_badge_audiomuse_instant
+		PlaylistKind.AudioMuseRadio ->
+			Res.string.title_badge_audiomuse to Res.string.info_badge_audiomuse_radio
 		PlaylistKind.AudioMuseScheduled ->
 			Res.string.title_badge_audiomuse to Res.string.info_badge_audiomuse_scheduled
 		PlaylistKind.AudioMuseAutomatic ->

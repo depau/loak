@@ -12,13 +12,16 @@ enum class PlaylistKind {
 	/** Made on request in AudioMuse-AI, then left alone. */
 	AudioMuseInstant,
 
+	/** An AudioMuse-AI alchemy radio: refilled in place on its schedule, named like the recipe. */
+	AudioMuseRadio,
+
 	/** Navidrome smart playlist: the server picks the songs from rules. */
 	Smart;
 
-	val isAudioMuse get() = this == AudioMuseAutomatic || this == AudioMuseScheduled || this == AudioMuseInstant
+	val isAudioMuse get() = this == AudioMuseAutomatic || this == AudioMuseScheduled || this == AudioMuseInstant || this == AudioMuseRadio
 
 	/** AudioMuse-AI rebuilds it, so edits made here may be lost. */
-	val isRebuilt get() = this == AudioMuseAutomatic || this == AudioMuseScheduled
+	val isRebuilt get() = this == AudioMuseAutomatic || this == AudioMuseScheduled || this == AudioMuseRadio
 }
 
 /** A playlist name with AudioMuse-AI's marker split off. [suffix] goes back on when renaming. */
@@ -34,10 +37,15 @@ private val SCHEDULED = Regex("""^(.*?) by AudioMuse-AI$""", RegexOption.IGNORE_
 /** AudioMuse-AI's scheduled playlists, which get their own cover. */
 val SPECIAL_AUDIOMUSE_PLAYLISTS = setOf("Sonic Fingerprint", "Album of the Week")
 
-fun parsePlaylistName(raw: String?, smart: Boolean, audioMuse: Boolean): PlaylistName {
+/**
+ * [radios]: the names of AudioMuse-AI's radios; they carry no marker, so only a connection to
+ * AudioMuse-AI can tell them apart.
+ */
+fun parsePlaylistName(raw: String?, smart: Boolean, audioMuse: Boolean, radios: Set<String> = emptySet()): PlaylistName {
 	val name = raw.orEmpty()
 	if (smart) return PlaylistName(name, PlaylistKind.Smart)
 	if (!audioMuse) return PlaylistName(name, PlaylistKind.Regular)
+	if (name in radios) return PlaylistName(name, PlaylistKind.AudioMuseRadio)
 	AUTOMATIC.matchEntire(name)?.let {
 		// ponytail: a chunk keeps its " (2)" in the display name; renaming one puts the
 		// suffix after it, which AudioMuse-AI then cleans up like any other cluster

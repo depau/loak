@@ -1,5 +1,18 @@
 package eu.depau.loak.ui.screens.collection.components
 
+import eu.depau.loak.generated.resources.action_resume
+import eu.depau.loak.generated.resources.action_pause
+import eu.depau.loak.generated.resources.label_variety_adventurous
+import eu.depau.loak.generated.resources.label_variety_balanced
+import eu.depau.loak.generated.resources.label_variety_focused
+import eu.depau.loak.generated.resources.info_radio_paused
+import eu.depau.loak.generated.resources.info_radio_card
+import io.ktor.http.contentType
+import io.ktor.http.ContentType
+import io.ktor.client.request.setBody
+import eu.depau.loak.icons.outlined.Radio
+import eu.depau.loak.domain.models.PlaylistKind
+import eu.depau.loak.domain.manager.AudioMuseManager
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -227,7 +240,8 @@ fun CollectionDetailScreenHeadingRowButtons(
 /** For playlists AudioMuse-AI rebuilds: edits may be lost, so offer a copy of the user's own. */
 @Composable
 fun PlaylistRebuiltNotice(playlist: DomainPlaylist, modifier: Modifier = Modifier) {
-	if (!playlist.displayName().kind.isRebuilt) return
+	// radios have their own card
+	playlist.displayName().kind.let { if (!it.isRebuilt || it == PlaylistKind.AudioMuseRadio) return }
 	var copying by rememberSaveable { mutableStateOf(false) }
 	Surface(
 		modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -250,4 +264,50 @@ fun PlaylistRebuiltNotice(playlist: DomainPlaylist, modifier: Modifier = Modifie
 		}
 	}
 	if (copying) CopyPlaylistDialog(playlist = playlist, onDismissRequest = { copying = false })
+}
+
+/** For an AudioMuse-AI radio: what it's made of, and pausing its refills (PUT /api/radios/<id>). */
+@Composable
+fun RadioCard(playlist: DomainPlaylist, modifier: Modifier = Modifier) {
+	if (playlist.displayName().kind != PlaylistKind.AudioMuseRadio) return
+	val audioMuse = koinInject<AudioMuseManager>()
+	val radios by audioMuse.radios.collectAsState()
+	val radio = radios.find { it.name == playlist.name } ?: return
+	val scope = rememberCoroutineScope()
+	val variety = stringResource(when {
+		radio.temperature < 0.4 -> Res.string.label_variety_focused
+		radio.temperature < 1.2 -> Res.string.label_variety_balanced
+		else -> Res.string.label_variety_adventurous
+	})
+	Surface(
+		modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+		shape = MaterialTheme.shapes.large,
+		color = MaterialTheme.colorScheme.surfaceContainerHigh,
+		contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+	) {
+		Row(
+			modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+			verticalAlignment = Alignment.CenterVertically,
+			horizontalArrangement = Arrangement.spacedBy(12.dp)
+		) {
+			Icon(Icons.Outlined.Radio, null, Modifier.size(20.dp))
+			Text(
+				if (radio.enabled) stringResource(Res.string.info_radio_card, radio.songs, variety)
+				else stringResource(Res.string.info_radio_paused),
+				modifier = Modifier.weight(1f),
+				style = MaterialTheme.typography.bodySmall
+			)
+			TextButton(onClick = {
+				scope.launch {
+					runCatching {
+						audioMuse.request("api/radios/${radio.id}", put = true) {
+							contentType(ContentType.Application.Json)
+							setBody("""{"enabled": ${!radio.enabled}}""")
+						}
+						audioMuse.refreshRadios()
+					}
+				}
+			}) { Text(stringResource(if (radio.enabled) Res.string.action_pause else Res.string.action_resume)) }
+		}
+	}
 }

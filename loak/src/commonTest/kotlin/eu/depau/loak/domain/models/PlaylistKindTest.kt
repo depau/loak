@@ -22,5 +22,7 @@ class PlaylistKindTest {
 		assertEquals(PlaylistKind.Regular, parse("automatic stuff").kind)
 		assertEquals(PlaylistName("R&B Groove_automatic", PlaylistKind.Regular), parse("R&B Groove_automatic", audioMuse = false))
 		assertEquals(PlaylistKind.Smart, parse("Top rated_automatic", smart = true).kind)
+		assertEquals(PlaylistKind.AudioMuseRadio, parsePlaylistName("Run club", false, true, setOf("Run club")).kind)
+		assertEquals(PlaylistKind.Regular, parsePlaylistName("Run club", false, false, setOf("Run club")).kind)
 	}
 }

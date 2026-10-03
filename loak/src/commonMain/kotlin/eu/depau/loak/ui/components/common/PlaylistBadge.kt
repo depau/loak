@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.components.common
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import eu.depau.loak.domain.manager.AudioMuseManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.graphics.Brush
 import eu.depau.loak.domain.models.SPECIAL_AUDIOMUSE_PLAYLISTS
@@ -38,8 +41,13 @@ import kotlin.time.Instant
 
 /** The name to show for a playlist, and what kind it is (AudioMuse-AI, smart, …). */
 @Composable
-fun playlistName(name: String?, validUntil: Instant?): PlaylistName =
-	parsePlaylistName(name, validUntil != null, koinInject<PreferenceManager>().audioMuseIntegration)
+fun playlistName(name: String?, validUntil: Instant?): PlaylistName {
+	val radios by koinInject<AudioMuseManager>().radios.collectAsState()
+	return parsePlaylistName(
+		name, validUntil != null, koinInject<PreferenceManager>().audioMuseIntegration,
+		radios.mapTo(HashSet()) { it.name }
+	)
+}
 
 @Composable
 fun DomainPlaylist.displayName() = playlistName(name, validUntil)

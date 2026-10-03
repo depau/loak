@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.home
 
+import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilter
+import eu.depau.loak.generated.resources.title_your_radios
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.util.verticalWheelToParent
 import eu.depau.loak.ui.util.pageBy
@@ -307,6 +309,27 @@ fun HomeFeed(
 			state = UiState.Success(if (audioMuse) state.madeForYou else emptyList()),
 			key = { it.id },
 			seeAll = false
+		) { playlist ->
+			PlaylistListScreenGridItem(
+				modifier = Modifier.width(cardWidth),
+				tab = TAB,
+				playlist = playlist,
+				selected = playlist.id == selectedPlaylist?.id,
+				onSelect = { playlistsViewModel.selectPlaylist(playlist) },
+				onDeselect = { playlistsViewModel.clearSelection() },
+				onSetDeletionId = { playlistDeletionId = it },
+				onSetShareId = { shareId = it },
+				onPlayNext = { player.playNext(playlist as DomainSongCollection) },
+				onAddToQueue = { player.addToQueue(playlist as DomainSongCollection) }
+			)
+		}
+
+		horizontalSection(
+			title = Res.string.title_your_radios,
+			destination = Screen.PlaylistList(true, PlaylistKindFilter.Radios),
+			state = UiState.Success(if (audioMuse) state.radios else emptyList()),
+			key = { it.id },
+			seeAll = true
 		) { playlist ->
 			PlaylistListScreenGridItem(
 				modifier = Modifier.width(cardWidth),

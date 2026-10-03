@@ -1,5 +1,12 @@
 package eu.depau.loak.ui.screens.playlist
 
+import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilter
+import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilterRow
+import eu.depau.loak.domain.manager.AudioMuseManager
+import eu.depau.loak.domain.manager.SessionManager
+import eu.depau.loak.domain.models.parsePlaylistName
+import eu.depau.loak.domain.models.PlaylistKind
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.NavidromeManager
@@ -87,7 +94,8 @@ import kotlin.time.Duration
 
 @Composable
 fun PlaylistListScreen(
-	nested: Boolean = false
+	nested: Boolean = false,
+	initialKind: PlaylistKindFilter = PlaylistKindFilter.All
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val selectedViewMode = preferenceManager.playlistListViewMode
@@ -126,6 +134,27 @@ fun PlaylistListScreen(
 	val canMakeSmart by produceState(false) { value = navidrome.serverInfo().canEditSmartPlaylists }
 
 	val gridState = rememberLazyGridState()
+
+	// the kind chips: who made each playlist, and how
+	var kindFilter by rememberSaveable { mutableStateOf(initialKind) }
+	val radios by koinInject<AudioMuseManager>().radios.collectAsState()
+	val radioNames = remember(radios) { radios.mapTo(HashSet()) { it.name } }
+	val username = koinInject<SessionManager>().username
+	val kinds = remember(playlistsState, radioNames, preferenceManager.audioMuseIntegration) {
+		playlistsState.data.orEmpty().associate {
+			it.id to parsePlaylistName(it.name, it.validUntil != null, preferenceManager.audioMuseIntegration, radioNames).kind
+		}
+	}
+	val availableKinds = remember(kinds, username) {
+		PlaylistKindFilter.entries.filter { f ->
+			f == PlaylistKindFilter.All || playlistsState.data.orEmpty().any { f.matches(it, kinds[it.id] ?: PlaylistKind.Regular, username) }
+		}
+	}
+	val shownState = remember(playlistsState, kindFilter, kinds) {
+		val state = playlistsState
+		if (kindFilter == PlaylistKindFilter.All || state !is UiState.Success) state
+		else UiState.Success(state.data.filter { kindFilter.matches(it, kinds[it.id] ?: PlaylistKind.Regular, username) })
+	}
 
 	val actions: @Composable RowScope.() -> Unit = {
 		PlaylistListScreenSortButton(
@@ -261,8 +290,11 @@ fun PlaylistListScreen(
 				},
 				selectedViewMode = selectedViewMode
 			) {
+				if (availableKinds.size > 1) item(span = { GridItemSpan(maxLineSpan) }) {
+					PlaylistKindFilterRow(availableKinds, kindFilter, { kindFilter = it })
+				}
 				playlistListScreenContent(
-					state = playlistsState,
+					state = shownState,
 					selectedPlaylist = selectedPlaylist,
 					selectedViewMode = selectedViewMode,
 					onUpdateSelection = { viewModel.selectPlaylist(it) },

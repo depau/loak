@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.collection
 
+import eu.depau.loak.ui.screens.collection.components.RadioCard
 import eu.depau.loak.domain.manager.SmartPlaylistDetails
 import eu.depau.loak.ui.screens.playlist.smart.SmartPlaylistEditor
 import eu.depau.loak.ui.screens.playlist.smart.SmartRulesCard
@@ -200,6 +201,7 @@ fun CollectionDetailScreen(
 						if (collection is DomainPlaylist) {
 							PlaylistRebuiltNotice(collection)
 							SmartRulesCard(collection, onEdit = { editingRules = it })
+							RadioCard(collection)
 						}
 					}
 					LazyColumn(
@@ -231,6 +233,7 @@ fun CollectionDetailScreen(
 							if (collection is DomainPlaylist) item {
 								PlaylistRebuiltNotice(collection)
 								SmartRulesCard(collection, onEdit = { editingRules = it })
+							RadioCard(collection)
 							}
 						}
 

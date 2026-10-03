@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.navigation
 
+import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilter
 import eu.depau.loak.ui.screens.library.DownloadsTab
 import androidx.compose.runtime.Immutable
 import androidx.navigation3.runtime.NavKey
@@ -29,7 +30,8 @@ sealed interface Screen : NavKey {
 	@Immutable
 	@Serializable
 	data class PlaylistList(
-		val nested: Boolean = false
+		val nested: Boolean = false,
+		val kind: PlaylistKindFilter = PlaylistKindFilter.All
 	) : Screen
 
 	@Immutable

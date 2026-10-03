@@ -9,6 +9,8 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.delete
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -196,6 +198,8 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 	suspend fun request(
 		path: String,
 		post: Boolean = false,
+		put: Boolean = false,
+		delete: Boolean = false,
 		block: HttpRequestBuilder.() -> Unit
 	): HttpResponse = withContext(IoDispatcher) {
 		suspend fun send(): HttpResponse {
@@ -204,7 +208,12 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 				preferenceManager.audioMuseToken.takeIf { it.isNotBlank() }?.let { header("Authorization", "Bearer $it") }
 				block()
 			}
-			return if (post) client.post(url, auth) else client.get(url, auth)
+			return when {
+				post -> client.post(url, auth)
+				put -> client.put(url, auth)
+				delete -> client.delete(url, auth)
+				else -> client.get(url, auth)
+			}
 		}
 		if (usesLogin && !signedIn) signIn()
 		var response = send()

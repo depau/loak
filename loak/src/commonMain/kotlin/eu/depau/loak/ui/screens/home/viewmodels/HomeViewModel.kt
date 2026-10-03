@@ -40,6 +40,7 @@ data class HomeUiState(
 	val quickPicks: List<DomainSong> = emptyList(),
 	val mixArtists: List<DomainArtist> = emptyList(),
 	val madeForYou: List<DomainPlaylist> = emptyList(),
+	val radios: List<DomainPlaylist> = emptyList(),
 	val sonicJourney: Pair<DomainSong, DomainSong>? = null,
 	val similarTo: Pair<DomainArtist, List<DomainArtist>>? = null,
 	val recentlyAdded: List<DomainAlbum> = emptyList(),
@@ -117,6 +118,7 @@ class HomeViewModel(
 					speedDial = if (genre == null) repository.speedDial(library) else emptyList(),
 					mixArtists = topArtists,
 					madeForYou = if (genre == null) repository.madeForYou() else emptyList(),
+					radios = if (genre == null) runCatching { repository.radios() }.getOrDefault(emptyList()) else emptyList(),
 					recentlyAdded = repository.recentlyAdded(library, genre),
 					forgotten = repository.forgottenFavourites(library, genre),
 					// Quick picks may wait on the server: they come in below the top
