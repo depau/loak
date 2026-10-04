@@ -117,6 +117,9 @@ class DownloadManager(
 		}.toImmutableList()
 	}
 
+	/** Songs being downloaded right now (or between attempts), oldest first. */
+	val active: Flow<Set<String>> = jobs.map { it.keys }
+
 	private val complete = pinned.map { entries -> entries.filter { it.complete } }
 
 	val downloadCount = complete.map { entries -> entries.distinctBy { it.songId }.size }

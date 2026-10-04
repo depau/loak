@@ -20,6 +20,10 @@
 		tools:ignore="ForegroundServicesPolicy" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
+	<!-- downloads run in a WorkManager foreground service showing their progress -->
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
 	<permission
 		android:name="${applicationId}.permission.PLAYBACK_SERVICE"
 		android:protectionLevel="signature" />
@@ -94,6 +98,15 @@
 				<action android:name="android.media.browse.MediaBrowserService" />
 			</intent-filter>
 		</service>
+
+		<service
+			android:name="androidx.work.impl.foreground.SystemForegroundService"
+			android:foregroundServiceType="dataSync"
+			tools:node="merge" />
+
+		<receiver
+			android:name="eu.depau.loak.domain.manager.DownloadWorker$CancelReceiver"
+			android:exported="false" />
 
 		<!-- miniplayer receiver -->
 		<receiver
