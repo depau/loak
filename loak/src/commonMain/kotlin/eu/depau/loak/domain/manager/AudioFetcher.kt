@@ -34,6 +34,10 @@ import kotlinx.io.IOException
 /** Whether a stored copy at this quality may play instead of streaming at [wanted]. */
 fun AudioQuality.canReplace(wanted: AudioQuality, online: Boolean) = !online || this >= wanted
 
+/** The store file extension for a song at [quality]: the format, else the song's own [suffix]. */
+fun audioExtension(quality: AudioQuality, suffix: String?) =
+	quality.format?.takeIf { it != "default" } ?: suffix ?: "bin"
+
 /**
  * Songs to fetch ahead of [current]: the next queue entries, one on a metered network and three
  * otherwise. [upcoming] holds null for entries that don't stream (radio, downloaded files).

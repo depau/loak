@@ -14,6 +14,7 @@ import eu.depau.loak.domain.manager.AudioFetcher
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.NetworkStatsManager
+import eu.depau.loak.domain.manager.audioExtension
 import eu.depau.loak.domain.models.AudioQuality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -42,10 +43,9 @@ typealias StreamSource = (songId: String) -> Pair<Uri, AudioQuality>
 suspend fun AudioFetcher.fetchSong(uri: Uri, stream: StreamSource): AudioFetcher.Fetch? {
 	val id = uri.songId ?: return null
 	val (url, wanted) = stream(id)
-	// the format names the file; the original keeps the song's own suffix
-	val extension = wanted.format?.takeIf { it != "default" }
-		?: uri.getQueryParameter("suffix") ?: "bin"
-	return fetch(id, wanted, extension) { url.toString() }
+	return fetch(id, wanted, audioExtension(wanted, uri.getQueryParameter("suffix"))) {
+		url.toString()
+	}
 }
 
 /**

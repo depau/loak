@@ -262,7 +262,8 @@ class DownloadManager(
 		failed.update { it - ids }
 		var queued = false
 		for (song in songs) {
-			queued = store.pin(song.id, quality, extension(quality, song.fileExtension)) || queued
+			val extension = audioExtension(quality, song.fileExtension)
+			queued = store.pin(song.id, quality, extension) || queued
 		}
 		if (queued && connectivityManager.isOnline.value && !canRun.value) {
 			snackBarManager.notify(Res.string.notice_download_waiting_wifi)
@@ -314,7 +315,7 @@ class DownloadManager(
 
 	/** One attempt at fetching [songId] at [quality]; true once it's in the store. */
 	private suspend fun fetch(songId: String, quality: AudioQuality): Boolean {
-		val fetch = fetcher.fetch(songId, quality, extension(quality, null), download = true) {
+		val fetch = fetcher.fetch(songId, quality, audioExtension(quality, null), download = true) {
 			sessionManager.api.getStreamUrl(
 				id = songId,
 				maxBitRate = quality.kbps,
@@ -384,7 +385,7 @@ class DownloadManager(
 				val stored = if (original) AudioQuality.Raw else AudioQuality(ext, 0)
 				store.import(download.songId, stored, path)
 			} else {
-				store.pin(download.songId, quality, extension(quality, song?.fileExtension))
+				store.pin(download.songId, quality, audioExtension(quality, song?.fileExtension))
 			}
 			legacyDao.deleteDownload(download.songId)
 		}
@@ -449,9 +450,5 @@ class DownloadManager(
 		const val CONCURRENCY = 3
 		const val MAX_ATTEMPTS = 5
 		val RETRY_DELAY = 30.seconds
-
-		// the format names the file; the original keeps the song's own suffix
-		fun extension(quality: AudioQuality, suffix: String?) =
-			quality.format?.takeIf { it != "default" } ?: suffix ?: "bin"
 	}
 }

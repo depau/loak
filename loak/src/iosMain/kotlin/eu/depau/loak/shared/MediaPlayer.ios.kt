@@ -5,15 +5,27 @@ package eu.depau.loak.shared
 import eu.depau.loak.di.COVER_ART_MEDIUM
 import androidx.lifecycle.viewModelScope
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import org.koin.core.component.inject
+import eu.depau.loak.data.database.entities.TransferCategory
+import eu.depau.loak.domain.manager.AudioFetcher
+import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.IOSScrobbleManager
+import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
+import eu.depau.loak.domain.manager.audioExtension
+import eu.depau.loak.domain.manager.prefetchTargets
+import eu.depau.loak.domain.models.AudioQuality
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
 import eu.depau.loak.domain.models.DomainSong
@@ -36,6 +48,7 @@ import platform.AVFoundation.currentTime
 import platform.AVFoundation.duration
 import platform.AVFoundation.pause
 import platform.AVFoundation.play
+import platform.AVFoundation.preferredForwardBufferDuration
 import platform.AVFoundation.removeTimeObserver
 import platform.AVFoundation.replaceCurrentItemWithPlayerItem
 import platform.AVFoundation.seekToTime
@@ -46,6 +59,7 @@ import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSData
+import platform.Foundation.NSFileManager
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
@@ -102,13 +116,36 @@ class IOSMediaPlayerViewModel(
 			sessionManager,
 			preferenceManager
 		)
+	private val audioStore: AudioStore by inject()
+	private val audioFetcher: AudioFetcher by inject()
+	private val stats: NetworkStatsManager by inject()
 	private var pendingSyncState: PlayerUiState? = null
-	private var isTransitioningBetweenTracks = false
+
+	/** Resolves the current song's source and swaps it in; a newer track change cancels it. */
+	private var loadJob: Job? = null
+	private var prefetchJob: Job? = null
+
+	/** Current and prefetched songs, protected from eviction. */
+	private var retained = emptySet<String>()
 
 	init {
 		setupAudioSession()
 		setupRemoteCommands()
-		startProgressObserver()
+		viewModelScope.launch {
+			// the progress only matters on screen; pause() saves it otherwise
+			uiVisible.collect { visible ->
+				if (visible) startProgressObserver() else stopProgressObserver()
+			}
+		}
+		viewModelScope.launch {
+			_uiState
+				.distinctUntilChanged { old, new ->
+					old.currentIndex == new.currentIndex &&
+						old.queue === new.queue &&
+						old.isPaused == new.isPaused
+				}
+				.collect { schedulePrefetch() }
+		}
 
 		playbackEndObserver = NSNotificationCenter.defaultCenter.addObserverForName(
 			name = AVPlayerItemDidPlayToEndTimeNotification,
@@ -187,32 +224,31 @@ class IOSMediaPlayerViewModel(
 	}
 
 	override fun playAt(index: Int) {
-		if (isTransitioningBetweenTracks) return
+		val queue = _uiState.value.queue
+		// offline, songs with no stored copy are skipped
+		val i = (index.coerceAtLeast(0) until queue.size).firstOrNull { canPlay(queue[it]) }
+			?: return
+		val songToPlay = queue[i]
 
-		val songToPlay = _uiState.value.queue.getOrNull(index) ?: return
-		val url = getSongUrl(songToPlay) ?: return
+		player.pause()
+		_uiState.update {
+			it.copy(currentIndex = i, currentSong = songToPlay, isPaused = false, isLoading = false)
+		}
+		scrobbleManager.onMediaChanged(songToPlay.id)
+		scrobbleManager.onIsPlayingChanged(true)
 
-		isTransitioningBetweenTracks = true
-		try {
-			player.pause()
-			player.replaceCurrentItemWithPlayerItem(null)
-			player.replaceCurrentItemWithPlayerItem(createAVPlayerItem(url))
-			player.play()
-
-			_uiState.update {
-				it.copy(
-					currentIndex = index,
-					currentSong = songToPlay,
-					isPaused = false,
-					isLoading = false
-				)
+		loadJob?.cancel()
+		loadJob = viewModelScope.launch {
+			val item = songItem(songToPlay)
+			if (item == null) {
+				// offline and evicted meanwhile
+				_uiState.update { it.copy(isPaused = true) }
+				return@launch
 			}
-
-			scrobbleManager.onMediaChanged(songToPlay.id)
-			scrobbleManager.onIsPlayingChanged(true)
+			player.replaceCurrentItemWithPlayerItem(null)
+			player.replaceCurrentItemWithPlayerItem(item)
+			if (!_uiState.value.isPaused) player.play()
 			updateNowPlayingInfo(songToPlay)
-		} finally {
-			isTransitioningBetweenTracks = false
 		}
 	}
 
@@ -262,6 +298,7 @@ class IOSMediaPlayerViewModel(
 		)
 
 		val url = NSURL.URLWithString(radio.streamUrl)
+		loadJob?.cancel()
 		if (url != null) {
 			player.pause()
 			player.replaceCurrentItemWithPlayerItem(null)
@@ -299,6 +336,7 @@ class IOSMediaPlayerViewModel(
 	}
 
 	override fun clearQueue() {
+		loadJob?.cancel()
 		player.pause()
 		player.replaceCurrentItemWithPlayerItem(null)
 		_uiState.update {
@@ -323,7 +361,9 @@ class IOSMediaPlayerViewModel(
 
 	override fun pause() {
 		player.pause()
-		_uiState.update { it.copy(isPaused = true) }
+		// the progress observer only runs on screen: the saved position comes from here
+		val progress = currentProgress()
+		_uiState.update { it.copy(isPaused = true, progress = progress ?: it.progress) }
 		scrobbleManager.onIsPlayingChanged(false)
 		updateNowPlayingInfo(_uiState.value.currentSong)
 	}
@@ -385,19 +425,58 @@ class IOSMediaPlayerViewModel(
 	}
 
 	private fun startProgressObserver() {
+		if (timeObserver != null) return
 		val interval = CMTimeMake(1, 20)
-		timeObserver = player.addPeriodicTimeObserverForInterval(interval, null) { time ->
+		timeObserver = player.addPeriodicTimeObserverForInterval(interval, null) { _ ->
 			// also called when playback stops, e.g. to wait for data
 			val waiting = player.timeControlStatus ==
 				AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate
 			if (_uiState.value.isLoading != waiting) _uiState.update { it.copy(isLoading = waiting) }
-			val duration = player.currentItem?.duration
-			if (duration != null) {
-				val total = CMTimeGetSeconds(duration)
-				val current = CMTimeGetSeconds(time)
-				if (!total.isNaN() && total > 0) {
-					_uiState.update { it.copy(progress = (current / total).toFloat()) }
-				}
+			currentProgress()?.let { progress -> _uiState.update { it.copy(progress = progress) } }
+		}
+	}
+
+	private fun stopProgressObserver() {
+		timeObserver?.let { player.removeTimeObserver(it) }
+		timeObserver = null
+	}
+
+	private fun currentProgress(): Float? {
+		val total = CMTimeGetSeconds(player.currentItem?.duration ?: return null)
+		if (total.isNaN() || total <= 0) return null
+		return (CMTimeGetSeconds(player.currentTime()) / total).toFloat()
+	}
+
+	/**
+	 * Fetches the songs after the current one into the store, one at a time while playing, so
+	 * they play from disk and the radio does one burst per track. The current song isn't
+	 * fetched: AVPlayer can't follow a growing file, so a song not stored streams directly
+	 * (see [songItem]) and its own prefetch, if one was running, stops to not load it twice.
+	 */
+	private fun schedulePrefetch() {
+		val state = _uiState.value
+		val upcoming = state.queue.drop(state.currentIndex + 1).take(3)
+			.map { song -> song.takeUnless { it.id.startsWith("radio_") } }
+		val current = state.currentSong?.id?.takeUnless { it.startsWith("radio_") }
+		val targets = prefetchTargets(
+			current, upcoming.map { it?.id }, connectivityManager.isCellular.value
+		)
+		val keep = setOfNotNull(current) + targets
+		(keep - retained).forEach(audioStore::retain)
+		(retained - keep).forEach(audioStore::release)
+		retained = keep
+		audioFetcher.cancelExcept(targets.toSet())
+
+		prefetchJob?.cancel()
+		if (state.isPaused) return
+		prefetchJob = viewModelScope.launch {
+			for (song in upcoming.filterNotNull().filter { it.id in targets }) {
+				if (!connectivityManager.isOnline.value) break
+				val wanted = streamSource(song.id).second
+				if (audioStore.playable(song.id, wanted, online = true) != null) continue
+				audioFetcher.fetch(song.id, wanted, audioExtension(wanted, song.fileExtension)) {
+					streamSource(song.id).first
+				}?.progress?.first { it.done || it.failed }
 			}
 		}
 	}
@@ -436,7 +515,7 @@ class IOSMediaPlayerViewModel(
 						val customHeaders = preferenceManager.customHeadersMap()
 						if (customHeaders.isNotEmpty()) {
 							customHeaders.forEach { (key, value) ->
-								addValue(key, forHTTPHeaderField = value)
+								addValue(value, forHTTPHeaderField = key)
 							}
 						}
 					}
@@ -463,7 +542,10 @@ class IOSMediaPlayerViewModel(
 
 	override fun onCleared() {
 		super.onCleared()
-		timeObserver?.let { player.removeTimeObserver(it) }
+		audioFetcher.cancelExcept(emptySet())
+		retained.forEach(audioStore::release)
+		retained = emptySet()
+		stopProgressObserver()
 		playbackEndObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
 		player.replaceCurrentItemWithPlayerItem(null)
 	}
@@ -474,22 +556,24 @@ class IOSMediaPlayerViewModel(
 		val index = if (state.currentIndex in state.queue.indices) state.currentIndex else 0
 		val song = state.queue.getOrNull(index) ?: return
 
-		val url = getSongUrl(song) ?: return
+		loadJob?.cancel()
+		loadJob = viewModelScope.launch {
+			val item = songItem(song) ?: return@launch
+			player.setRate(state.playbackSpeed)
+			player.pause()
+			player.replaceCurrentItemWithPlayerItem(null)
+			player.replaceCurrentItemWithPlayerItem(item)
 
-		player.setRate(state.playbackSpeed)
-		player.pause()
-		player.replaceCurrentItemWithPlayerItem(null)
-		player.replaceCurrentItemWithPlayerItem(createAVPlayerItem(url))
-
-		if (!song.id.startsWith("radio_")) {
-			val durationMs = song.duration.inWholeMilliseconds
-			if (durationMs > 0) {
-				val positionSeconds = (state.progress * durationMs) / 1000.0
-				seekToTime(positionSeconds)
+			if (!song.id.startsWith("radio_")) {
+				val durationMs = song.duration.inWholeMilliseconds
+				if (durationMs > 0) {
+					val positionSeconds = (state.progress * durationMs) / 1000.0
+					seekToTime(positionSeconds)
+				}
 			}
-		}
 
-		updateNowPlayingInfo(song)
+			updateNowPlayingInfo(song)
+		}
 	}
 
 	private fun createAVPlayerItem(url: NSURL): AVPlayerItem {
@@ -502,7 +586,8 @@ class IOSMediaPlayerViewModel(
 		return AVPlayerItem(AVURLAsset(uRL = url, options = options))
 	}
 
-	private fun getStreamUrl(id: String): String {
+	/** The URL to stream song [id] from, and the [AudioQuality] it comes at. */
+	private fun streamSource(id: String): Pair<String, AudioQuality> {
 		val isCellular = connectivityManager.isCellular.value
 		val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
 			if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
@@ -514,27 +599,36 @@ class IOSMediaPlayerViewModel(
 		} else {
 			if (isCellular) preferenceManager.streamingQualityCellular.containerIos else preferenceManager.streamingQualityWifi.containerIos
 		}
-		return sessionManager.api.getStreamUrl(
-			id = id,
-			maxBitRate = bitrate,
-			format = container?.takeIf { it.isNotBlank() }
-		) + "&estimateContentLength=true"
+		val format = container?.takeIf { it.isNotBlank() }
+		val url = sessionManager.api.getStreamUrl(id, bitrate, format, estimateContentLength = true)
+		return url to AudioQuality.of(format, bitrate)
 	}
 
-	private fun getSongUrl(song: DomainSong): NSURL? {
-		return when {
-			song.id.startsWith("radio_") && !song.filePath.isNullOrEmpty() -> {
-				NSURL.URLWithString(song.filePath)
+	/**
+	 * The item to play [song] from: a stored copy if it's good enough (any, offline), else the
+	 * stream; null offline when there's no copy.
+	 */
+	private suspend fun songItem(song: DomainSong): AVPlayerItem? {
+		if (song.id.startsWith("radio_")) {
+			return song.filePath?.let { NSURL.URLWithString(it) }?.let(::createAVPlayerItem)
+		}
+		val (url, wanted) = streamSource(song.id)
+		val online = connectivityManager.isOnline.value
+		audioStore.playable(song.id, wanted, online)?.let { entry ->
+			val path = audioStore.pathOf(entry)
+			// not there: evicted meanwhile
+			if (NSFileManager.defaultManager.fileExistsAtPath(path)) {
+				audioStore.touch(entry)
+				stats.record(TransferCategory.CACHE_HIT, entry.bytes, requests = 1)
+				return AVPlayerItem(NSURL.fileURLWithPath(path))
 			}
-
-			else -> {
-				val localPath = downloadManager.getDownloadedFilePath(song.id)
-				if (localPath != null) {
-					NSURL.fileURLWithPath(localPath)
-				} else {
-					NSURL.URLWithString(getStreamUrl(song.id))
-				}
-			}
+		}
+		if (!online) return null
+		// AVPlayer's own transfer isn't observable: only the request is counted
+		stats.record(TransferCategory.STREAM, requests = 1)
+		return createAVPlayerItem(NSURL.URLWithString(url) ?: return null).apply {
+			// buffer far ahead, like Android: the radio fills it in a few long bursts
+			preferredForwardBufferDuration = 600.0
 		}
 	}
 }
