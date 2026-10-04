@@ -10,7 +10,7 @@ import com.russhwolf.settings.get
 import io.sentry.kotlin.multiplatform.SentryLevel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
-import org.koin.core.context.GlobalContext
+import org.koin.mp.KoinPlatformTools
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
@@ -38,7 +38,7 @@ const val SENTRY_ENABLED_KEY = "crashReportingEnabled"
  * where [initializeSentry] runs after [initKoin] anyway.
  */
 fun isSentryEnabled(): Boolean {
-	val settings = GlobalContext.getOrNull()?.getOrNull(Settings::class)
+	val settings = KoinPlatformTools.defaultContext().getOrNull()?.getOrNull(Settings::class)
 		?: Settings()
 	return settings.get(SENTRY_ENABLED_KEY, true)
 }
