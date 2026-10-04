@@ -8,6 +8,7 @@ import io.sentry.kotlin.multiplatform.protocol.User
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import io.sentry.kotlin.multiplatform.SentryLevel
+import eu.depau.loak.ui.screens.artist.viewmodels.ArtistNotFoundException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import org.koin.mp.KoinPlatformTools
@@ -49,6 +50,27 @@ fun isSentryEnabled(): Boolean {
  * signed query params (`username`, `token`, `salt`) ride along in it.
  */
 private val URL_REGEX = Regex("""https?://\S+""", RegexOption.IGNORE_CASE)
+
+/**
+ * Matches bare hostnames, host:port and InetSocketAddress-style `host/ip:port`
+ * chains, plus bare IPv4/IPv6, as Java/Ktor print them in connect errors:
+ * `failed to connect to starrs.depau.eu/192.168.3.204 (port 443)` or
+ * `Failed to connect to navikek.puntokek.com/172.67.183.168:443`. URLs are
+ * handled first by [URL_REGEX]; this catches the host/IP when it leaks without
+ * an `https?://` prefix.
+ */
+private val HOST_PORT_REGEX = Regex(
+	"""[^\s(),]+/\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?""" +
+		// bare IPv4[:port]
+		"""|(?<!\d)(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}(?!\d)(?::\d{1,5})?""" +
+		// bracketed IPv6 (InetSocketAddress form) with optional :port
+		"""|\[[0-9a-fA-F:.%]+\](?::\d{1,5})?""" +
+		// compressed IPv6 (contains ::)
+		"""|[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4}){0,3}::[0-9a-fA-F]{0,4}""" +
+		// hostname followed by " (port N)" — Java's ConnectException toString
+		"""|(?<![A-Za-z0-9])(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?=\s*\(\s*port\b)""",
+	RegexOption.IGNORE_CASE
+)
 
 /**
  * Matches credential-style `key=value` / `key: value` assignments anywhere in
@@ -98,6 +120,45 @@ fun initializeSentry() {
  */
 internal expect fun registerJvmSentrySanitizer()
 
+/**
+ * True for exceptions that are expected at runtime and pollute Sentry: offline /
+ * transient network failures, cancelled coroutines, unsupported media the player
+ * already handles, the desktop hot-reload stale-continuation NoClassDefFoundError,
+ * and the artist-missing-in-DB sentinel. Each one is already handled or logged
+ * locally; there is nothing actionable in reporting it.
+ *
+ * [type] is the exception class name as Sentry records it (fully-qualified for
+ * JVM, e.g. `java.net.ConnectException` / `kotlinx.coroutines.JobCancellationException`);
+ * [value] is its message, when the exception type alone isn't specific enough
+ * (a generic IOException / NoClassDefFoundError is only noise for one message).
+ *
+ * The JVM actuals drop events whose exceptions all match this; the KMP Apple
+ * beforeSend can't drop (returns a non-null event), but the connectivity text is
+ * still scrubbed by [sanitizeSentryText] there.
+ */
+internal fun isNoiseEvent(type: String?, value: String?): Boolean {
+	if (type == null) return false
+	when (type.substringAfterLast('.')) {
+		"JobCancellationException",
+		"CancellationException",
+		"TimeoutCancellationException",
+		"ConnectException",
+		"SocketTimeoutException",
+		"UnknownHostException",
+		"SocketException",
+		"UnsupportedAudioFileException",
+		"ArtistNotFoundException" -> return true
+	}
+	val v = value ?: return false
+	return (type == "java.io.IOException" && v.contains("SETTINGS preface")) ||
+		// desktop dev hot-reload only: a stale $...$N continuation class, never a real one
+		(type == "java.lang.NoClassDefFoundError" && v.contains("\$"))
+}
+
+/** For raw [Throwable] sources: adapt the class name into [isNoiseEvent]. */
+internal fun isNoiseException(ex: Throwable?): Boolean =
+	isNoiseEvent(ex?.javaClass?.name, ex?.message)
+
 private fun sanitizeSentryEvent(event: SentryEvent): SentryEvent {
 	event.message?.let { m ->
 		event.message = m.copy(
@@ -122,8 +183,14 @@ private fun sanitizeBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
  * Redact URLs and credential assignments from a string. Shared by the KMP
  * beforeSend and the JVM-native sentry sanitizers (Android and desktop).
  */
+private val UNKNOWN_HOST_REGEX =
+	Regex("""UnknownHostException[: ]{2}[A-Za-z0-9.\-]+""", RegexOption.IGNORE_CASE)
+
 internal fun String.sanitizeSentryText(): String =
 	URL_REGEX.replace(this, "[REDACTED_URL]")
+		.let { HOST_PORT_REGEX.replace(it, "[REDACTED_HOST]") }
+		// `UnknownHostException: navikek.puntokek.com` — the bare host is the whole message
+		.let { UNKNOWN_HOST_REGEX.replace(it, "UnknownHostException: [REDACTED_HOST]") }
 		.let { SENSITIVE_PARAM_REGEX.replace(it, "$1[REDACTED]") }
 
 /**

@@ -46,7 +46,15 @@ internal actual fun finishSentrySpan(span: Any, ok: Boolean, data: Map<String, A
 	span.finish(if (ok) SpanStatus.OK else SpanStatus.INTERNAL_ERROR)
 }
 
-internal fun sanitizeJvmEvent(event: SentryEvent): SentryEvent {
+internal fun sanitizeJvmEvent(event: SentryEvent): SentryEvent? {
+	// expected, already-handled failures (offline, cancelled, unsupported media,
+	// stale desktop continuation): drop the event outright so Sentry stays clean
+	val exceptions = event.exceptions
+	if (exceptions != null && exceptions.isNotEmpty() &&
+		exceptions.all { isNoiseEvent(it.type, it.value) }
+	) {
+		return null
+	}
 	event.message?.let { msg ->
 		msg.message = msg.message?.sanitizeSentryText()
 		msg.formatted = msg.formatted?.sanitizeSentryText()
