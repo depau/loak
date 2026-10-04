@@ -24,9 +24,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -60,6 +59,9 @@ class HomeViewModel(
 	sessionManager: SessionManager,
 	syncManager: SyncManager
 ) : ViewModel() {
+	/** During the first sync Home shows its progress, not shelves from a partial library. */
+	val sync = syncManager.syncState
+
 	val state: StateFlow<HomeUiState>
 		field = MutableStateFlow(HomeUiState())
 
@@ -78,8 +80,12 @@ class HomeViewModel(
 		}
 		// the library sync writes the cache in the background: reload once it's done
 		viewModelScope.launch {
-			syncManager.syncState.map { it.isSyncing }.distinctUntilChanged().drop(1)
-				.collect { syncing -> if (!syncing) refresh(reloadLibrary = true) }
+			var initial = sync.value.initial
+			sync.distinctUntilChangedBy { it.isSyncing }.drop(1).collect {
+				if (it.isSyncing) initial = it.initial
+				// Quick picks built from the partial library would otherwise stick around
+				else refresh(reloadLibrary = true, rebuildPicks = initial)
+			}
 		}
 		viewModelScope.launch {
 			repository.pins.drop(1).collect {

@@ -21,6 +21,7 @@ import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Album
 import eu.depau.loak.ui.components.common.ContentUnavailable
+import eu.depau.loak.ui.components.common.libraryEmptyLabel
 import eu.depau.loak.ui.components.layouts.artGridPlaceholder
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.util.loakAnimateItem
@@ -147,7 +148,7 @@ fun LazyGridScope.albumListScreenContent(
 				item(span = { GridItemSpan(maxLineSpan) }) {
 					ContentUnavailable(
 						icon = Icons.Outlined.Album,
-						label = stringResource(Res.string.info_no_albums)
+						label = libraryEmptyLabel(stringResource(Res.string.info_no_albums))
 					)
 				}
 			}

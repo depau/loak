@@ -16,8 +16,9 @@ import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.ui.core.LoginUiState
 
 class LoginManager(
-    private val repository: DbRepository,
-    private val sessionManager: SessionManager
+	private val repository: DbRepository,
+	private val sessionManager: SessionManager,
+	private val syncManager: SyncManager
 ) {
 	val scope = CoroutineScope(IoDispatcher + SupervisorJob())
 
@@ -81,14 +82,9 @@ class LoginManager(
 					passwordState.text.toString()
 				)
 
-				repository.syncEverything { progress, message ->
-					loginState.value = LoginUiState.Syncing(progress, message)
-				}.onSuccess {
-					loginState.value = LoginUiState.Success
-				}.onFailure { e ->
-					loginState.value = LoginUiState.Error(e as Exception)
-				}
-
+				loginState.value = LoginUiState.Success
+				// in the background, with a header on Home; joins the periodic loop's first pull
+				syncManager.triggerManualSync()
 			} catch (e: Exception) {
 				loginState.value = LoginUiState.Error(e)
 			}
@@ -108,7 +104,7 @@ class LoginManager(
 		sessionManager.login(url, username, password)
 		if (switched) scope.launch {
 			repository.removeEverything()
-			repository.syncEverything()
+			syncManager.pullLibrary()
 		}
 	}
 

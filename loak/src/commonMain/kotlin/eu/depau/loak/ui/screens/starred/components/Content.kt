@@ -61,6 +61,7 @@ import eu.depau.loak.domain.models.DomainSongListType
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.ui.components.common.ContentUnavailable
+import eu.depau.loak.ui.components.common.libraryEmptyLabel
 import eu.depau.loak.ui.components.common.SongRow
 import eu.depau.loak.ui.components.layouts.ArtCarousel
 import eu.depau.loak.ui.components.layouts.ArtCarouselItem
@@ -144,7 +145,7 @@ fun StarredScreenContent(
 		if (albums.isEmpty() && songs.isEmpty() && artists.isEmpty()) {
 			ContentUnavailable(
 				icon = Icons.Outlined.Star,
-				label = stringResource(Res.string.info_no_starred)
+				label = libraryEmptyLabel(stringResource(Res.string.info_no_starred))
 			)
 			return@Column
 		}

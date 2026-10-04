@@ -78,6 +78,7 @@ import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.common.SyncingCard
 import eu.depau.loak.ui.components.dialogs.DeletionDialog
 import eu.depau.loak.ui.components.dialogs.DeletionEndpoint
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
@@ -169,6 +170,7 @@ fun HomeFeed(
 	footer: (LazyGridScope.() -> Unit)? = null
 ) {
 	val state by viewModel.state.collectAsStateWithLifecycle()
+	val sync by viewModel.sync.collectAsStateWithLifecycle()
 	val selectedGenre by viewModel.selectedGenre.collectAsStateWithLifecycle()
 	val player = koinInject<MediaPlayerViewModel>()
 	val audioMuse = koinInject<PreferenceManager>().audioMuseIntegration
@@ -241,6 +243,13 @@ fun HomeFeed(
 		horizontalArrangement = Arrangement.spacedBy(5.dp),
 		state = gridState
 	) {
+		// every shelf is built from the library cache: none until it's filled
+		if (sync.isSyncing && sync.initial) {
+			item(key = "syncing", span = full) {
+				SyncingCard(sync, Modifier.padding(horizontal = 16.dp))
+			}
+			return@LazyVerticalGrid
+		}
 		if (!state.ready) return@LazyVerticalGrid
 		if (state.genres.isNotEmpty()) item(key = "genres", span = full) {
 			GenreChips(state.genres, selectedGenre, viewModel::selectGenre)

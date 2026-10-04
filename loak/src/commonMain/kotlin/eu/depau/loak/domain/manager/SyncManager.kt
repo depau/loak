@@ -37,6 +37,8 @@ import kotlin.time.Instant
 
 data class SyncState(
 	val isSyncing: Boolean = false,
+	/** The pull started with an empty library: what's in the cache meanwhile is partial. */
+	val initial: Boolean = false,
 	val progress: Float = 0f,
 	val message: StringResource = Res.string.info_status_idle
 )
@@ -169,7 +171,8 @@ class SyncManager(
 		Logger.i("SyncManager", "Starting full library pull...")
 		val startedAt = Clock.System.now()
 		val scan = scanStatus()
-		syncState.update { it.copy(isSyncing = true) }
+		val initial = albumDao.getAlbumCount() == 0
+		syncState.update { it.copy(isSyncing = true, initial = initial) }
 
 		val result = repository.syncEverything { progress, message ->
 			syncState.update {
@@ -187,7 +190,7 @@ class SyncManager(
 		}
 
 		syncState.update {
-			it.copy(isSyncing = false, message = Res.string.info_status_idle)
+			it.copy(isSyncing = false, initial = false, message = Res.string.info_status_idle)
 		}
 		result
 	}

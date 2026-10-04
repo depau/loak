@@ -11,10 +11,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,6 +28,7 @@ import eu.depau.loak.generated.resources.action_done
 import eu.depau.loak.generated.resources.action_start_listening
 import eu.depau.loak.generated.resources.info_a_few_more_things
 import eu.depau.loak.generated.resources.title_a_few_more_things
+import eu.depau.loak.ui.components.common.SyncingCard
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.IntegrationsGroup
 import org.jetbrains.compose.resources.stringResource
@@ -64,12 +63,7 @@ fun SetupIntegrationsScreen() {
 			) {
 				Text(stringResource(Res.string.title_a_few_more_things), style = MaterialTheme.typography.headlineMedium)
 				Text(stringResource(Res.string.info_a_few_more_things), style = MaterialTheme.typography.bodyLarge)
-				if (sync.isSyncing) Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondaryContainer) {
-					Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-						Text(stringResource(sync.message), style = MaterialTheme.typography.bodyMedium)
-						LinearProgressIndicator(progress = { sync.progress }, modifier = Modifier.fillMaxWidth())
-					}
-				}
+				if (sync.isSyncing) SyncingCard(sync)
 				IntegrationsGroup()
 			}
 			Row(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.End) {

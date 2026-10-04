@@ -67,7 +67,7 @@ fun LoginScreenContent(innerPadding: PaddingValues) {
 	val usernameState = viewModel.usernameState
 	val passwordState = viewModel.passwordState
 
-	val isBusy = loginState is LoginUiState.Loading || loginState is LoginUiState.Syncing
+	val isBusy = loginState is LoginUiState.Loading
 
 	val haptics = LocalHapticFeedback.current
 	val backStack = LocalNavStack.current
@@ -109,8 +109,7 @@ fun LoginScreenContent(innerPadding: PaddingValues) {
 			modifier = Modifier
 				.align(Alignment.TopCenter)
 				.padding(top = innerPadding.calculateTopPadding()),
-			isBusy = isBusy,
-			loginUiState = loginState
+			isBusy = isBusy
 		)
 
 		Column(
@@ -183,7 +182,6 @@ fun LoginScreenContent(innerPadding: PaddingValues) {
 					.padding(horizontal = 16.dp)
 					.padding(bottom = 8.dp)
 			) {
-				LoginScreenSyncStatus(loginUiState = loginState)
 				Button(
 					modifier = Modifier.fillMaxWidth(),
 					onClick = {

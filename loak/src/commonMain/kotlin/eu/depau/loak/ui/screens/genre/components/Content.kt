@@ -11,6 +11,7 @@ import eu.depau.loak.domain.models.DomainGenre
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Genre
 import eu.depau.loak.ui.components.common.ContentUnavailable
+import eu.depau.loak.ui.components.common.libraryEmptyLabel
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.util.loakAnimateItem
 
@@ -35,7 +36,7 @@ fun LazyGridScope.genreListScreenContent(
 				item(span = { GridItemSpan(maxLineSpan) }) {
 					ContentUnavailable(
 						icon = Icons.Outlined.Genre,
-						label = stringResource(Res.string.info_no_genres)
+						label = libraryEmptyLabel(stringResource(Res.string.info_no_genres))
 					)
 				}
 			}

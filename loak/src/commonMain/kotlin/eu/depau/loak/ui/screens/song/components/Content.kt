@@ -12,6 +12,7 @@ import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Note
 import eu.depau.loak.ui.components.common.ContentUnavailable
+import eu.depau.loak.ui.components.common.libraryEmptyLabel
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.util.loakAnimateItem
 
@@ -67,7 +68,7 @@ fun LazyListScope.songListScreenContent(
 				item {
 					ContentUnavailable(
 						icon = Icons.Outlined.Note,
-						label = stringResource(Res.string.info_no_songs)
+						label = libraryEmptyLabel(stringResource(Res.string.info_no_songs))
 					)
 				}
 			}
