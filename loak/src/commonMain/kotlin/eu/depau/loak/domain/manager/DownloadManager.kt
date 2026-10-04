@@ -1,239 +1,216 @@
 package eu.depau.loak.domain.manager
 
-import eu.depau.loak.util.IoDispatcher
-
 import coil3.ImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.size.Size
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.onDownload
-import io.ktor.client.request.header
-import io.ktor.client.request.prepareRequest
-import io.ktor.client.statement.bodyAsChannel
-import io.ktor.http.HttpMethod
+import eu.depau.loak.data.database.dao.AlbumDao
+import eu.depau.loak.data.database.dao.DownloadDao
+import eu.depau.loak.data.database.dao.LyricDao
+import eu.depau.loak.data.database.dao.SongDao
+import eu.depau.loak.data.database.entities.AudioFileEntity
+import eu.depau.loak.data.database.entities.DownloadEntity
+import eu.depau.loak.data.database.entities.DownloadStatus
+import eu.depau.loak.data.database.entities.LyricEntity
+import eu.depau.loak.data.database.mappers.toDomainModel
+import eu.depau.loak.di.PlatformType
+import eu.depau.loak.domain.models.AudioQuality
+import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.domain.models.DomainSongCollection
+import eu.depau.loak.domain.repositories.LyricsRepository
+import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.notice_download_waiting_wifi
+import eu.depau.loak.util.IoDispatcher
+import eu.depau.loak.util.Logger
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
-import eu.depau.loak.data.database.dao.AlbumDao
-import eu.depau.loak.data.database.dao.DownloadDao
-import eu.depau.loak.data.database.dao.LyricDao
-import eu.depau.loak.data.database.entities.DownloadEntity
-import eu.depau.loak.data.database.entities.DownloadStatus
-import eu.depau.loak.data.database.entities.LyricEntity
-import eu.depau.loak.data.database.entities.TransferCategory
-import eu.depau.loak.di.PlatformType
-import eu.depau.loak.domain.models.DomainSong
-import eu.depau.loak.domain.models.DomainSongCollection
-import eu.depau.loak.domain.repositories.LyricsRepository
-import eu.depau.loak.util.Logger
+import kotlinx.coroutines.withContext
+import kotlinx.io.files.Path
+import kotlinx.io.files.SystemFileSystem
+import kotlin.time.Duration.Companion.seconds
 import coil3.PlatformContext as CoilPlatformContext
 
+/**
+ * Downloads are pinned [AudioStore] entries. Asking for one pins the song's best stored copy and,
+ * if that's below the download quality, leaves a pinned empty entry: the queue, which survives
+ * restarts. Queued entries are fetched a few at a time while online, and only on an unmetered
+ * network unless [overCellular]; failures retry with backoff. Progress lives in memory.
+ * On Android a WorkManager job keeps the process around (and restarts it) while any are queued.
+ */
 class DownloadManager(
 	private val coilPlatformContext: CoilPlatformContext,
 	private val imageLoader: ImageLoader,
-	private val downloadDao: DownloadDao,
+	private val legacyDao: DownloadDao,
 	private val albumDao: AlbumDao,
-	private val storageManager: StorageManager,
+	private val songDao: SongDao,
 	private val lyricsRepository: LyricsRepository,
 	private val lyricDao: LyricDao,
 	private val sessionManager: SessionManager,
 	private val preferenceManager: PreferenceManager,
 	private val connectivityManager: ConnectivityManager,
+	private val snackBarManager: SnackBarManager,
+	private val store: AudioStore,
+	private val fetcher: AudioFetcher,
 	private val platformType: PlatformType
 ) {
 	private val scope = CoroutineScope(IoDispatcher + SupervisorJob())
-	private val client = sessionManager.api.httpClient
-	private val activeDownloadsMutex = Mutex()
-	private val activeDownloads = mutableMapOf<String, Job>()
-	private val downloadSemaphore =
-		Semaphore(10)// idk a good number, maybe u should be able to choose
 
-	private var libraryDownloadJob: Job? = null
+	// launching and cancelling downloads, so a cancelled one isn't relaunched from stale state
+	private val queueMutex = Mutex()
+	private val jobs = MutableStateFlow(emptyMap<String, Job>())
+	private val slots = Semaphore(CONCURRENCY)
+	private val progress = MutableStateFlow(emptyMap<String, Float>())
 
-	val allDownloads = downloadDao.getAllDownloads().map { it.toImmutableList() }
-	val downloadCount = downloadDao.getDownloadsCount()
-	val downloadSize = allDownloads.map { downloads ->
-		downloads
-			.filter { it.status == DownloadStatus.DOWNLOADED && it.filePath != null }
-			.sumOf { storageManager.getFileSize(it.filePath!!) }
+	/** Songs whose download gave up after [MAX_ATTEMPTS], until [retryFailed]. */
+	private val failed = MutableStateFlow(emptySet<String>())
+
+	private val pinned: StateFlow<List<AudioFileEntity>> =
+		store.pinned.stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+	/** Whether downloads may use mobile data; else they wait for Wi-Fi (an unmetered network). */
+	val overCellular: StateFlow<Boolean>
+		field = MutableStateFlow(preferenceManager.downloadOverCellular)
+
+	/** Whether queued downloads may run now. */
+	val canRun: StateFlow<Boolean> = combine(
+		connectivityManager.isOnline, connectivityManager.isCellular, overCellular
+	) { online, cellular, overCellular -> online && (overCellular || !cellular) }
+		.stateIn(scope, SharingStarted.Eagerly, false)
+
+	/** Whether any download is queued, failed ones aside. */
+	val queued: Flow<Boolean> = combine(pinned, failed) { entries, failed ->
+		entries.any { !it.complete && it.songId !in failed }
+	}.distinctUntilChanged()
+
+	/** One per downloaded or queued song; [DownloadStatus.DOWNLOADED] once a copy is complete. */
+	val allDownloads = combine(pinned, progress, failed) { entries, progress, failed ->
+		entries.groupBy { it.songId }.map { (id, copies) ->
+			when {
+				copies.any { it.complete } -> DownloadEntity(id, DownloadStatus.DOWNLOADED, 1f)
+				id in failed -> DownloadEntity(id, DownloadStatus.FAILED)
+				else -> DownloadEntity(id, DownloadStatus.DOWNLOADING, progress[id] ?: 0f)
+			}
+		}.toImmutableList()
 	}
 
-	val downloadedSongs: StateFlow<Map<String, String>>
-		field = MutableStateFlow(emptyMap())
+	private val complete = pinned.map { entries -> entries.filter { it.complete } }
 
-	val isDownloadingLibrary: StateFlow<Boolean>
-		field = MutableStateFlow(false)
+	val downloadCount = complete.map { entries -> entries.distinctBy { it.songId }.size }
+	val downloadSize = complete.map { entries -> entries.sumOf { it.bytes } }
 
-	val libraryDownloadProgress: StateFlow<Float>
-		field = MutableStateFlow(0f)
+	/** Downloaded songs' best files: song id to path. */
+	val downloadedSongs: StateFlow<Map<String, String>> = complete.map { entries ->
+		entries.groupBy { it.songId }.mapValues { (_, copies) ->
+			store.pathOf(copies.maxBy { AudioQuality.parse(it.quality) })
+		}
+	}.stateIn(scope, SharingStarted.Eagerly, emptyMap())
+
+	/** Songs queued by [downloadEntireLibrary], for its progress; 0 when not downloading it. */
+	private val libraryTotal = MutableStateFlow(0)
+	private val queuedCount = combine(pinned, failed) { entries, failed ->
+		entries.filter { !it.complete && it.songId !in failed }.distinctBy { it.songId }.size
+	}
+
+	val isDownloadingLibrary: StateFlow<Boolean> =
+		combine(libraryTotal, queuedCount) { total, queued -> total > 0 && queued > 0 }
+			.stateIn(scope, SharingStarted.Eagerly, false)
+
+	val libraryDownloadProgress: StateFlow<Float> =
+		combine(libraryTotal, queuedCount) { total, queued ->
+			if (total == 0) 0f else 1f - queued.coerceAtMost(total).toFloat() / total
+		}.stateIn(scope, SharingStarted.Eagerly, 0f)
 
 	init {
-		scope.launch {
-			allDownloads.collectLatest { downloads ->
-				downloadedSongs.value = downloads
-					.filter { it.status == DownloadStatus.DOWNLOADED && it.filePath != null }
-					.associate { it.songId to it.filePath!! }
-			}
-		}
-	}
-
-	fun getDownloadedFilePath(songId: String): String? {
-		return downloadedSongs.value[songId]
-	}
-
-	fun downloadSong(song: DomainSong): Job {
-		val job = scope.launch(IoDispatcher) {
-			val alreadyActive =
-				activeDownloadsMutex.withLock { activeDownloads.containsKey(song.id) }
-			if (alreadyActive) return@launch
-
+		if (store.available) scope.launch {
+			// store entries belong to the logged-in server
+			sessionManager.serverKey.first { it.isNotEmpty() }
 			try {
-				activeDownloadsMutex.withLock { activeDownloads[song.id] = coroutineContext[Job]!! }
-
-				downloadSemaphore.withPermit {
-					executeDownloadProcess(song)
-				}
-			} finally {
-				activeDownloadsMutex.withLock { activeDownloads.remove(song.id) }
+				importLegacyDownloads()
+			} catch (e: Exception) {
+				Logger.e(TAG, "importing old downloads failed", e)
 			}
+			canRun.collectLatest { if (it) runQueue() }
 		}
-		return job
+	}
+
+	/** The downloaded file to play for [songId], if any. */
+	fun getDownloadedFilePath(songId: String): String? = downloadedSongs.value[songId]
+
+	fun setOverCellular(allowed: Boolean) {
+		preferenceManager.downloadOverCellular = allowed
+		overCellular.value = allowed
+	}
+
+	fun downloadSong(song: DomainSong) {
+		scope.launch { enqueue(listOf(song)) }
 	}
 
 	suspend fun downloadCollection(collection: DomainSongCollection) {
-		collection.songs
-			.filter { !isDownloaded(it.id) }
-			.forEach { downloadSong(it) }
+		enqueue(collection.songs.filter { it.id !in downloadedSongs.value })
 	}
 
 	fun downloadEntireLibrary(songs: List<DomainSong>) {
 		if (isDownloadingLibrary.value) return
-
-		libraryDownloadJob = scope.launch(IoDispatcher) {
-			try {
-				isDownloadingLibrary.value = true
-				libraryDownloadProgress.value = 0f
-
-				val songsToDownload = songs.filter { !isDownloaded(it.id) }
-				val totalToDownload = songsToDownload.size
-
-				if (totalToDownload == 0) {
-					isDownloadingLibrary.value = false
-					libraryDownloadProgress.value = 1f
-					return@launch
-				}
-
-				val downloadQueue = Channel<DomainSong>(Channel.UNLIMITED)
-				songsToDownload.forEach { downloadQueue.trySend(it) }
-				downloadQueue.close()
-
-				var processedCount = 0
-				val progressMutex = Mutex()
-
-				val workers = List(10) {
-					launch {
-						for (song in downloadQueue) {
-							downloadSong(song).join()
-
-							progressMutex.withLock {
-								processedCount++
-								libraryDownloadProgress.value =
-									processedCount.toFloat() / totalToDownload.toFloat()
-							}
-						}
-					}
-				}
-
-				workers.joinAll()
-				isDownloadingLibrary.value = false
-
-			} catch (_: CancellationException) {
-				isDownloadingLibrary.value = false
-				libraryDownloadProgress.value = 0f
-			}
+		scope.launch {
+			val toDownload = songs.filter { it.id !in downloadedSongs.value }
+			libraryTotal.value = toDownload.size
+			enqueue(toDownload)
 		}
 	}
 
 	fun cancelAllActiveDownloads() {
-		libraryDownloadJob?.cancel()
-		libraryDownloadJob = null
-		isDownloadingLibrary.value = false
-		libraryDownloadProgress.value = 0f
-
-		scope.launch(IoDispatcher) {
-			val jobsToCancel = activeDownloadsMutex.withLock {
-				val copy = activeDownloads.toMap()
-				activeDownloads.clear()
-				copy
-			}
-
-			jobsToCancel.forEach { (songId, job) ->
-				job.cancel()
-				val existing = downloadDao.getDownloadById(songId)
-				if (existing?.status == DownloadStatus.DOWNLOADING) {
-					downloadDao.deleteDownload(songId)
-				}
+		libraryTotal.value = 0
+		scope.launch {
+			cancel(jobs.value.keys) {
+				store.dropPending(pinned.value.filter { !it.complete }.map { it.songId }.toSet())
 			}
 		}
 	}
 
 	fun cancelDownload(songId: String) {
-		scope.launch(IoDispatcher) {
-			activeDownloadsMutex.withLock {
-				activeDownloads[songId]?.cancel()
-				activeDownloads.remove(songId)
-			}
-
-			val existing = downloadDao.getDownloadById(songId)
-			if (existing?.status == DownloadStatus.DOWNLOADING
-				|| existing?.status == DownloadStatus.FAILED
-			) {
-				downloadDao.deleteDownload(songId)
-			}
-		}
+		scope.launch { cancel(listOf(songId)) { store.dropPending(listOf(songId)) } }
 	}
 
 	fun cancelCollectionDownload(collection: DomainSongCollection) {
-		collection.songs.forEach { song ->
-			cancelDownload(song.id)
-		}
+		val ids = collection.songs.map { it.id }
+		scope.launch { cancel(ids) { store.dropPending(ids) } }
 	}
 
+	/** Turns the song back into cache, which eviction frees when over the cache limit. */
 	fun deleteDownload(songId: String) {
-		cancelDownload(songId)
-		scope.launch {
-			val download = downloadDao.getDownloadById(songId)
-			download?.filePath?.let { storageManager.deleteFile(it) }
-			downloadDao.deleteDownload(songId)
-		}
+		scope.launch { cancel(listOf(songId)) { store.unpin(listOf(songId)) } }
 	}
 
 	fun deleteDownloadedCollection(collection: DomainSongCollection) {
-		collection.songs.forEach { song ->
-			deleteDownload(song.id)
-		}
+		val ids = collection.songs.map { it.id }
+		scope.launch { cancel(ids) { store.unpin(ids) } }
 	}
 
-	suspend fun isDownloaded(songId: String): Boolean {
-		return downloadDao.getDownloadById(songId)?.status == DownloadStatus.DOWNLOADED
-	}
+	suspend fun isDownloaded(songId: String): Boolean = songId in store.downloadedIds()
 
 	fun getCollectionDownloadStatus(songIds: List<String>): Flow<DownloadStatus> {
 		return allDownloads.map { downloads ->
@@ -252,39 +229,173 @@ class DownloadManager(
 	}
 
 	fun clearAllDownloads() {
-		scope.launch(IoDispatcher) {
-			cancelAllActiveDownloads()
-			storageManager.clearDownloads()
-			downloadDao.clearAllDownloads()
-			Logger.i("DownloadManager", "cleared all downloads")
+		libraryTotal.value = 0
+		scope.launch {
+			cancel(jobs.value.keys) { store.unpin(pinned.value.map { it.songId }.toSet()) }
+			Logger.i(TAG, "cleared all downloads")
 		}
 	}
 
-	private suspend fun executeDownloadProcess(song: DomainSong) {
-		try {
-			Logger.i("DownloadManager", "beginning download for ${song.id}")
-			downloadDao.insertDownload(DownloadEntity(song.id, DownloadStatus.DOWNLOADING, 0f))
+	/** Gives failed downloads another round of attempts. */
+	fun retryFailed() {
+		failed.value = emptySet()
+	}
 
-			cacheCoverArt(song.coverArtId)
-			cacheAlbumCoverArt(song.albumId)
-			cacheLyrics(song)
-			downloadAudioFile(song)
+	/** Suspends while downloads can still make progress; true if some failed meanwhile. */
+	suspend fun awaitIdle(): Boolean {
+		combine(pinned, failed, jobs) { entries, failed, jobs ->
+			jobs.isEmpty() && entries.none { !it.complete && it.songId !in failed }
+		}.first { it }
+		return failed.value.isNotEmpty()
+	}
 
-		} catch (e: Exception) {
-			if (e is CancellationException) throw e
-			Logger.e("DownloadManager", "Failed to download song ${song.id}", e)
-			downloadDao.insertDownload(DownloadEntity(song.id, DownloadStatus.FAILED, 0f))
-		} finally {
-			activeDownloadsMutex.withLock {
-				activeDownloads.remove(song.id)
+	private suspend fun enqueue(songs: List<DomainSong>) {
+		if (!store.available || songs.isEmpty()) return
+		val quality = downloadQuality()
+		val ids = songs.map { it.id }.toSet()
+		failed.update { it - ids }
+		var queued = false
+		for (song in songs) {
+			queued = store.pin(song.id, quality, extension(quality, song.fileExtension)) || queued
+		}
+		if (queued && connectivityManager.isOnline.value && !canRun.value) {
+			snackBarManager.notify(Res.string.notice_download_waiting_wifi)
+		}
+	}
+
+	private suspend fun cancel(songIds: Collection<String>, then: suspend () -> Unit) =
+		queueMutex.withLock {
+			songIds.mapNotNull { jobs.value[it] }.forEach { it.cancelAndJoin() }
+			failed.update { it - songIds.toSet() }
+			then()
+		}
+
+	/** Runs queued downloads, starting new ones as they're queued, until cancelled. */
+	private suspend fun runQueue() = coroutineScope {
+		// e.g. back on Wi-Fi: worth trying again
+		failed.value = emptySet()
+		combine(pinned, failed) { _, _ -> }.collect {
+			queueMutex.withLock {
+				// fresh from the database: a download just cancelled must not start again
+				for (entry in store.pendingDownloads()) {
+					val id = entry.songId
+					if (id in jobs.value || id in failed.value) continue
+					val job = launch(start = CoroutineStart.LAZY) {
+						try {
+							download(entry)
+						} finally {
+							jobs.update { it - id }
+							progress.update { it - id }
+						}
+					}
+					jobs.update { it + (id to job) }
+					job.start()
+				}
 			}
 		}
+	}
+
+	private suspend fun download(entry: AudioFileEntity) {
+		val quality = AudioQuality.parse(entry.quality)
+		cacheExtras(entry.songId)
+		repeat(MAX_ATTEMPTS) { attempt ->
+			if (attempt > 0) delay(RETRY_DELAY * (1 shl (attempt - 1)))
+			if (slots.withPermit { fetch(entry.songId, quality) }) return
+		}
+		Logger.w(TAG, "giving up on downloading ${entry.songId} for now")
+		failed.update { it + entry.songId }
+	}
+
+	/** One attempt at fetching [songId] at [quality]; true once it's in the store. */
+	private suspend fun fetch(songId: String, quality: AudioQuality): Boolean {
+		val fetch = fetcher.fetch(songId, quality, extension(quality, null), download = true) {
+			sessionManager.api.getStreamUrl(
+				id = songId,
+				maxBitRate = quality.kbps,
+				format = quality.format?.takeIf { it != "default" },
+				// if this is true u get "stream was reset: INTERNAL_ERROR" for some reason
+				estimateContentLength = false
+			)
+		} ?: return store.bestComplete(songId)
+			?.let { AudioQuality.parse(it.quality) >= quality } == true
+		try {
+			val result = fetch.progress.first { p ->
+				p.total?.takeIf { it > 0 }?.let { total ->
+					val percent = (p.bytes * 100 / total) / 100f
+					if (progress.value[songId] != percent) {
+						progress.update { it + (songId to percent) }
+					}
+				}
+				p.done || p.failed
+			}
+			// a fetch of another quality was running (playback): try again for ours
+			return result.done && fetch.quality == quality
+		} catch (e: CancellationException) {
+			if (fetch.download) withContext(NonCancellable) { fetch.cancelAndJoin() }
+			throw e
+		}
+	}
+
+	/** The quality to download at, per the network downloads use and the download settings. */
+	private fun downloadQuality(): AudioQuality {
+		val cellular = connectivityManager.isCellular.value && overCellular.value
+		val prefs = preferenceManager
+		if (prefs.isAdvancedDownloadTranscodingActive) {
+			return AudioQuality.of(
+				if (cellular) prefs.customDownloadFormatCellular
+				else prefs.customDownloadFormatWifi,
+				if (cellular) prefs.customDownloadMaxBitrateCellular
+				else prefs.customDownloadMaxBitrateWifi
+			)
+		}
+		val q = if (cellular) prefs.downloadQualityCellular else prefs.downloadQualityWifi
+		return when (platformType) {
+			PlatformType.Android -> AudioQuality.of(q.containerAndroid, q.bitrateAndroid)
+			PlatformType.Desktop -> AudioQuality.of("mp3", q.bitrateIos)
+			else -> AudioQuality.of(q.containerIos, q.bitrateIos)
+		}
+	}
+
+	/**
+	 * Moves files downloaded before the [AudioStore] into it, pinned, and queues downloads that
+	 * hadn't finished. Their quality wasn't recorded: a file with the song's own suffix is taken
+	 * as the original, anything else as the lowest quality of its format. One-time: imported
+	 * records are deleted.
+	 */
+	private suspend fun importLegacyDownloads() {
+		val legacy = legacyDao.getAllDownloadsList()
+		if (legacy.isEmpty()) return
+		Logger.i(TAG, "importing ${legacy.size} old downloads")
+		val quality = downloadQuality()
+		for (download in legacy) {
+			val song = songDao.getSongById(download.songId)
+			val path = download.filePath
+			if (download.status == DownloadStatus.DOWNLOADED && path != null &&
+				SystemFileSystem.exists(Path(path))
+			) {
+				val ext = path.substringAfterLast('.', "").lowercase()
+				val original = song?.fileExtension.equals(ext, ignoreCase = true)
+				val stored = if (original) AudioQuality.Raw else AudioQuality(ext, 0)
+				store.import(download.songId, stored, path)
+			} else {
+				store.pin(download.songId, quality, extension(quality, song?.fileExtension))
+			}
+			legacyDao.deleteDownload(download.songId)
+		}
+	}
+
+	/** Cover art and lyrics, to show offline; best effort. */
+	private suspend fun cacheExtras(songId: String) {
+		val song = songDao.getSongById(songId)?.toDomainModel() ?: return
+		cacheCoverArt(song.coverArtId)
+		cacheAlbumCoverArt(song.albumId)
+		cacheLyrics(song)
 	}
 
 	private suspend fun cacheCoverArt(coverId: String?) {
 		if (coverId == null) return
 
-		Logger.i("DownloadManager", "caching cover art for $coverId")
+		Logger.i(TAG, "caching cover art for $coverId")
 		val coverArtUrl = sessionManager.getCoverArtUrl(coverId)
 
 		val imageRequest = ImageRequest.Builder(coilPlatformContext)
@@ -297,28 +408,21 @@ class DownloadManager(
 			.build()
 
 		imageLoader.execute(imageRequest)
-		Logger.i("DownloadManager", "cached cover art for $coverId")
 	}
 
 	private suspend fun cacheAlbumCoverArt(albumId: String?) {
 		if (albumId == null) return
 
 		try {
-			val albumWithSongs = albumDao.getAlbumById(albumId)
-			val albumCoverId = albumWithSongs?.album?.coverArtId
-
-			if (albumCoverId != null) {
-				Logger.i("DownloadManager", "Found album cover $albumCoverId for album $albumId")
-				cacheCoverArt(albumCoverId)
-			}
+			val albumCoverId = albumDao.getAlbumById(albumId)?.album?.coverArtId
+			if (albumCoverId != null) cacheCoverArt(albumCoverId)
 		} catch (e: Exception) {
 			if (e is CancellationException) throw e
-			Logger.e("DownloadManager", "Failed to cache album cover art for album $albumId", e)
+			Logger.e(TAG, "Failed to cache album cover art for album $albumId", e)
 		}
 	}
 
 	private suspend fun cacheLyrics(song: DomainSong) {
-		Logger.i("DownloadManager", "caching lyrics for ${song.id}")
 		try {
 			val lyricsResult = lyricsRepository.fetchLyrics(song)
 			if (lyricsResult != null && lyricsResult.rawContent != null) {
@@ -329,90 +433,21 @@ class DownloadManager(
 						providerName = lyricsResult.providerName
 					)
 				)
-				Logger.i("DownloadManager", "cached lyrics for ${song.id}")
 			}
 		} catch (e: Exception) {
 			if (e is CancellationException) throw e
-			Logger.e("DownloadManager", "Failed to cache lyrics for ${song.id}", e)
+			Logger.e(TAG, "Failed to cache lyrics for ${song.id}", e)
 		}
 	}
 
-	private suspend fun downloadAudioFile(song: DomainSong) {
-		var lastProgress = 0f
-		var progressJob: Job? = null
+	private companion object {
+		const val TAG = "DownloadManager"
+		const val CONCURRENCY = 3
+		const val MAX_ATTEMPTS = 5
+		val RETRY_DELAY = 30.seconds
 
-		val isCellular = connectivityManager.isCellular.value
-		val bitrate = if (preferenceManager.isAdvancedDownloadTranscodingActive) {
-			if (isCellular) preferenceManager.customDownloadMaxBitrateCellular else preferenceManager.customDownloadMaxBitrateWifi
-		} else {
-			val quality = if (isCellular) preferenceManager.downloadQualityCellular else preferenceManager.downloadQualityWifi
-			if (platformType == PlatformType.Android) quality.bitrateAndroid else quality.bitrateIos
-		}
-		val container = if (preferenceManager.isAdvancedDownloadTranscodingActive) {
-			if (isCellular) preferenceManager.customDownloadFormatCellular else preferenceManager.customDownloadFormatWifi
-		} else {
-			val quality = if (isCellular) preferenceManager.downloadQualityCellular else preferenceManager.downloadQualityWifi
-			when (platformType) {
-				PlatformType.Android -> quality.containerAndroid
-				PlatformType.Desktop -> "mp3"
-				else -> quality.containerIos
-			}
-		}
-		val extension = container?.takeIf { it.isNotBlank() } ?: song.fileExtension
-
-		val request = client.prepareRequest(
-			sessionManager.api.getStreamUrl(
-				id = song.id,
-				maxBitRate = bitrate,
-				format = container?.takeIf { it.isNotBlank() },
-				// if this is true u get "stream was reset: INTERNAL_ERROR" for some reason
-				estimateContentLength = false
-			)
-		) {
-			method = HttpMethod.Get
-			transferCategory(TransferCategory.DOWNLOAD)
-			onDownload { bytesSentTotal, contentLength ->
-				if (contentLength != null && contentLength > 0L) {
-					val progress = (bytesSentTotal.toDouble() / contentLength).toFloat()
-					if (progress - lastProgress >= 0.01f || progress == 1f) {
-						lastProgress = progress
-						Logger.i("DownloadManager", "downloading ${song.id} $progress")
-
-						progressJob?.cancel()
-
-						progressJob = scope.launch {
-							downloadDao.updateProgress(
-								song.id,
-								DownloadStatus.DOWNLOADING,
-								progress
-							)
-						}
-					}
-				} else {
-					Logger.i("DownloadManager", "downloaded ${song.id}")
-				}
-			}
-		}
-
-		request.execute { response ->
-			Logger.i("DownloadManager", "writing download for ${song.id}")
-			val path = storageManager.getDownloadPath(
-				song.id,
-				extension ?: "mp3" // TODO: idk how to handle this being null lol
-			)
-			storageManager.saveFile(path, response.bodyAsChannel())
-			Logger.i("DownloadManager", "wrote download for ${song.id}")
-
-			progressJob?.cancel()
-
-			downloadDao.insertDownload(
-				DownloadEntity(
-					song.id,
-					DownloadStatus.DOWNLOADED,
-					1f,
-					path
-				)
-			)
-		}
+		// the format names the file; the original keeps the song's own suffix
+		fun extension(quality: AudioQuality, suffix: String?) =
+			quality.format?.takeIf { it != "default" } ?: suffix ?: "bin"
 	}
 }

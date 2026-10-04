@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -55,8 +56,9 @@ class AudioFetcher(
 	private val mutex = Mutex()
 	private val active = MutableStateFlow(emptyMap<String, Fetch>())
 
-	/** Whether any song is being fetched, i.e. the network is in use. */
-	val busy: Flow<Boolean> = active.map { it.isNotEmpty() }.distinctUntilChanged()
+	/** Whether any song is being fetched for playback (downloads aside). */
+	val busy: Flow<Boolean> =
+		active.map { all -> all.values.any { !it.download } }.distinctUntilChanged()
 
 	/**
 	 * [bytes] are in the file at [Fetch.path]; [total] is known once the server answered, if it
@@ -73,26 +75,33 @@ class AudioFetcher(
 	inner class Fetch internal constructor(
 		val songId: String,
 		val quality: AudioQuality,
+		/** A download: pinned, counted as such, and left alone by [cancelExcept]. */
+		val download: Boolean,
 		internal val writer: AudioStore.Writer
 	) {
 		val path = writer.path
 		val progress = MutableStateFlow(Progress(writer.offset))
 		internal lateinit var job: Job
+
+		suspend fun cancelAndJoin() = job.cancelAndJoin()
 	}
 
 	/**
-	 * Fetches [songId] at [quality] from [url], or joins the song's running fetch. Null when the
-	 * store won't take it (none, caching off, already complete): stream it instead.
+	 * Fetches [songId] at [quality] from [url], or joins the song's running fetch (whatever its
+	 * quality). Null when the store won't take it (none, caching off, already complete): stream
+	 * it instead. A [download] is pinned in the store.
 	 */
 	suspend fun fetch(
 		songId: String,
 		quality: AudioQuality,
 		extension: String,
+		download: Boolean = false,
 		url: () -> String
 	): Fetch? = mutex.withLock {
 		active.value[songId]?.let { return it }
-		val writer = store.openWrite(songId, quality, extension, resume = true) ?: return null
-		val fetch = Fetch(songId, quality, writer)
+		val writer = store.openWrite(songId, quality, extension, pinned = download, resume = true)
+			?: return null
+		val fetch = Fetch(songId, quality, download, writer)
 		fetch.job = scope.launch(start = CoroutineStart.LAZY) {
 			try {
 				run(fetch, url())
@@ -106,18 +115,20 @@ class AudioFetcher(
 	}
 
 	/** Stops fetching songs not in [keep], e.g. ones that left the play queue's window. */
-	fun cancelExcept(keep: Set<String>) =
-		active.value.values.filter { it.songId !in keep }.forEach { it.job.cancel() }
+	fun cancelExcept(keep: Set<String>) = active.value.values
+		.filter { !it.download && it.songId !in keep }.forEach { it.job.cancel() }
 
 	private suspend fun run(fetch: Fetch, url: String) {
 		val writer = fetch.writer
+		val category = if (fetch.download) TransferCategory.DOWNLOAD else TransferCategory.STREAM
 		try {
 			traced("audio.fetch", "Fetch audio") { data ->
 				data["song_id"] = fetch.songId
 				data["quality"] = fetch.quality.key
+				data["download"] = fetch.download
 				data["metered"] = connectivityManager.isCellular.value
 				data["resumed_from"] = writer.offset
-				stats.record(TransferCategory.STREAM, requests = 1)
+				stats.record(category, requests = 1)
 				var received = 0L
 				try {
 					sessionManager.api.httpClient.prepareGet(url) {
@@ -137,7 +148,7 @@ class AudioFetcher(
 							if (n == -1) break
 							writer.write(buffer, 0, n)
 							received += n
-							stats.record(TransferCategory.STREAM, bytes = n.toLong())
+							stats.record(category, bytes = n.toLong())
 							fetch.progress.update { it.copy(bytes = writer.offset) }
 						}
 						if (total != null && writer.offset != total) {

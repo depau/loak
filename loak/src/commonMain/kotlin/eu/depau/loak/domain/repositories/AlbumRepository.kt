@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.repositories
 
+import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.util.IoDispatcher
 
 import kotlinx.collections.immutable.ImmutableList
@@ -9,8 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import eu.depau.loak.data.database.dao.AlbumDao
-import eu.depau.loak.data.database.dao.DownloadDao
-import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.data.database.mappers.toEntity
@@ -25,7 +24,7 @@ import kotlin.time.Clock
 
 class AlbumRepository(
 	private val albumDao: AlbumDao,
-	private val downloadDao: DownloadDao,
+	private val audioStore: AudioStore,
 	private val syncManager: SyncManager
 ) {
 	private suspend fun getLocalData(
@@ -34,10 +33,7 @@ class AlbumRepository(
 		filters: Set<DomainFilter> = emptySet()
 	): ImmutableList<DomainAlbum> {
 		val downloadedSongIds = if (filters.contains(DomainFilter.Downloaded)) {
-			downloadDao.getAllDownloadsList()
-				.filter { it.status == DownloadStatus.DOWNLOADED }
-				.map { it.songId }
-				.toSet()
+			audioStore.downloadedIds()
 		} else null
 
 		val rawAlbums = albumDao.getAlbumsByQuery(listType.toSqlQuery())

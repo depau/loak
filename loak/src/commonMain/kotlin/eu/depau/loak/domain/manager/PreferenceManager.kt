@@ -87,6 +87,8 @@ class PreferenceManager(
 	var customDownloadMaxBitrateCellular by preference(0)
 	var customDownloadFormatWifi by preference("")
 	var customDownloadFormatCellular by preference("")
+	/** Off: downloads wait for Wi-Fi (an unmetered network). */
+	var downloadOverCellular by preference(false)
 
 	var nowPlayingToolbarPosition by preference(ToolbarPosition.Bottom)
 	var nowPlayingSongInfo by preference(true)

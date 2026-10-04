@@ -13,6 +13,7 @@ import eu.depau.loak.di.ActivityProvider
 import eu.depau.loak.di.ResourceProvider
 import eu.depau.loak.di.initKoin
 import eu.depau.loak.di.initializeSentry
+import eu.depau.loak.domain.manager.scheduleDownloads
 import kotlin.system.exitProcess
 
 class Application : android.app.Application() {
@@ -52,6 +53,7 @@ class Application : android.app.Application() {
 			androidContext(this@Application)
 			androidLogger()
 		}
+		scheduleDownloads(this)
 	}
 
 	private fun isCrashProcess(): Boolean {

@@ -173,6 +173,7 @@ kotlin {
 			implementation(libs.bundles.ktor.android)
 			implementation(libs.bundles.androidx.android)
 			implementation(libs.bundles.media3)
+			implementation(libs.androidx.work)
 			implementation(libs.androidx.sqlite.bundled)
 			implementation(libs.coil.gif)
 			implementation(libs.kmpalette.core)

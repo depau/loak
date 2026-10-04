@@ -30,6 +30,13 @@ class SessionManager(
 	val isLoggedIn: StateFlow<Boolean>
 		field = MutableStateFlow(false)
 
+	/**
+	 * Tells servers, and users on one, apart: song ids are only unique per server. Changes on
+	 * login and logout; "" when logged out.
+	 */
+	val serverKey: StateFlow<String>
+		field = MutableStateFlow("")
+
 	private var currentUser: User? = null
 
 	/** The logged-in username, as entered at login. */
@@ -55,6 +62,7 @@ class SessionManager(
 
 	init {
 		isLoggedIn.value = settings.getStringOrNull("username") != null
+		updateServerKey()
 		if (isLoggedIn.value) getCachedUser()
 	}
 
@@ -108,6 +116,7 @@ class SessionManager(
 
 		api = client
 		isLoggedIn.value = true
+		updateServerKey()
 		setSentryUser(currentUser)
 	}
 
@@ -115,8 +124,14 @@ class SessionManager(
 		settings["username"] = null
 		settings["password"] = null
 		isLoggedIn.value = false
+		updateServerKey()
 		currentUser = null
 		setSentryUser(null)
+	}
+
+	private fun updateServerKey() {
+		serverKey.value = if (!isLoggedIn.value) ""
+		else "$username@$instanceUrl".hashCode().toUInt().toString(16)
 	}
 
 	fun refreshClient() {

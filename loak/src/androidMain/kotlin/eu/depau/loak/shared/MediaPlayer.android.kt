@@ -112,7 +112,6 @@ import eu.depau.loak.exoplayer.songId
 import eu.depau.loak.exoplayer.songUri
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
-import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -136,7 +135,6 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 	private val equaliserManager: EqualiserManager by inject()
 	private val imageLoader: ImageLoader by inject()
 	private val songRepository: SongRepository by inject()
-	private val downloadManager: DownloadManager by inject()
 	private val stateRepository: PlayerStateRepository by inject()
 	private val networkStatsManager: NetworkStatsManager by inject()
 	private val audioStore: AudioStore by inject()
@@ -411,8 +409,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 				if (!connectivityManager.isOnline.value) break
 				val id = uri.songId!!
 				val wanted = streamSource(id).second
-				val stored = audioStore.bestComplete(id)?.let { AudioQuality.parse(it.quality) }
-				if (stored != null && stored >= wanted) continue
+				if (audioStore.playable(id, wanted, online = true) != null) continue
 				audioFetcher.fetchSong(uri, ::streamSource)
 					?.progress?.first { it.done || it.failed }
 			}
@@ -438,7 +435,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		val index = state.currentIndex.coerceIn(state.queue.indices)
 		return MediaSession.MediaItemsWithStartPosition(
 			state.queue.map {
-				it.toMediaItem(sessionManager, downloadManager)
+				it.toMediaItem(sessionManager)
 			},
 			index,
 			(state.progress * state.queue[index].duration.inWholeMilliseconds).toLong()
@@ -724,7 +721,6 @@ class AndroidMediaPlayerViewModel(
 				updatePlaybackState()
 				updatePlaybackProperties(currentTracks)
 
-				downloadManager.allDownloads.first()
 				pendingSyncState?.let { state ->
 					syncPlayerWithState(state)
 					pendingSyncState = null
@@ -1180,7 +1176,7 @@ class AndroidMediaPlayerViewModel(
 		_uiState.update { it.copy(playbackSpeed = value) }
 	}
 
-	private fun DomainSong.toMediaItem() = toMediaItem(sessionManager, downloadManager)
+	private fun DomainSong.toMediaItem() = toMediaItem(sessionManager)
 }
 
 /**
@@ -1213,10 +1209,7 @@ private class StreamStatsListener(private val stats: NetworkStatsManager) : Tran
 	}
 }
 
-private fun DomainSong.toMediaItem(
-	sessionManager: SessionManager,
-	downloadManager: DownloadManager
-): MediaItem {
+private fun DomainSong.toMediaItem(sessionManager: SessionManager): MediaItem {
 	val displayArtist = artists.joinToString { it.name }.ifBlank { artistName }
 	val albumArtistName = albumArtists.joinToString { it.name }.ifBlank { artistName }
 
@@ -1240,15 +1233,9 @@ private fun DomainSong.toMediaItem(
 			filePath.toUri()
 		}
 
-		else -> {
-			val localPath = downloadManager.getDownloadedFilePath(id)
-			if (localPath != null) {
-				File(localPath).toUri()
-			} else {
-				// resolved when played: from the store, or streamed at the then network's quality
-				songUri(id, fileExtension)
-			}
-		}
+		// resolved when played: from the store (downloads too), or streamed at the then
+		// network's quality
+		else -> songUri(id, fileExtension)
 	}
 
 	val builder = MediaItem.Builder()

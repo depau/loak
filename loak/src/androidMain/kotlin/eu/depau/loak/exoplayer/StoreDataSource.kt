@@ -14,7 +14,6 @@ import eu.depau.loak.domain.manager.AudioFetcher
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.NetworkStatsManager
-import eu.depau.loak.domain.manager.canReplace
 import eu.depau.loak.domain.models.AudioQuality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -33,7 +32,7 @@ fun songUri(id: String, suffix: String?): Uri = Uri.Builder().scheme(SCHEME).aut
 	.apply { if (!suffix.isNullOrBlank()) appendQueryParameter("suffix", suffix) }
 	.build()
 
-/** The song id of a [songUri], null for anything else (radio, downloaded files). */
+/** The song id of a [songUri], null for anything else (radio). */
 val Uri.songId: String? get() = if (scheme == SCHEME) lastPathSegment else null
 
 /** Stream URL and quality to fetch a song at, per the current network and settings. */
@@ -52,7 +51,7 @@ suspend fun AudioFetcher.fetchSong(uri: Uri, stream: StreamSource): AudioFetcher
 /**
  * Plays [songUri]s from the [AudioStore]: a complete file if it's good enough, else the file a
  * fetch is writing, read as it grows; it streams only when the store won't take the song. Other
- * URIs (radio, downloads) go straight to [upstream]. [networkReads] counts open direct streams.
+ * URIs (radio) go straight to [upstream]. [networkReads] counts open direct streams.
  */
 @OptIn(UnstableApi::class)
 class StoreDataSource(
@@ -88,8 +87,7 @@ class StoreDataSource(
 	private suspend fun openSong(spec: DataSpec, songId: String): Long? {
 		val wanted = stream(songId).second
 		val online = connectivity.isOnline.value
-		val entry = store.bestComplete(songId)
-			?.takeIf { AudioQuality.parse(it.quality).canReplace(wanted, online) }
+		val entry = store.playable(songId, wanted, online)
 		if (entry != null) {
 			// null: evicted meanwhile
 			openFile(spec, store.pathOf(entry), entry.bytes)?.let {

@@ -3,6 +3,7 @@ package eu.depau.loak.di
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import eu.depau.loak.util.IoDispatcher
+import org.koin.core.module.dsl.createdAtStart
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import eu.depau.loak.domain.manager.AudioFetcher
@@ -29,7 +30,8 @@ val managerModule = module {
 			startPeriodicSync()
 		}
 	}
-	singleOf(::DownloadManager)
+	// eager: resumes queued downloads on startup
+	singleOf(::DownloadManager) { createdAtStart() }
 	singleOf(::SessionManager)
 	singleOf(::NavidromeManager)
 	single(createdAtStart = true) {
@@ -44,7 +46,9 @@ val managerModule = module {
 	singleOf(::NetworkStatsManager)
 	// eager: sweeps leftovers and evicts on startup
 	single(createdAtStart = true) {
-		AudioStore(get<StorageManager>().audioStoreDir(), get(), get())
+		AudioStore(
+			get<StorageManager>().audioStoreDir(), get(), get(), get<SessionManager>().serverKey
+		)
 	}
 	singleOf(::AudioFetcher)
 }

@@ -32,7 +32,7 @@ import eu.depau.loak.data.database.entities.SyncActionEntity
 import eu.depau.loak.data.database.entities.SyncRunEntity
 
 @Database(
-	version = 24,
+	version = 25,
 	entities = [
 		AlbumEntity::class,
 		GenreEntity::class,
@@ -50,7 +50,8 @@ import eu.depau.loak.data.database.entities.SyncRunEntity
 	autoMigrations = [
 		AutoMigration(from = 21, to = 22, spec = CacheDatabase.DropDownloads::class),
 		AutoMigration(from = 22, to = 23),
-		AutoMigration(from = 23, to = 24)
+		AutoMigration(from = 23, to = 24),
+		AutoMigration(from = 24, to = 25)
 	]
 )
 @ColumnTypeConverters(Converters::class)

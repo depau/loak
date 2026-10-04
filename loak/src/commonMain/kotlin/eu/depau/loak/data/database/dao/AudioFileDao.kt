@@ -16,11 +16,17 @@ interface AudioFileDao {
 	@Query("SELECT * FROM AudioFileEntity")
 	fun observeAll(): Flow<List<AudioFileEntity>>
 
-	@Query("SELECT * FROM AudioFileEntity WHERE songId = :songId")
-	suspend fun getForSong(songId: String): List<AudioFileEntity>
+	@Query("SELECT * FROM AudioFileEntity WHERE server = :server AND songId = :songId")
+	suspend fun getForSong(server: String, songId: String): List<AudioFileEntity>
 
-	@Query("SELECT * FROM AudioFileEntity WHERE songId = :songId AND quality = :quality")
-	suspend fun get(songId: String, quality: String): AudioFileEntity?
+	@Query("SELECT * FROM AudioFileEntity WHERE server = :server AND pinned = 1")
+	suspend fun getPinned(server: String): List<AudioFileEntity>
+
+	@Query(
+		"SELECT * FROM AudioFileEntity " +
+			"WHERE server = :server AND songId = :songId AND quality = :quality"
+	)
+	suspend fun get(server: String, songId: String, quality: String): AudioFileEntity?
 
 	@Insert(onConflict = OnConflictStrategy.REPLACE)
 	suspend fun upsert(entry: AudioFileEntity)
@@ -30,16 +36,20 @@ interface AudioFileDao {
 
 	@Query(
 		"UPDATE AudioFileEntity SET lastAccessed = :time " +
-			"WHERE songId = :songId AND quality = :quality"
+			"WHERE server = :server AND songId = :songId AND quality = :quality"
 	)
-	suspend fun touch(songId: String, quality: String, time: Long)
+	suspend fun touch(server: String, songId: String, quality: String, time: Long)
 
 	@Query(
 		"UPDATE AudioFileEntity SET pinned = :pinned " +
-			"WHERE songId = :songId AND quality = :quality"
+			"WHERE server = :server AND songId = :songId AND quality = :quality"
 	)
-	suspend fun setPinned(songId: String, quality: String, pinned: Boolean)
+	suspend fun setPinned(server: String, songId: String, quality: String, pinned: Boolean)
 
-	@Query("UPDATE AudioFileEntity SET pinned = 0 WHERE songId = :songId")
-	suspend fun unpin(songId: String)
+	@Query("UPDATE AudioFileEntity SET pinned = 0 WHERE server = :server AND songId = :songId")
+	suspend fun unpin(server: String, songId: String)
+
+	/** Assigns files stored before the store told servers apart to [server]. */
+	@Query("UPDATE AudioFileEntity SET server = :server WHERE server = ''")
+	suspend fun claimUnscoped(server: String)
 }

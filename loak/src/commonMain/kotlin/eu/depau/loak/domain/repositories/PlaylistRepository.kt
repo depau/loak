@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.repositories
 
+import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.util.IoDispatcher
 
 import kotlinx.collections.immutable.ImmutableList
@@ -9,9 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import eu.depau.loak.data.database.dao.DownloadDao
 import eu.depau.loak.data.database.dao.PlaylistDao
-import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.models.DomainFilter
 import eu.depau.loak.domain.models.DomainPlaylist
@@ -21,7 +20,7 @@ import eu.depau.loak.ui.core.UiState
 class PlaylistRepository(
 	private val playlistDao: PlaylistDao,
 	private val dbRepository: DbRepository,
-	private val downloadDao: DownloadDao
+	private val audioStore: AudioStore
 ) {
 	private suspend fun getLocalData(
 		listType: DomainPlaylistListType,
@@ -36,10 +35,7 @@ class PlaylistRepository(
 		}
 
 		val downloadedIds = if (filters.contains(DomainFilter.Downloaded)) {
-			downloadDao.getAllDownloadsList()
-				.filter { it.status == DownloadStatus.DOWNLOADED }
-				.map { it.songId }
-				.toSet()
+			audioStore.downloadedIds()
 		} else null
 
 		val filtered = playlists.filter { (_, songs) ->

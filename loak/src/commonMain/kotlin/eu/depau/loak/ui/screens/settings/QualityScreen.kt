@@ -39,6 +39,7 @@ import eu.depau.loak.generated.resources.option_stream_format_cellular
 import eu.depau.loak.generated.resources.option_download_format_cellular
 import eu.depau.loak.generated.resources.option_stream_format_wifi
 import eu.depau.loak.generated.resources.option_download_format_wifi
+import eu.depau.loak.generated.resources.option_download_over_cellular
 import eu.depau.loak.generated.resources.title_advanced
 import eu.depau.loak.generated.resources.title_cellular
 import eu.depau.loak.generated.resources.title_streaming_quality
@@ -47,6 +48,7 @@ import eu.depau.loak.generated.resources.title_wifi
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.ConnectivityManager
+import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.StreamingQuality
 import eu.depau.loak.domain.models.settings.description
@@ -133,6 +135,23 @@ internal fun QualityScreen(download: Boolean) {
 								if (download) preferenceManager.downloadQualityCellular = it
 								else preferenceManager.streamingQualityCellular = it
 							}
+						)
+					}
+				}
+
+				if (download) {
+					val downloadManager = koinInject<DownloadManager>()
+					val overCellular by downloadManager.overCellular.collectAsStateWithLifecycle()
+					SettingsGroup(
+						modifier = Modifier.padding(bottom = SettingsGroupDefaults.GapBetweenGroups)
+					) {
+						SettingsToggleItem(
+							checked = overCellular,
+							onCheckedChange = downloadManager::setOverCellular,
+							content = {
+								Text(stringResource(Res.string.option_download_over_cellular))
+							},
+							shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
 						)
 					}
 				}

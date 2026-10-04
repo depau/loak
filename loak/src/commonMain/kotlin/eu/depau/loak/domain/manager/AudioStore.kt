@@ -10,11 +10,15 @@ import io.ktor.http.encodeURLParameter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.io.IOException
 import kotlinx.io.Sink
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
@@ -41,12 +45,16 @@ data class AudioStoreUsage(
  * Audio files on disk, one per song and [AudioQuality], indexed in [AudioFileDao]. Streamed songs
  * land here as an LRU cache; downloads are the same files, pinned, which eviction never touches.
  * [dir] is null where there is no file system (web): [available] is false and it all no-ops.
+ * Song ids are only unique per server, so entries belong to a [server] key ("" when logged out);
+ * per-song calls see the current server's only, while eviction weighs them all.
  */
 @OptIn(ExperimentalAtomicApi::class)
 class AudioStore(
 	private val dir: String?,
 	private val dao: AudioFileDao,
-	private val preferenceManager: PreferenceManager
+	private val preferenceManager: PreferenceManager,
+	/** [SessionManager.serverKey]. */
+	private val server: StateFlow<String>
 ) {
 	val available = dir != null
 
@@ -54,8 +62,14 @@ class AudioStore(
 
 	// guards index mutations and file renames/deletes
 	private val mutex = Mutex()
-	private val writing = mutableSetOf<Pair<String, String>>()
+	private val writing = mutableSetOf<Triple<String, String, String>>()
 	private val inUse = AtomicReference(emptyMap<String, Int>())
+
+	/** The current server's pinned entries: downloads, complete or still to fetch. */
+	val pinned: Flow<List<AudioFileEntity>> = if (dir == null) flowOf(emptyList()) else
+		combine(dao.observeAll(), server) { all, server ->
+			all.filter { it.pinned && it.server == server }
+		}
 
 	val usage: Flow<AudioStoreUsage> = if (dir == null) emptyFlow() else
 		dao.observeAll().map { entries ->
@@ -79,15 +93,24 @@ class AudioStore(
 	/** The highest-quality complete file for [songId], to play or share instead of streaming. */
 	suspend fun bestComplete(songId: String): AudioFileEntity? {
 		if (dir == null) return null
-		return dao.getForSong(songId).filter { it.complete }
+		return dao.getForSong(server.value, songId).filter { it.complete }
 			.maxByOrNull { AudioQuality.parse(it.quality) }
+	}
+
+	/** [bestComplete] if it may play instead of streaming at [wanted]: downloads always may. */
+	suspend fun playable(songId: String, wanted: AudioQuality, online: Boolean): AudioFileEntity? {
+		if (dir == null) return null
+		val copies = dao.getForSong(server.value, songId).filter { it.complete }
+		return copies.maxByOrNull { AudioQuality.parse(it.quality) }?.takeIf { best ->
+			copies.any { it.pinned } || AudioQuality.parse(best.quality).canReplace(wanted, online)
+		}
 	}
 
 	fun pathOf(entry: AudioFileEntity): String = Path(dir!!, entry.fileName).toString()
 
 	/** Records a playback from the store, for LRU eviction. */
 	suspend fun touch(entry: AudioFileEntity) {
-		if (dir != null) dao.touch(entry.songId, entry.quality, now())
+		if (dir != null) dao.touch(entry.server, entry.songId, entry.quality, now())
 	}
 
 	/** Protects [songId]'s files from eviction while it's open (e.g. queued in the player). */
@@ -113,30 +136,25 @@ class AudioStore(
 		resume: Boolean = false
 	): Writer? {
 		if (dir == null || (!pinned && !preferenceManager.audioCacheEnabled)) return null
-		val key = songId to quality.key
+		val server = server.value
+		val key = Triple(server, songId, quality.key)
 		return mutex.withLock {
-			val existing = dao.get(songId, quality.key)
+			val existing = dao.get(server, songId, quality.key)
 			if (existing?.complete == true) {
-				if (pinned && !existing.pinned) dao.setPinned(songId, quality.key, true)
+				if (pinned && !existing.pinned) dao.setPinned(server, songId, quality.key, true)
 				return null
 			}
 			if (key in writing) return null
 			SystemFileSystem.createDirectories(Path(dir))
-			val name = existing?.fileName ?: fileName(songId, quality, extension)
+			val name = existing?.fileName ?: fileName(server, songId, quality, extension)
 			val partial = Path(dir, "$name$PARTIAL")
 			if (!resume) SystemFileSystem.delete(partial, mustExist = false)
 			val offset = SystemFileSystem.metadataOrNull(partial)?.size ?: 0
-			val now = now()
-			val entry = AudioFileEntity(
-				songId = songId,
-				quality = quality.key,
-				fileName = name,
+			val entry = (existing ?: newEntry(server, songId, quality, name)).copy(
 				bytes = offset,
 				expectedBytes = expectedBytes ?: existing?.expectedBytes,
-				complete = false,
 				pinned = pinned || existing?.pinned == true,
-				lastAccessed = now,
-				created = existing?.created ?: now
+				lastAccessed = now()
 			)
 			dao.upsert(entry)
 			writing += key
@@ -147,28 +165,82 @@ class AudioStore(
 
 	/**
 	 * Marks [songId] as downloaded at [quality] or better. Pins its best complete file, which stays
-	 * playable meanwhile, and returns true when that is worse than [quality] (or missing): then
-	 * fetch [quality] with `openWrite(pinned = true)`; completing it deletes the worse files.
+	 * playable meanwhile, and returns true when that is worse than [quality] (or missing): then a
+	 * pinned, empty entry for [quality] waits in [pinned] until fetched with
+	 * `openWrite(pinned = true, resume = true)`; completing it deletes the worse files.
 	 */
-	suspend fun pin(songId: String, quality: AudioQuality): Boolean {
+	suspend fun pin(songId: String, quality: AudioQuality, extension: String): Boolean {
 		if (dir == null) return false
-		val best = mutex.withLock {
-			bestComplete(songId)?.also { dao.setPinned(it.songId, it.quality, true) }
+		val server = server.value
+		return mutex.withLock {
+			val best = bestComplete(songId)
+				?.also { dao.setPinned(server, it.songId, it.quality, true) }
+			if (best != null && AudioQuality.parse(best.quality) >= quality) return@withLock false
+			val existing = dao.get(server, songId, quality.key)
+			if (existing == null) {
+				val name = fileName(server, songId, quality, extension)
+				dao.upsert(newEntry(server, songId, quality, name).copy(pinned = true))
+			} else if (!existing.pinned) {
+				dao.setPinned(server, songId, quality.key, true)
+			}
+			true
 		}
-		return best == null || AudioQuality.parse(best.quality) < quality
 	}
 
-	/** Turns [songId]'s files back into evictable cache. */
-	suspend fun unpin(songId: String) {
+	/**
+	 * Moves the file at [path] into the store as [songId]'s pinned copy at [quality], e.g. one
+	 * downloaded before the store existed; a copy already there wins and [path] is deleted.
+	 */
+	suspend fun import(songId: String, quality: AudioQuality, path: String) {
 		if (dir == null) return
-		mutex.withLock { dao.unpin(songId) }
+		val server = server.value
+		mutex.withLock {
+			val existing = dao.get(server, songId, quality.key)
+			if (existing?.complete == true) {
+				dao.setPinned(server, songId, quality.key, true)
+				SystemFileSystem.delete(Path(path), mustExist = false)
+				return@withLock
+			}
+			SystemFileSystem.createDirectories(Path(dir))
+			val name = fileName(server, songId, quality, path.substringAfterLast('.', ""))
+			val target = Path(dir, name)
+			moveFile(Path(path), target)
+			val bytes = SystemFileSystem.metadataOrNull(target)?.size ?: 0
+			dao.upsert(
+				newEntry(server, songId, quality, name)
+					.copy(bytes = bytes, complete = true, pinned = true)
+			)
+		}
+	}
+
+	/** The current server's downloaded songs. */
+	suspend fun downloadedIds(): Set<String> = if (dir == null) emptySet() else
+		dao.getPinned(server.value).filter { it.complete }.mapTo(mutableSetOf()) { it.songId }
+
+	/** The current server's downloads still to fetch, see [pin]. */
+	suspend fun pendingDownloads(): List<AudioFileEntity> =
+		if (dir == null) emptyList() else dao.getPinned(server.value).filter { !it.complete }
+
+	/** Turns [songIds]' files back into evictable cache, dropping downloads not fetched yet. */
+	suspend fun unpin(songIds: Collection<String>) {
+		if (dir == null) return
+		val server = server.value
+		mutex.withLock {
+			songIds.forEach { dao.unpin(server, it) }
+			deleteIdle(dir, songIds.flatMap { dao.getForSong(server, it) }.filter { !it.complete })
+		}
 		trim()
 	}
 
-	/** Deletes every file of [songId], pinned or not. */
-	suspend fun remove(songId: String) {
+	/** Drops [songIds]' downloads not fetched yet, keeping what is complete. */
+	suspend fun dropPending(songIds: Collection<String>) {
 		if (dir == null) return
-		mutex.withLock { delete(dir, dao.getForSong(songId)) }
+		val server = server.value
+		mutex.withLock {
+			val pending = songIds.flatMap { dao.getForSong(server, it) }
+				.filter { it.pinned && !it.complete }
+			deleteIdle(dir, pending)
+		}
 	}
 
 	/** Deletes all unpinned files except those in use. */
@@ -242,8 +314,8 @@ class AudioStore(
 				return null
 			}
 			val done = mutex.withLock {
-				writing -= entry.songId to entry.quality
-				val current = dao.get(entry.songId, entry.quality)
+				writing -= entry.key
+				val current = dao.get(entry.server, entry.songId, entry.quality)
 				if (current == null) {
 					SystemFileSystem.delete(partial, mustExist = false)
 					return@withLock null
@@ -261,18 +333,22 @@ class AudioStore(
 		suspend fun close() {
 			sink?.close()
 			sink = null
-			mutex.withLock { writing -= entry.songId to entry.quality }
+			mutex.withLock { writing -= entry.key }
 			release(entry.songId)
 		}
 
-		/** Stops and deletes the partial file, e.g. a transcode of unknown length broke midway. */
+		/**
+		 * Stops and deletes the partial file, e.g. a transcode of unknown length broke midway.
+		 * A pinned entry stays, to download again.
+		 */
 		suspend fun abandon() {
 			sink?.close()
 			sink = null
 			mutex.withLock {
-				writing -= entry.songId to entry.quality
+				writing -= entry.key
 				SystemFileSystem.delete(partial, mustExist = false)
-				dao.get(entry.songId, entry.quality)?.takeIf { !it.complete }
+				dao.get(entry.server, entry.songId, entry.quality)
+					?.takeIf { !it.complete && !it.pinned }
 					?.let { dao.delete(listOf(it)) }
 			}
 			release(entry.songId)
@@ -284,6 +360,7 @@ class AudioStore(
 	 * (nobody resumes them), and files the index doesn't know.
 	 */
 	private suspend fun sweep(dir: String) = mutex.withLock {
+		server.value.takeIf { it.isNotEmpty() }?.let { dao.claimUnscoped(it) }
 		SystemFileSystem.createDirectories(Path(dir))
 		val inUse = inUse.load()
 		val names = SystemFileSystem.list(Path(dir)).map { it.name }.toSet()
@@ -305,6 +382,12 @@ class AudioStore(
 		Logger.i(TAG, "deleted ${entries.size} audio files")
 	}
 
+	/** [delete]s those of [entries] no writer has open. */
+	private suspend fun deleteIdle(dir: String, entries: List<AudioFileEntity>) =
+		delete(dir, entries.filter { it.key !in writing })
+
+	private val AudioFileEntity.key get() = Triple(server, songId, quality)
+
 	private inline fun updateInUse(f: (Map<String, Int>) -> Map<String, Int>) {
 		while (true) {
 			val old = inUse.load()
@@ -319,9 +402,38 @@ class AudioStore(
 		fun now() = Clock.System.now().toEpochMilliseconds()
 
 		// URL-encoding keeps any song id a single, unique, portable file name
-		fun fileName(songId: String, quality: AudioQuality, extension: String) =
-			"${songId.encodeURLParameter()}.${quality.key.encodeURLParameter()}." +
+		fun fileName(server: String, songId: String, quality: AudioQuality, extension: String) =
+			(if (server.isEmpty()) "" else "$server.") +
+				"${songId.encodeURLParameter()}.${quality.key.encodeURLParameter()}." +
 				extension.filter { it.isLetterOrDigit() }.ifEmpty { "bin" }
+
+		fun newEntry(server: String, songId: String, quality: AudioQuality, fileName: String) =
+			now().let {
+				AudioFileEntity(
+					songId = songId,
+					quality = quality.key,
+					fileName = fileName,
+					bytes = 0,
+					expectedBytes = null,
+					complete = false,
+					pinned = false,
+					lastAccessed = it,
+					created = it,
+					server = server
+				)
+			}
+
+		/** Renames, or copies where [to] is on another volume (desktop downloads folder). */
+		fun moveFile(from: Path, to: Path) {
+			try {
+				SystemFileSystem.atomicMove(from, to)
+			} catch (_: IOException) {
+				SystemFileSystem.source(from).buffered().use { src ->
+					SystemFileSystem.sink(to).buffered().use { src.transferTo(it) }
+				}
+				SystemFileSystem.delete(from)
+			}
+		}
 	}
 }
 
@@ -337,8 +449,8 @@ internal fun evictions(
 	inUse: Set<String>
 ): List<AudioFileEntity> {
 	val complete = entries.filter { it.complete }
-	val redundant = complete.groupBy { it.songId }.flatMap { (songId, copies) ->
-		if (songId in inUse) return@flatMap emptyList()
+	val redundant = complete.groupBy { it.server to it.songId }.flatMap { (key, copies) ->
+		if (key.second in inUse) return@flatMap emptyList()
 		copies.filter { e ->
 			val q = AudioQuality.parse(e.quality)
 			copies.any { AudioQuality.parse(it.quality) > q && (it.pinned || !e.pinned) }
