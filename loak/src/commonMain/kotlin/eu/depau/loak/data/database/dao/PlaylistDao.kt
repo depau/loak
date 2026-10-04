@@ -81,6 +81,12 @@ interface PlaylistDao {
 	@Query("SELECT playlistId FROM PlaylistEntity")
 	suspend fun getAllPlaylistIds(): List<String>
 
+	@Query("SELECT * FROM PlaylistEntity")
+	suspend fun getAllPlaylistEntities(): List<PlaylistEntity>
+
+	@Query("SELECT COUNT(*) FROM PlaylistSongCrossRef WHERE playlistId = :playlistId")
+	suspend fun getPlaylistSongCount(playlistId: String): Int
+
 
 	@Query("SELECT DISTINCT songId FROM PlaylistSongCrossRef")
 	suspend fun getAllPlaylistSongIds(): List<String>

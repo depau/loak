@@ -35,7 +35,6 @@ class SongRepository(
 	private val songDao: SongDao,
 	private val albumDao: AlbumDao,
 	private val downloadDao: DownloadDao,
-	private val dbRepository: DbRepository,
 	private val syncManager: SyncManager,
 	private val sessionManager: SessionManager
 ) {
@@ -129,7 +128,7 @@ class SongRepository(
 		reversed: Boolean,
 		filters: Set<DomainFilter>
 	): ImmutableList<DomainSong> {
-		dbRepository.syncLibrarySongs().getOrThrow()
+		syncManager.pullLibrary().getOrThrow()
 		return getLocalData(listType, reversed, filters)
 	}
 

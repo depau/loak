@@ -50,6 +50,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import dev.zt64.subsonic.api.model.Album as ApiAlbum
 import dev.zt64.subsonic.api.model.AlbumListType as ApiAlbumListType
+import dev.zt64.subsonic.api.model.Song as ApiSong
 
 class DbRepository(
 	private val albumDao: AlbumDao,
@@ -66,6 +67,8 @@ class DbRepository(
 	private val concurrentRequestLimit = Semaphore(20)
 
 	private val dbChunkSize = 500 // should be enough
+
+	private val pageSize = 500 // the getAlbumList2 maximum
 
 	private suspend fun <T> runDbOp(block: suspend () -> T): Result<T> =
 		withContext(IoDispatcher) {
@@ -127,7 +130,13 @@ class DbRepository(
 		syncArtists().getOrThrow()
 
 		progressCallback(0.07f, Res.string.info_syncing_playlists)
-		val playlists = syncPlaylists().getOrThrow()
+		val known = playlistDao.getAllPlaylistEntities().associateBy { it.playlistId }
+		// Only playlists that changed since we last fetched their songs. The song-link
+		// count also catches rows that other callers of syncPlaylists() stored without songs.
+		val playlists = syncPlaylists().getOrThrow().filter {
+			known[it.playlistId]?.modifiedAt != it.modifiedAt
+				|| playlistDao.getPlaylistSongCount(it.playlistId) != it.songCount
+		}
 
 		val validAlbumIds = mutableSetOf<String>()
 		val validSongIds = mutableSetOf<String>()
@@ -175,25 +184,70 @@ class DbRepository(
 		progressCallback(1.0f, Res.string.info_syncing_finished)
 	}
 
+	/**
+	 * Albums via getAlbumList2, songs in bulk via search3 with the `""` (match all) query.
+	 * Servers that don't support that query fall back to one getAlbum per album.
+	 */
 	suspend fun syncLibrarySongs(
 		onProgress: suspend (Float, StringResource) -> Unit = { _, _ -> }
 	): Result<Pair<Set<String>, Set<String>>> = runDbOp {
-		val pageSize = 500
-		var offset = 0
-		val allAlbumSummaries = mutableListOf<ApiAlbum>()
-
 		onProgress(0.0f, Res.string.info_syncing_albums)
+		val summaries = mutableListOf<ApiAlbum>()
 		while (true) {
-			val batch =
-				sessionManager.api.getAlbums(ApiAlbumListType.AlphabeticalByName, pageSize, offset)
-			if (batch.isEmpty()) break
-			allAlbumSummaries.addAll(batch)
+			val batch = sessionManager.api.getAlbumsID3(
+				ApiAlbumListType.AlphabeticalByName, pageSize, summaries.size
+			)
+			summaries.addAll(batch)
 			if (batch.size < pageSize) break
-			offset += pageSize
+		}
+		if (summaries.isEmpty()) return@runDbOp emptySet<String>() to emptySet()
+
+		val albums = summaries.map { it.toEntity() }
+		albums.chunked(dbChunkSize).forEach { albumDao.insertAlbums(it) }
+		val albumsById = albums.associateBy { it.albumId }
+		val expectedSongs = summaries.sumOf { it.songCount }
+
+		onProgress(0.1f, Res.string.info_syncing_albums)
+		val songIds = mutableSetOf<String>()
+		val seen = mutableSetOf<String>()
+		try {
+			while (true) {
+				val page = sessionManager.api.searchID3(
+					"\"\"", artistCount = 0, albumCount = 0,
+					songCount = pageSize, songOffset = seen.size
+				).songs
+				// an empty page ends it; one with nothing new = a server ignoring the offset
+				if (page.count { seen.add(it.id) } == 0) break
+				val songs = page.toLibrarySongs(albumsById)
+				// See the per-album path for why conflicts are ignored.
+				songDao.insertSongsIgnoringConflicts(songs)
+				songs.mapTo(songIds) { it.songId }
+				val fetched = seen.size.toFloat() / expectedSongs.coerceAtLeast(1)
+				onProgress(0.1f + 0.8f * fetched.coerceAtMost(1f), Res.string.info_syncing_albums)
+			}
+		} catch (e: SubsonicException) {
+			Logger.w("DbRepository", "search3 failed; fetching albums one by one", e)
 		}
 
-		if (allAlbumSummaries.isEmpty()) return@runDbOp emptySet<String>() to emptySet()
+		// ponytail: 90% heuristic for "this server doesn't support the match-all query"
+		// (it then returns nothing or a capped page); album song counts can lag a bit.
+		if (songIds.size * 10 < expectedSongs * 9) {
+			Logger.w(
+				"DbRepository",
+				"search3 returned ${songIds.size}/$expectedSongs songs; fetching albums one by one"
+			)
+			return@runDbOp syncAlbumsOneByOne(summaries, onProgress)
+		}
 
+		Logger.i("DbRepository", "- Songs Synced: ${albums.size} albums, ${songIds.size} songs")
+		onProgress(1.0f, Res.string.info_syncing_saved)
+		albumsById.keys to songIds
+	}
+
+	private suspend fun syncAlbumsOneByOne(
+		allAlbumSummaries: List<ApiAlbum>,
+		onProgress: suspend (Float, StringResource) -> Unit
+	): Pair<Set<String>, Set<String>> {
 		val totalAlbums = allAlbumSummaries.size
 		val completedAlbums = AtomicInt(0)
 		var finalSongsSynced = 0
@@ -299,7 +353,7 @@ class DbRepository(
 		)
 
 		onProgress(1.0f, Res.string.info_syncing_saved)
-		allValidAlbumIds to allValidSongIds
+		return allValidAlbumIds to allValidSongIds
 	}
 
 	suspend fun syncPlaylists(): Result<List<PlaylistEntity>> = runDbOp {
@@ -444,3 +498,16 @@ class DbRepository(
 		updatedEntity.toDomainModel()
 	}
 }
+
+/**
+ * Library songs of [albumsById]'s albums (songs without a known album are dropped: nothing
+ * would list them); a song without an artist takes its album's, like the per-album path.
+ */
+internal fun List<ApiSong>.toLibrarySongs(albumsById: Map<String, AlbumEntity>): List<SongEntity> =
+	mapNotNull { song ->
+		val album = albumsById[song.albumId] ?: return@mapNotNull null
+		song.toEntity(
+			artistIdOverride = album.artistId.takeIf { song.artistId.isNullOrBlank() },
+			artistNameOverride = album.artistName.takeIf { song.artistName.isNullOrBlank() }
+		)
+	}

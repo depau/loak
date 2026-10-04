@@ -152,6 +152,8 @@ class PreferenceManager(
 
 	// sync related settings
 	var lastFullSyncTime by preference(0L)
+	// getScanStatus count at the last successful full pull, -1 = unknown
+	var lastScanCount by preference(-1)
 
 	// sorting/view mode preferences
 	var albumListViewMode by preference(ListViewMode.Grid)

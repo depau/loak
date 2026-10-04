@@ -26,8 +26,7 @@ import kotlin.time.Clock
 class AlbumRepository(
 	private val albumDao: AlbumDao,
 	private val downloadDao: DownloadDao,
-	private val syncManager: SyncManager,
-	private val dbRepository: DbRepository
+	private val syncManager: SyncManager
 ) {
 	private suspend fun getLocalData(
 		listType: DomainAlbumListType,
@@ -62,7 +61,7 @@ class AlbumRepository(
 		reversed: Boolean,
 		filters: Set<DomainFilter> = emptySet()
 	): ImmutableList<DomainAlbum> {
-		dbRepository.syncLibrarySongs().getOrThrow()
+		syncManager.pullLibrary().getOrThrow()
 		return getLocalData(listType, reversed, filters)
 	}
 
