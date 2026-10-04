@@ -125,7 +125,7 @@
 
 		<!-- needed for widgets to control playback -->
 		<receiver
-			android:name="androidx.media3.session.MediaButtonReceiver"
+			android:name="eu.depau.loak.shared.PlaybackService$ButtonReceiver"
 			android:exported="true">
 			<intent-filter>
 				<action android:name="android.intent.action.MEDIA_BUTTON" />

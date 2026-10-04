@@ -44,6 +44,7 @@ import androidx.media3.extractor.ts.AdtsExtractor
 import androidx.media3.extractor.wav.WavExtractor
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.MediaButtonReceiver
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -119,6 +120,8 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 	private val equaliserManager: EqualiserManager by inject()
 	private val imageLoader: ImageLoader by inject()
 	private val songRepository: SongRepository by inject()
+	private val downloadManager: DownloadManager by inject()
+	private val stateRepository: PlayerStateRepository by inject()
 	private val currentSongId = MutableStateFlow<String?>(null)
 
 	private var equaliser: Equalizer? = null
@@ -235,7 +238,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		mediaSession = MediaSession.Builder(this, player)
 			.setSessionActivity(sessionPendingIntent)
 			.setBitmapLoader(bitmapLoader)
-			.setCallback(MediaSessionCallback(::toggleStar))
+			.setCallback(MediaSessionCallback(::toggleStar, ::savedQueue))
 			.setSessionActivity(sessionPendingIntent)
 			.build()
 
@@ -315,7 +318,47 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		}
 	}
 
-	class MediaSessionCallback(private val onStar: () -> Unit) : MediaSession.Callback {
+	/** The queue the app last saved, for a media button press that finds the player empty. */
+	private fun savedQueue(): MediaSession.MediaItemsWithStartPosition? {
+		val state = stateRepository.state.value?.takeIf { it.queue.isNotEmpty() } ?: return null
+		mediaSession?.player?.apply {
+			shuffleModeEnabled = state.isShuffleEnabled
+			repeatMode = state.repeatMode
+		}
+		val index = state.currentIndex.coerceIn(state.queue.indices)
+		return MediaSession.MediaItemsWithStartPosition(
+			state.queue.map {
+				it.toMediaItem(sessionManager, downloadManager, connectivityManager, preferenceManager)
+			},
+			index,
+			(state.progress * state.queue[index].duration.inWholeMilliseconds).toLong()
+		)
+	}
+
+	/**
+	 * Starts the service for a media button only if there's a saved queue to resume: Media3 starts
+	 * it in the foreground, and with nothing to play no notification ever comes and Android
+	 * kills the app with ForegroundServiceDidNotStartInTimeException.
+	 */
+	class ButtonReceiver : MediaButtonReceiver(), KoinComponent {
+		private val stateRepository: PlayerStateRepository by inject()
+
+		override fun shouldStartForegroundService(context: Context, intent: Intent) =
+			stateRepository.state.value?.queue.isNullOrEmpty().not()
+	}
+
+	class MediaSessionCallback(
+		private val onStar: () -> Unit,
+		private val savedQueue: () -> MediaSession.MediaItemsWithStartPosition?
+	) : MediaSession.Callback {
+		override fun onPlaybackResumption(
+			mediaSession: MediaSession,
+			controller: MediaSession.ControllerInfo,
+			isForPlayback: Boolean
+		): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
+			savedQueue()?.let { Futures.immediateFuture(it) }
+				?: Futures.immediateFailedFuture(UnsupportedOperationException("no saved queue"))
+
 		override fun onConnect(
 			session: MediaSession,
 			controller: MediaSession.ControllerInfo
@@ -499,25 +542,6 @@ class AndroidMediaPlayerViewModel(
 				setupController()
 			}, MoreExecutors.directExecutor())
 		}
-	}
-
-	private fun getStreamUrl(id: String): Uri {
-		val isCellular = connectivityManager.isCellular.value
-		val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
-			if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
-		} else {
-			if (isCellular) preferenceManager.streamingQualityCellular.bitrateAndroid else preferenceManager.streamingQualityWifi.bitrateAndroid
-		}
-		val container = if (preferenceManager.isAdvancedTranscodingActive) {
-			if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi
-		} else {
-			if (isCellular) preferenceManager.streamingQualityCellular.containerAndroid else preferenceManager.streamingQualityWifi.containerAndroid
-		}
-		return sessionManager.api.getStreamUrl(id, bitrate, container?.takeIf { it.isNotBlank() })
-			.toUri()
-			.buildUpon()
-			.appendQueryParameter("estimateContentLength", "true")
-			.build()
 	}
 
 	private fun setupController() {
@@ -1034,49 +1058,81 @@ class AndroidMediaPlayerViewModel(
 		_uiState.update { it.copy(playbackSpeed = value) }
 	}
 
-	private fun DomainSong.toMediaItem(): MediaItem {
-		val displayArtist = artists.joinToString { it.name }.ifBlank { artistName }
-		val albumArtistName = albumArtists.joinToString { it.name }.ifBlank { artistName }
+	private fun DomainSong.toMediaItem() =
+		toMediaItem(sessionManager, downloadManager, connectivityManager, preferenceManager)
+}
 
-		val metadataBuilder = MediaMetadata.Builder()
-			.setTitle(title)
-			.setSubtitle(displayArtist)
-			.setArtist(displayArtist)
-			.setAlbumArtist(albumArtistName)
-			.setAlbumTitle(albumTitle)
-			.setDurationMs(duration.inWholeMilliseconds)
-			.setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+private fun DomainSong.toMediaItem(
+	sessionManager: SessionManager,
+	downloadManager: DownloadManager,
+	connectivityManager: ConnectivityManager,
+	preferenceManager: PreferenceManager,
+): MediaItem {
+	val displayArtist = artists.joinToString { it.name }.ifBlank { artistName }
+	val albumArtistName = albumArtists.joinToString { it.name }.ifBlank { artistName }
 
-		metadataBuilder.setArtworkUri(
-			coverArtId?.let { sessionManager.getCoverArtUrl(it).toUri() }
-		)
+	val metadataBuilder = MediaMetadata.Builder()
+		.setTitle(title)
+		.setSubtitle(displayArtist)
+		.setArtist(displayArtist)
+		.setAlbumArtist(albumArtistName)
+		.setAlbumTitle(albumTitle)
+		.setDurationMs(duration.inWholeMilliseconds)
+		.setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
 
-		val metadata = metadataBuilder.build()
+	metadataBuilder.setArtworkUri(
+		coverArtId?.let { sessionManager.getCoverArtUrl(it).toUri() }
+	)
 
-		val uri = when {
-			id.startsWith("radio_") && !filePath.isNullOrEmpty() -> {
-				filePath.toUri()
-			}
+	val metadata = metadataBuilder.build()
 
-			else -> {
-				val localPath = downloadManager.getDownloadedFilePath(id)
-				if (localPath != null) {
-					File(localPath).toUri()
-				} else {
-					getStreamUrl(id)
-				}
-			}
+	val uri = when {
+		id.startsWith("radio_") && !filePath.isNullOrEmpty() -> {
+			filePath.toUri()
 		}
 
-		val builder = MediaItem.Builder()
-			.setUri(uri)
-			.setMediaId(id)
-			.setMediaMetadata(metadata)
-
-		if (id.startsWith("radio_")) {
-			builder.setLiveConfiguration(MediaItem.LiveConfiguration.Builder().build())
+		else -> {
+			val localPath = downloadManager.getDownloadedFilePath(id)
+			if (localPath != null) {
+				File(localPath).toUri()
+			} else {
+				getStreamUrl(id, sessionManager, connectivityManager, preferenceManager)
+			}
 		}
-
-		return builder.build()
 	}
+
+	val builder = MediaItem.Builder()
+		.setUri(uri)
+		.setMediaId(id)
+		.setMediaMetadata(metadata)
+
+	if (id.startsWith("radio_")) {
+		builder.setLiveConfiguration(MediaItem.LiveConfiguration.Builder().build())
+	}
+
+	return builder.build()
+}
+
+private fun getStreamUrl(
+	id: String,
+	sessionManager: SessionManager,
+	connectivityManager: ConnectivityManager,
+	preferenceManager: PreferenceManager,
+): Uri {
+	val isCellular = connectivityManager.isCellular.value
+	val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
+		if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
+	} else {
+		if (isCellular) preferenceManager.streamingQualityCellular.bitrateAndroid else preferenceManager.streamingQualityWifi.bitrateAndroid
+	}
+	val container = if (preferenceManager.isAdvancedTranscodingActive) {
+		if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi
+	} else {
+		if (isCellular) preferenceManager.streamingQualityCellular.containerAndroid else preferenceManager.streamingQualityWifi.containerAndroid
+	}
+	return sessionManager.api.getStreamUrl(id, bitrate, container?.takeIf { it.isNotBlank() })
+		.toUri()
+		.buildUpon()
+		.appendQueryParameter("estimateContentLength", "true")
+		.build()
 }

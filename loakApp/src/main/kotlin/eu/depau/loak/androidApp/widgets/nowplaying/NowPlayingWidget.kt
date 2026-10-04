@@ -21,6 +21,7 @@ import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
 import eu.depau.loak.androidApp.MainActivity
+import eu.depau.loak.shared.PlaybackService
 
 /**
  * Base widgets class which widgets will inherit from. Used with `NowPlayingReceiver`
@@ -70,7 +71,7 @@ abstract class NowPlayingWidget : GlanceAppWidget() {
 	protected fun createMediaIntent(context: Context, keyCode: Int) =
 		Intent(Intent.ACTION_MEDIA_BUTTON).apply {
 			putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-			component = ComponentName(context, "androidx.media3.session.MediaButtonReceiver")
+			component = ComponentName(context, PlaybackService.ButtonReceiver::class.java)
 		}
 
 	protected fun launchIntent(context: Context) = Intent(context, MainActivity::class.java).apply {
