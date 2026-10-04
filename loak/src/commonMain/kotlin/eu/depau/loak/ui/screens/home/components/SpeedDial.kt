@@ -77,7 +77,7 @@ enum class SpeedDialLayout {
 }
 
 /**
- * Speed dial: pages of 9 tiles; the first ends with the dice, which plays a random song's
+ * Speed dial: pages of 9 tiles; the first starts with the dice, which plays a random song's
  * radio.
  */
 @Composable
@@ -87,8 +87,8 @@ fun SpeedDial(
 	onPlayRadio: (SpeedDialItem.Song) -> Unit,
 	onFeelingLucky: () -> Unit
 ) {
-	// the dice takes the first page's last slot
-	val pages = (listOf<SpeedDialItem?>() + items.take(8) + null + items.drop(8)).chunked(9)
+	// the dice takes the first page's first slot
+	val pages = (listOf<SpeedDialItem?>(null) + items).chunked(9)
 	val pagerState = rememberPagerState { pages.size }
 	val gap = 8.dp
 
