@@ -4,9 +4,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import eu.depau.loak.domain.models.settings.OfflineMode
 import android.net.ConnectivityManager as AndroidConnectivityManager
@@ -31,8 +31,8 @@ private data class NetworkStatus(
 		) = NetworkStatus(
 			isOnline = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
 				&& caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED),
-			isCellular = caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-				|| !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+			// "cellular" here means "pay for every byte": metered WiFi hotspots count too
+			isCellular = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
 		)
 	}
 }
@@ -45,7 +45,9 @@ actual class ConnectivityManager(
 ) {
 	private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 	private val dispatcher = Dispatchers.IO
-	private val started = SharingStarted.WhileSubscribed(5000)
+	// Eagerly: stream/download URL builders read `.value` without collecting, so a lazily
+	// started flow would stay at its initial value forever.
+	private val started = SharingStarted.Eagerly
 	private val connectivityManager =
 		context.getSystemService(Context.CONNECTIVITY_SERVICE) as AndroidConnectivityManager
 
@@ -62,11 +64,9 @@ actual class ConnectivityManager(
 			}
 		}
 
-		val request = NetworkRequest.Builder()
-			.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-			.build()
-
-		connectivityManager.registerNetworkCallback(request, callback)
+		// the default network is the one traffic actually goes through; a generic request
+		// would also report background networks (e.g. cellular while on WiFi)
+		connectivityManager.registerDefaultNetworkCallback(callback)
 
 		trySend(
 			connectivityManager
@@ -87,14 +87,16 @@ actual class ConnectivityManager(
 		.flowOn(dispatcher)
 		.stateIn(scope, started, false)
 
-	actual val isOnline = networkStatus
-		.mapLatest { status ->
-			when (preferenceManager.offlineMode) {
-				OfflineMode.Forced -> false
-				OfflineMode.NoWiFi -> status.isOnline && !status.isCellular
-				else -> status.isOnline
-			}
+	actual val isOnline = combine(
+		networkStatus,
+		snapshotFlow { preferenceManager.offlineMode }
+	) { status, offlineMode ->
+		when (offlineMode) {
+			OfflineMode.Forced -> false
+			OfflineMode.NoWiFi -> status.isOnline && !status.isCellular
+			else -> status.isOnline
 		}
+	}
 		.distinctUntilChanged()
 		.flowOn(dispatcher)
 		.stateIn(scope, started, true)
