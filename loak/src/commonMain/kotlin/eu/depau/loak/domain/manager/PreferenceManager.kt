@@ -71,7 +71,8 @@ class PreferenceManager(
 
 	// TODO: better names and strings for these transcoding settings
 	var streamingQualityWifi by preference(StreamingQuality.Lossless)
-	var streamingQualityCellular by preference(StreamingQuality.Lossless)
+	// lossless over mobile data is ~5-10x the bytes; opt-in only, like every major service
+	var streamingQualityCellular by preference(StreamingQuality.High)
 	var isAdvancedTranscodingActive by preference(false)
 	var customMaxBitrateWifi by preference(0)
 	var customMaxBitrateCellular by preference(0)
