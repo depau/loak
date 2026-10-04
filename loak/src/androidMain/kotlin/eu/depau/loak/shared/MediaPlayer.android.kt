@@ -326,6 +326,9 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 						songRepository.observeSongStarred(id)
 					}
 				}
+				// Room re-emits on every write to the songs table (syncs, album views): each new
+				// layout re-posts the notification, so only send real changes
+				.distinctUntilChanged()
 				.collect { starred ->
 					mediaSession?.setCustomLayout(listOfNotNull(starred?.let(::makeStarButton)))
 				}
