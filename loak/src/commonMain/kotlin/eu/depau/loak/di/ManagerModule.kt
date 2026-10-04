@@ -5,6 +5,7 @@ import kotlinx.coroutines.launch
 import eu.depau.loak.util.IoDispatcher
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
+import eu.depau.loak.domain.manager.AudioFetcher
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.EqualiserManager
@@ -45,4 +46,5 @@ val managerModule = module {
 	single(createdAtStart = true) {
 		AudioStore(get<StorageManager>().audioStoreDir(), get(), get())
 	}
+	singleOf(::AudioFetcher)
 }

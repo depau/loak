@@ -67,6 +67,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -80,7 +82,9 @@ import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.di.ResourceProvider
 import eu.depau.loak.domain.manager.AndroidScrobbleManager
+import eu.depau.loak.domain.manager.AudioFetcher
 import eu.depau.loak.domain.manager.AudioGainManager
+import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.EqualiserManager
@@ -90,6 +94,8 @@ import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
+import eu.depau.loak.domain.manager.prefetchTargets
+import eu.depau.loak.domain.models.AudioQuality
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
 import eu.depau.loak.domain.models.DomainSong
@@ -100,6 +106,10 @@ import eu.depau.loak.domain.repositories.PlayerStateRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.exoplayer.AudioGainProcessor
 import eu.depau.loak.exoplayer.ExoPlayerCoilBitmapLoader
+import eu.depau.loak.exoplayer.StoreDataSource
+import eu.depau.loak.exoplayer.fetchSong
+import eu.depau.loak.exoplayer.songId
+import eu.depau.loak.exoplayer.songUri
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import java.io.File
@@ -129,7 +139,14 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 	private val downloadManager: DownloadManager by inject()
 	private val stateRepository: PlayerStateRepository by inject()
 	private val networkStatsManager: NetworkStatsManager by inject()
+	private val audioStore: AudioStore by inject()
+	private val audioFetcher: AudioFetcher by inject()
 	private val currentSongId = MutableStateFlow<String?>(null)
+	private val networkReads = MutableStateFlow(0)
+	private var prefetchJob: Job? = null
+
+	/** Current and prefetched songs, protected from eviction. */
+	private var retained = emptySet<String>()
 
 	private var equaliser: Equalizer? = null
 	private var audioEffectSessionId: Int = C.AUDIO_SESSION_ID_UNSET
@@ -138,13 +155,17 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 
 	override fun onCreate() {
 		super.onCreate()
+		// songs mostly play from disk (see StoreDataSource); what still streams (radio, songs
+		// with the cache off) refills in rare long bursts rather than a trickle
 		val loadControl = DefaultLoadControl.Builder()
 			.setBufferDurationsMs(
-				/* minBufferMs = */ 32_000,
-				/* maxBufferMs = */ 64_000,
+				/* minBufferMs = */ 120_000,
+				/* maxBufferMs = */ 600_000,
 				/* bufferForPlaybackMs = */ 2_500,
 				/* bufferForPlaybackAfterRebufferMs = */ 5_000
 			)
+			.setTargetBufferBytes(64 * 1024 * 1024)
+			.setPrioritizeTimeOverSizeThresholds(false)
 			.setBackBuffer(10_000, true)
 			.build()
 
@@ -154,8 +175,19 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 			}
 
 		val httpDataSourceFactory = KtorDataSource.Factory(sessionManager.api.httpClient)
-		val dataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
+		val upstreamFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
 			.setTransferListener(StreamStatsListener(networkStatsManager))
+		val dataSourceFactory = DataSource.Factory {
+			StoreDataSource(
+				upstreamFactory.createDataSource(),
+				audioStore,
+				audioFetcher,
+				networkStatsManager,
+				connectivityManager,
+				::streamSource,
+				networkReads
+			)
+		}
 
 		val extractorsFactory = ExtractorsFactory {
 			arrayOf(
@@ -257,16 +289,32 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		player.addListener(object : Player.Listener {
 			override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 				currentSongId.value = mediaItem?.mediaId
-				// a Wi-Fi lock only while streaming; downloaded files need just the CPU
-				val local = mediaItem?.localConfiguration?.uri?.scheme == "file"
-				player.setWakeMode(if (local) C.WAKE_MODE_LOCAL else C.WAKE_MODE_NETWORK)
+				schedulePrefetch(player)
 			}
+
+			override fun onTimelineChanged(timeline: Timeline, reason: Int) =
+				schedulePrefetch(player)
+
+			override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) =
+				schedulePrefetch(player)
+
+			override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) =
+				schedulePrefetch(player)
+
+			override fun onRepeatModeChanged(repeatMode: Int) = schedulePrefetch(player)
 
 			override fun onAudioSessionIdChanged(audioSessionId: Int) {
 				currentAudioSessionId = audioSessionId
 				applyEqualiserMode(equaliserMode, audioSessionId)
 			}
 		})
+
+		// a Wi-Fi lock only while the network is used; files need just the CPU
+		serviceScope.launch {
+			combine(audioFetcher.busy, networkReads) { fetching, reads -> fetching || reads > 0 }
+				.distinctUntilChanged()
+				.collect { player.setWakeMode(if (it) C.WAKE_MODE_NETWORK else C.WAKE_MODE_LOCAL) }
+		}
 
 		// the notification's only extra button stars the current song (radios get none)
 		currentSongId.value = player.currentMediaItem?.mediaId
@@ -315,9 +363,60 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 			player.release()
 			release()
 		}
+		audioFetcher.cancelExcept(emptySet())
+		retained.forEach(audioStore::release)
+		retained = emptySet()
 		super.onDestroy()
 		mediaSession = null
 		stopSelf()
+	}
+
+	private fun streamSource(songId: String) =
+		streamSource(songId, sessionManager, connectivityManager, preferenceManager)
+
+	/**
+	 * Fetches the songs after the current one into the store, one at a time once nothing else is
+	 * fetching (the current song first), so the next track plays from disk without waking the
+	 * radio again. Redone on every queue or track change, which also stops stale fetches.
+	 */
+	private fun schedulePrefetch(player: Player) {
+		val upcoming = mutableListOf<Uri?>()
+		val timeline = player.currentTimeline
+		if (!timeline.isEmpty) {
+			// repeating one song still moves on when skipped
+			val mode = player.repeatMode.takeIf { it != Player.REPEAT_MODE_ONE }
+				?: Player.REPEAT_MODE_OFF
+			var i = player.currentMediaItemIndex
+			while (upcoming.size < 3) {
+				i = timeline.getNextWindowIndex(i, mode, player.shuffleModeEnabled)
+				if (i == C.INDEX_UNSET) break
+				upcoming += player.getMediaItemAt(i).localConfiguration?.uri
+			}
+		}
+		val current = player.currentMediaItem?.localConfiguration?.uri?.songId
+		val targets = prefetchTargets(
+			current, upcoming.map { it?.songId }, connectivityManager.isCellular.value
+		)
+		val keep = setOfNotNull(current) + targets
+		(keep - retained).forEach(audioStore::retain)
+		(retained - keep).forEach(audioStore::release)
+		retained = keep
+		audioFetcher.cancelExcept(keep)
+
+		prefetchJob?.cancel()
+		if (!player.playWhenReady) return
+		prefetchJob = serviceScope.launch {
+			audioFetcher.busy.first { !it }
+			for (uri in upcoming.filterNotNull().filter { it.songId in targets }) {
+				if (!connectivityManager.isOnline.value) break
+				val id = uri.songId!!
+				val wanted = streamSource(id).second
+				val stored = audioStore.bestComplete(id)?.let { AudioQuality.parse(it.quality) }
+				if (stored != null && stored >= wanted) continue
+				audioFetcher.fetchSong(uri, ::streamSource)
+					?.progress?.first { it.done || it.failed }
+			}
+		}
 	}
 
 	private fun toggleStar() {
@@ -339,7 +438,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		val index = state.currentIndex.coerceIn(state.queue.indices)
 		return MediaSession.MediaItemsWithStartPosition(
 			state.queue.map {
-				it.toMediaItem(sessionManager, downloadManager, connectivityManager, preferenceManager)
+				it.toMediaItem(sessionManager, downloadManager)
 			},
 			index,
 			(state.progress * state.queue[index].duration.inWholeMilliseconds).toLong()
@@ -1081,8 +1180,7 @@ class AndroidMediaPlayerViewModel(
 		_uiState.update { it.copy(playbackSpeed = value) }
 	}
 
-	private fun DomainSong.toMediaItem() =
-		toMediaItem(sessionManager, downloadManager, connectivityManager, preferenceManager)
+	private fun DomainSong.toMediaItem() = toMediaItem(sessionManager, downloadManager)
 }
 
 /**
@@ -1117,9 +1215,7 @@ private class StreamStatsListener(private val stats: NetworkStatsManager) : Tran
 
 private fun DomainSong.toMediaItem(
 	sessionManager: SessionManager,
-	downloadManager: DownloadManager,
-	connectivityManager: ConnectivityManager,
-	preferenceManager: PreferenceManager,
+	downloadManager: DownloadManager
 ): MediaItem {
 	val displayArtist = artists.joinToString { it.name }.ifBlank { artistName }
 	val albumArtistName = albumArtists.joinToString { it.name }.ifBlank { artistName }
@@ -1149,7 +1245,8 @@ private fun DomainSong.toMediaItem(
 			if (localPath != null) {
 				File(localPath).toUri()
 			} else {
-				getStreamUrl(id, sessionManager, connectivityManager, preferenceManager)
+				// resolved when played: from the store, or streamed at the then network's quality
+				songUri(id, fileExtension)
 			}
 		}
 	}
@@ -1166,12 +1263,13 @@ private fun DomainSong.toMediaItem(
 	return builder.build()
 }
 
-private fun getStreamUrl(
+/** The URL to stream song [id] from, and the [AudioQuality] it comes at. */
+private fun streamSource(
 	id: String,
 	sessionManager: SessionManager,
 	connectivityManager: ConnectivityManager,
 	preferenceManager: PreferenceManager,
-): Uri {
+): Pair<Uri, AudioQuality> {
 	val isCellular = connectivityManager.isCellular.value
 	val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
 		if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
@@ -1183,9 +1281,7 @@ private fun getStreamUrl(
 	} else {
 		if (isCellular) preferenceManager.streamingQualityCellular.containerAndroid else preferenceManager.streamingQualityWifi.containerAndroid
 	}
-	return sessionManager.api.getStreamUrl(id, bitrate, container?.takeIf { it.isNotBlank() })
-		.toUri()
-		.buildUpon()
-		.appendQueryParameter("estimateContentLength", "true")
-		.build()
+	val format = container?.takeIf { it.isNotBlank() }
+	val url = sessionManager.api.getStreamUrl(id, bitrate, format, estimateContentLength = true)
+	return url.toUri() to AudioQuality.of(format, bitrate)
 }

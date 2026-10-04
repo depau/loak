@@ -205,13 +205,19 @@ class AudioStore(
 		private val partial: Path,
 		offset: Long
 	) {
+		/** The partial file, which readers may follow as it grows (each write is flushed). */
+		val path: String get() = partial.toString()
+
 		/** Bytes in the partial file: where a resumed request starts. */
 		var offset = offset
 			private set
 		private var sink: Sink? = SystemFileSystem.sink(partial, append = true).buffered()
 
 		fun write(bytes: ByteArray, start: Int = 0, end: Int = bytes.size) {
-			sink!!.write(bytes, start, end)
+			sink!!.run {
+				write(bytes, start, end)
+				flush()
+			}
 			offset += end - start
 		}
 
