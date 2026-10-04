@@ -134,7 +134,9 @@ class DbRepository(
 		// Only playlists that changed since we last fetched their songs. The song-link
 		// count also catches rows that other callers of syncPlaylists() stored without songs.
 		val playlists = syncPlaylists().getOrThrow().filter {
-			known[it.playlistId]?.modifiedAt != it.modifiedAt
+			// Room keeps millis; servers may send finer timestamps that would never match
+			known[it.playlistId]?.modifiedAt?.toEpochMilliseconds() !=
+				it.modifiedAt.toEpochMilliseconds()
 				|| playlistDao.getPlaylistSongCount(it.playlistId) != it.songCount
 		}
 
