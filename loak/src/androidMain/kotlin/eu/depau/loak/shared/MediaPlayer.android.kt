@@ -14,6 +14,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.MediaMetadata
@@ -274,7 +275,17 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 
 		val bitmapLoader = ExoPlayerCoilBitmapLoader(applicationContext, imageLoader)
 
-		mediaSession = MediaSession.Builder(this, player)
+		// skipping is a request to hear the other song: the notification, headsets, the car and
+		// the app's own buttons all skip through here, and none should stay paused
+		val sessionPlayer = object : ForwardingPlayer(player) {
+			override fun seekToNext() = super.seekToNext().also { play() }
+			override fun seekToNextMediaItem() = super.seekToNextMediaItem().also { play() }
+			override fun seekToPrevious() = super.seekToPrevious().also { play() }
+			override fun seekToPreviousMediaItem() =
+				super.seekToPreviousMediaItem().also { play() }
+		}
+
+		mediaSession = MediaSession.Builder(this, sessionPlayer)
 			.setSessionActivity(sessionPendingIntent)
 			.setBitmapLoader(bitmapLoader)
 			.setCallback(MediaSessionCallback(::toggleStar, ::savedQueue))
@@ -710,6 +721,11 @@ class AndroidMediaPlayerViewModel(
 						updatePlaybackState()
 					}
 
+					// play pressed while buffering doesn't change isPlaying: show it right away
+					override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+						updatePlaybackState()
+					}
+
 					override fun onPlaybackStateChanged(playbackState: Int) {
 						_uiState.update { it.copy(isLoading = playbackState == Player.STATE_BUFFERING) }
 						updatePlaybackState()
@@ -1135,6 +1151,7 @@ class AndroidMediaPlayerViewModel(
 				controller.seekToPreviousMediaItem()
 			} else {
 				controller.seekTo(0)
+				controller.play()
 			}
 		}
 	}

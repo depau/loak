@@ -55,11 +55,7 @@ fun NowPlayingArtworkPager(
 	LaunchedEffect(pagerState) {
 		snapshotFlow { pagerState.settledPage }.collect { page ->
 			if (userSwiped && page != playerState.currentIndex && page in playerState.queue.indices) {
-				val wasPaused = playerState.isPaused
 				player.playAt(page)
-				if (wasPaused) {
-					player.pause()
-				}
 			}
 			userSwiped = false
 		}
