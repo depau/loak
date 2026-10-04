@@ -43,6 +43,9 @@ data class ArtistState(
 	val similarArtists: List<DomainArtist> = emptyList()
 )
 
+/** Stale navigation target: artist absent from the local DB. Shows the error UI, isn't Sentry noise. */
+class ArtistNotFoundException : Exception("Artist not found in database")
+
 class ArtistDetailViewModel(
 	private val artistId: String,
 	private val repository: DbRepository,
@@ -98,7 +101,7 @@ class ArtistDetailViewModel(
 		viewModelScope.launch {
 			try {
 				val artistEntity = artistDao.getArtistById(artistId)
-					?: throw Exception("Artist not found in database")
+					?: throw ArtistNotFoundException()
 				val domainArtist = artistEntity.toDomainModel()
 
 				var albumsWithSongs =
