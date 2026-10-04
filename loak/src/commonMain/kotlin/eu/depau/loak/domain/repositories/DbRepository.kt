@@ -219,8 +219,7 @@ class DbRepository(
 				// an empty page ends it; one with nothing new = a server ignoring the offset
 				if (page.count { seen.add(it.id) } == 0) break
 				val songs = page.toLibrarySongs(albumsById)
-				// See the per-album path for why conflicts are ignored.
-				songDao.insertSongsIgnoringConflicts(songs)
+				songDao.upsertSongs(songs)
 				songs.mapTo(songIds) { it.songId }
 				val fetched = seen.size.toFloat() / expectedSongs.coerceAtLeast(1)
 				onProgress(0.1f + 0.8f * fetched.coerceAtMost(1f), Res.string.info_syncing_albums)
@@ -324,14 +323,8 @@ class DbRepository(
 
 					if (albumBatch.size >= dbChunkSize || songBatch.size >= 1500) {
 						albumDao.insertAlbums(albumBatch)
-						// Full-library rebuild: songs are fetched for every album,
-						// so on a repeat sync the same rows already exist (they can
-						// even appear under several albums). The web Room driver turns
-						// @Upsert into a bare INSERT, which then trips the PK on
-						// every existing row and floods the worker; IGNORE keeps the
-						// insert idempotent and rows that vanish are pruned by
-						// deleteObsoleteSongs below.
-						songDao.insertSongsIgnoringConflicts(songBatch)
+						// rows that vanish are pruned by deleteObsoleteSongs afterwards
+						songDao.upsertSongs(songBatch)
 
 						finalSongsSynced += songBatch.size
 						albumBatch.clear()
@@ -341,7 +334,7 @@ class DbRepository(
 
 				if (albumBatch.isNotEmpty() || songBatch.isNotEmpty()) {
 					if (albumBatch.isNotEmpty()) albumDao.insertAlbums(albumBatch)
-					if (songBatch.isNotEmpty()) songDao.insertSongsIgnoringConflicts(songBatch)
+					if (songBatch.isNotEmpty()) songDao.upsertSongs(songBatch)
 					finalSongsSynced += songBatch.size
 				}
 			}

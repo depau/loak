@@ -5,6 +5,7 @@ import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
 import androidx.room3.Transaction
+import androidx.room3.Update
 import eu.depau.loak.data.database.entities.SongEntity
 import eu.depau.loak.util.Logger
 import kotlinx.coroutines.flow.Flow
@@ -23,6 +24,20 @@ interface SongDao {
 
 	@Insert(onConflict = OnConflictStrategy.IGNORE)
 	suspend fun insertSongsIgnoringConflicts(songs: List<SongEntity>)
+
+	@Update
+	suspend fun updateSongs(songs: List<SongEntity>)
+
+	/**
+	 * Insert or update in place, so a re-sync refreshes stars, play counts, ratings and tags.
+	 * Not REPLACE: that deletes the row first, and the delete cascades to the song's playlist
+	 * links. (Room's @Upsert degrades to a bare INSERT on web.)
+	 */
+	@Transaction
+	suspend fun upsertSongs(songs: List<SongEntity>) {
+		insertSongsIgnoringConflicts(songs)
+		updateSongs(songs)
+	}
 
 	@Query("SELECT * FROM SongEntity")
 	suspend fun getAllSongs(): List<SongEntity>
