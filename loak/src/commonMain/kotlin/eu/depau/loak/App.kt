@@ -95,6 +95,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
@@ -260,6 +261,10 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 	val queuePaneOpen = remember { mutableStateOf(preferenceManager.queuePaneOpen) }
 	LaunchedEffect(queuePaneOpen.value) { preferenceManager.queuePaneOpen = queuePaneOpen.value }
 	val mediaPlayer = koinInject<MediaPlayerViewModel>()
+	LifecycleStartEffect(mediaPlayer) {
+		mediaPlayer.onUiVisibilityChanged(true)
+		onStopOrDispose { mediaPlayer.onUiVisibilityChanged(false) }
+	}
 	val rootFocus = remember { FocusRequester() }
 	// keyboard and mouse back: the same path as Esc and the system back gesture
 	val backInput = remember { DirectNavigationEventInput() }

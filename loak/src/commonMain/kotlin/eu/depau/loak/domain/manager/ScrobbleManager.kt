@@ -12,7 +12,6 @@ import eu.depau.loak.data.database.entities.SyncActionType
 import kotlin.time.Clock
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.time.Duration.Companion.seconds
 
 interface ScrobblePlayerSource {
 	val currentPosition: Long
@@ -36,12 +35,15 @@ class ScrobbleManager(
 	private var hasSentNowPlaying = false
 	private var progressJob: Job? = null
 	private var accumulatedPlayTime: Long = 0
+	/** When playback last started, while it plays; null while paused. */
+	private var playingSince: Long? = null
 
 	fun onMediaChanged(mediaId: String?) {
 		currentMediaId = mediaId
 		hasScrobbledCurrent = false
 		hasSentNowPlaying = false
 		accumulatedPlayTime = 0
+		playingSince = null
 
 		progressJob?.cancel()
 		if (playerSource.isPlaying) {
@@ -60,23 +62,27 @@ class ScrobbleManager(
 			}
 		} else {
 			progressJob?.cancel()
+			playingSince?.let { accumulatedPlayTime += now() - it }
+			playingSince = null
 		}
 	}
 
+	private fun now() = Clock.System.now().toEpochMilliseconds()
+
+	private fun playedTime() = accumulatedPlayTime + (playingSince?.let { now() - it } ?: 0)
+
 	private fun startProgressTracker() {
 		progressJob?.cancel()
+		if (playingSince == null) playingSince = now()
 		progressJob = scope.launch(Dispatchers.Main) {
-			var lastTickTime = Clock.System.now().toEpochMilliseconds()
-
-			while (isActive) {
-				val now = Clock.System.now().toEpochMilliseconds()
-				val timePassed = now - lastTickTime
-				lastTickTime = now
-
-				accumulatedPlayTime += timePassed
-
+			// sleeps until enough has been played rather than waking the CPU every few seconds;
+			// the length may only be known once the track has loaded
+			while (isActive && !hasScrobbledCurrent) {
+				val duration = playerSource.duration
+				val left = if (duration <= 0) 0L else
+					(duration * preferenceManager.scrobblePercentage).toLong() - playedTime()
+				delay(left.coerceAtLeast(MIN_CHECK_INTERVAL_MS))
 				checkProgress()
-				delay(2.seconds)
 			}
 		}
 	}
@@ -87,7 +93,7 @@ class ScrobbleManager(
 		val duration = playerSource.duration
 		if (duration <= 0) return
 
-		val percent = accumulatedPlayTime.toFloat() / duration.toFloat()
+		val percent = playedTime().toFloat() / duration.toFloat()
 		val playedEnoughPercent = percent >= preferenceManager.scrobblePercentage
 		val isValidSong = duration >= preferenceManager.minDurationToScrobble * 1000
 
@@ -127,5 +133,9 @@ class ScrobbleManager(
 			} catch (_: Exception) {
 			}
 		}
+	}
+
+	private companion object {
+		const val MIN_CHECK_INTERVAL_MS = 2_000L
 	}
 }

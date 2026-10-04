@@ -11,9 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -78,6 +76,13 @@ abstract class MediaPlayerViewModel(
 	/** The [syncKey] the server last saw from here, or that was loaded from it. */
 	// declared before init: restoreState() sets it while the constructor runs
 	private var syncedKey: Any? = null
+
+	/** Whether the app is on screen; the playback position is only polled while it is. */
+	protected val uiVisible = MutableStateFlow(false)
+
+	fun onUiVisibilityChanged(visible: Boolean) {
+		uiVisible.value = visible
+	}
 
 	init {
 		viewModelScope.launch {
@@ -458,8 +463,15 @@ abstract class MediaPlayerViewModel(
 		syncPlayerWithState(paused)
 	}
 
-	/** What a push to the server tracks: the playback status and the track. */
-	private fun PlayerUiState.syncKey() = Triple(currentSong?.id, currentIndex, isPaused)
+	/** What a push to the server tracks: the playback status, the track and the queue. */
+	private data class SyncKey(
+		val songId: String?,
+		val index: Int,
+		val isPaused: Boolean,
+		val queue: List<DomainSong>
+	)
+
+	private fun PlayerUiState.syncKey() = SyncKey(currentSong?.id, currentIndex, isPaused, queue)
 
 	/** Saves the queue to the server; true if it got there. */
 	protected suspend fun pushQueue(): Boolean {
@@ -476,29 +488,21 @@ abstract class MediaPlayerViewModel(
 
 	@OptIn(FlowPreview::class)
 	private fun observeAndSaveState() {
-		// the server gets the queue when playback starts, pauses or stops, or the track
-		// changes; the debounce lets the player settle after skips and queue swaps
+		// the server gets the queue when playback starts, pauses or stops, the track changes or
+		// the queue is edited, with the position at that moment; no timer, so the radio sleeps.
+		// The debounce coalesces skips and edits in a row into one request
 		viewModelScope.launch {
 			uiState
-				.map { it.syncKey() }
-				.distinctUntilChanged()
-				.debounce(1.seconds)
-				.collect { key ->
-					if (preferenceManager.queueSyncEnabled && key != syncedKey) pushQueue()
+				.distinctUntilChanged { old, new ->
+					// identity for the queue, as below: progress ticks share the list
+					old.currentSong?.id == new.currentSong?.id &&
+						old.currentIndex == new.currentIndex &&
+						old.isPaused == new.isPaused &&
+						old.queue === new.queue
 				}
-		}
-
-		// and every so often while playing, so other devices resume near the same spot:
-		// the server only knows the position a client last saved
-		viewModelScope.launch {
-			uiState
-				.map { !it.isPaused && it.currentSong != null }
-				.distinctUntilChanged()
-				.collectLatest { playing ->
-					while (playing) {
-						delay(POSITION_SAVE_INTERVAL)
-						if (preferenceManager.queueSyncEnabled) pushQueue()
-					}
+				.debounce(QUEUE_PUSH_DEBOUNCE)
+				.collect { state ->
+					if (preferenceManager.queueSyncEnabled && state.syncKey() != syncedKey) pushQueue()
 				}
 		}
 
@@ -530,8 +534,7 @@ abstract class MediaPlayerViewModel(
 	}
 
 	private companion object {
-		// ponytail: fixed; a setting if anyone needs it tighter
-		val POSITION_SAVE_INTERVAL = 30.seconds
+		val QUEUE_PUSH_DEBOUNCE = 5.seconds
 	}
 }
 

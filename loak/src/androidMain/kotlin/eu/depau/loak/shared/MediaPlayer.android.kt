@@ -257,6 +257,9 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		player.addListener(object : Player.Listener {
 			override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 				currentSongId.value = mediaItem?.mediaId
+				// a Wi-Fi lock only while streaming; downloaded files need just the CPU
+				val local = mediaItem?.localConfiguration?.uri?.scheme == "file"
+				player.setWakeMode(if (local) C.WAKE_MODE_LOCAL else C.WAKE_MODE_NETWORK)
 			}
 
 			override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -539,6 +542,13 @@ class AndroidMediaPlayerViewModel(
 
 	init {
 		connectToService()
+		viewModelScope.launch {
+			uiVisible.collect { visible ->
+				if (!visible) return@collect
+				updateProgress()
+				if (controller?.isPlaying == true) startProgressLoop()
+			}
+		}
 	}
 
 	private fun connectToService() {
@@ -693,6 +703,8 @@ class AndroidMediaPlayerViewModel(
 		if (index == C.INDEX_UNSET) return
 
 		val currentSong = _uiState.value.queue.getOrNull(index)
+		// first, so the state saved for this pause or track change has its position
+		updateProgress()
 
 		val derivedCollection = currentSong?.let { song ->
 			val stateCollection = _uiState.value.currentCollection
@@ -716,7 +728,6 @@ class AndroidMediaPlayerViewModel(
 			)
 		}
 		applyAudioGain()
-		updateProgress()
 	}
 
 	private fun applyAudioGain() {
@@ -790,10 +801,11 @@ class AndroidMediaPlayerViewModel(
 
 	private fun startProgressLoop() {
 		// re-buffering or a play/pause race can fire onIsPlayingChanged(true)
-		// again while a poller is already running; only ever keep one
-		if (progressJob?.isActive == true) return
+		// again while a poller is already running; only ever keep one.
+		// Off screen nothing shows the position: events (pause, track change) update it instead
+		if (progressJob?.isActive == true || !uiVisible.value) return
 		progressJob = viewModelScope.launch {
-			while (controller?.isPlaying == true) {
+			while (controller?.isPlaying == true && uiVisible.value) {
 				val player = controller ?: break
 				val duration = player.duration
 				if (duration > 0) {
@@ -809,11 +821,14 @@ class AndroidMediaPlayerViewModel(
 	private fun updateProgress() {
 		controller?.let { player ->
 			val duration = player.duration
-			if (duration > 0) {
-				val pos = player.currentPosition
-				val progress = (pos.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-				_uiState.update { it.copy(progress = progress) }
+			val pos = player.currentPosition
+			val progress = when {
+				duration > 0 -> (pos.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+				// a new track whose length isn't known yet: not the last one's position
+				pos == 0L -> 0f
+				else -> return
 			}
+			_uiState.update { it.copy(progress = progress) }
 		}
 	}
 
