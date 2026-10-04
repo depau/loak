@@ -1,6 +1,5 @@
 package eu.depau.loak.ui.screens.playlist
 
-import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.icons.outlined.Flask
 import eu.depau.loak.icons.outlined.Search
 import eu.depau.loak.icons.outlined.SonicPath
@@ -206,9 +205,8 @@ fun PlaylistListScreen(
 		},
 		floatingActionButton = {
 			AnimatedContent(
-				// creating playlists needs the server, for now
-				LocalAvailability.current.online && (!scrollManager.isTriggered
-					|| preferenceManager.bottomBarCollapseMode == BottomBarCollapseMode.Never),
+				!scrollManager.isTriggered
+					|| preferenceManager.bottomBarCollapseMode == BottomBarCollapseMode.Never,
 				transitionSpec = {
 					val transformOrigin = TransformOrigin(0f, 1f)
 					(slideInHorizontally(slideSpec) { it / 2 }

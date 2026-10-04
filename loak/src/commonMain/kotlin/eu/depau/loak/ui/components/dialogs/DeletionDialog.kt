@@ -34,7 +34,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.data.database.dao.PlaylistDao
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.domain.manager.SessionManager
-import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.icons.Icons
@@ -53,7 +52,6 @@ enum class DeletionEndpoint(
 class DeletionViewModel(
 	private val syncManager: SyncManager,
 	private val playlistDao: PlaylistDao,
-	private val dbRepository: DbRepository,
 	private val sessionManager: SessionManager,
 	private val snackBarManager: SnackBarManager
 ) : ViewModel() {
@@ -93,15 +91,18 @@ class DeletionViewModel(
 		viewModelScope.launch {
 			// queued now, so the delete still happens if the app dies during the Undo window
 			val actionId = syncManager.enqueueHeld(SyncActionType.DELETE_PLAYLIST, id)
+			val deleted = playlistDao.getPlaylistById(id)
 			playlistDao.deletePlaylist(id)
 			onRefresh()
 			snackBarManager.notifyWithDeferredCommit(
 				Res.string.notice_deleted_playlist,
 				onUndo = {
 					syncManager.cancel(actionId)
-					// the server still has it: fetch it back
-					dbRepository.syncPlaylists()
-					dbRepository.syncPlaylistSongs(id)
+					// put it back as it was (works offline too)
+					deleted?.let { (playlist, songs) ->
+						playlistDao.insertPlaylist(playlist)
+						playlistDao.insertPlaylistSongCrossRefs(songs.map { it.crossRef })
+					}
 					onRefresh()
 				},
 				commit = { syncManager.release(actionId) }

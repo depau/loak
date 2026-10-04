@@ -90,7 +90,7 @@ fun ArtistSheet(
 		headlineColor = MaterialTheme.colorScheme.onSurface
 	)
 	var linkToOpen by rememberSaveable { mutableStateOf<String?>(null) }
-	// offline, what needs the server is greyed out (adding to playlists too, for now)
+	// offline, what needs the server is greyed out; adding to playlists is queued
 	val online = LocalAvailability.current.online
 	val playable = LocalAvailability.current.collection(artist.id)
 
@@ -178,7 +178,6 @@ fun ArtistSheet(
 						onAddAllToPlaylist()
 						onDismissRequest()
 					},
-					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)

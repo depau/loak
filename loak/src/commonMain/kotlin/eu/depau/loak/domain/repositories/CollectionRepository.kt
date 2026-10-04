@@ -13,6 +13,7 @@ import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.data.database.mappers.toEntity
 import eu.depau.loak.domain.manager.SessionManager
+import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSongCollection
@@ -24,11 +25,13 @@ class CollectionRepository(
 	private val playlistDao: PlaylistDao,
 	private val songDao: SongDao,
 	private val dbRepository: DbRepository,
-	private val sessionManager: SessionManager
+	private val sessionManager: SessionManager,
+	private val syncManager: SyncManager
 ) {
 	suspend fun getLocalData(collectionId: String): DomainSongCollection {
 		return albumDao.getAlbumById(collectionId)?.toDomainModel()
-			?: playlistDao.getPlaylistById(collectionId)?.toDomainModel()
+			// a playlist created offline may have got its real id since the screen opened
+			?: playlistDao.getPlaylistById(syncManager.playlistId(collectionId))?.toDomainModel()
 			?: throw Error("Collection ID $collectionId is neither a known album or playlist")
 	}
 

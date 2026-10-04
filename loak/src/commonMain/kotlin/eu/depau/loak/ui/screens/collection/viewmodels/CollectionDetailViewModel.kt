@@ -23,7 +23,6 @@ import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
-import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainAlbumInfo
@@ -32,6 +31,7 @@ import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.repositories.AlbumRepository
 import eu.depau.loak.domain.repositories.CollectionRepository
+import eu.depau.loak.domain.repositories.PlaylistRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.core.inBackground
@@ -46,6 +46,7 @@ class CollectionDetailViewModel(
 	private val sessionManager: SessionManager,
 	private val snackBarManager: SnackBarManager,
 	private val syncManager: SyncManager,
+	private val playlistRepository: PlaylistRepository,
 	connectivityManager: ConnectivityManager
 ) : ViewModel() {
 
@@ -186,13 +187,11 @@ class CollectionDetailViewModel(
 			)
 		)
 		viewModelScope.launch {
-			// ponytail: the index is from when the song was hidden; a server-side edit in
-			// between would shift it
-			val actionId = syncManager.enqueueHeld(SyncActionType.REMOVE_FROM_PLAYLIST, "$collectionId:$index")
+			val actionId = playlistRepository.removeSong(before.id, index) ?: return@launch
 			snackBarManager.notifyWithDeferredCommit(
 				Res.string.notice_removed_from_playlist,
 				onUndo = {
-					syncManager.cancel(actionId)
+					playlistRepository.undoRemove(actionId, before.id, index, song.id)
 					collectionState.value = UiState.Success(before)
 				},
 				commit = { syncManager.release(actionId) }

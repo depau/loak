@@ -14,14 +14,16 @@ import eu.depau.loak.generated.resources.action_add_anyway
 import eu.depau.loak.generated.resources.action_change
 import eu.depau.loak.generated.resources.notice_already_in_playlist
 import eu.depau.loak.generated.resources.notice_saved_to_playlist
+import eu.depau.loak.data.database.dao.PlaylistDao
+import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.domain.repositories.PlaylistRepository
 import eu.depau.loak.domain.models.snackbars.PlayerEvent
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.util.Logger
-import dev.zt64.subsonic.api.model.Playlist as ApiPlaylist
 
 /**
  * Saving songs to playlists: opens the sheet where playlists are selected with checkboxes
@@ -30,12 +32,13 @@ import dev.zt64.subsonic.api.model.Playlist as ApiPlaylist
 class PlaylistUpdateDialogViewModel(
 	private val songs: List<DomainSong>,
 	private val playlistToExclude: String?,
-	private val sessionManager: SessionManager,
+	private val playlistRepository: PlaylistRepository,
+	private val playlistDao: PlaylistDao,
 	private val snackBarManager: SnackBarManager,
 	private val preferenceManager: PreferenceManager
 ) : ViewModel() {
-	val playlistsState: StateFlow<UiState<List<ApiPlaylist>>>
-		field = MutableStateFlow<UiState<List<ApiPlaylist>>>(UiState.Loading())
+	val playlistsState: StateFlow<UiState<List<DomainPlaylist>>>
+		field = MutableStateFlow<UiState<List<DomainPlaylist>>>(UiState.Loading())
 
 	val selectedPlaylistIds: StateFlow<Set<String>>
 		field = MutableStateFlow(emptySet())
@@ -68,7 +71,7 @@ class PlaylistUpdateDialogViewModel(
 		}
 	}
 
-	private fun shownName(playlist: ApiPlaylist) =
+	private fun shownName(playlist: DomainPlaylist) =
 		parsePlaylistName(playlist.name, playlist.validUntil != null, preferenceManager.audioMuseIntegration).display
 
 	fun loadPlaylists() {
@@ -76,7 +79,9 @@ class PlaylistUpdateDialogViewModel(
 			playlistsState.value = UiState.Loading()
 			try {
 				val last = preferenceManager.lastPlaylistId
-				val results = sessionManager.api.getPlaylists()
+				// the cached ones (as last seen), so this works offline too
+				val results = playlistDao.getAllPlaylistsByName()
+					.map { it.toDomainModel() }
 					.filter { it.id != playlistToExclude && it.readOnly != true }
 					// ponytail: "recent" is just the last-used playlist first; a full MRU list if asked
 					.sortedByDescending { it.id == last }
@@ -93,9 +98,8 @@ class PlaylistUpdateDialogViewModel(
 		viewModelScope.launch {
 			creating.value = true
 			try {
-				val playlist = sessionManager.api.createPlaylist(name = name, songIds = songs.map { it.id })
-				preferenceManager.lastPlaylistId = playlist.id
-				snackBarManager.notify(Res.string.notice_saved_to_playlist, shownName(playlist))
+				preferenceManager.lastPlaylistId = playlistRepository.create(name, songs)
+				snackBarManager.notify(Res.string.notice_saved_to_playlist, name)
 				_events.send(Event.Dismiss)
 			} catch (e: Exception) {
 				Logger.e("PlaylistUpdateDialogViewModel", "Failed to create playlist", e)
@@ -118,12 +122,7 @@ class PlaylistUpdateDialogViewModel(
 				var addedAnywhere = false
 				for (playlist in targets) {
 					try {
-						val existing = sessionManager.api.getPlaylist(playlist.id).songs.mapTo(HashSet()) { it.id }
-						val toAdd = songs.filterNot { it.id in existing }
-						if (toAdd.isNotEmpty()) {
-							sessionManager.api.updatePlaylist(playlist.id, songIdsToAdd = toAdd.map { it.id })
-							addedAnywhere = true
-						}
+						if (playlistRepository.addSongs(playlist.id, songs)) addedAnywhere = true
 					} catch (e: Exception) {
 						Logger.e("PlaylistUpdateDialogViewModel", "Failed to add songs to playlist ${playlist.id}", e)
 					}

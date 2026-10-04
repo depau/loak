@@ -71,9 +71,6 @@ import eu.depau.loak.domain.models.DomainAlbumInfo
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.ui.screens.playlist.dialogs.EditPlaylistSheet
 import eu.depau.loak.generated.resources.action_edit_playlist
 import eu.depau.loak.icons.outlined.Edit
@@ -121,9 +118,7 @@ fun CollectionSheet(
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val sessionManager = koinInject<SessionManager>()
-	val dbRepository = koinInject<DbRepository>()
 	val player = koinInject<MediaPlayerViewModel>()
-	val scope = rememberCoroutineScope()
 
 	val contentPadding = PaddingValues(horizontal = 16.dp)
 	val colors = ListItemDefaults.colors(
@@ -140,8 +135,8 @@ fun CollectionSheet(
 	val playlistName = (collection as? DomainPlaylist)?.displayName()
 	val audioMuseInfo by koinInject<AudioMuseManager>().info.collectAsState()
 	val backStack = LocalNavStack.current
-	// offline, what needs the server is greyed out (playlist edits too, for now);
-	// starring, rating, downloading and deleting are queued
+	// offline, what needs the server is greyed out; starring, rating, downloading, deleting and
+	// playlist edits are queued
 	val online = LocalAvailability.current.online
 	val playable = collection != null && LocalAvailability.current.collection(collection.id)
 
@@ -250,7 +245,7 @@ fun CollectionSheet(
 					},
 					colors = colors,
 					contentPadding = contentPadding,
-					enabled = !collection?.songs.isNullOrEmpty() && online
+					enabled = !collection?.songs.isNullOrEmpty()
 				)
 			}
 
@@ -379,7 +374,6 @@ fun CollectionSheet(
 					content = { Text(stringResource(Res.string.action_edit_playlist)) },
 					leadingContent = { Icon(Icons.Outlined.Edit, null) },
 					onClick = { editing = true },
-					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -404,7 +398,6 @@ fun CollectionSheet(
 					content = { Text(stringResource(Res.string.action_make_a_copy)) },
 					leadingContent = { Icon(Icons.Outlined.Copy, null) },
 					onClick = { copying = true },
-					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -474,9 +467,7 @@ fun CollectionSheet(
 			onDismissRequest = {
 				editing = false
 				onDismissRequest()
-			},
-			// pull the new name into the local cache the lists read from
-			onSaved = { scope.launch { dbRepository.syncPlaylists() } }
+			}
 		)
 	}
 

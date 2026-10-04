@@ -166,8 +166,8 @@ fun SongSheet(
 	val colorScheme = if (useSongTheme) rememberColorSchemeFromCoverArt(song.coverArtId) else null
 
 	val backStack = LocalNavStack.current
-	// offline, what needs the server is greyed out (adding to playlists too, for now);
-	// starring, rating, downloading and removing from playlists are queued
+	// offline, what needs the server is greyed out; starring, rating, downloading and playlist
+	// edits are queued
 	val online = LocalAvailability.current.online
 	val playable = LocalAvailability.current.song(song.id)
 
@@ -337,7 +337,6 @@ fun SongSheet(
 							onAddToPlaylist()
 							onDismissRequest()
 						},
-						enabled = online,
 						colors = colors,
 						contentPadding = contentPadding
 					)

@@ -19,15 +19,23 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.info_status_idle
+import eu.depau.loak.generated.resources.notice_offline_change_dropped
+import eu.depau.loak.generated.resources.notice_playlist_changed_on_server
 import org.jetbrains.compose.resources.StringResource
 import eu.depau.loak.data.database.dao.AlbumDao
+import eu.depau.loak.data.database.dao.PlaylistDao
 import eu.depau.loak.data.database.dao.SyncActionDao
 import eu.depau.loak.data.database.entities.SyncActionEntity
 import eu.depau.loak.data.database.entities.SyncActionType
+import eu.depau.loak.data.database.entities.PlaylistEdit
+import eu.depau.loak.data.database.mappers.toEntity
 import eu.depau.loak.di.traced
 import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.util.Logger
 import dev.zt64.subsonic.api.model.ScanStatus
+import dev.zt64.subsonic.api.model.SubsonicErrorCode
+import dev.zt64.subsonic.api.model.SubsonicException
+import kotlinx.serialization.json.Json
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
@@ -49,7 +57,9 @@ class SyncManager(
 	private val albumDao: AlbumDao,
 	private val connectivityManager: ConnectivityManager,
 	private val sessionManager: SessionManager,
-	private val preferenceManager: PreferenceManager
+	private val preferenceManager: PreferenceManager,
+	private val playlistDao: PlaylistDao,
+	private val snackBarManager: SnackBarManager
 ) {
 	private val scope = CoroutineScope(SupervisorJob() + IoDispatcher)
 	private var syncJob: Job? = null
@@ -61,14 +71,20 @@ class SyncManager(
 	val syncState: StateFlow<SyncState>
 		field = MutableStateFlow(SyncState())
 
+	/** Temporary ids of playlists created offline → their real ids, for screens still on them. */
+	private val playlistIds = MutableStateFlow(emptyMap<String, String>())
+
+	fun playlistId(id: String) = playlistIds.value[id] ?: id
+
 	init {
 		scope.launch {
-			connectivityManager.isOnline.collect { isOnline ->
-				if (!syncMutex.isLocked && isOnline) {
-					syncMutex.withLock { processQueue() }
-				}
-			}
+			connectivityManager.isOnline.collect { isOnline -> if (isOnline) flush() }
 		}
+	}
+
+	/** Sends what's queued; waits its turn behind a run (or a library pull) in progress. */
+	private fun flush() {
+		scope.launch { syncMutex.withLock { processQueue() } }
 	}
 
 	fun startPeriodicSync() {
@@ -114,11 +130,14 @@ class SyncManager(
 
 	fun enqueueAction(actionType: SyncActionType, itemId: String, time: Instant = Clock.System.now()) {
 		scope.launch {
-			syncDao.enqueue(SyncActionEntity(actionType = actionType, itemId = itemId, time = time))
-			if (!syncMutex.isLocked) {
-				syncMutex.withLock { processQueue() }
-			}
+			enqueue(SyncActionEntity(actionType = actionType, itemId = itemId, time = time))
 		}
+	}
+
+	/** Queues [action] and sends it right away when online. */
+	suspend fun enqueue(action: SyncActionEntity) {
+		syncDao.enqueue(action)
+		flush()
 	}
 
 	/**
@@ -126,15 +145,24 @@ class SyncManager(
 	 * or until [hold] has passed, so a change survives the app being killed meanwhile.
 	 * [cancel] drops it. Returns the id for those two.
 	 */
-	suspend fun enqueueHeld(actionType: SyncActionType, itemId: String, hold: Duration = 30.seconds): Int =
-		syncDao.enqueue(
-			SyncActionEntity(actionType = actionType, itemId = itemId, time = Clock.System.now() + hold)
-		).toInt()
+	suspend fun enqueueHeld(
+		actionType: SyncActionType,
+		itemId: String,
+		hold: Duration = 30.seconds,
+		payload: String? = null
+	): Int = syncDao.enqueue(
+		SyncActionEntity(
+			actionType = actionType,
+			itemId = itemId,
+			time = Clock.System.now() + hold,
+			payload = payload
+		)
+	).toInt()
 
 	fun release(id: Int) {
 		scope.launch {
 			syncDao.setTime(id, Clock.System.now())
-			if (!syncMutex.isLocked) syncMutex.withLock { processQueue() }
+			flush()
 		}
 	}
 
@@ -205,10 +233,13 @@ class SyncManager(
 	}
 
 	private suspend fun processQueue() {
+		if (!connectivityManager.isOnline.value || !sessionManager.isLoggedIn.value) return
 		val actions = syncDao.getPendingActions()
 		if (actions.isEmpty()) return
 
 		val now = Clock.System.now()
+		// playlists edited in this run: checked for server changes once, refreshed at the end
+		val touched = mutableSetOf<String>()
 		for (action in actions) {
 			// held for an Undo (see enqueueHeld); scrobbles always carry a past time
 			if (action.time > now) continue
@@ -217,10 +248,15 @@ class SyncManager(
 					SyncActionType.STAR -> sessionManager.api.star(action.itemId)
 					SyncActionType.UNSTAR -> sessionManager.api.unstar(action.itemId)
 					SyncActionType.DELETE_PLAYLIST -> sessionManager.api.deletePlaylist(action.itemId)
-					SyncActionType.REMOVE_FROM_PLAYLIST -> {
+					SyncActionType.REMOVE_FROM_PLAYLIST if action.payload == null -> {
+						// queued by an older version: by index
 						val (playlistId, index) = action.itemId.split(':').let { it[0] to it[1].toInt() }
 						sessionManager.api.updatePlaylist(playlistId, songIndicesToRemove = listOf(index))
 					}
+					SyncActionType.REMOVE_FROM_PLAYLIST,
+					SyncActionType.ADD_TO_PLAYLIST,
+					SyncActionType.CREATE_PLAYLIST,
+					SyncActionType.UPDATE_PLAYLIST -> replayPlaylistEdit(action, touched)
 					SyncActionType.SCROBBLE -> sessionManager.api.scrobble(
 						action.itemId,
 						submission = true,
@@ -242,11 +278,75 @@ class SyncManager(
 				)
 
 			} catch (e: Exception) {
+				if (e is CancellationException) throw e
+				// the item is gone or not ours: retrying won't help, and it would block the queue
+				if (e is SubsonicException && e.code in PERMANENT_ERRORS) {
+					Logger.e("SyncManager", "Dropping ${action.actionType} for ${action.itemId}", e)
+					syncDao.removeAction(action.id)
+					snackBarManager.notify(Res.string.notice_offline_change_dropped)
+					continue
+				}
 				Logger.e("SyncManager", "Network failed. Action left in queue.", e)
 				break
 			}
 		}
+		// the server's merged result, with its new modifiedAt (skipped while edits are pending)
+		touched.forEach { repository.syncPlaylistSongs(it) }
 	}
+
+	/**
+	 * Subsonic edits playlists by index, so removals are resolved by song id against the
+	 * server's current list (see [serverIndexOf]). Last writer wins: if the server playlist
+	 * changed since we last saw it, the edits still apply on top, with a snackbar.
+	 */
+	private suspend fun replayPlaylistEdit(action: SyncActionEntity, touched: MutableSet<String>) {
+		val edit = Json.decodeFromString<PlaylistEdit>(action.payload!!)
+		val api = sessionManager.api
+		val id = action.itemId
+		if (action.actionType == SyncActionType.CREATE_PLAYLIST) {
+			val created = api.createPlaylist(edit.name.orEmpty(), edit.songIds)
+			playlistDao.replacePlaylistId(id, created.toEntity())
+			syncDao.renamePlaylist(id, created.id)
+			playlistIds.update { it + (id to created.id) }
+			touched += created.id
+			return
+		}
+
+		val server = api.getPlaylist(id)
+		val serverSongs = server.songs.map { it.id }
+		// stored as millis: the server's timestamps can be finer
+		val seen = playlistDao.getPlaylistEntity(id)?.modifiedAt?.toEpochMilliseconds()
+		if (touched.add(id) && seen != null && seen != server.modifiedAt.toEpochMilliseconds()) {
+			snackBarManager.notify(Res.string.notice_playlist_changed_on_server, server.name)
+		}
+		when (action.actionType) {
+			SyncActionType.ADD_TO_PLAYLIST -> {
+				val toAdd = edit.songIds.filterNot { it in serverSongs }
+				if (toAdd.isNotEmpty()) api.updatePlaylist(id, songIdsToAdd = toAdd)
+			}
+			SyncActionType.REMOVE_FROM_PLAYLIST ->
+				serverIndexOf(serverSongs, edit.songIds.single(), edit.occurrence)?.let {
+					api.updatePlaylist(id, songIndicesToRemove = listOf(it))
+				}
+			else -> api.updatePlaylist(
+				id, name = edit.name, comment = edit.comment, public = edit.public
+			)
+		}
+	}
+}
+
+/** Errors retrying won't fix: the action is dropped instead of blocking the queue. */
+private val PERMANENT_ERRORS =
+	setOf(SubsonicErrorCode.DATA_NOT_FOUND, SubsonicErrorCode.UNAUTHORIZED)
+
+/**
+ * Where a removal made locally lands in the server's playlist: the same occurrence of the song
+ * among its duplicates (the n-th stays the n-th), or the last one if the server now has fewer;
+ * null if the song is no longer there.
+ */
+internal fun serverIndexOf(serverSongIds: List<String>, songId: String, occurrence: Int): Int? {
+	val indices = serverSongIds.indices.filter { serverSongIds[it] == songId }
+	return indices.getOrNull(occurrence) ?: indices.lastOrNull()
 }
 
 /** How often the periodic loop flushes the action queue and checks the server for changes. */

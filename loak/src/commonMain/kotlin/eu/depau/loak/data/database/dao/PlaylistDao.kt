@@ -88,6 +88,27 @@ interface PlaylistDao {
 	suspend fun getPlaylistSongCount(playlistId: String): Int
 
 
+	@Query(
+		"SELECT songId FROM PlaylistSongCrossRef WHERE playlistId = :playlistId ORDER BY position"
+	)
+	suspend fun getPlaylistSongIds(playlistId: String): List<String>
+
+	@Query("SELECT * FROM PlaylistEntity WHERE playlistId = :playlistId")
+	suspend fun getPlaylistEntity(playlistId: String): PlaylistEntity?
+
+	@Query("UPDATE PlaylistSongCrossRef SET playlistId = :newId WHERE playlistId = :oldId")
+	suspend fun movePlaylistSongs(oldId: String, newId: String)
+
+	/** A playlist created offline got its real id: [created] takes over its songs. */
+	@Transaction
+	suspend fun replacePlaylistId(oldId: String, created: PlaylistEntity) {
+		// deleted locally meanwhile: its queued delete removes it from the server too
+		if (getPlaylistEntity(oldId) == null) return
+		insertPlaylist(created)
+		movePlaylistSongs(oldId, created.playlistId)
+		deletePlaylist(oldId)
+	}
+
 	@Query("SELECT DISTINCT songId FROM PlaylistSongCrossRef")
 	suspend fun getAllPlaylistSongIds(): List<String>
 	@Transaction

@@ -353,12 +353,14 @@ class DbRepository(
 		val remotePlaylists = sessionManager.api.getPlaylists()
 		val playlistEntities = remotePlaylists.map { it.toEntity() }
 		val validPlaylistIds = playlistEntities.map { it.playlistId }.toSet()
+		// local edits not on the server yet stay as they are until replayed
+		val pending = syncDao.pendingPlaylistIds().toSet()
 
-		playlistEntities.chunked(dbChunkSize).forEach { chunk ->
-			playlistDao.insertPlaylists(chunk)
+		playlistEntities.filter { it.playlistId !in pending }.chunked(dbChunkSize).forEach {
+			playlistDao.insertPlaylists(it)
 		}
 
-		playlistDao.deleteObsoletePlaylists(validPlaylistIds)
+		playlistDao.deleteObsoletePlaylists(validPlaylistIds + pending)
 
 		Logger.i("DbRepository", "- Playlists Synced: ${playlistEntities.size} playlists found")
 
@@ -366,6 +368,10 @@ class DbRepository(
 	}
 
 	suspend fun syncPlaylistSongs(playlistId: String): Result<Set<String>> = runDbOp {
+		// local edits not on the server yet (incl. playlists created offline) win until replayed
+		if (playlistId in syncDao.pendingPlaylistIds()) {
+			return@runDbOp playlistDao.getPlaylistSongIds(playlistId).toSet()
+		}
 		val playlist = try {
 			sessionManager.api.getPlaylist(playlistId)
 		} catch (e: Exception) {

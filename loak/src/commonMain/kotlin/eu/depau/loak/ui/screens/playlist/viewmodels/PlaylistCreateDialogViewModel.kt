@@ -12,17 +12,16 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_created_playlist
 import eu.depau.loak.data.database.dao.PlaylistDao
 import eu.depau.loak.data.database.mappers.toDomainModel
-import eu.depau.loak.data.database.mappers.toEntity
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.domain.repositories.PlaylistRepository
 import eu.depau.loak.ui.core.UiState
 
 class PlaylistCreateDialogViewModel(
 	private val songs: List<DomainSong>,
 	private val playlistDao: PlaylistDao,
-	private val sessionManager: SessionManager,
+	private val playlistRepository: PlaylistRepository,
 	private val snackBarManager: SnackBarManager
 ) : ViewModel() {
 	val creationState: StateFlow<UiState<Nothing?>>
@@ -37,18 +36,11 @@ class PlaylistCreateDialogViewModel(
 		viewModelScope.launch {
 			creationState.value = UiState.Loading()
 			try {
-				val playlist = sessionManager.api.createPlaylist(
-					name = name.text.toString(),
-					songIds = songs.map { it.id }
-				)
-				playlistDao.insertPlaylist(playlist.toEntity())
-				_events.send(
-					Event.Dismiss(
-						playlistDao.getPlaylistById(playlist.id)!!.toDomainModel()
-					)
-				)
+				val playlistName = name.text.toString()
+				val id = playlistRepository.create(playlistName, songs)
+				_events.send(Event.Dismiss(playlistDao.getPlaylistById(id)!!.toDomainModel()))
 				creationState.value = UiState.Success(null)
-				snackBarManager.notify(Res.string.notice_created_playlist, playlist.name)
+				snackBarManager.notify(Res.string.notice_created_playlist, playlistName)
 			} catch (e: Exception) {
 				creationState.value = UiState.Error(e)
 			}

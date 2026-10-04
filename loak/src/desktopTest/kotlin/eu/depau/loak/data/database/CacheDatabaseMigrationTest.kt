@@ -4,6 +4,7 @@ import androidx.room3.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import eu.depau.loak.data.database.entities.AudioFileEntity
+import eu.depau.loak.data.database.entities.SyncActionEntity
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.domain.manager.hourOf
@@ -45,6 +46,12 @@ class CacheDatabaseMigrationTest {
 			.build()
 		val actions = db.syncActionDao().getPendingActions()
 
+		// v26: playlist edits carry a payload and mark their playlist as pending
+		db.syncActionDao().enqueue(
+			SyncActionEntity(actionType = SyncActionType.ADD_TO_PLAYLIST, itemId = "p1", payload = "{}")
+		)
+		val pendingPlaylists = db.syncActionDao().pendingPlaylistIds()
+
 		// tables added by later migrations work: hourly buckets add up, old ones get pruned
 		val stats = db.networkStatsDao()
 		val hour = hourOf(Instant.parse("2026-10-04T13:37:00Z"))
@@ -64,6 +71,8 @@ class CacheDatabaseMigrationTest {
 			listOf(SyncActionType.SCROBBLE to "s1"),
 			actions.map { it.actionType to it.itemId }
 		)
+		assertEquals(listOf<String?>(null), actions.map { it.payload })
+		assertEquals(listOf("p1"), pendingPlaylists)
 		assertEquals(listOf(150L to 2L), buckets.map { it.bytes to it.requests })
 		assertEquals(listOf(audio), audioFiles)
 	}

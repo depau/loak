@@ -40,9 +40,9 @@ import eu.depau.loak.generated.resources.option_playlist_public
 import eu.depau.loak.generated.resources.title_edit_playlist
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainPlaylist
+import eu.depau.loak.domain.repositories.PlaylistRepository
 import eu.depau.loak.util.Logger
 
 /** Name, description and visibility of a playlist the user owns. [onSaved] runs after a save. */
@@ -53,7 +53,7 @@ fun EditPlaylistSheet(
 	onDismissRequest: () -> Unit,
 	onSaved: () -> Unit = {}
 ) {
-	val sessionManager = koinInject<SessionManager>()
+	val playlistRepository = koinInject<PlaylistRepository>()
 	val snackBarManager = koinInject<SnackBarManager>()
 	val scope = rememberCoroutineScope()
 	val playlistName = playlist.displayName()
@@ -110,7 +110,7 @@ fun EditPlaylistSheet(
 						scope.launch {
 							saving = true
 							try {
-								sessionManager.api.updatePlaylist(
+								playlistRepository.update(
 									playlist.id,
 									name = playlistName.rename(name.text.toString().trim()),
 									comment = description.text.toString(),

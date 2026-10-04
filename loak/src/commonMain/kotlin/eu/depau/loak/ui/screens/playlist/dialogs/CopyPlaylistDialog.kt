@@ -16,11 +16,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.snackbars.PlayerEvent
-import eu.depau.loak.domain.repositories.DbRepository
+import eu.depau.loak.domain.repositories.PlaylistRepository
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel
 import eu.depau.loak.generated.resources.action_make_a_copy
@@ -43,9 +42,8 @@ import org.koin.compose.koinInject
  */
 @Composable
 fun CopyPlaylistDialog(playlist: DomainPlaylist, onDismissRequest: () -> Unit) {
-	val sessionManager = koinInject<SessionManager>()
 	val snackBarManager = koinInject<SnackBarManager>()
-	val dbRepository = koinInject<DbRepository>()
+	val playlistRepository = koinInject<PlaylistRepository>()
 	val backStack = LocalNavStack.current
 	val shown = playlist.displayName().display
 	val name = rememberTextFieldState(stringResource(Res.string.label_playlist_copy_name, shown))
@@ -74,14 +72,13 @@ fun CopyPlaylistDialog(playlist: DomainPlaylist, onDismissRequest: () -> Unit) {
 					// outlives the dialog, which closes right away
 					snackBarManager.launch {
 						try {
-							val songIds = sessionManager.api.getPlaylist(playlist.id).songs.map { it.id }
-							val copy = sessionManager.api.createPlaylist(name = newName, songIds = songIds)
-							dbRepository.syncPlaylists()
+							// the songs as last synced, so this works offline too
+							val copyId = playlistRepository.create(newName, playlist.songs)
 							snackBarManager.notify(
 								PlayerEvent(
 									Res.string.notice_copied_playlist, listOf(newName),
 									action = Res.string.action_open,
-									onAction = { backStack.add(Screen.CollectionDetail(copy.id, "")) }
+									onAction = { backStack.add(Screen.CollectionDetail(copyId, "")) }
 								)
 							)
 						} catch (e: Exception) {

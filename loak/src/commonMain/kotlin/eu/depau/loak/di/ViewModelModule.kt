@@ -80,7 +80,8 @@ val viewModelModule = module {
 		PlaylistUpdateDialogViewModel(
 			songs = songs,
 			playlistToExclude = playlistToExclude,
-			sessionManager = get(),
+			playlistRepository = get(),
+			playlistDao = get(),
 			snackBarManager = get(),
 			preferenceManager = get()
 		)
@@ -133,7 +134,7 @@ val viewModelModule = module {
 		PlaylistCreateDialogViewModel(
 			songs = songs,
 			playlistDao = get(),
-			sessionManager = get(),
+			playlistRepository = get(),
 			snackBarManager = get()
 		)
 	}
@@ -147,6 +148,7 @@ val viewModelModule = module {
 			sessionManager = get(),
 			snackBarManager = get(),
 			syncManager = get(),
+			playlistRepository = get(),
 			connectivityManager = get()
 		)
 	}
