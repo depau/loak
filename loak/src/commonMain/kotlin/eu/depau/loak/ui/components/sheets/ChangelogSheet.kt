@@ -61,9 +61,9 @@ import eu.depau.loak.di.PlatformContext
 
 @Serializable
 data class Release(
-	@SerialName("tag_name") val tag: String,
-	@SerialName("html_url") val url: String,
-	@SerialName("body") val body: String
+	@SerialName("tag_name") val tag: String? = null,
+	@SerialName("html_url") val url: String? = null,
+	@SerialName("body") val body: String? = null
 )
 
 class ChangelogViewModel(
@@ -93,8 +93,8 @@ class ChangelogViewModel(
 				}
 				val release: Release = response.body()
 				val remoteVersion = release.tag
-					.filter { it.isDigit() }
-					.toIntOrNull() ?: return@launch
+					?.filter { it.isDigit() }
+					?.toIntOrNull() ?: return@launch
 				val localVersion = currentVersion
 					.filter { it.isDigit() }
 					.toIntOrNull() ?: return@launch
@@ -150,7 +150,7 @@ fun ChangelogSheet() {
 						fontFamily = defaultFont(round = 100f)
 					)
 					Text(
-						stringResource(Res.string.info_update, release.tag),
+						stringResource(Res.string.info_update, release.tag ?: ""),
 						style = MaterialTheme.typography.bodyMedium
 					)
 				}
@@ -158,7 +158,7 @@ fun ChangelogSheet() {
 				Spacer(Modifier.height(8.dp))
 
 				Markdown(
-					text = release.body,
+					text = release.body ?: "",
 					modifier = Modifier
 						.heightIn(max = 400.dp)
 						.fillMaxWidth()
@@ -172,7 +172,7 @@ fun ChangelogSheet() {
 				Spacer(Modifier.weight(1f))
 
 				Button(
-					onClick = { linkToOpen = release.url },
+					onClick = { release.url?.let { linkToOpen = it } },
 					modifier = Modifier.fillMaxWidth(),
 					shape = ContinuousCapsule
 				) {
