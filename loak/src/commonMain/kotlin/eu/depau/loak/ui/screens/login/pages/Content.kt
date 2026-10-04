@@ -53,6 +53,7 @@ import eu.depau.loak.ui.components.dialogs.FormDialog
 import eu.depau.loak.ui.core.LoginUiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.CustomHeadersItem
+import eu.depau.loak.ui.screens.settings.CrashReportingGroup
 import eu.depau.loak.ui.screens.settings.ThisDeviceGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.theme.defaultFont
@@ -170,6 +171,7 @@ fun LoginScreenContent(innerPadding: PaddingValues) {
 				) {
 					CustomHeadersItem()
 					ThisDeviceGroup()
+					CrashReportingGroup()
 				}
 
 				Spacer(Modifier.weight(2.25f))

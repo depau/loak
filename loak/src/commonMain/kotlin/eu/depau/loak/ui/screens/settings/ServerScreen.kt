@@ -6,6 +6,8 @@ import eu.depau.loak.generated.resources.action_log_out
 import eu.depau.loak.generated.resources.info_audiomuse_not_connected
 import eu.depau.loak.generated.resources.info_audiomuse_connected
 import eu.depau.loak.generated.resources.info_smart_playlists_switch
+import eu.depau.loak.generated.resources.option_crash_reporting
+import eu.depau.loak.generated.resources.subtitle_crash_reporting
 import eu.depau.loak.generated.resources.title_audiomuse
 import eu.depau.loak.generated.resources.title_integrations
 import androidx.compose.runtime.collectAsState
@@ -258,6 +260,22 @@ fun CustomHeadersItem() {
 		supportingContent = { Text(stringResource(Res.string.subtitle_custom_headers)) },
 		shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
 	)
+}
+
+/** Crash reporting opt-out toggle; shared with the login screen. */
+@Composable
+fun CrashReportingGroup() {
+	val preferenceManager = koinInject<PreferenceManager>()
+
+	SettingsGroup {
+		SettingsToggleItem(
+			checked = preferenceManager.crashReportingEnabled,
+			onCheckedChange = { preferenceManager.crashReportingEnabled = it },
+			content = { Text(stringResource(Res.string.option_crash_reporting)) },
+			supportingContent = { Text(stringResource(Res.string.subtitle_crash_reporting)) },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+		)
+	}
 }
 
 /** The device name override; shared with the login screen. */

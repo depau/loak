@@ -19,12 +19,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
+import org.koin.compose.koinInject
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel
 import eu.depau.loak.generated.resources.action_ok
 import eu.depau.loak.generated.resources.action_test_exception_handler
 import eu.depau.loak.generated.resources.info_exception_handler
+import eu.depau.loak.generated.resources.option_crash_reporting
 import eu.depau.loak.generated.resources.option_custom_headers
+import eu.depau.loak.generated.resources.subtitle_crash_reporting
 import eu.depau.loak.generated.resources.title_confirm
 import eu.depau.loak.generated.resources.title_developer
 import eu.depau.loak.generated.resources.title_logs
@@ -42,12 +45,15 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.screens.settings.components.SettingsNavItem
+import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
+import eu.depau.loak.domain.manager.PreferenceManager
 
 @Composable
 fun SettingsDeveloperScreen() {
 	val platformContext = LocalPlatformContext.current
 	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	val backStack = LocalNavStack.current
+	val preferenceManager = koinInject<PreferenceManager>()
 	var exceptionConfirmationShown by rememberSaveable { mutableStateOf(false) }
 
 	Scaffold(
@@ -74,7 +80,15 @@ fun SettingsDeveloperScreen() {
 			) {
 				SettingsGroup {
 					val isAndroid = platformContext.platformType == PlatformType.Android
-					val count = if (isAndroid) 2 else 1
+					val count = if (isAndroid) 3 else 2
+
+					SettingsToggleItem(
+						checked = preferenceManager.crashReportingEnabled,
+						onCheckedChange = { preferenceManager.crashReportingEnabled = it },
+						content = { Text(stringResource(Res.string.option_crash_reporting)) },
+						supportingContent = { Text(stringResource(Res.string.subtitle_crash_reporting)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count)
+					)
 
 					SettingsNavItem(
 						onClick = dropUnlessResumed {
@@ -85,7 +99,7 @@ fun SettingsDeveloperScreen() {
 							}
 						},
 						content = { Text(stringResource(Res.string.option_custom_headers)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
 					)
 
 					if (isAndroid) {
@@ -98,7 +112,7 @@ fun SettingsDeveloperScreen() {
 								}
 							},
 							content = { Text(stringResource(Res.string.title_logs)) },
-							shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
+							shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
 						)
 					}
 				}

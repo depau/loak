@@ -5,6 +5,9 @@ import io.sentry.kotlin.multiplatform.Sentry
 import io.sentry.kotlin.multiplatform.SentryEvent
 import io.sentry.kotlin.multiplatform.protocol.Breadcrumb
 import io.sentry.kotlin.multiplatform.protocol.User
+import com.russhwolf.settings.Settings
+import com.russhwolf.settings.get
+import org.koin.core.context.GlobalContext
 
 /**
  * Sentry error reporting bootstrap. Call as early as possible in the native
@@ -12,6 +15,28 @@ import io.sentry.kotlin.multiplatform.protocol.User
  */
 private const val SENTRY_DSN =
 	"https://37ad07c33d8dc6d5191b355a80f23945@o4512187976384512.ingest.de.sentry.io/4512187981889616"
+
+/**
+ * Settings key backing the "crash reporting" toggle. Read with the same
+ * [com.russhwolf.settings.Settings] store [eu.depau.loak.domain.manager.PreferenceManager]
+ * uses (the Koin one, when it exists), so the in-app switch and the boot-time
+ * gate always agree. Defaults to true (opt-out).
+ */
+const val SENTRY_ENABLED_KEY = "crashReportingEnabled"
+
+/**
+ * Whether crash reporting to Sentry is active. Consults the Koin-registered
+ * [Settings] singleton when Koin is up; before that (Sentry boots before Koin
+ * on Android) it falls back to the platform's no-arg [Settings] store, which
+ * is the exact store [eu.depau.loak.domain.manager.PreferenceManager] reads on
+ * Android/iOS — so the toggle is honored at startup everywhere except desktop,
+ * where [initializeSentry] runs after [initKoin] anyway.
+ */
+fun isSentryEnabled(): Boolean {
+	val settings = GlobalContext.getOrNull()?.getOrNull(Settings::class)
+		?: Settings()
+	return settings.get(SENTRY_ENABLED_KEY, true)
+}
 
 /**
  * Matches any URL (http/https) up to whitespace or a closing bracket/quote.
@@ -30,6 +55,7 @@ private val SENSITIVE_PARAM_REGEX =
 	Regex("""\b($SENSITIVE_PARAM_KEYS\s*[=:]\s*)[^&\s,"']+""", RegexOption.IGNORE_CASE)
 
 fun initializeSentry() {
+	if (!isSentryEnabled()) return
 	Sentry.init { options ->
 		options.dsn = SENTRY_DSN
 		options.environment = "production"
@@ -98,6 +124,7 @@ internal fun String.sanitizeSentryText(): String =
  * exposes as their Subsonic login).
  */
 fun setSentryUser(user: SubsonicUser?) {
+	if (!isSentryEnabled()) return
 	if (!Sentry.isEnabled()) return
 	if (user == null) {
 		Sentry.setUser(null)

@@ -1,5 +1,7 @@
 package eu.depau.loak.util
 
+import eu.depau.loak.di.isSentryEnabled
+
 /**
  * Report an error to Sentry (no-op when Sentry isn't initialized / DSN unset).
  * Kept in [Logger] so the four platform implementations can all forward caught
@@ -7,6 +9,7 @@ package eu.depau.loak.util
  */
 fun captureSentryError(throwable: Throwable?) {
 	if (throwable == null) return
+	if (!isSentryEnabled()) return
 	io.sentry.kotlin.multiplatform.Sentry.captureException(throwable)
 }
 

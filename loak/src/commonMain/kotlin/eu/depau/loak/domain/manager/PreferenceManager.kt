@@ -93,6 +93,8 @@ class PreferenceManager(
 	var customHeaders by preference("")
 	/** Shown on other devices as where a synced queue came from; blank = the system name. */
 	var deviceName by preference("")
+	/** Send crash reports to Sentry; default on (opt-out). Read at boot by SentrySetup. */
+	var crashReportingEnabled by preference(true)
 	var checkForUpdates by preference(true)
 	var explicitContentPlayback by preference(ExplicitContentPlayback.Allowed)
 	var autoFillQueue by preference(false)
