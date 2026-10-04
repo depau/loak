@@ -281,7 +281,8 @@ class DbRepository(
 										e
 									)
 								} else if (e.message != null && e.message!!.contains("DATA_NOT_FOUND")) {
-									Logger.e(
+									// expected: album deleted server-side while the summary was stale
+									Logger.w(
 										"DbRepository",
 										"album with id ${summary.id} (${summary.name}) not found; skipping it",
 										e
@@ -482,16 +483,24 @@ class DbRepository(
 	}
 
 	suspend fun fetchArtistMetadata(artistId: String): Result<DomainArtist> = runDbOp {
-		val artistInfo = sessionManager.api.getArtistInfo(artistId)
-		val simIds = artistInfo.similarArtists.map { it.id }
-
 		val currentEntity = artistDao.getArtistById(artistId)
 			?: throw Exception("Artist not found in local DB")
 
+		// Some servers omit image URLs for artists without cover art, which the SDK's
+		// ArtistInfo model (non-optional fields) turns into a SerializationException.
+		// That is not a reason to fail the whole metadata fetch: keep what we have.
+		val artistInfo = runCatching { sessionManager.api.getArtistInfo(artistId) }
+			.getOrElse { err ->
+				if (err is CancellationException) throw err
+				Logger.w("DbRepository", "could not fetch artist info for $artistId; keeping cached metadata", err)
+				null
+			}
+		val simIds = artistInfo?.similarArtists?.map { it.id }.orEmpty()
+
 		val updatedEntity = currentEntity.copy(
-			biography = artistInfo.biography,
+			biography = artistInfo?.biography,
 			similarArtistIds = simIds,
-			lastFmUrl = artistInfo.lastFmUrl
+			lastFmUrl = artistInfo?.lastFmUrl
 		)
 
 		artistDao.insertArtist(updatedEntity)
