@@ -41,10 +41,13 @@ import eu.depau.loak.data.database.entities.PlaylistSongCrossRef
 import eu.depau.loak.data.database.entities.SongEntity
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.data.database.mappers.toEntity
+import eu.depau.loak.di.traced
+import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.util.Logger
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Clock
 import dev.zt64.subsonic.api.model.Album as ApiAlbum
 import dev.zt64.subsonic.api.model.AlbumListType as ApiAlbumListType
 
@@ -57,7 +60,8 @@ class DbRepository(
 	private val radioDao: RadioDao,
 	private val lyricDao: LyricDao,
 	private val syncDao: SyncActionDao,
-	private val sessionManager: SessionManager
+	private val sessionManager: SessionManager,
+	private val networkStatsManager: NetworkStatsManager
 ) {
 	private val concurrentRequestLimit = Semaphore(20)
 
@@ -87,6 +91,16 @@ class DbRepository(
 
 	suspend fun syncEverything(
 		onProgress: (Float, StringResource) -> Unit = { _, _ -> }
+	): Result<Unit> = traced("sync.library", "Full library pull") { data ->
+		val start = Clock.System.now()
+		pullLibrary(onProgress, data).also {
+			networkStatsManager.recordSyncRun(start, it.isSuccess, data["songs"] as? Int ?: 0)
+		}
+	}
+
+	private suspend fun pullLibrary(
+		onProgress: (Float, StringResource) -> Unit,
+		data: MutableMap<String, Any>
 	): Result<Unit> = runDbOp {
 		val progressCallback = suspend { progress: Float, message: StringResource ->
 			Logger.i("DbRepository", "$progress ${getString(message)}")
@@ -125,6 +139,9 @@ class DbRepository(
 
 		validAlbumIds.addAll(libraryResult.first)
 		validSongIds.addAll(libraryResult.second)
+		data["albums"] = validAlbumIds.size
+		data["songs"] = validSongIds.size
+		data["playlists"] = playlists.size
 
 		val totalPlaylists = playlists.size
 		if (totalPlaylists > 0) {

@@ -22,7 +22,10 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.ktor.KtorDataSource
 import androidx.media3.exoplayer.BaseRenderer
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -73,6 +76,7 @@ import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import eu.depau.loak.data.database.dao.AlbumDao
+import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.di.ResourceProvider
 import eu.depau.loak.domain.manager.AndroidScrobbleManager
@@ -80,6 +84,7 @@ import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.EqualiserManager
+import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SessionManager
@@ -98,6 +103,7 @@ import eu.depau.loak.exoplayer.ExoPlayerCoilBitmapLoader
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -122,6 +128,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 	private val songRepository: SongRepository by inject()
 	private val downloadManager: DownloadManager by inject()
 	private val stateRepository: PlayerStateRepository by inject()
+	private val networkStatsManager: NetworkStatsManager by inject()
 	private val currentSongId = MutableStateFlow<String?>(null)
 
 	private var equaliser: Equalizer? = null
@@ -148,6 +155,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 
 		val httpDataSourceFactory = KtorDataSource.Factory(sessionManager.api.httpClient)
 		val dataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
+			.setTransferListener(StreamStatsListener(networkStatsManager))
 
 		val extractorsFactory = ExtractorsFactory {
 			arrayOf(
@@ -1060,6 +1068,36 @@ class AndroidMediaPlayerViewModel(
 
 	private fun DomainSong.toMediaItem() =
 		toMediaItem(sessionManager, downloadManager, connectivityManager, preferenceManager)
+}
+
+/**
+ * Counts streamed bytes as the player reads them, so nothing is counted ahead of playback.
+ * The Ktor stats plugin leaves stream requests to this.
+ */
+@OptIn(UnstableApi::class)
+private class StreamStatsListener(private val stats: NetworkStatsManager) : TransferListener {
+	private val transfers = ConcurrentHashMap<DataSource, NetworkStatsManager.AudioTransfer>()
+
+	override fun onTransferInitializing(source: DataSource, spec: DataSpec, isNetwork: Boolean) {}
+
+	override fun onTransferStart(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {
+		if (!isNetwork) return
+		transfers[source] =
+			stats.AudioTransfer(TransferCategory.STREAM, dataSpec.uri.getQueryParameter("id"))
+	}
+
+	override fun onBytesTransferred(
+		source: DataSource,
+		dataSpec: DataSpec,
+		isNetwork: Boolean,
+		bytesTransferred: Int
+	) {
+		if (isNetwork) transfers[source]?.add(bytesTransferred.toLong())
+	}
+
+	override fun onTransferEnd(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {
+		transfers.remove(source)?.end()
+	}
 }
 
 private fun DomainSong.toMediaItem(

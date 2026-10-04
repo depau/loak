@@ -919,4 +919,20 @@
 	<string name="info_queue_from">From %1$s</string>
 	<string name="info_instant_mix">Instant mix · %1$s</string>
 	<string name="info_queue_from_ago">From %1$s · %2$s</string>
+	<string name="title_network_stats">Network &amp; storage stats</string>
+	<string name="subtitle_network_stats">Data used per hour and network, and recent library syncs</string>
+	<string name="title_last_24h">Last 24 hours</string>
+	<string name="title_last_7d">Last 7 days</string>
+	<string name="title_per_hour">Per hour</string>
+	<string name="title_sync_runs">Recent library syncs</string>
+	<string name="info_no_data">No data yet</string>
+	<string name="info_transfer_split">Metered: %1$s · Unmetered: %2$s · %3$d requests</string>
+	<string name="info_sync_run">%1$s · %2$d s · %3$d songs</string>
+	<string name="info_sync_succeeded">Succeeded</string>
+	<string name="info_sync_failed">Failed</string>
+	<string name="label_transfer_stream">Streaming</string>
+	<string name="label_transfer_download">Downloads</string>
+	<string name="label_transfer_api">Server API</string>
+	<string name="label_transfer_image">Cover art</string>
+	<string name="label_transfer_cache_hit">Cache hits</string>
 </resources>

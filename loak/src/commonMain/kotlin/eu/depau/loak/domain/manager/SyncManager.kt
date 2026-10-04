@@ -21,6 +21,7 @@ import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.dao.SyncActionDao
 import eu.depau.loak.data.database.entities.SyncActionEntity
 import eu.depau.loak.data.database.entities.SyncActionType
+import eu.depau.loak.di.traced
 import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.util.Logger
 import kotlin.time.Clock
@@ -134,7 +135,10 @@ class SyncManager(
 
 	suspend fun cancel(id: Int) = syncDao.removeAction(id)
 
-	private suspend fun runSyncCycle(force: Boolean = false) {
+	private suspend fun runSyncCycle(force: Boolean = false) =
+		traced("sync.cycle", "Sync cycle") { syncCycle(force, it) }
+
+	private suspend fun syncCycle(force: Boolean, traceData: MutableMap<String, Any>) {
 		syncMutex.withLock {
 			// Without a session the SubsonicClient has no auth params and the
 			// server answers REQUIRED_PARAMETER_MISSING ('u'); the periodic
@@ -148,6 +152,7 @@ class SyncManager(
 				|| currentTime - Instant.fromEpochMilliseconds(preferenceManager.lastFullSyncTime) > fullSyncThreshold
 			) {
 				Logger.i("SyncManager", "Starting full library pull...")
+				traceData["full_pull"] = true
 
 				syncState.update {
 					it.copy(isSyncing = true)

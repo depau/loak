@@ -1,8 +1,10 @@
 package eu.depau.loak.di
 
 import io.sentry.Breadcrumb
+import io.sentry.ISpan
 import io.sentry.Sentry
 import io.sentry.SentryEvent
+import io.sentry.SpanStatus
 
 /**
  * Android Sentry sanitizer.
@@ -24,6 +26,20 @@ internal actual fun registerJvmSentrySanitizer() {
 	options.beforeBreadcrumb = io.sentry.SentryOptions.BeforeBreadcrumbCallback { breadcrumb, _ ->
 		sanitizeJvmBreadcrumb(breadcrumb)
 	}
+	// our spans carry no URLs, but drop any auto-instrumented one that does
+	options.beforeSendTransaction = io.sentry.SentryOptions.BeforeSendTransactionCallback { tx, _ ->
+		tx.spans.removeAll { it.description?.contains("://") == true }
+		tx
+	}
+}
+
+internal actual fun startSentrySpan(parent: Any?, op: String, name: String): Any? =
+	(parent as? ISpan)?.startChild(op, name) ?: Sentry.startTransaction(name, op)
+
+internal actual fun finishSentrySpan(span: Any, ok: Boolean, data: Map<String, Any>) {
+	span as ISpan
+	data.forEach(span::setData)
+	span.finish(if (ok) SpanStatus.OK else SpanStatus.INTERNAL_ERROR)
 }
 
 private fun sanitizeJvmEvent(event: SentryEvent): SentryEvent {

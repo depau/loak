@@ -165,6 +165,7 @@ import eu.depau.loak.ui.screens.settings.BottomBarScreen
 import eu.depau.loak.ui.screens.settings.TabsScreen
 import eu.depau.loak.ui.screens.settings.FontsScreen
 import eu.depau.loak.ui.screens.settings.SettingsAboutScreen
+import eu.depau.loak.ui.screens.settings.SettingsNetworkStatsScreen
 import eu.depau.loak.ui.screens.settings.SettingsAppIconScreen
 import eu.depau.loak.ui.screens.settings.SettingsAppearanceScreen
 import eu.depau.loak.ui.screens.settings.SettingsCustomHeadersScreen
@@ -747,6 +748,9 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.DownloadQuality> {
 			SettingsDownloadQualityScreen()
+		}
+		entry<Screen.Settings.NetworkStats> {
+			SettingsNetworkStatsScreen()
 		}
 		entry<Screen.Settings.Logs> {
 			SettingsLogsScreen()

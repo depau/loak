@@ -13,6 +13,7 @@ import eu.depau.loak.domain.manager.PlayLogManager
 import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.NavidromeManager
+import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.manager.SnackBarManager
@@ -37,4 +38,5 @@ val managerModule = module {
 	singleOf(::EqualiserManager)
 	singleOf(::QueueSyncManager)
 	singleOf(::PlayLogManager)
+	singleOf(::NetworkStatsManager)
 }

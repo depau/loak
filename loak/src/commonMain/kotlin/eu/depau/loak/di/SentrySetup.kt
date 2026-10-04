@@ -7,7 +7,12 @@ import io.sentry.kotlin.multiplatform.protocol.Breadcrumb
 import io.sentry.kotlin.multiplatform.protocol.User
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
+import io.sentry.kotlin.multiplatform.SentryLevel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import org.koin.core.context.GlobalContext
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Sentry error reporting bootstrap. Call as early as possible in the native
@@ -65,6 +70,10 @@ fun initializeSentry() {
 		// otherwise surface as generic C++ crashes instead of useful stack traces.
 		options.enableUnhandledCppExceptionMonitoring = false
 		options.sendDefaultPii = true
+		// Performance tracing for the few spans we create (see [traced]). Span names and data
+		// are fixed strings/ids/counts we set ourselves: never URLs, usernames or servers.
+		// ANR (Android) and app-hang (iOS) detection stay at their defaults (on).
+		options.tracesSampleRate = 0.2
 		// Never let user data ride out on error reports: Ktor timeout/IO errors
 		// embed the full request URL (with the signed auth query params and the
 		// user's server address) in their message. Scrub URLs and credential
@@ -135,5 +144,49 @@ fun setSentryUser(user: SubsonicUser?) {
 			id = user.name,
 			username = user.name,
 		)
+	)
+}
+
+/**
+ * Starts a Sentry span: a child of [parent] when given, else a new transaction.
+ * Returns null where tracing isn't wired up (iOS, web).
+ */
+internal expect fun startSentrySpan(parent: Any?, op: String, name: String): Any?
+
+internal expect fun finishSentrySpan(span: Any, ok: Boolean, data: Map<String, Any>)
+
+private class CurrentSpan(val span: Any) : AbstractCoroutineContextElement(Key) {
+	companion object Key : CoroutineContext.Key<CurrentSpan>
+}
+
+/**
+ * Runs [block] inside a Sentry span, nested under the caller's [traced] span if any.
+ * [block] may put counts/ids into the span data map (never URLs or user data).
+ * A failed [Result] or an exception marks the span as failed.
+ */
+suspend fun <T> traced(
+	op: String,
+	name: String,
+	block: suspend (data: MutableMap<String, Any>) -> T
+): T {
+	val data = mutableMapOf<String, Any>()
+	val span = if (Sentry.isEnabled()) {
+		startSentrySpan(currentCoroutineContext()[CurrentSpan]?.span, op, name)
+	} else null
+	if (span == null) return block(data)
+	var ok = false
+	try {
+		return withContext(CurrentSpan(span)) { block(data) }
+			.also { ok = (it as? Result<*>)?.isSuccess ?: true }
+	} finally {
+		finishSentrySpan(span, ok, data)
+	}
+}
+
+/** Breadcrumb for an audio transfer; [data] must hold no URLs or user data. */
+fun addTransferBreadcrumb(data: Map<String, Any>) {
+	if (!Sentry.isEnabled()) return
+	Sentry.addBreadcrumb(
+		Breadcrumb(level = SentryLevel.INFO, category = "transfer", data = data.toMutableMap())
 	)
 }

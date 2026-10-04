@@ -214,6 +214,10 @@ sealed interface Screen : NavKey {
 
 		@Immutable
 		@Serializable
+		data object NetworkStats : Settings
+
+		@Immutable
+		@Serializable
 		data object Fonts : Settings
 
 		@Immutable

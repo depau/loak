@@ -4,6 +4,8 @@ import androidx.room3.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import eu.depau.loak.data.database.entities.SyncActionType
+import eu.depau.loak.data.database.entities.TransferCategory
+import eu.depau.loak.domain.manager.hourOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -12,6 +14,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Instant
 
 class CacheDatabaseMigrationTest {
 	/** Builds a v21 DB from its exported schema, then opens it at the current version. */
@@ -39,10 +43,22 @@ class CacheDatabaseMigrationTest {
 			.migrationPolicy(firstMigratedVersion = 21)
 			.build()
 		val actions = db.syncActionDao().getPendingActions()
+
+		// tables added by later migrations work: hourly buckets add up, old ones get pruned
+		val stats = db.networkStatsDao()
+		val hour = hourOf(Instant.parse("2026-10-04T13:37:00Z"))
+		assertEquals(Instant.parse("2026-10-04T13:00:00Z").toEpochMilliseconds(), hour)
+		stats.add(hour, true, TransferCategory.STREAM, 100, 1)
+		stats.add(hour, true, TransferCategory.STREAM, 50, 1)
+		stats.add(hour - 1.hours.inWholeMilliseconds, true, TransferCategory.STREAM, 7, 1)
+		stats.pruneTransfers(hour)
+		val buckets = stats.getSince(0)
 		db.close()
+
 		assertEquals(
 			listOf(SyncActionType.SCROBBLE to "s1"),
 			actions.map { it.actionType to it.itemId }
 		)
+		assertEquals(listOf(150L to 2L), buckets.map { it.bytes to it.requests })
 	}
 }

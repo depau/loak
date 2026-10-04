@@ -29,6 +29,7 @@ import eu.depau.loak.ui.screens.radio.viewmodels.RadioListViewModel
 import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
 import eu.depau.loak.ui.screens.settings.viewmodels.LyricsPriorityViewModel
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
+import eu.depau.loak.ui.screens.settings.viewmodels.NetworkStatsViewModel
 import eu.depau.loak.ui.screens.settings.viewmodels.SettingsDataStorageViewModel
 import eu.depau.loak.ui.screens.share.viewmodels.ShareDialogViewModel
 import eu.depau.loak.ui.screens.share.viewmodels.ShareListViewModel
@@ -151,6 +152,7 @@ val viewModelModule = module {
 	}
 	viewModelOf(::SongDetailViewModel)
 	viewModelOf(::SettingsDataStorageViewModel)
+	viewModelOf(::NetworkStatsViewModel)
 	viewModelOf(::ChangelogViewModel)
 	viewModel { params ->
 		NowPlayingViewModel(

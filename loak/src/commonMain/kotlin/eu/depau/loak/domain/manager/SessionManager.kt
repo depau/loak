@@ -24,7 +24,8 @@ import kotlinx.coroutines.sync.withLock
 
 class SessionManager(
 	private val settings: Settings,
-	private val preferenceManager: PreferenceManager
+	private val preferenceManager: PreferenceManager,
+	private val networkStatsManager: NetworkStatsManager
 ) {
 	val isLoggedIn: StateFlow<Boolean>
 		field = MutableStateFlow(false)
@@ -72,6 +73,7 @@ class SessionManager(
 			install(UserAgent) {
 				agent = CLIENT_NAME
 			}
+			install(networkStatsManager.ktorPlugin)
 
 			val customHeaders = preferenceManager.customHeadersMap()
 			if (customHeaders.isNotEmpty()) {

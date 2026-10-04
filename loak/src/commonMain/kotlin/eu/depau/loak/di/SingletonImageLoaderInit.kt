@@ -5,6 +5,8 @@ import coil3.disk.DiskCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.serviceLoaderEnabled
+import eu.depau.loak.domain.manager.NetworkStatsManager
+import io.ktor.client.HttpClient
 import coil3.PlatformContext as CoilPlatformContext
 
 /**
@@ -15,10 +17,16 @@ import coil3.PlatformContext as CoilPlatformContext
  */
 internal expect fun getImageDiskCache(): DiskCache?
 
-fun initializeSingletonImageLoader(context: CoilPlatformContext): ImageLoader {
+fun initializeSingletonImageLoader(
+	context: CoilPlatformContext,
+	networkStatsManager: NetworkStatsManager
+): ImageLoader {
 	val builder = ImageLoader.Builder(context)
 		.components {
-			add(KtorNetworkFetcherFactory())
+			// ponytail: getStaticImageLoader's (blend background) traffic isn't counted
+			add(KtorNetworkFetcherFactory(httpClient = {
+				HttpClient { install(networkStatsManager.ktorPlugin) }
+			}))
 		}
 		.crossfade(true)
 	getImageDiskCache()?.let { builder.diskCache(it) }

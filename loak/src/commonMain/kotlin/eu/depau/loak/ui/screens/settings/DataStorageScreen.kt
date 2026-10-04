@@ -78,6 +78,8 @@ import eu.depau.loak.generated.resources.title_data_storage
 import eu.depau.loak.generated.resources.title_download_quality
 import eu.depau.loak.generated.resources.title_library_download
 import eu.depau.loak.generated.resources.title_network
+import eu.depau.loak.generated.resources.title_network_stats
+import eu.depau.loak.generated.resources.subtitle_network_stats
 import eu.depau.loak.generated.resources.title_sync_control
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -214,7 +216,7 @@ fun SettingsDataStorageScreen() {
 						onClick = dropUnlessResumed { backStack.add(Screen.Settings.DownloadQuality) },
 						content = { Text(stringResource(Res.string.title_download_quality)) },
 						supportingContent = { Text(stringResource(Res.string.subtitle_download_quality)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 4)
 					)
 
 					SettingsChoiceItem(
@@ -224,7 +226,7 @@ fun SettingsDataStorageScreen() {
 						description = stringResource(Res.string.subtitle_offline_mode),
 						content = { Text(stringResource(Res.string.option_offline_mode)) },
 						label = { stringResource(it.displayName) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4)
 					)
 
 					SettingsChoiceItem(
@@ -240,7 +242,16 @@ fun SettingsDataStorageScreen() {
 						},
 						content = { Text(stringResource(Res.string.option_cover_art_quality)) },
 						label = { stringResource(it.displayName) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 4)
+					)
+
+					SettingsNavItem(
+						onClick = dropUnlessResumed { backStack.add(Screen.Settings.NetworkStats) },
+						content = { Text(stringResource(Res.string.title_network_stats)) },
+						supportingContent = {
+							Text(stringResource(Res.string.subtitle_network_stats))
+						},
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4)
 					)
 				}
 

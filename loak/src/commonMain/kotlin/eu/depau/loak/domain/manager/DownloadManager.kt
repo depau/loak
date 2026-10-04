@@ -37,6 +37,7 @@ import eu.depau.loak.data.database.dao.LyricDao
 import eu.depau.loak.data.database.entities.DownloadEntity
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.entities.LyricEntity
+import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
@@ -369,6 +370,7 @@ class DownloadManager(
 			)
 		) {
 			method = HttpMethod.Get
+			transferCategory(TransferCategory.DOWNLOAD)
 			onDownload { bytesSentTotal, contentLength ->
 				if (contentLength != null && contentLength > 0L) {
 					val progress = (bytesSentTotal.toDouble() / contentLength).toFloat()
