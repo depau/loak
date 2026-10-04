@@ -11,4 +11,7 @@ actual class StorageManager {
 	actual fun getFileSize(path: String): Long = 0L
 	actual suspend fun saveFile(path: String, channel: ByteReadChannel) {}
 	actual fun clearDownloads() {}
+	actual fun audioStoreDir(): String? = null
 }
+
+internal actual fun freeSpace(dir: String): Long? = null

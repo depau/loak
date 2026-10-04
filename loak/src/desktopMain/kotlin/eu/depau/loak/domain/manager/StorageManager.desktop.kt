@@ -4,6 +4,7 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import eu.depau.loak.di.desktopDataDir
 import java.io.File
 import java.nio.file.Files
 
@@ -46,4 +47,8 @@ actual class StorageManager {
 	actual fun clearDownloads() {
 		downloadsDir().listFiles()?.forEach { it.delete() }
 	}
+
+	actual fun audioStoreDir(): String? = File(desktopDataDir, "audio").absolutePath
 }
+
+internal actual fun freeSpace(dir: String): Long? = File(dir).usableSpace.takeIf { it > 0 }

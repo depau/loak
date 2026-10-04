@@ -3,6 +3,7 @@ package eu.depau.loak.data.database
 import androidx.room3.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
+import eu.depau.loak.data.database.entities.AudioFileEntity
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.domain.manager.hourOf
@@ -53,6 +54,10 @@ class CacheDatabaseMigrationTest {
 		stats.add(hour - 1.hours.inWholeMilliseconds, true, TransferCategory.STREAM, 7, 1)
 		stats.pruneTransfers(hour)
 		val buckets = stats.getSince(0)
+
+		val audio = AudioFileEntity("s1", "raw", "s1.raw.flac", 10, null, true, true, 1, 1)
+		db.audioFileDao().upsert(audio)
+		val audioFiles = db.audioFileDao().getAll()
 		db.close()
 
 		assertEquals(
@@ -60,5 +65,6 @@ class CacheDatabaseMigrationTest {
 			actions.map { it.actionType to it.itemId }
 		)
 		assertEquals(listOf(150L to 2L), buckets.map { it.bytes to it.requests })
+		assertEquals(listOf(audio), audioFiles)
 	}
 }

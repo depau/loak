@@ -15,6 +15,7 @@
 	<string name="title_playback">Playback</string>
 	<string name="title_data_storage">Data &amp; Storage</string>
 	<string name="title_sync_control">Synchronization control</string>
+	<string name="title_audio_cache">Streaming cache</string>
 	<string name="title_cache_management">Cache &amp; storage management</string>
 	<string name="title_danger_zone">Danger zone</string>
 	<string name="title_developer">Developer options</string>
@@ -161,6 +162,15 @@
 	<string name="option_last_sync">Last full sync</string>
 	<string name="option_pending_actions">Pending sync actions</string>
 	<string name="option_downloaded_songs">Downloaded songs</string>
+	<string name="option_audio_cache">Cache streamed songs</string>
+	<string name="subtitle_audio_cache">Keep recently played songs on the device to replay them without using data</string>
+	<string name="option_audio_cache_limit">Limit by</string>
+	<string name="option_audio_cache_limit_size">Size</string>
+	<string name="option_audio_cache_limit_songs">Number of songs</string>
+	<string name="option_audio_cache_max_size">Maximum cache size</string>
+	<string name="option_audio_cache_max_songs">Maximum cached songs</string>
+	<string name="option_audio_storage">Song storage</string>
+	<string name="info_audio_storage_usage">Cache: %1$s · Downloads: %2$s</string>
 	<string name="option_custom_headers">Custom server headers</string>
 	<string name="option_check_for_updates">Check for updates</string>
 	<string name="option_crash_reporting">Crash reporting</string>
@@ -427,6 +437,7 @@
 	<string name="action_clear_image_cache">Clear image cache</string>
 	<string name="action_clear_pending_actions">Clear pending sync actions</string>
 	<string name="action_clear_downloads">Clear downloads</string>
+	<string name="action_clear_audio_cache">Clear streaming cache</string>
 	<string name="action_rebuild_database">Rebuild database</string>
 	<string name="action_trigger_sync">Trigger manual sync</string>
 	<string name="action_test_exception_handler">Test exception handler</string>

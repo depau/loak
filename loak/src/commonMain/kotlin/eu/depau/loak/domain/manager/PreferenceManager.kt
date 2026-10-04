@@ -6,6 +6,7 @@ import eu.depau.loak.domain.manager.base.BasePreferenceManager
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainPlaylistListType
 import eu.depau.loak.domain.models.settings.AnimationStyle
+import eu.depau.loak.domain.models.settings.AudioCacheLimit
 import eu.depau.loak.domain.models.settings.AppIconVariant
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
@@ -190,4 +191,10 @@ class PreferenceManager(
 	}
 
 	var offlineMode by preference(OfflineMode.Auto)
+
+	// streamed songs kept on disk (AudioStore); downloads don't count towards the limit
+	var audioCacheEnabled by preference(true)
+	var audioCacheLimit by preference(AudioCacheLimit.Size)
+	var audioCacheMaxBytes by preference(2L * 1024 * 1024 * 1024)
+	var audioCacheMaxSongs by preference(300)
 }

@@ -12,12 +12,15 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
+import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSFileSize
+import platform.Foundation.NSFileSystemFreeSize
 import platform.Foundation.NSNumber
 import platform.Foundation.NSOutputStream
 import platform.Foundation.NSURL
+import platform.Foundation.NSURLIsExcludedFromBackupKey
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.outputStreamToFileAtPath
 
@@ -74,6 +77,17 @@ actual class StorageManager {
 		}
 	}
 
+	/** Application Support (not Documents): app data, kept out of iCloud backups. */
+	actual fun audioStoreDir(): String? {
+		val manager = NSFileManager.defaultManager
+		val base = manager.URLsForDirectory(NSApplicationSupportDirectory, NSUserDomainMask)
+			.first() as NSURL
+		val dir = base.URLByAppendingPathComponent("audio")!!
+		manager.createDirectoryAtURL(dir, true, null, null)
+		dir.setResourceValue(true, NSURLIsExcludedFromBackupKey, null)
+		return dir.path
+	}
+
 	private fun <T> ByteArray.usePinned(block: (Pinned<ByteArray>) -> T): T {
 		val pinned = this.pin()
 		try {
@@ -83,3 +97,7 @@ actual class StorageManager {
 		}
 	}
 }
+
+internal actual fun freeSpace(dir: String): Long? =
+	(NSFileManager.defaultManager.attributesOfFileSystemForPath(dir, null)
+		?.get(NSFileSystemFreeSize) as? NSNumber)?.longLongValue

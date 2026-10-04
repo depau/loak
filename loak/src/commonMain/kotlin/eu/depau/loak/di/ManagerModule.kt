@@ -5,6 +5,7 @@ import kotlinx.coroutines.launch
 import eu.depau.loak.util.IoDispatcher
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
+import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.EqualiserManager
 import eu.depau.loak.domain.manager.LoginManager
@@ -17,6 +18,7 @@ import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.manager.StorageManager
 import eu.depau.loak.domain.manager.SyncManager
 
 val managerModule = module {
@@ -39,4 +41,8 @@ val managerModule = module {
 	singleOf(::QueueSyncManager)
 	singleOf(::PlayLogManager)
 	singleOf(::NetworkStatsManager)
+	// eager: sweeps leftovers and evicts on startup
+	single(createdAtStart = true) {
+		AudioStore(get<StorageManager>().audioStoreDir(), get(), get())
+	}
 }

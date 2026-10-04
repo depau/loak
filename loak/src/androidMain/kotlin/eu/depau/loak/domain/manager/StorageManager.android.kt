@@ -45,4 +45,9 @@ actual class StorageManager(
 			dir.listFiles()?.forEach { it.deleteRecursively() }
 		}
 	}
+
+	// not cacheDir: the system would purge downloads too; the store evicts by itself
+	actual fun audioStoreDir(): String? = File(context.filesDir, "audio").absolutePath
 }
+
+internal actual fun freeSpace(dir: String): Long? = File(dir).usableSpace.takeIf { it > 0 }

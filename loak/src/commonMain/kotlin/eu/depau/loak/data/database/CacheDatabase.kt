@@ -9,6 +9,7 @@ import androidx.room3.RoomDatabase
 import androidx.room3.RoomDatabaseConstructor
 import androidx.room3.migration.AutoMigrationSpec
 import eu.depau.loak.data.database.dao.AlbumDao
+import eu.depau.loak.data.database.dao.AudioFileDao
 import eu.depau.loak.data.database.dao.ArtistDao
 import eu.depau.loak.data.database.dao.GenreDao
 import eu.depau.loak.data.database.dao.NetworkStatsDao
@@ -19,6 +20,7 @@ import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.dao.SyncActionDao
 import eu.depau.loak.data.database.entities.AlbumEntity
 import eu.depau.loak.data.database.entities.ArtistEntity
+import eu.depau.loak.data.database.entities.AudioFileEntity
 import eu.depau.loak.data.database.entities.GenreEntity
 import eu.depau.loak.data.database.entities.LyricEntity
 import eu.depau.loak.data.database.entities.NetworkStatsEntity
@@ -30,7 +32,7 @@ import eu.depau.loak.data.database.entities.SyncActionEntity
 import eu.depau.loak.data.database.entities.SyncRunEntity
 
 @Database(
-	version = 23,
+	version = 24,
 	entities = [
 		AlbumEntity::class,
 		GenreEntity::class,
@@ -42,11 +44,13 @@ import eu.depau.loak.data.database.entities.SyncRunEntity
 		LyricEntity::class,
 		SyncActionEntity::class,
 		NetworkStatsEntity::class,
-		SyncRunEntity::class
+		SyncRunEntity::class,
+		AudioFileEntity::class
 	],
 	autoMigrations = [
 		AutoMigration(from = 21, to = 22, spec = CacheDatabase.DropDownloads::class),
-		AutoMigration(from = 22, to = 23)
+		AutoMigration(from = 22, to = 23),
+		AutoMigration(from = 23, to = 24)
 	]
 )
 @ColumnTypeConverters(Converters::class)
@@ -61,6 +65,7 @@ abstract class CacheDatabase : RoomDatabase() {
 	abstract fun lyricDao(): LyricDao
 	abstract fun syncActionDao(): SyncActionDao
 	abstract fun networkStatsDao(): NetworkStatsDao
+	abstract fun audioFileDao(): AudioFileDao
 
 	// Unused leftover; downloads live in DownloadDatabase.
 	@DeleteTable(tableName = "DownloadEntity")

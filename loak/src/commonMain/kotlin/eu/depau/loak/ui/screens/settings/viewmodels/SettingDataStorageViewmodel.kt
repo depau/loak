@@ -9,11 +9,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import eu.depau.loak.data.database.dao.SyncActionDao
+import eu.depau.loak.domain.manager.AudioStore
+import eu.depau.loak.domain.manager.AudioStoreUsage
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.domain.repositories.SongRepository
+import eu.depau.loak.util.IoDispatcher
 
 class SettingsDataStorageViewModel(
 	private val syncManager: SyncManager,
@@ -21,6 +24,7 @@ class SettingsDataStorageViewModel(
 	private val syncDao: SyncActionDao,
 	private val downloadManager: DownloadManager,
 	private val songRepository: SongRepository,
+	private val audioStore: AudioStore,
 	connectivityManager: ConnectivityManager
 ) : ViewModel() {
 
@@ -44,6 +48,11 @@ class SettingsDataStorageViewModel(
 	val isDownloadingLibrary = downloadManager.isDownloadingLibrary
 	val libraryDownloadProgress = downloadManager.libraryDownloadProgress
 	val isOnline = connectivityManager.isOnline
+
+	val audioStoreAvailable = audioStore.available
+	val audioStoreUsage = audioStore.usage.stateIn(
+		viewModelScope, SharingStarted.WhileSubscribed(5000), AudioStoreUsage()
+	)
 
 	init {
 		loadPendingActions()
@@ -77,6 +86,15 @@ class SettingsDataStorageViewModel(
 
 	fun clearAllDownloads() {
 		downloadManager.clearAllDownloads()
+	}
+
+	/** Applies changed cache settings. */
+	fun trimAudioCache() {
+		viewModelScope.launch(IoDispatcher) { audioStore.trim() }
+	}
+
+	fun clearAudioCache() {
+		viewModelScope.launch(IoDispatcher) { audioStore.clearCache() }
 	}
 
 	fun downloadEntireLibrary() {

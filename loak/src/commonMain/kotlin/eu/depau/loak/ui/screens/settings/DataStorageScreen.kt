@@ -88,6 +88,19 @@ import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.AudioStoreUsage
+import eu.depau.loak.domain.models.settings.AudioCacheLimit
+import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
+import eu.depau.loak.util.toFileSize
+import eu.depau.loak.generated.resources.action_clear_audio_cache
+import eu.depau.loak.generated.resources.info_audio_storage_usage
+import eu.depau.loak.generated.resources.option_audio_cache
+import eu.depau.loak.generated.resources.option_audio_cache_limit
+import eu.depau.loak.generated.resources.option_audio_cache_max_size
+import eu.depau.loak.generated.resources.option_audio_cache_max_songs
+import eu.depau.loak.generated.resources.option_audio_storage
+import eu.depau.loak.generated.resources.subtitle_audio_cache
+import eu.depau.loak.generated.resources.title_audio_cache
 import eu.depau.loak.domain.models.settings.CoverArtQuality
 import eu.depau.loak.domain.models.settings.OfflineMode
 import eu.depau.loak.icons.Icons
@@ -127,6 +140,7 @@ fun SettingsDataStorageScreen() {
 	val libraryDownloadProgress by viewModel.libraryDownloadProgress.collectAsStateWithLifecycle()
 
 	val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
+	val audioStoreUsage by viewModel.audioStoreUsage.collectAsStateWithLifecycle()
 
 	val calculating = stringResource(Res.string.info_status_calculating)
 	var imageCacheSizeMb by remember { mutableStateOf(calculating) }
@@ -252,6 +266,14 @@ fun SettingsDataStorageScreen() {
 							Text(stringResource(Res.string.subtitle_network_stats))
 						},
 						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4)
+					)
+				}
+
+				if (viewModel.audioStoreAvailable) {
+					AudioCacheGroup(
+						preferenceManager = preferenceManager,
+						usage = audioStoreUsage,
+						onLimitsChanged = viewModel::trimAudioCache
 					)
 				}
 
@@ -410,6 +432,8 @@ fun SettingsDataStorageScreen() {
 				}
 
 				SettingsGroup(title = { Text(stringResource(Res.string.title_danger_zone)) }) {
+					val dangerFirst = if (viewModel.audioStoreAvailable) 2 else 1
+					val dangerCount = dangerFirst + 3
 					SegmentedListItem(
 						onClick = {
 							imageLoader.memoryCache?.clear()
@@ -419,19 +443,39 @@ fun SettingsDataStorageScreen() {
 							}
 						},
 						content = { Text(stringResource(Res.string.action_clear_image_cache)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 4),
+						shapes = SegmentedListItemDefaults.segmentedShapes(
+							index = 0,
+							count = dangerCount
+						),
 						colors = SegmentedListItemDefaults.segmentedErrorColors()
 					)
+					if (viewModel.audioStoreAvailable) {
+						SegmentedListItem(
+							onClick = viewModel::clearAudioCache,
+							content = { Text(stringResource(Res.string.action_clear_audio_cache)) },
+							shapes = SegmentedListItemDefaults.segmentedShapes(
+								index = 1,
+								count = dangerCount
+							),
+							colors = SegmentedListItemDefaults.segmentedErrorColors()
+						)
+					}
 					SegmentedListItem(
 						onClick = viewModel::removeAllActions,
 						content = { Text(stringResource(Res.string.action_clear_pending_actions)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4),
+						shapes = SegmentedListItemDefaults.segmentedShapes(
+							index = dangerFirst,
+							count = dangerCount
+						),
 						colors = SegmentedListItemDefaults.segmentedErrorColors()
 					)
 					SegmentedListItem(
 						onClick = viewModel::clearAllDownloads,
 						content = { Text(stringResource(Res.string.action_clear_downloads)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 4),
+						shapes = SegmentedListItemDefaults.segmentedShapes(
+							index = dangerFirst + 1,
+							count = dangerCount
+						),
 						colors = SegmentedListItemDefaults.segmentedErrorColors()
 					)
 					SegmentedListItem(
@@ -440,11 +484,96 @@ fun SettingsDataStorageScreen() {
 						content = { Text(stringResource(Res.string.action_rebuild_database)) },
 						supportingContent = { Text(stringResource(Res.string.subtitle_rebuild_database)) },
 						trailingContent = offlineIcon,
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4),
+						shapes = SegmentedListItemDefaults.segmentedShapes(
+							index = dangerFirst + 2,
+							count = dangerCount
+						),
 						colors = SegmentedListItemDefaults.segmentedErrorColors()
 					)
 				}
 			}
 		}
+	}
+}
+
+private const val MB = 1024L * 1024
+private val cacheSizes = listOf(512 * MB, 1024 * MB, 2048 * MB, 5120 * MB, 10240 * MB, 20480 * MB)
+	.toImmutableList()
+private val cacheSongCounts = listOf(100, 300, 500, 1000, 2000, 5000).toImmutableList()
+
+private fun cacheSizeLabel(bytes: Long) =
+	if (bytes >= 1024 * MB) "${bytes / (1024 * MB)} GB" else "${bytes / MB} MB"
+
+@Composable
+private fun AudioCacheGroup(
+	preferenceManager: PreferenceManager,
+	usage: AudioStoreUsage,
+	onLimitsChanged: () -> Unit
+) {
+	val enabled = preferenceManager.audioCacheEnabled
+	val count = if (enabled) 4 else 2
+	SettingsGroup(title = { Text(stringResource(Res.string.title_audio_cache)) }) {
+		SettingsToggleItem(
+			checked = enabled,
+			onCheckedChange = {
+				preferenceManager.audioCacheEnabled = it
+				onLimitsChanged()
+			},
+			content = { Text(stringResource(Res.string.option_audio_cache)) },
+			supportingContent = { Text(stringResource(Res.string.subtitle_audio_cache)) },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count)
+		)
+		if (enabled) {
+			SettingsChoiceItem(
+				choices = AudioCacheLimit.entries.toImmutableList(),
+				selectedChoice = preferenceManager.audioCacheLimit,
+				onChoiceSelected = {
+					preferenceManager.audioCacheLimit = it
+					onLimitsChanged()
+				},
+				content = { Text(stringResource(Res.string.option_audio_cache_limit)) },
+				label = { stringResource(it.displayName) },
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
+			)
+			if (preferenceManager.audioCacheLimit == AudioCacheLimit.Size) {
+				SettingsChoiceItem(
+					choices = cacheSizes,
+					selectedChoice = preferenceManager.audioCacheMaxBytes,
+					onChoiceSelected = {
+						preferenceManager.audioCacheMaxBytes = it
+						onLimitsChanged()
+					},
+					content = { Text(stringResource(Res.string.option_audio_cache_max_size)) },
+					label = { cacheSizeLabel(it) },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
+				)
+			} else {
+				SettingsChoiceItem(
+					choices = cacheSongCounts,
+					selectedChoice = preferenceManager.audioCacheMaxSongs,
+					onChoiceSelected = {
+						preferenceManager.audioCacheMaxSongs = it
+						onLimitsChanged()
+					},
+					content = { Text(stringResource(Res.string.option_audio_cache_max_songs)) },
+					label = { pluralStringResource(Res.plurals.count_songs, it, it) },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
+				)
+			}
+		}
+		SegmentedListItem(
+			onClick = {},
+			content = { Text(stringResource(Res.string.option_audio_storage)) },
+			supportingContent = {
+				val cache = pluralStringResource(
+					Res.plurals.count_songs, usage.cacheCount, usage.cacheCount
+				) + " // " + usage.cacheBytes.toFileSize()
+				val pinned = pluralStringResource(
+					Res.plurals.count_songs, usage.pinnedCount, usage.pinnedCount
+				) + " // " + usage.pinnedBytes.toFileSize()
+				Text(stringResource(Res.string.info_audio_storage_usage, cache, pinned))
+			},
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 1, count = count)
+		)
 	}
 }
