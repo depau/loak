@@ -392,7 +392,8 @@ class HomeRepository(
 	/** [count] items picked at random, likelier the heavier (Efraimidis–Spirakis). */
 	private fun <T> List<T>.weightedSample(count: Int, weight: (T) -> Double): List<T> {
 		if (count <= 0) return emptyList()
-		return sortedByDescending { Random.nextDouble().pow(1.0 / weight(it)) }.take(count)
+		return map { it to Random.nextDouble().pow(1.0 / weight(it)) }
+			.sortedByDescending { it.second }.take(count).map { it.first }
 	}
 
 	/** Moves songs so that no two from the same album play back to back, where it can. */
