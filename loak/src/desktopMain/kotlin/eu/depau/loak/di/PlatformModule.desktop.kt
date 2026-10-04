@@ -8,6 +8,7 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.data.database.DownloadDatabase
+import eu.depau.loak.data.database.migrationPolicy
 import eu.depau.loak.domain.manager.AppIconManager
 import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.ConnectivityManager
@@ -55,7 +56,7 @@ actual val platformModule = module {
 		Room
 			.databaseBuilder<CacheDatabase>(File(desktopDataDir, "cache.db").absolutePath)
 			.setDriver(BundledSQLiteDriver())
-			.fallbackToDestructiveMigration(true)
+			.migrationPolicy(firstMigratedVersion = 21)
 			.build()
 	}
 
@@ -63,7 +64,7 @@ actual val platformModule = module {
 		Room
 			.databaseBuilder<DownloadDatabase>(File(desktopDataDir, "downloads.db").absolutePath)
 			.setDriver(BundledSQLiteDriver())
-			.fallbackToDestructiveMigration(true)
+			.migrationPolicy(firstMigratedVersion = 3)
 			.build()
 	}
 

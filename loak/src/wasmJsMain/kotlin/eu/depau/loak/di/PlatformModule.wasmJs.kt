@@ -8,6 +8,7 @@ import org.koin.dsl.module
 import org.w3c.dom.Worker
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.data.database.DownloadDatabase
+import eu.depau.loak.data.database.migrationPolicy
 import eu.depau.loak.domain.manager.AppIconManager
 import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.ConnectivityManager
@@ -25,9 +26,9 @@ import coil3.PlatformContext as CoilPlatformContext
 actual val platformModule = module {
 	single { PlatformType.Web }
 
-	single<CacheDatabase> { webDatabase<CacheDatabase>("cache.db") }
+	single<CacheDatabase> { webDatabase<CacheDatabase>("cache.db", firstMigratedVersion = 21) }
 
-	single<DownloadDatabase> { webDatabase<DownloadDatabase>("downloads.db") }
+	single<DownloadDatabase> { webDatabase<DownloadDatabase>("downloads.db", firstMigratedVersion = 3) }
 
 	single<MediaPlayerViewModel> {
 		WebMediaPlayerViewModel(
@@ -54,8 +55,11 @@ actual val platformModule = module {
 	singleOf(::AudioGainManager)
 }
 
-private inline fun <reified T : RoomDatabase> webDatabase(name: String): T =
+private inline fun <reified T : RoomDatabase> webDatabase(
+	name: String,
+	firstMigratedVersion: Int
+): T =
 	Room.databaseBuilder<T>(name)
 		.setDriver(WebWorkerSQLiteDriver(createSqliteWorker()))
-		.fallbackToDestructiveMigration(true)
+		.migrationPolicy(firstMigratedVersion)
 		.build()
