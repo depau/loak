@@ -108,8 +108,6 @@ fun QueueScreen() {
 	val backStack = LocalNavStack.current
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
-	val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
-	val downloadedSongs by viewModel.downloadedSongs.collectAsStateWithLifecycle()
 	val queue = playerState.queue
 	val selectedIndex by viewModel.selectedIndex.collectAsStateWithLifecycle()
 	val selectedSongIsStarred by viewModel.selectedSongIsStarred.collectAsStateWithLifecycle()
@@ -291,9 +289,7 @@ fun QueueScreen() {
 						onRemove = {
 							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
 							player.removeFromQueueWithUndo(index)
-						},
-						isOffline = !isOnline,
-						isDownloaded = downloadedSongs.containsKey(song.id)
+						}
 					)
 				}
 				if (queue.isEmpty()) {

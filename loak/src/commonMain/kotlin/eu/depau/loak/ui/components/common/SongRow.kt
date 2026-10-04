@@ -61,7 +61,6 @@ fun SongRow(
 	selected: Boolean = false,
 	onClick: (() -> Unit),
 	onLongClick: (() -> Unit),
-	isOnline: Boolean = false,
 	onDismissRequest: () -> Unit,
 	onRemoveStar: () -> Unit,
 	onAddStar: () -> Unit,
@@ -83,19 +82,19 @@ fun SongRow(
 	val backStack = LocalNavStack.current
 	var playlistDialogShown by rememberSaveable { mutableStateOf(false) }
 
-	val isDownloaded = download?.status == DownloadStatus.DOWNLOADED
 	val isCurrentTrack = playerState.currentSong?.id == song.id
 	val isExplicit = song.explicitStatus == DomainExplicitStatus.Explicit
 		&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
-	val maybeUnavailable = !isOnline && !isDownloaded
+	val maybeUnavailable = !LocalAvailability.current.song(song.id)
 
 	ListItem(
 		modifier = modifier
 			.width(400.dp)
 			.alpha(if (isExplicit) .5f else 1f)
+			.unavailable(maybeUnavailable)
 			.onSecondaryClick(onLongClick)
 			.combinedClickable(
-				onClick = onClick,
+				onClick = playOrExplain(song.id, onClick),
 				onLongClick = onLongClick,
 				enabled = !isExplicit
 			),

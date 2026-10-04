@@ -93,6 +93,7 @@ import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.RatingRow
 import eu.depau.loak.ui.components.dialogs.LinkConfirmationDialog
@@ -139,6 +140,10 @@ fun CollectionSheet(
 	val playlistName = (collection as? DomainPlaylist)?.displayName()
 	val audioMuseInfo by koinInject<AudioMuseManager>().info.collectAsState()
 	val backStack = LocalNavStack.current
+	// offline, what needs the server is greyed out (playlist edits too, for now);
+	// starring, rating, downloading and deleting are queued
+	val online = LocalAvailability.current.online
+	val playable = collection != null && LocalAvailability.current.collection(collection.id)
 
 	// the edit sheet replaces this one rather than stacking on top
 	if (!editing && !copying) ModalBottomSheet(
@@ -202,7 +207,7 @@ fun CollectionSheet(
 					},
 					colors = colors,
 					contentPadding = contentPadding,
-					enabled = !collection?.songs.isNullOrEmpty()
+					enabled = !collection?.songs.isNullOrEmpty() && playable
 				)
 			}
 
@@ -216,7 +221,7 @@ fun CollectionSheet(
 					},
 					colors = colors,
 					contentPadding = contentPadding,
-					enabled = !collection?.songs.isNullOrEmpty()
+					enabled = !collection?.songs.isNullOrEmpty() && playable
 				)
 			}
 
@@ -229,6 +234,7 @@ fun CollectionSheet(
 						player.playInstantMix(collection.id, collection.name ?: "")
 						onDismissRequest()
 					},
+					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -244,7 +250,7 @@ fun CollectionSheet(
 					},
 					colors = colors,
 					contentPadding = contentPadding,
-					enabled = !collection?.songs.isNullOrEmpty()
+					enabled = !collection?.songs.isNullOrEmpty() && online
 				)
 			}
 
@@ -373,6 +379,7 @@ fun CollectionSheet(
 					content = { Text(stringResource(Res.string.action_edit_playlist)) },
 					leadingContent = { Icon(Icons.Outlined.Edit, null) },
 					onClick = { editing = true },
+					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -386,6 +393,7 @@ fun CollectionSheet(
 						backStack.add(Screen.Alchemy(AlchemyIngredient(collection.id, AlchemyIngredient.Type.Playlist, playlistName?.display ?: collection.name.orEmpty())))
 						onDismissRequest()
 					},
+					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -396,6 +404,7 @@ fun CollectionSheet(
 					content = { Text(stringResource(Res.string.action_make_a_copy)) },
 					leadingContent = { Icon(Icons.Outlined.Copy, null) },
 					onClick = { copying = true },
+					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -409,6 +418,7 @@ fun CollectionSheet(
 						onShare()
 						onDismissRequest()
 					},
+					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)

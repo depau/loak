@@ -61,6 +61,9 @@ import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.SegmentedListItem
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.playOrExplain
+import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.common.Waveform
 import eu.depau.loak.ui.navigation.Screen
@@ -79,19 +82,17 @@ fun CollectionDetailScreenSongRow(
 	onPlayNext: (() -> Unit),
 	onAddToQueue: (() -> Unit),
 	isStarred: Boolean,
-	download: DownloadEntity? = null,
-	isOffline: Boolean = false
+	download: DownloadEntity? = null
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 
-	val isDownloaded = download?.status == DownloadStatus.DOWNLOADED
 	val isCurrentTrack = playerState.currentSong?.id == song.id
 	val isExplicit = song.explicitStatus == DomainExplicitStatus.Explicit
 		&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
-	val maybeUnavailable = isOffline && !isDownloaded
+	val maybeUnavailable = !LocalAvailability.current.song(song.id)
 
 	val dismissState = rememberSwipeToDismissBoxState()
 	val scope = rememberCoroutineScope()
@@ -144,9 +145,10 @@ fun CollectionDetailScreenSongRow(
 		}
 	) {
 		SegmentedListItem(
+			modifier = Modifier.unavailable(maybeUnavailable),
 			enabled = !isExplicit,
 			contentPadding = PaddingValues(14.dp),
-			onClick = onClick,
+			onClick = playOrExplain(song.id, onClick),
 			onLongClick = onLongClick,
 			shapes = SegmentedListItemDefaults.segmentedShapes(
 				index = index,

@@ -75,7 +75,6 @@ import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
 fun StarredScreenContent(
 	innerPadding: PaddingValues,
 	onSetShareId: (String) -> Unit,
-	isOnline: Boolean = false,
 
 	songsState: UiState<ImmutableList<DomainSong>>,
 	selectedSong: DomainSong?,
@@ -231,7 +230,6 @@ fun StarredScreenContent(
 							onPlayNext = { onPlaySongNext(song) },
 							onAddToQueue = { onAddSongToQueue(song) },
 							onShare = { onSetShareId(song.id) },
-							isOnline = isOnline,
 							rating = selectedSongRating,
 							onSetRating = { onSetSongRating(it) }
 						)
@@ -251,6 +249,7 @@ fun StarredScreenContent(
 					title = album.name ?: "[unknown album]",
 					subtitle = album.artistName,
 					contentDescription = null,
+					id = album.id,
 					onSelect = { onSelectAlbum(album) },
 					onClick = dropUnlessResumed {
 						backStack.add(Screen.CollectionDetail(album.id, "artist"))
@@ -304,6 +303,7 @@ fun StarredScreenContent(
 						artist.albumCount
 					),
 					contentDescription = null,
+					id = artist.id,
 					onSelect = { onSelectArtist(artist) },
 					onClick = dropUnlessResumed {
 						backStack.add(Screen.ArtistDetail(artist.id))

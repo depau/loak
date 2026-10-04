@@ -62,6 +62,7 @@ import eu.depau.loak.icons.outlined.Queue
 import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.dialogs.LinkConfirmationDialog
 
@@ -89,6 +90,9 @@ fun ArtistSheet(
 		headlineColor = MaterialTheme.colorScheme.onSurface
 	)
 	var linkToOpen by rememberSaveable { mutableStateOf<String?>(null) }
+	// offline, what needs the server is greyed out (adding to playlists too, for now)
+	val online = LocalAvailability.current.online
+	val playable = LocalAvailability.current.collection(artist.id)
 
 	ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
@@ -134,6 +138,7 @@ fun ArtistSheet(
 						onPlayNext()
 						onDismissRequest()
 					},
+					enabled = playable,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -147,6 +152,7 @@ fun ArtistSheet(
 						onAddToQueue()
 						onDismissRequest()
 					},
+					enabled = playable,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -159,6 +165,7 @@ fun ArtistSheet(
 					player.playInstantMix(artist.id, artist.name)
 					onDismissRequest()
 				},
+				enabled = online,
 				colors = colors,
 				contentPadding = contentPadding
 			)
@@ -171,6 +178,7 @@ fun ArtistSheet(
 						onAddAllToPlaylist()
 						onDismissRequest()
 					},
+					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)

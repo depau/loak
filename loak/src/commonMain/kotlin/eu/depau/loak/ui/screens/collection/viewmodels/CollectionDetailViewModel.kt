@@ -110,31 +110,28 @@ class CollectionDetailViewModel(
 	init {
 		viewModelScope.launch {
 			sessionManager.isLoggedIn.collect {
-				// one flow, in order: the cache first, then the server's answer as the last word
-				if (it) loadCollection(fullRefresh = isOnline.value, background = true)
+				// one flow, in order: the cache first, then (once) the server's answer as the
+				// last word, without a spinner or an error over the cached songs
+				if (it) loadCollection(fullRefresh = true, background = true)
 			}
 		}
-	}
-
-	/** Shows the cache, then updates it from the server when online (no spinner). */
-	fun revalidate() {
-		if (isOnline.value) refreshCollection(fullRefresh = true, background = true)
 	}
 
 	fun refreshCollection(fullRefresh: Boolean, background: Boolean = false) {
 		viewModelScope.launch { loadCollection(fullRefresh, background) }
 	}
 
+	/** Offline, [fullRefresh] is dropped: the songs as last seen, no failing server call. */
 	private suspend fun loadCollection(fullRefresh: Boolean, background: Boolean) {
 		run {
-			repository.getCollectionFlow(fullRefresh, collectionId)
+			repository.getCollectionFlow(fullRefresh && isOnline.value, collectionId)
 				.let { if (background) it.inBackground { c -> c.songs.isEmpty() } else it }
 				.collect {
 					collectionState.value = it
 					if (it.data is DomainAlbum) {
 						starred.value = albumRepository.isAlbumStarred(it.data as DomainAlbum)
 						rating.value = albumRepository.getAlbumRating(it.data as DomainAlbum)
-						if (albumInfoState.value is UiState.Success) return@collect
+						if (albumInfoState.value is UiState.Success || !isOnline.value) return@collect
 						try {
 							val albumInfo = repository.getAlbumInfo(collectionId)
 							albumInfoState.value = UiState.Success(albumInfo.toDomainModel())

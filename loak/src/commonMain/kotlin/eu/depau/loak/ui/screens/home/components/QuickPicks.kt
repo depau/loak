@@ -18,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.shared.MediaPlayerViewModel
@@ -41,9 +40,7 @@ fun SongColumns(
 ) {
 	val player = koinInject<MediaPlayerViewModel>()
 	val downloadManager = koinInject<DownloadManager>()
-	val connectivityManager = koinInject<ConnectivityManager>()
 	val allDownloads by downloadManager.allDownloads.collectAsStateWithLifecycle(persistentListOf())
-	val isOnline by connectivityManager.isOnline.collectAsStateWithLifecycle()
 	val selection by viewModel.selectedSong.collectAsStateWithLifecycle()
 	val starred by viewModel.selectedSongStarred.collectAsStateWithLifecycle()
 	val rating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
@@ -71,7 +68,6 @@ fun SongColumns(
 						selected = selection == song,
 						onClick = { onPlay(index) },
 						onLongClick = { viewModel.selectSong(song) },
-						isOnline = isOnline,
 						onDismissRequest = { viewModel.clearSongSelection() },
 						onRemoveStar = { viewModel.starSelectedSong(false) },
 						onAddStar = { viewModel.starSelectedSong(true) },

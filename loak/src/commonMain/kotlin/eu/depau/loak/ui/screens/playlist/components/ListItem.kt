@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.playlist.components
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.ui.components.common.SpecialPlaylistCover
 import eu.depau.loak.ui.components.common.PlaylistBadgedText
 import eu.depau.loak.ui.components.common.displayName
@@ -66,7 +68,9 @@ fun PlaylistListScreenListItem(
 
 	Box(modifier) {
 		ListItem(
-			modifier = Modifier.onSecondaryClick(onSelect),
+			modifier = Modifier
+				.unavailable(!LocalAvailability.current.collection(playlist.id))
+				.onSecondaryClick(onSelect),
 			leadingContent = {
 				Box {
 					CoverArt(

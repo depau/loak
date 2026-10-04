@@ -80,6 +80,7 @@ import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.theme.defaultFont
 
 @Composable
@@ -91,6 +92,9 @@ fun CollectionDetailScreenHeadingRowButtons(
 	val downloadManager = koinInject<DownloadManager>()
 	val scope = rememberCoroutineScope()
 	val canMix by produceState(false) { value = player.canMix() }
+	// offline, the songs that can play: the player skips the others
+	val availability = LocalAvailability.current
+	val playable = collection.songs.any { availability.song(it.id) }
 
 	val downloadStatus by downloadManager
 		.getCollectionDownloadStatus(collection.songs.map { it.id })
@@ -114,7 +118,7 @@ fun CollectionDetailScreenHeadingRowButtons(
 			},
 			shape = buttonShape,
 			contentPadding = PaddingValues(0.dp),
-			enabled = collection.songs.isNotEmpty()
+			enabled = playable
 		) {
 			Icon(
 				Icons.Outlined.Shuffle,
@@ -135,7 +139,7 @@ fun CollectionDetailScreenHeadingRowButtons(
 				},
 				shape = buttonShape,
 				contentPadding = PaddingValues(0.dp),
-				enabled = collection.songs.isNotEmpty()
+				enabled = collection.songs.isNotEmpty() && availability.online
 			) {
 				Icon(
 					Icons.Outlined.InstantMix,
@@ -150,7 +154,7 @@ fun CollectionDetailScreenHeadingRowButtons(
 				player.playNow(collection)
 			},
 			shape = buttonShape,
-			enabled = collection.songs.isNotEmpty()
+			enabled = playable
 		) {
 			Icon(
 				Icons.Filled.Play,

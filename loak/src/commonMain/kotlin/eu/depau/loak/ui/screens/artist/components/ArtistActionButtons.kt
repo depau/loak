@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.artist.components
 
+import eu.depau.loak.ui.components.common.LocalAvailability
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -100,6 +101,8 @@ fun ArtistActionButtons(
 
 		FilledTonalButton(
 			onClick = onMix,
+			// the server picks the songs
+			enabled = LocalAvailability.current.online,
 			modifier = Modifier.weight(1f).height(56.dp),
 			shape = ContinuousCapsule
 		) {

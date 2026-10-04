@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.home.components
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.ui.components.common.SpecialPlaylistCover
 import eu.depau.loak.domain.models.PlaylistKind
 import eu.depau.loak.ui.components.common.displayName
@@ -147,10 +149,18 @@ private fun SpeedDialTile(
 		is SpeedDialItem.Album -> item.album.name.orEmpty() to item.album.coverArtId
 		is SpeedDialItem.Song -> item.song.title to item.song.coverArtId
 	}
+	val availability = LocalAvailability.current
+	val available = when (item) {
+		is SpeedDialItem.Playlist -> availability.collection(item.playlist.id)
+		is SpeedDialItem.Album -> availability.collection(item.album.id)
+		// a song tile plays its instant mix, from the server
+		is SpeedDialItem.Song -> availability.online
+	}
 
 	Box(
 		Modifier
 			.size(size)
+			.unavailable(!available)
 			.clip(RoundedCornerShape(12.dp))
 			.onSecondaryClick { menuShown = true }
 			.combinedClickable(

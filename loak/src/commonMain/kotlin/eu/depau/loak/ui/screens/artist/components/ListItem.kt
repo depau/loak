@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.artist.components
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -53,7 +55,9 @@ fun ArtistListScreenListItem(
 
 	Box(modifier) {
 		ListItem(
-			modifier = Modifier.onSecondaryClick(onSelect),
+			modifier = Modifier
+				.unavailable(!LocalAvailability.current.collection(artist.id))
+				.onSecondaryClick(onSelect),
 			leadingContent = {
 				CoverArt(
 					coverArtId = artist.coverArtId,

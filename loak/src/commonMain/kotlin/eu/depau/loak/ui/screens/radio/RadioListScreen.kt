@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.radio
 
+import eu.depau.loak.ui.components.common.LocalAvailability
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.scaleIn
@@ -104,8 +105,9 @@ fun RadioListScreen(
 		},
 		floatingActionButton = {
 			AnimatedContent(
-				!scrollManager.isTriggered
-					|| preferenceManager.bottomBarCollapseMode == BottomBarCollapseMode.Never,
+				// creating a station needs the server
+				LocalAvailability.current.online && (!scrollManager.isTriggered
+					|| preferenceManager.bottomBarCollapseMode == BottomBarCollapseMode.Never),
 				transitionSpec = {
 					val transformOrigin = TransformOrigin(0f, 1f)
 					(slideInHorizontally(slideSpec) { it / 2 }

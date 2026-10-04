@@ -188,6 +188,8 @@ import eu.depau.loak.ui.screens.song.SongListScreen
 import eu.depau.loak.ui.screens.starred.StarredScreen
 import eu.depau.loak.ui.components.layouts.AppNavigationRail
 import eu.depau.loak.ui.theme.LoakTheme
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.availability
 import eu.depau.loak.ui.util.Material3Transitions
 import eu.depau.loak.ui.util.WindowChromeHost
 import eu.depau.loak.ui.screens.queue.queuePaneFits
@@ -335,7 +337,8 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 			LocalQueuePaneOpen provides queuePaneOpen,
 			LocalMouseInUse provides mouseInUse,
 			LocalPlayerSheet provides playerSheet,
-			LocalRootFocus provides rootFocus
+			LocalRootFocus provides rootFocus,
+			LocalAvailability provides availability()
 		) {
 			LoakTheme {
 				// on the parent of the app and the player: the player is drawn beside the app,

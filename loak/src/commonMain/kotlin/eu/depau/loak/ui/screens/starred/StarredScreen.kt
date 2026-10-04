@@ -97,7 +97,6 @@ fun StarredScreen() {
 
 	val player = koinInject<MediaPlayerViewModel>()
 
-	val isOnline by songsViewModel.isOnline.collectAsStateWithLifecycle()
 
 	Scaffold(
 		topBar = { NestedTopBar({ Text(stringResource(Res.string.title_starred)) }) },
@@ -128,7 +127,6 @@ fun StarredScreen() {
 			StarredScreenContent(
 				innerPadding = innerPadding,
 				onSetShareId = { shareId = it },
-				isOnline = isOnline,
 
 				songsState = songsState,
 				selectedSong = selectedSong,

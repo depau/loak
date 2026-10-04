@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.home.components
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.ui.util.verticalWheelToParent
 import eu.depau.loak.ui.util.onSecondaryClick
@@ -153,7 +155,14 @@ fun GenreChips(genres: List<String>, selected: String?, onSelect: (String?) -> U
 /** An Instant mix seeded by an artist: the artist's picture with "Mix" under it. */
 @Composable
 fun MixCard(artist: DomainArtist, width: Dp, onClick: () -> Unit) {
-	Column(Modifier.width(width).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick)) {
+	Column(
+		Modifier
+			.width(width)
+			// the server picks the songs
+			.unavailable(!LocalAvailability.current.online)
+			.clip(RoundedCornerShape(12.dp))
+			.clickable(onClick = onClick)
+	) {
 		Box(
 			Modifier
 				.size(width)

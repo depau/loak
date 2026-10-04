@@ -1,6 +1,7 @@
 package eu.depau.loak.domain.manager
 
 import androidx.room3.Room
+import androidx.room3.useWriterConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.russhwolf.settings.PropertiesSettings
 import eu.depau.loak.data.database.CacheDatabase
@@ -116,6 +117,42 @@ class AudioStoreTest {
 		store.unpin(listOf("s1"))
 		assertEquals(emptyList(), store.pendingDownloads())
 		assertEquals(setOf("s2"), store.downloadedIds())
+		db.close()
+	}
+
+	@Test
+	fun storedSongsAndTheirCollections() = runBlocking {
+		val dir = Files.createTempDirectory("audio").toFile().apply { deleteOnExit() }
+		val db = Room.inMemoryDatabaseBuilder<CacheDatabase>()
+			.setDriver(BundledSQLiteDriver())
+			.build()
+		val prefs = PreferenceManager(PropertiesSettings(Properties()))
+		val store = AudioStore(dir.path, db.audioFileDao(), prefs, MutableStateFlow("a"))
+		val sql = listOf(
+			"INSERT INTO AlbumEntity (albumId, artistId, genres, songCount, createdAt, " +
+				"playCount, isExternal) VALUES ('al1', 'albumArtist', '[]', 2, 0, 0, 0)",
+			"INSERT INTO PlaylistEntity (playlistId, songCount, duration, createdAt, " +
+				"modifiedAt, allowedUsers) VALUES ('p1', 1, 0, 0, 0, '[]'), " +
+				"('p2', 1, 0, 0, 0, '[]')"
+		) + listOf("s1" to "al1", "s2" to "al1", "s3" to "al2").map { (song, album) ->
+			"INSERT INTO SongEntity (songId, title, artistId, belongsToAlbumId, isrc, genres, " +
+				"moods, duration, contributors, playCount, fileSize, explicitStatus, artists, " +
+				"albumArtists, isExternal) VALUES ('$song', '', 'ar-$song', '$album', '[]', " +
+				"'[]', '[]', 0, '[]', 0, 0, 0, '[]', '[]', 0)"
+		} + listOf(
+			"INSERT INTO PlaylistSongCrossRef VALUES ('p1', 's1', 0), ('p2', 's3', 0)"
+		)
+		db.useWriterConnection { c -> sql.forEach { q -> c.usePrepared(q) { it.step() } } }
+
+		store.openWrite("s1", AudioQuality.Raw, "flac")!!.run { write(ByteArray(10)); complete() }
+		// not complete yet: doesn't count
+		store.openWrite("s3", AudioQuality.Raw, "flac")!!.write(ByteArray(10))
+
+		assertEquals(setOf("s1"), store.storedSongs.first { it.isNotEmpty() })
+		assertEquals(
+			setOf("al1", "ar-s1", "albumArtist", "p1"),
+			store.storedCollections.first { it.isNotEmpty() }
+		)
 		db.close()
 	}
 }

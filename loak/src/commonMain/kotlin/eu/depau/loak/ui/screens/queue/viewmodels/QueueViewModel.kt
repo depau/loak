@@ -6,19 +6,15 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.repositories.SongRepository
 
 class QueueViewModel(
 	private val songRepository: SongRepository,
-	connectivityManager: ConnectivityManager,
 	val downloadManager: DownloadManager
 ) : ViewModel() {
 	val listState = LazyListState()
-	val isOnline = connectivityManager.isOnline
-	val downloadedSongs = downloadManager.downloadedSongs
 	val allDownloads = downloadManager.allDownloads
 
 	/** Queue index of the song whose options sheet is open. */

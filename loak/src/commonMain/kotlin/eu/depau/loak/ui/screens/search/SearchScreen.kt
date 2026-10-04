@@ -99,6 +99,9 @@ import eu.depau.loak.icons.outlined.Queue
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.playOrExplain
+import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.layouts.ArtGrid
@@ -177,7 +180,6 @@ fun SearchScreen(
 	val query = viewModel.searchQuery
 	val state by viewModel.searchState.collectAsState()
 	val searchHistory by viewModel.searchHistory.collectAsState(initial = emptyList())
-	val isOnline by viewModel.isOnline.collectAsState()
 	val downloadedSongs by viewModel.downloadedSongs.collectAsState()
 
 	val player = koinInject<MediaPlayerViewModel>()
@@ -292,11 +294,9 @@ fun SearchScreen(
 									songs.take(10).size,
 									span = { GridItemSpan(maxLineSpan) }) { index ->
 									val song = songs[index]
-									val isDownloaded = downloadedSongs.containsKey(song.id)
-
 									val isExplicit = song.explicitStatus == DomainExplicitStatus.Explicit
 										&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
-									val maybeUnavailable = !isOnline && !isDownloaded
+									val maybeUnavailable = !LocalAvailability.current.song(song.id)
 
 									val dismissState = rememberSwipeToDismissBoxState()
 
@@ -343,10 +343,9 @@ fun SearchScreen(
 										ListItem(
 											modifier = Modifier
 												.background(MaterialTheme.colorScheme.surface)
+												.unavailable(maybeUnavailable)
 												.onSecondaryClick { viewModel.selectSong(song) },
-											onClick = {
-												player.playNow(song)
-											},
+											onClick = playOrExplain(song.id) { player.playNow(song) },
 											onLongClick = { viewModel.selectSong(song) },
 											content = { Text(song.title) },
 											supportingContent = {

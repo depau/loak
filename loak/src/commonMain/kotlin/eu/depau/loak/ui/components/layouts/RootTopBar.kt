@@ -1,5 +1,12 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.models.settings.OfflineMode
+import eu.depau.loak.icons.outlined.Offline
+import eu.depau.loak.generated.resources.info_offline
+import eu.depau.loak.generated.resources.action_go_online
+import org.koin.compose.koinInject
 import eu.depau.loak.icons.outlined.Settings
 import eu.depau.loak.generated.resources.title_settings
 import androidx.compose.foundation.layout.RowScope
@@ -78,6 +85,10 @@ fun RootTopBar(
 	val navViewModel = koinViewModel<NavtabsViewModel>()
 	val navState by navViewModel.state.collectAsState()
 	val navConfig = (navState as? UiState.Success)?.data
+	// offline (by choice or not): say so under the title of every tab
+	val subtitle = subtitle ?: if (LocalAvailability.current.online) null else {
+		{ Text(stringResource(Res.string.info_offline)) }
+	}
 
 	val barActions: @Composable RowScope.() -> Unit = {
 		actions()
@@ -180,6 +191,8 @@ private fun Actions(
 		}
 	}
 
+	OfflineButton()
+
 	QueuePaneToggle()
 
 	// wider windows have it at the bottom of the navigation rail
@@ -189,6 +202,23 @@ private fun Actions(
 				imageVector = Icons.Outlined.Settings,
 				contentDescription = stringResource(Res.string.title_settings)
 			)
+		}
+	}
+}
+
+/** Shown while offline; when that's forced (Settings), a tap goes back online. */
+@Composable
+private fun OfflineButton() {
+	if (LocalAvailability.current.online) return
+	val preferenceManager = koinInject<PreferenceManager>()
+	val forced = preferenceManager.offlineMode == OfflineMode.Forced
+	val label = stringResource(if (forced) Res.string.action_go_online else Res.string.info_offline)
+	TooltipBox(label) {
+		IconButton(
+			onClick = { preferenceManager.offlineMode = OfflineMode.Auto },
+			enabled = forced
+		) {
+			Icon(Icons.Outlined.Offline, contentDescription = label)
 		}
 	}
 }

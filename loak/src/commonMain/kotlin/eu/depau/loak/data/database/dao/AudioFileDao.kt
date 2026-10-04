@@ -49,6 +49,23 @@ interface AudioFileDao {
 	@Query("UPDATE AudioFileEntity SET pinned = 0 WHERE server = :server AND songId = :songId")
 	suspend fun unpin(server: String, songId: String)
 
+	/** Songs with a complete file: what plays offline. */
+	@Query("SELECT DISTINCT songId FROM AudioFileEntity WHERE server = :server AND complete = 1")
+	fun observeStoredSongIds(server: String): Flow<List<String>>
+
+	/** Albums, artists and playlists with at least one song in [observeStoredSongIds]. */
+	@Query(
+		"WITH stored AS (SELECT DISTINCT songId FROM AudioFileEntity " +
+			"WHERE server = :server AND complete = 1) " +
+			"SELECT s.belongsToAlbumId FROM SongEntity s JOIN stored USING (songId) " +
+			"WHERE s.belongsToAlbumId IS NOT NULL " +
+			"UNION SELECT s.artistId FROM SongEntity s JOIN stored USING (songId) " +
+			"UNION SELECT a.artistId FROM AlbumEntity a " +
+			"JOIN SongEntity s ON s.belongsToAlbumId = a.albumId JOIN stored USING (songId) " +
+			"UNION SELECT p.playlistId FROM PlaylistSongCrossRef p JOIN stored USING (songId)"
+	)
+	fun observeStoredCollectionIds(server: String): Flow<List<String>>
+
 	/** Assigns files stored before the store told servers apart to [server]. */
 	@Query("UPDATE AudioFileEntity SET server = :server WHERE server = ''")
 	suspend fun claimUnscoped(server: String)

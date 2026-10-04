@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.unavailable
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Alignment
@@ -125,6 +127,8 @@ fun ArtGridItem(
 				.semantics {
 					contentDescription = title
 				}
+				// an album, artist or playlist with nothing to play offline
+				.unavailable(!LocalAvailability.current.collection(id))
 				.then(modifier)
 		) {
 			Box {

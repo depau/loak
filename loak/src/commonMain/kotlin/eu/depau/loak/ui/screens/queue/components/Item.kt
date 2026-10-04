@@ -54,6 +54,9 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.util.DraggableListState
 import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.ui.util.dragHandle
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.playOrExplain
+import eu.depau.loak.ui.components.common.unavailable
 
 @Composable
 fun QueueScreenItem(
@@ -67,14 +70,12 @@ fun QueueScreenItem(
 	onClick: () -> Unit,
 	onLongClick: () -> Unit,
 	onPlayNext: () -> Unit,
-	onRemove: () -> Unit,
-	isOffline: Boolean = false,
-	isDownloaded: Boolean = false
+	onRemove: () -> Unit
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val isExplicit = song.explicitStatus == DomainExplicitStatus.Explicit
 		&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
-	val maybeUnavailable = isOffline && !isDownloaded
+	val maybeUnavailable = !LocalAvailability.current.song(song.id)
 
 	val elevation by animateDpAsState(
 		targetValue = if (isDragging) 8.dp else 0.dp,
@@ -143,7 +144,8 @@ fun QueueScreenItem(
 				else Color.Transparent
 			) {
 				SegmentedListItem(
-					onClick = onClick,
+					modifier = Modifier.unavailable(maybeUnavailable),
+					onClick = playOrExplain(song.id, onClick),
 					onLongClick = onLongClick,
 					enabled = !isExplicit,
 					selected = isSelected,

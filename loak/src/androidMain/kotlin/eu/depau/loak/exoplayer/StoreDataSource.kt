@@ -50,8 +50,9 @@ suspend fun AudioFetcher.fetchSong(uri: Uri, stream: StreamSource): AudioFetcher
 
 /**
  * Plays [songUri]s from the [AudioStore]: a complete file if it's good enough, else the file a
- * fetch is writing, read as it grows; it streams only when the store won't take the song. Other
- * URIs (radio) go straight to [upstream]. [networkReads] counts open direct streams.
+ * fetch is writing, read as it grows; it streams only when the store won't take the song.
+ * Offline, a song not stored fails at once. Other URIs (radio) go straight to [upstream].
+ * [networkReads] counts open direct streams.
  */
 @OptIn(UnstableApi::class)
 class StoreDataSource(
@@ -96,7 +97,9 @@ class StoreDataSource(
 				return it
 			}
 		}
-		if (!online) return null
+		// offline (maybe by choice, see OfflineMode): fail at once, and the player skips the
+		// song; FileNotFoundException because Media3 doesn't retry it
+		if (!online) throw FileNotFoundException("$songId isn't stored, and we're offline")
 		val fetch = fetcher.fetchSong(spec.uri, stream) ?: return null
 		val progress = fetch.progress.first { it.started || it.done || it.failed }
 		if (progress.failed) throw IOException("fetching $songId failed")

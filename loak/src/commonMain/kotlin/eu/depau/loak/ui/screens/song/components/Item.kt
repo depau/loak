@@ -48,6 +48,9 @@ import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.Queue
 import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.playOrExplain
+import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.sheets.SongSheet
 import eu.depau.loak.ui.navigation.Screen
@@ -124,8 +127,10 @@ fun SongListScreenItem(
 	) {
 		Box {
 			ListItem(
-				modifier = Modifier.onSecondaryClick(onSelect),
-				onClick = onClick,
+				modifier = Modifier
+					.unavailable(!LocalAvailability.current.song(song.id))
+					.onSecondaryClick(onSelect),
+				onClick = playOrExplain(song.id, onClick),
 				onLongClick = onSelect,
 				content = {
 					MarqueeText(

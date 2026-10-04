@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -36,6 +37,7 @@ import eu.depau.loak.ui.core.InstantMix
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.info_not_available_offline
 import eu.depau.loak.generated.resources.notice_added_to_queue
 import eu.depau.loak.generated.resources.notice_instant_mix
 import eu.depau.loak.generated.resources.notice_moved_play_next
@@ -62,6 +64,19 @@ abstract class MediaPlayerViewModel(
 ) : ViewModel(), KoinComponent {
 	/** Records the playlists and albums started, for Home. */
 	protected val playLog: PlayLogManager by inject()
+	private val audioStore: AudioStore by inject()
+
+	/** Offline, only songs in the audio store (downloaded or cached) can play. */
+	protected fun canPlay(song: DomainSong) =
+		connectivityManager.isOnline.value || song.id in audioStore.storedSongs.value
+
+	/** [canPlay]'s songs; none left: a snackbar saying so. */
+	protected fun playable(songs: List<DomainSong>): List<DomainSong> =
+		songs.filter(::canPlay).also {
+			if (it.isEmpty() && songs.isNotEmpty()) {
+				snackBarManager.notify(Res.string.info_not_available_offline)
+			}
+		}
 
 
 	@Suppress("PropertyName")
@@ -139,6 +154,8 @@ abstract class MediaPlayerViewModel(
 	 * them, and offer an undo.
 	 */
 	private fun enqueue(songs: List<DomainSong>, next: Boolean, notify: Boolean) {
+		@Suppress("NAME_SHADOWING")
+		val songs = playable(songs)
 		if (songs.isEmpty()) return
 		val state = uiState.value
 		if (!notify) {
@@ -240,12 +257,15 @@ abstract class MediaPlayerViewModel(
 
 	fun playNow(songs: List<DomainSong>, startIndex: Int = 0) = startQueue(songs, startIndex, mix = null)
 
-	private fun startQueue(songs: List<DomainSong>, startIndex: Int, mix: InstantMix?) {
+	private fun startQueue(all: List<DomainSong>, startIndex: Int, mix: InstantMix?) {
+		// offline, songs that can't play are left out: start from the first one that can
+		val songs = playable(all).ifEmpty { return }
+		val start = all.take(startIndex).count(::canPlay).takeIf { it < songs.size } ?: 0
 		// before clearQueue: platforms clear by copying the state, which keeps the mix
 		_uiState.update { it.copy(instantMix = mix) }
 		clearQueue()
 		addToQueue(songs, notify = false)
-		playAt(startIndex)
+		playAt(start)
 	}
 
 	/** The queue's instant mix, while the queue holds only its songs (it may skip explicit ones). */
@@ -259,26 +279,41 @@ abstract class MediaPlayerViewModel(
 	 * Replaces the queue with songs the server finds similar to [seedId] (a song, album or
 	 * artist id), with an undo. A [seed] song plays first.
 	 */
-	fun playInstantMix(seedId: String, seedName: String, seed: DomainSong? = null) =
+	fun playInstantMix(seedId: String, seedName: String, seed: DomainSong? = null) {
+		if (offline()) return
 		startInstantMix(seedName, seed) { songRepository.getSimilarSongs(seedId) }
+	}
 
 	/**
 	 * An instant mix seeded by a few of [songs], for lists the server can't take as a seed
 	 * (playlists, Quick picks).
 	 */
-	fun playInstantMix(songs: List<DomainSong>, name: String) = startInstantMix(name, null) {
-		// ponytail: 3 random seeds, one call each; more seeds would cost more calls
-		val lists = songs.shuffled().take(3).map { songRepository.getSimilarSongs(it.id, count = 20) }
-		(0 until (lists.maxOfOrNull { it.size } ?: 0))
-			.flatMap { i -> lists.mapNotNull { it.getOrNull(i) } }
-			.distinctBy { it.id }
+	fun playInstantMix(songs: List<DomainSong>, name: String) {
+		if (offline()) return
+		startInstantMix(name, null) {
+			// ponytail: 3 random seeds, one call each; more seeds would cost more calls
+			val lists = songs.shuffled().take(3)
+				.map { songRepository.getSimilarSongs(it.id, count = 20) }
+			(0 until (lists.maxOfOrNull { it.size } ?: 0))
+				.flatMap { i -> lists.mapNotNull { it.getOrNull(i) } }
+				.distinctBy { it.id }
+		}
 	}
 
 	/** Plays [songs] as they are, as a mix called [name] (AudioMuse-AI results), with an undo. */
 	fun playMix(songs: List<DomainSong>, name: String) = startInstantMix(name, null) { songs }
 
 	/** Plays the songs [fetch] returns as a mix called [name], with an undo. */
-	fun playMix(name: String, fetch: suspend () -> List<DomainSong>) = startInstantMix(name, null, fetch)
+	fun playMix(name: String, fetch: suspend () -> List<DomainSong>) {
+		if (!offline()) startInstantMix(name, null, fetch)
+	}
+
+	/** True, with a snackbar saying so, when offline: for what needs the server. */
+	private fun offline(): Boolean {
+		if (connectivityManager.isOnline.value) return false
+		snackBarManager.notify(Res.string.info_not_available_offline)
+		return true
+	}
 
 	private fun startInstantMix(
 		seedName: String,
@@ -349,6 +384,7 @@ abstract class MediaPlayerViewModel(
 	 */
 	fun playSonicPathTo(target: DomainSong) {
 		val current = uiState.value.currentSong ?: return
+		if (offline()) return
 		viewModelScope.launch {
 			val path = try {
 				songRepository.getSonicPath(current.id, target.id)

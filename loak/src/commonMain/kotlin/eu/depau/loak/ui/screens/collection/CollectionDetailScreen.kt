@@ -27,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -91,8 +90,6 @@ fun CollectionDetailScreen(
 		key = collectionId,
 		parameters = { parametersOf(collectionId) }
 	)
-	LaunchedEffect(collectionId) { viewModel.revalidate() }
-
 
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
@@ -101,7 +98,6 @@ fun CollectionDetailScreen(
 	val collection = collectionState.data
 	val selection by viewModel.selectedSong.collectAsState()
 	val selectedAlbum by viewModel.selectedAlbum.collectAsState()
-	val isOnline by viewModel.isOnline.collectAsState()
 	val starred by viewModel.starred.collectAsState()
 
 	var shareId by remember { mutableStateOf<String?>(null) }
@@ -332,8 +328,7 @@ fun CollectionDetailScreen(
 													player.addToQueueSingle(song)
 												},
 												isStarred = if (selection == song) selectedSongIsStarred else song.starredAt != null,
-												download = download,
-												isOffline = !isOnline
+												download = download
 											)
 											CollectionDetailScreenSongRowDropdown(
 												expanded = selection == song,
@@ -384,8 +379,7 @@ fun CollectionDetailScreen(
 											player.addToQueueSingle(song)
 										},
 										isStarred = if (selection == song) selectedSongIsStarred else song.starredAt != null,
-										download = download,
-										isOffline = !isOnline
+										download = download
 									)
 									CollectionDetailScreenSongRowDropdown(
 										expanded = selection == song,

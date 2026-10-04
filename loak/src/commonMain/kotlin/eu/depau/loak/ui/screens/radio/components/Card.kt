@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.radio.components
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.unavailable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,12 +69,15 @@ fun RadioListScreenCard(
 		isDark = isDark
 	)
 
+	// radio streams straight from the station
+	val online = LocalAvailability.current.online
 	Surface(
-		modifier = modifier,
+		modifier = modifier.unavailable(!online),
 		color = colorScheme.primaryContainer,
 		contentColor = colorScheme.onPrimaryContainer,
 		shape = MaterialTheme.shapes.medium,
 		shadowElevation = 2.dp,
+		enabled = online,
 		onClick = {
 			onPlayClick()
 		}

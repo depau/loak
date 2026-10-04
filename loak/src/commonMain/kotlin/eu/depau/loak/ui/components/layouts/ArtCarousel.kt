@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.unavailable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -100,13 +102,16 @@ fun CarouselItemScope.ArtCarouselItem(
 	subtitle: String? = null,
 	contentDescription: String?,
 	onSelect: () -> Unit = {},
-	onClick: () -> Unit = {}
+	onClick: () -> Unit = {},
+	/** The album, artist or playlist's, to dim it when there's nothing to play offline. */
+	id: String? = null
 ) {
 	val focusManager = LocalFocusManager.current
 
 	Column(
 		modifier = Modifier
 			.fillMaxWidth()
+			.unavailable(id != null && !LocalAvailability.current.collection(id))
 	) {
 		CoverArt(
 			coverArtId = coverArtId,

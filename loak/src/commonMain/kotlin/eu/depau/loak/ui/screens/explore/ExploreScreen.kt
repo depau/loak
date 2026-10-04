@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.screens.explore
 
+import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.common.playOrExplain
+import eu.depau.loak.ui.components.common.unavailable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -234,7 +237,10 @@ fun ExploreScreen() {
 					}
 					itemsIndexed(state.deepCuts, key = { _, song -> "deep ${song.id}" }, span = { _, _ -> GridItemSpan(6) }) { i, song ->
 						ListItem(
-							modifier = Modifier.clip(MaterialTheme.shapes.medium).clickable { player.playNow(state.deepCuts, i) },
+							modifier = Modifier
+								.unavailable(!LocalAvailability.current.song(song.id))
+								.clip(MaterialTheme.shapes.medium)
+								.clickable(onClick = playOrExplain(song.id) { player.playNow(state.deepCuts, i) }),
 							leadingContent = { CoverArt(coverArtId = song.coverArtId, modifier = Modifier.size(48.dp)) },
 							headlineContent = { Text(song.title, maxLines = 1) },
 							supportingContent = { Text(listOfNotNull(song.artistName, song.albumTitle).joinToString(" · "), maxLines = 1) },

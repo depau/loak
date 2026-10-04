@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -667,6 +668,15 @@ class AndroidMediaPlayerViewModel(
 						skipUnavailableSong()
 					}
 
+					// offline, a song with no stored copy fails at once: move on to one that has
+					override fun onPlayerError(error: PlaybackException) {
+						val song = _uiState.value.currentSong ?: return
+						if (!isUnavailable(song)) return
+						skipUnavailableSong()
+						// paused: nothing left to play
+						if (controller?.playWhenReady == true) controller?.prepare()
+					}
+
 					override fun onIsPlayingChanged(isPlaying: Boolean) {
 						if (isPlaying) startProgressLoop()
 
@@ -729,22 +739,17 @@ class AndroidMediaPlayerViewModel(
 		}
 	}
 
+	/** Explicit songs being skipped, and offline, songs with no stored copy (see [canPlay]). */
+	private fun isUnavailable(song: DomainSong) = isExplicit(song) || !canPlay(song)
+
 	/**
 	 * strategically skip around in the queue until the
 	 * current song is available while avoiding infinite
 	 * loops
-	 *
-	 * this **INTENTIONALLY** does not check for if the song
-	 * is not downloaded and if the device is offline
-	 *
-	 * this used to check for that but because there have
-	 * been cases where the device is falsely identified
-	 * as being offline that's no longer the case, so we
-	 * just try to play the song anyway
 	 */
 	private fun skipUnavailableSong() {
 		val currentSong = _uiState.value.currentSong ?: return
-		if (!isExplicit(currentSong)) return
+		if (!isUnavailable(currentSong)) return
 		Logger.i("MediaPlayer", "trying to skip unavailable song")
 		val queue = _uiState.value.queue
 		val currentIdx = queue.indexOf(currentSong)
@@ -753,7 +758,7 @@ class AndroidMediaPlayerViewModel(
 		// we loop back past our own starting point
 		val nextAvailableIdx = (1..queue.size)
 			.map { offset -> (currentIdx + offset) % queue.size }
-			.firstOrNull { index -> !isExplicit(queue[index]) }
+			.firstOrNull { index -> !isUnavailable(queue[index]) }
 
 		if (nextAvailableIdx == null) {
 			Logger.i(
@@ -1077,10 +1082,11 @@ class AndroidMediaPlayerViewModel(
 	}
 
 	override fun shufflePlay(collection: DomainSongCollection) {
+		val playable = playable(collection.songs).ifEmpty { return }
 		playLog.recordCollection(collection)
 		viewModelScope.launch {
 			val (shuffledSongs, mediaItems) = withContext(Dispatchers.Default) {
-				val songs = collection.songs.shuffled()
+				val songs = playable.shuffled()
 				songs to songs.map { it.toMediaItem() }
 			}
 

@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.artist
 
+import eu.depau.loak.ui.components.common.LocalAvailability
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -139,7 +140,6 @@ fun ArtistDetailScreen(
 	val layoutDirection = LocalLayoutDirection.current
 	val artistState by viewModel.artistState.collectAsStateWithLifecycle()
 	val starred by viewModel.starred.collectAsState()
-	val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
 	val allDownloads by viewModel.allDownloads.collectAsStateWithLifecycle()
 	val downloadStatus by viewModel.collectionDownloadStatus()
 		.collectAsState(DownloadStatus.NOT_DOWNLOADED)
@@ -270,7 +270,8 @@ fun ArtistDetailScreen(
 									snackBarManager.notify(Res.string.notice_deleted_download)
 								},
 								downloadStatus = downloadStatus,
-								playEnabled = state.albums.isNotEmpty(),
+								playEnabled = state.albums.isNotEmpty() &&
+									LocalAvailability.current.collection(state.artist.id),
 								modifier = Modifier.widthIn(max = 560.dp).padding(top = 8.dp)
 							)
 							Column(
@@ -369,7 +370,6 @@ fun ArtistDetailScreen(
 															onPlayNext = { player.playNextSingle(song) },
 															onAddToQueue = { player.addToQueueSingle(song) },
 															onShare = { shareId = song.id },
-															isOnline = isOnline,
 															rating = selectedSongRating,
 															onSetRating = { viewModel.rateSelectedSong(it) }
 														)

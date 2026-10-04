@@ -22,6 +22,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import eu.depau.loak.data.database.dao.LyricDao
 import eu.depau.loak.data.database.entities.LyricEntity
 import eu.depau.loak.domain.manager.SessionManager
+import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.lyrics.LyricsConfig
 import eu.depau.loak.domain.models.lyrics.LyricsLine
@@ -34,7 +35,8 @@ import kotlin.time.Duration.Companion.milliseconds
 class LyricsRepository(
 	private val lyricDao: LyricDao,
 	private val settings: Settings,
-	private val sessionManager: SessionManager
+	private val sessionManager: SessionManager,
+	private val connectivityManager: ConnectivityManager
 ) {
 
 	private val client = HttpClient {
@@ -81,6 +83,8 @@ class LyricsRepository(
 			Logger.w("LyricsRepository", "failed getting cached lyrics", ex)
 		}
 
+		// offline: the cached lyrics only
+		if (!connectivityManager.isOnline.value) return null
 		val currentConfig = getConfig()
 		for (provider in currentConfig.providers.filter { it.enabled }) {
 			try {

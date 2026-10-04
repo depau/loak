@@ -59,6 +59,7 @@ fun LazyListScope.collectionDetailScreenMoreByArtistRow(
 				coverArtId = album.coverArtId,
 				title = album.name ?: "[unknown album]",
 				contentDescription = album.name,
+				id = album.id,
 				onSelect = { onSelect(album) },
 				onClick = dropUnlessResumed {
 					backStack.add(Screen.CollectionDetail(album.id, tab))

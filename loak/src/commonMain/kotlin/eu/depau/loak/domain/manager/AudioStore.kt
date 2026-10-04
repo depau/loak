@@ -8,13 +8,18 @@ import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
 import io.ktor.http.encodeURLParameter
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -78,6 +83,19 @@ class AudioStore(
 				cache.sumOf { it.bytes }, cache.size, pinned.sumOf { it.bytes }, pinned.size
 			)
 		}
+
+	/** The current server's songs with a complete file: what plays offline. */
+	val storedSongs: StateFlow<Set<String>> = observeIds(dao::observeStoredSongIds)
+
+	/** The current server's albums, artists and playlists with any of [storedSongs]. */
+	val storedCollections: StateFlow<Set<String>> = observeIds(dao::observeStoredCollectionIds)
+
+	@OptIn(ExperimentalCoroutinesApi::class)
+	private fun observeIds(query: (String) -> Flow<List<String>>): StateFlow<Set<String>> =
+		if (dir == null) MutableStateFlow(emptySet()) else server
+			.flatMapLatest(query)
+			.map { it.toSet() }
+			.stateIn(scope, SharingStarted.Eagerly, emptySet())
 
 	init {
 		if (dir != null) scope.launch {

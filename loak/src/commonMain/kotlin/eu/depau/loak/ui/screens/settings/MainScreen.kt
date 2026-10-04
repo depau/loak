@@ -1,5 +1,9 @@
 package eu.depau.loak.ui.screens.settings
 
+import eu.depau.loak.domain.models.settings.OfflineMode
+import eu.depau.loak.generated.resources.option_offline_mode
+import eu.depau.loak.generated.resources.subtitle_offline_mode_toggle
+import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -91,6 +95,21 @@ fun SettingsScreen() {
 				.padding(horizontal = 16.dp),
 			verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
 		) {
+			// at hand; Data & storage has the automatic choices too
+			SettingsGroup {
+				val preferenceManager = koinInject<PreferenceManager>()
+				SettingsToggleItem(
+					checked = preferenceManager.offlineMode == OfflineMode.Forced,
+					onCheckedChange = {
+						preferenceManager.offlineMode = if (it) OfflineMode.Forced else OfflineMode.Auto
+					},
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1),
+					supportingContent = {
+						Text(stringResource(Res.string.subtitle_offline_mode_toggle))
+					},
+					content = { Text(stringResource(Res.string.option_offline_mode)) }
+				)
+			}
 			SettingsGroup {
 				PageRow(
 					destination = Screen.Settings.Server,

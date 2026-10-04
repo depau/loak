@@ -109,6 +109,7 @@ import eu.depau.loak.generated.resources.info_repeat_one
 import eu.depau.loak.generated.resources.info_repeat_all
 import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.RatingRow
 import eu.depau.loak.ui.navigation.Screen
@@ -165,6 +166,10 @@ fun SongSheet(
 	val colorScheme = if (useSongTheme) rememberColorSchemeFromCoverArt(song.coverArtId) else null
 
 	val backStack = LocalNavStack.current
+	// offline, what needs the server is greyed out (adding to playlists too, for now);
+	// starring, rating, downloading and removing from playlists are queued
+	val online = LocalAvailability.current.online
+	val playable = LocalAvailability.current.song(song.id)
 
 	LoakTheme(colorScheme) {
 		val colors = ListItemDefaults.colors(
@@ -243,6 +248,7 @@ fun SongSheet(
 							onPlayNext()
 							onDismissRequest()
 						},
+						enabled = playable,
 						colors = colors,
 						contentPadding = contentPadding
 					)
@@ -256,6 +262,7 @@ fun SongSheet(
 							onAddToQueue()
 							onDismissRequest()
 						},
+						enabled = playable,
 						colors = colors,
 						contentPadding = contentPadding
 					)
@@ -268,6 +275,7 @@ fun SongSheet(
 						player.playInstantMix(song.id, song.title, seed = song)
 						onDismissRequest()
 					},
+					enabled = online,
 					colors = colors,
 					contentPadding = contentPadding
 				)
@@ -282,6 +290,7 @@ fun SongSheet(
 							player.playSonicPathTo(song)
 							onDismissRequest()
 						},
+						enabled = online,
 						colors = colors,
 						contentPadding = contentPadding
 					)
@@ -295,6 +304,7 @@ fun SongSheet(
 							backStack.add(Screen.Alchemy(song.toIngredient()))
 							onDismissRequest()
 						},
+						enabled = online,
 						colors = colors,
 						contentPadding = contentPadding
 					)
@@ -305,6 +315,7 @@ fun SongSheet(
 							player.playMix(song.title) { audioMuseRepository.similarLyricsAndSound(song.id) }
 							onDismissRequest()
 						},
+						enabled = online,
 						colors = colors,
 						contentPadding = contentPadding
 					)
@@ -326,6 +337,7 @@ fun SongSheet(
 							onAddToPlaylist()
 							onDismissRequest()
 						},
+						enabled = online,
 						colors = colors,
 						contentPadding = contentPadding
 					)
@@ -497,6 +509,7 @@ fun SongSheet(
 							onShare()
 							onDismissRequest()
 						},
+						enabled = online,
 						colors = colors,
 						contentPadding = contentPadding
 					)
