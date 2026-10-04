@@ -57,8 +57,6 @@ import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_next_song
-import eu.depau.loak.generated.resources.action_pause
-import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.action_previous_song
 import eu.depau.loak.generated.resources.action_repeat
 import eu.depau.loak.generated.resources.action_shuffle
@@ -67,8 +65,6 @@ import eu.depau.loak.generated.resources.info_not_playing
 import eu.depau.loak.generated.resources.title_now_playing
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Note
-import eu.depau.loak.icons.filled.Pause
-import eu.depau.loak.icons.filled.Play
 import eu.depau.loak.icons.filled.RepeatOn
 import eu.depau.loak.icons.filled.RepeatOneOn
 import eu.depau.loak.icons.filled.ShuffleOn
@@ -102,6 +98,7 @@ import androidx.compose.material3.VerticalSlider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.delay
+import eu.depau.loak.ui.components.common.PlayPauseIcon
 
 /** Room for "00:00 / 00:00" plus its padding and the gaps between the bar's buttons. */
 private val TimeWidth = 112.dp
@@ -240,12 +237,7 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 						enabled = interactive,
 						modifier = Modifier.size(56.dp)
 					) {
-						Icon(
-							if (playerState.isPaused) Icons.Filled.Play else Icons.Filled.Pause,
-							stringResource(
-								if (playerState.isPaused) Res.string.action_play else Res.string.action_pause
-							)
-						)
+						PlayPauseIcon(playerState)
 					}
 					IconButton(onClick = { player.next() }, enabled = interactive) {
 						Icon(Icons.Filled.SkipNext, stringResource(Res.string.action_next_song))

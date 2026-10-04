@@ -52,12 +52,8 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_exit_karaoke
 import eu.depau.loak.generated.resources.action_next_song
-import eu.depau.loak.generated.resources.action_pause
-import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.action_previous_song
 import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.filled.Pause
-import eu.depau.loak.icons.filled.Play
 import eu.depau.loak.icons.filled.SkipNext
 import eu.depau.loak.icons.filled.SkipPrevious
 import eu.depau.loak.icons.outlined.FullscreenExit
@@ -74,6 +70,7 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import kotlin.time.Duration.Companion.seconds
+import eu.depau.loak.ui.components.common.PlayPauseIcon
 
 /**
  * The lyrics, full screen: large lines over the blurred cover, the system bars hidden and the
@@ -193,10 +190,7 @@ fun Karaoke(state: PlayerSheetState) {
 								Icon(Icons.Filled.SkipPrevious, stringResource(Res.string.action_previous_song), tint = Color.White)
 							}
 							FilledIconButton(onClick = player::togglePlay) {
-								Icon(
-									if (playerState.isPaused) Icons.Filled.Play else Icons.Filled.Pause,
-									stringResource(if (playerState.isPaused) Res.string.action_play else Res.string.action_pause)
-								)
+								PlayPauseIcon(playerState)
 							}
 							IconButton(onClick = player::next) {
 								Icon(Icons.Filled.SkipNext, stringResource(Res.string.action_next_song), tint = Color.White)

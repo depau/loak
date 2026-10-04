@@ -27,6 +27,7 @@ import platform.AVFAudio.setActive
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
+import platform.AVFoundation.AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate
 import platform.AVFoundation.AVURLAsset
 import platform.AVFoundation.addPeriodicTimeObserverForInterval
 import platform.AVFoundation.currentItem
@@ -38,6 +39,7 @@ import platform.AVFoundation.removeTimeObserver
 import platform.AVFoundation.replaceCurrentItemWithPlayerItem
 import platform.AVFoundation.seekToTime
 import platform.AVFoundation.setRate
+import platform.AVFoundation.timeControlStatus
 import platform.CoreGraphics.CGSizeMake
 import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
@@ -384,6 +386,10 @@ class IOSMediaPlayerViewModel(
 	private fun startProgressObserver() {
 		val interval = CMTimeMake(1, 20)
 		timeObserver = player.addPeriodicTimeObserverForInterval(interval, null) { time ->
+			// also called when playback stops, e.g. to wait for data
+			val waiting = player.timeControlStatus ==
+				AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate
+			if (_uiState.value.isLoading != waiting) _uiState.update { it.copy(isLoading = waiting) }
 			val duration = player.currentItem?.duration
 			if (duration != null) {
 				val total = CMTimeGetSeconds(duration)

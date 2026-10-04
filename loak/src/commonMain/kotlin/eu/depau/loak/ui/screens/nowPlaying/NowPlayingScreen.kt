@@ -59,13 +59,9 @@ import eu.depau.loak.domain.models.settings.ToolbarPosition
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_lyrics
 import eu.depau.loak.generated.resources.action_navigate_back
-import eu.depau.loak.generated.resources.action_pause
-import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.title_now_playing
 import eu.depau.loak.generated.resources.title_up_next
 import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.filled.Pause
-import eu.depau.loak.icons.filled.Play
 import eu.depau.loak.icons.outlined.KeyboardArrowDown
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.BlendBackground
@@ -88,6 +84,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import eu.depau.loak.ui.components.common.PlayPauseIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -374,10 +371,7 @@ private fun CollapsedPlayerRow(song: DomainSong?, modifier: Modifier = Modifier)
 			)
 		}
 		IconButton(onClick = { if (playerState.isPaused) player.resume() else player.pause() }) {
-			Icon(
-				if (playerState.isPaused) Icons.Filled.Play else Icons.Filled.Pause,
-				stringResource(if (playerState.isPaused) Res.string.action_play else Res.string.action_pause)
-			)
+			PlayPauseIcon(playerState)
 		}
 	}
 }

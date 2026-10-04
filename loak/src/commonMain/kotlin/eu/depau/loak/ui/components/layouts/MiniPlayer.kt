@@ -65,8 +65,6 @@ import coil3.request.ImageRequest
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_next_song
-import eu.depau.loak.generated.resources.action_pause
-import eu.depau.loak.generated.resources.action_play
 import eu.depau.loak.generated.resources.action_previous_song
 import eu.depau.loak.generated.resources.action_star
 import eu.depau.loak.generated.resources.info_not_playing
@@ -83,8 +81,6 @@ import eu.depau.loak.domain.models.settings.MiniPlayerStyle
 import eu.depau.loak.domain.models.settings.NavbarConfig
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Note
-import eu.depau.loak.icons.filled.Pause
-import eu.depau.loak.icons.filled.Play
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.Radio
 import eu.depau.loak.icons.outlined.Star
@@ -94,8 +90,8 @@ import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.nowPlaying.viewmodels.NowPlayingViewModel
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
-import eu.depau.loak.ui.util.playPauseIconPainter
 import coil3.compose.LocalPlatformContext as LocalCoilPlatformContext
+import eu.depau.loak.ui.components.common.PlayPauseIcon
 
 @Composable
 fun MiniPlayer(
@@ -285,27 +281,7 @@ fun MiniPlayer(
 								enabled = isInteractive,
 								colors = colors
 							) {
-								val painter = playPauseIconPainter(playerState.isPaused)
-								val description = stringResource(
-									if (playerState.isPaused)
-										Res.string.action_play
-									else Res.string.action_pause
-								)
-								if (painter != null) {
-									Icon(
-										painter = painter,
-										contentDescription = description,
-										modifier = Modifier.size(iconSize)
-									)
-								} else {
-									Icon(
-										imageVector = if (playerState.isPaused)
-											Icons.Filled.Play
-										else Icons.Filled.Pause,
-										contentDescription = description,
-										modifier = Modifier.size(iconSize)
-									)
-								}
+								PlayPauseIcon(playerState, Modifier.size(iconSize), animated = true)
 							}
 							// skipping is a swipe on the player, so the second button stars the song
 							IconButton(
