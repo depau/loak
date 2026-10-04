@@ -34,7 +34,6 @@ import eu.depau.loak.generated.resources.info_explicit
 import eu.depau.loak.generated.resources.info_not_available_offline
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainSong
@@ -50,7 +49,6 @@ import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.common.Waveform
-import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.util.DraggableListState
 import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.ui.util.dragHandle
@@ -90,8 +88,6 @@ fun QueueScreenItem(
 		count = count,
 		dismissDirection = dismissState.dismissDirection
 	)
-
-	val backStack = LocalNavStack.current
 
 	SwipeToDismissBox(
 		state = dismissState,
@@ -160,16 +156,9 @@ fun QueueScreenItem(
 					shapes = itemShape,
 					verticalAlignment = Alignment.CenterVertically,
 					content = { MarqueeText(song.title) },
+					// plain text: links in it would take taps meant for the row (which plays)
 					supportingContent = {
-						MarqueeText(
-							buildSongInfoString(
-								song = song,
-								onClickArtist = {
-									backStack.remove(Screen.NowPlaying)
-									backStack.add(Screen.ArtistDetail(it))
-								}
-							)
-						)
+						MarqueeText(buildSongInfoString(song = song, onClickArtist = {}).text)
 					},
 					leadingContent = {
 						CoverArt(
