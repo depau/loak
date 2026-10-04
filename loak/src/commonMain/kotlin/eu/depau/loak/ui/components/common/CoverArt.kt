@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.common
 
+import eu.depau.loak.di.CoverArtId
 import eu.depau.loak.icons.outlined.Note
 import androidx.compose.foundation.layout.fillMaxSize
 import eu.depau.loak.ui.util.onSecondaryClick
@@ -42,7 +43,6 @@ import eu.depau.loak.generated.resources.info_image_failed_to_load
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Error
 import eu.depau.loak.ui.theme.defaultFont
@@ -66,7 +66,6 @@ fun CoverArt(
 	val coilPlatformContext = LocalCoilPlatformContext.current
 
 	val imageLoader = koinInject<ImageLoader>()
-	val sessionManager = koinInject<SessionManager>()
 	val preferenceManager = koinInject<PreferenceManager>()
 
 	val shape = shape ?: if (!coverArtId.orEmpty().startsWith("ar-")) {
@@ -80,9 +79,7 @@ fun CoverArt(
 			preferenceManager.customHeadersMap().forEach { (key, value) -> add(key, value) }
 		}.build()
 		ImageRequest.Builder(coilPlatformContext)
-			.data(coverArtId?.let { sessionManager.getCoverArtUrl(it) })
-			.memoryCacheKey(coverArtId)
-			.diskCacheKey(coverArtId)
+			.data(coverArtId?.let { CoverArtId(it) })
 			.diskCachePolicy(CachePolicy.ENABLED)
 			.memoryCachePolicy(CachePolicy.ENABLED)
 			.crossfade(crossfadeMs)

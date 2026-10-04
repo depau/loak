@@ -7,16 +7,21 @@ import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
 import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.toBitmap
 import com.google.common.util.concurrent.ListenableFuture
-import eu.depau.loak.util.Logger
+import com.google.common.util.concurrent.SettableFuture
+import eu.depau.loak.di.COVER_ART_MEDIUM
+import eu.depau.loak.di.CoverArtId
 
 /**
- * Small util for attempting to load cached artworks from Coil first,
- * before resorting to doing the normal behavior of ExoPlayer (which just fetches the provided image url)
+ * Loads Subsonic cover art (artwork URIs carrying an `id`) through Coil, so its disk cache and
+ * size buckets are shared with the UI; anything else goes to ExoPlayer's default loader.
  */
 @UnstableApi
 class ExoPlayerCoilBitmapLoader(
-	context: Context,
+	private val context: Context,
 	private val imageLoader: ImageLoader,
 ): BitmapLoader {
 	private val bitmapLoader = DataSourceBitmapLoader.Builder(context).build()
@@ -30,24 +35,18 @@ class ExoPlayerCoilBitmapLoader(
 	}
 
 	override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> {
-		// this expects to be the coverArtId from Subsonic's API, since currently the cache is keyed against it
-		val coverId = uri.getQueryParameter("id")
-
-		if (coverId != null) {
-			try {
-				val diskCache = imageLoader.diskCache
-				val snapshot = diskCache?.openSnapshot(coverId)
-				val imageBytes = snapshot.use {
-					it?.data?.toFile()?.readBytes()
-				}
-				if (imageBytes != null) {
-					return this.decodeBitmap(imageBytes)
-				}
-			} catch (e: Exception) {
-				Logger.w("BitmapLoader", "could not read artwork data", e)
-			}
-		}
-
-		return bitmapLoader.loadBitmap(uri)
+		val coverId = uri.getQueryParameter("id") ?: return bitmapLoader.loadBitmap(uri)
+		val future = SettableFuture.create<Bitmap>()
+		imageLoader.enqueue(
+			ImageRequest.Builder(context)
+				.data(CoverArtId(coverId, COVER_ART_MEDIUM))
+				.allowHardware(false)
+				.listener(
+					onSuccess = { _, result -> future.set(result.image.toBitmap()) },
+					onError = { _, result -> future.setException(result.throwable) }
+				)
+				.build()
+		)
+		return future
 	}
 }

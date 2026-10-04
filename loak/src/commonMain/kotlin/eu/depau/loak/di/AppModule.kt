@@ -7,6 +7,7 @@ import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
 
 val appModule = module {
 	single { Settings() }
-	single { initializeSingletonImageLoader(get(), get()) }
+	singleOf(::CoverArtInterceptor)
+	single { initializeSingletonImageLoader(get(), get(), get()) }
 	singleOf(::PersistentViewModelStoreOwner)
 }

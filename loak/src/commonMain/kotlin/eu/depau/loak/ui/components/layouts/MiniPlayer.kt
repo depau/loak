@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.di.CoverArtId
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -75,7 +76,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.settings.MiniPlayerProgressStyle
 import eu.depau.loak.domain.models.settings.MiniPlayerStyle
 import eu.depau.loak.domain.models.settings.NavbarConfig
@@ -118,12 +118,9 @@ fun MiniPlayer(
 
 	val coilPlatformContext = LocalCoilPlatformContext.current
 	val imageLoader = koinInject<ImageLoader>()
-	val sessionManager = koinInject<SessionManager>()
 	val model = remember(song?.coverArtId) {
 		ImageRequest.Builder(coilPlatformContext)
-			.data(song?.coverArtId?.let { sessionManager.getCoverArtUrl(it) })
-			.memoryCacheKey(song?.coverArtId)
-			.diskCacheKey(song?.coverArtId)
+			.data(song?.coverArtId?.let { CoverArtId(it) })
 			.diskCachePolicy(CachePolicy.ENABLED)
 			.memoryCachePolicy(CachePolicy.ENABLED)
 			.build()

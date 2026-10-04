@@ -1,5 +1,6 @@
 package eu.depau.loak.shared
 
+import eu.depau.loak.di.COVER_ART_MEDIUM
 import android.app.Application
 import android.app.PendingIntent
 import android.content.ComponentName
@@ -713,7 +714,7 @@ class AndroidMediaPlayerViewModel(
 								putExtra(
 									"artUrl",
 									currentSong?.coverArtId?.let {
-										sessionManager.getCoverArtUrl(it)
+										sessionManager.getCoverArtUrl(it, COVER_ART_MEDIUM)
 									})
 							}
 
@@ -1249,7 +1250,7 @@ private fun DomainSong.toMediaItem(sessionManager: SessionManager): MediaItem {
 		.setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
 
 	metadataBuilder.setArtworkUri(
-		coverArtId?.let { sessionManager.getCoverArtUrl(it).toUri() }
+		coverArtId?.let { sessionManager.getCoverArtUrl(it, COVER_ART_MEDIUM).toUri() }
 	)
 
 	val metadata = metadataBuilder.build()

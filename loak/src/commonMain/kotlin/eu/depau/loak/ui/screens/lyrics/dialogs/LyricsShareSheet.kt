@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.lyrics.dialogs
 
+import eu.depau.loak.di.COVER_ART_FULL
+import eu.depau.loak.di.CoverArtId
 import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -76,7 +78,6 @@ import eu.depau.loak.generated.resources.app_name
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalSnackBarState
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.ShareManager
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.icons.Icons
@@ -109,11 +110,9 @@ fun LyricsShareSheet(
 
 	val coilPlatformContext = LocalCoilPlatformContext.current
 	val imageLoader = koinInject<ImageLoader>()
-	val sessionManager = koinInject<SessionManager>()
 	val model = remember(song.coverArtId) {
 		ImageRequest.Builder(coilPlatformContext)
-			.data(song.coverArtId?.let { sessionManager.getCoverArtUrl(it) })
-			.diskCacheKey(song.coverArtId)
+			.data(song.coverArtId?.let { CoverArtId(it, COVER_ART_FULL) })
 			.diskCachePolicy(CachePolicy.ENABLED)
 			.build()
 	}

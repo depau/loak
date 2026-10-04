@@ -1,5 +1,6 @@
 package eu.depau.loak.shared
 
+import eu.depau.loak.di.COVER_ART_MEDIUM
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.viewModelScope
@@ -175,7 +176,8 @@ class WebMediaPlayerViewModel(
 
 	private fun updateNowPlayingInfo(song: DomainSong) {
 		if (BrowserMediaSession.isSupported()) {
-			val artUrl = song.coverArtId?.let { sessionManager.getCoverArtUrl(it) }
+			val artUrl = song.coverArtId
+				?.let { sessionManager.getCoverArtUrl(it, COVER_ART_MEDIUM) }
 			BrowserMediaSession.setMetadata(
 				title = song.title.orEmpty(),
 				artist = song.artistName.orEmpty(),

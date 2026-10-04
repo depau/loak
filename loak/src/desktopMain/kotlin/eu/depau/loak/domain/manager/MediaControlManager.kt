@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.di.COVER_ART_MEDIUM
 import dev.nucleusframework.media.control.MediaControlEvent
 import dev.nucleusframework.media.control.MediaControlService
 import dev.nucleusframework.media.control.MediaMetadata
@@ -72,7 +73,8 @@ class MediaControlManager(
 					title = song.title,
 					artist = song.artistName,
 					album = song.albumTitle,
-					coverUrl = song.coverArtId?.let(sessionManager::getCoverArtUrl),
+					coverUrl = song.coverArtId
+						?.let { sessionManager.getCoverArtUrl(it, COVER_ART_MEDIUM) },
 					duration = song.duration.inWholeMilliseconds.takeIf { it > 0 },
 				)
 			)

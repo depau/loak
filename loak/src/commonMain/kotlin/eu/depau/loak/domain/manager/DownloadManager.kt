@@ -1,9 +1,12 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.di.COVER_ART_FULL
+import eu.depau.loak.di.COVER_ART_MEDIUM
+import eu.depau.loak.di.COVER_ART_SMALL
+import eu.depau.loak.di.CoverArtId
 import coil3.ImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import coil3.size.Size
 import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.dao.DownloadDao
 import eu.depau.loak.data.database.dao.LyricDao
@@ -399,18 +402,16 @@ class DownloadManager(
 		if (coverId == null) return
 
 		Logger.i(TAG, "caching cover art for $coverId")
-		val coverArtUrl = sessionManager.getCoverArtUrl(coverId)
-
-		val imageRequest = ImageRequest.Builder(coilPlatformContext)
-			.data(coverArtUrl)
-			.size(Size.ORIGINAL)
-			.memoryCacheKey(coverId)
-			.diskCacheKey(coverId)
-			.diskCachePolicy(CachePolicy.ENABLED)
-			.memoryCachePolicy(CachePolicy.DISABLED)
-			.build()
-
-		imageLoader.execute(imageRequest)
+		// medium for lists/notification, full for Now Playing; decoded small, only the file matters
+		for (size in listOf(COVER_ART_MEDIUM, COVER_ART_FULL)) {
+			val imageRequest = ImageRequest.Builder(coilPlatformContext)
+				.data(CoverArtId(coverId, size))
+				.size(COVER_ART_SMALL)
+				.diskCachePolicy(CachePolicy.ENABLED)
+				.memoryCachePolicy(CachePolicy.DISABLED)
+				.build()
+			imageLoader.execute(imageRequest)
+		}
 	}
 
 	private suspend fun cacheAlbumCoverArt(albumId: String?) {

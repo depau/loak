@@ -19,10 +19,12 @@ internal expect fun getImageDiskCache(): DiskCache?
 
 fun initializeSingletonImageLoader(
 	context: CoilPlatformContext,
-	networkStatsManager: NetworkStatsManager
+	networkStatsManager: NetworkStatsManager,
+	coverArtInterceptor: CoverArtInterceptor
 ): ImageLoader {
 	val builder = ImageLoader.Builder(context)
 		.components {
+			add(coverArtInterceptor)
 			// ponytail: getStaticImageLoader's (blend background) traffic isn't counted
 			add(KtorNetworkFetcherFactory(httpClient = {
 				HttpClient { install(networkStatsManager.ktorPlugin) }
@@ -38,10 +40,14 @@ fun initializeSingletonImageLoader(
  *
  * only used in `BlendBackground.kt` right now
  */
-fun getStaticImageLoader(context: CoilPlatformContext): ImageLoader {
+fun getStaticImageLoader(
+	context: CoilPlatformContext,
+	coverArtInterceptor: CoverArtInterceptor
+): ImageLoader {
 	val builder = ImageLoader.Builder(context)
 		.serviceLoaderEnabled(false)
 		.components {
+			add(coverArtInterceptor)
 			add(KtorNetworkFetcherFactory())
 		}
 		.crossfade(true)

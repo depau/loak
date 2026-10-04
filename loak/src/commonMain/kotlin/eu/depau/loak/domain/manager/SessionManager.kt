@@ -142,10 +142,11 @@ class SessionManager(
 		)
 	}
 
-	fun getCoverArtUrl(coverArtId: String) = api.getCoverArtUrl(
+	/** Prefer a [eu.depau.loak.di.CoverArtId] model in Coil: it picks the size and cache key. */
+	fun getCoverArtUrl(coverArtId: String, size: Int) = api.getCoverArtUrl(
 		coverArtId,
 		auth = true,
-		size = "${preferenceManager.coverArtQuality.value}"
+		size = "${size.coerceAtMost(preferenceManager.coverArtQuality.value)}"
 	)
 
 

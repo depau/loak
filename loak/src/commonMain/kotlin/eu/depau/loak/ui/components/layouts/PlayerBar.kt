@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.components.layouts
 
+import eu.depau.loak.di.CoverArtId
 import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -54,7 +55,6 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_next_song
 import eu.depau.loak.generated.resources.action_previous_song
@@ -124,12 +124,9 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 
 	val coilPlatformContext = LocalCoilPlatformContext.current
 	val imageLoader = koinInject<ImageLoader>()
-	val sessionManager = koinInject<SessionManager>()
 	val model = remember(song?.coverArtId) {
 		ImageRequest.Builder(coilPlatformContext)
-			.data(song?.coverArtId?.let { sessionManager.getCoverArtUrl(it) })
-			.memoryCacheKey(song?.coverArtId)
-			.diskCacheKey(song?.coverArtId)
+			.data(song?.coverArtId?.let { CoverArtId(it) })
 			.diskCachePolicy(CachePolicy.ENABLED)
 			.memoryCachePolicy(CachePolicy.ENABLED)
 			.build()

@@ -15,13 +15,17 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.currentState
 import androidx.glance.state.PreferencesGlanceStateDefinition
-import coil3.imageLoader
+import android.net.Uri
+import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
 import coil3.toBitmap
 import eu.depau.loak.androidApp.MainActivity
+import eu.depau.loak.di.COVER_ART_MEDIUM
+import eu.depau.loak.di.CoverArtId
 import eu.depau.loak.shared.PlaybackService
+import org.koin.core.context.GlobalContext
 
 /**
  * Base widgets class which widgets will inherit from. Used with `NowPlayingReceiver`
@@ -82,11 +86,14 @@ abstract class NowPlayingWidget : GlanceAppWidget() {
 
 	private suspend fun fetchBitmap(context: Context, url: String?): Bitmap? {
 		if (url == null) return null
+		// the app's loader, so the art comes from its cache at the same size bucket
+		val id = Uri.parse(url).getQueryParameter("id") ?: return null
 		val request = ImageRequest.Builder(context)
-			.data(url)
+			.data(CoverArtId(id, COVER_ART_MEDIUM))
 			.size(700)
 			.allowHardware(false)
 			.build()
-		return (context.imageLoader.execute(request) as? SuccessResult)?.image?.toBitmap()
+		val result = GlobalContext.get().get<ImageLoader>().execute(request)
+		return (result as? SuccessResult)?.image?.toBitmap()
 	}
 }

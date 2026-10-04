@@ -2,6 +2,7 @@
 
 package eu.depau.loak.shared
 
+import eu.depau.loak.di.COVER_ART_MEDIUM
 import androidx.lifecycle.viewModelScope
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.flow.update
@@ -428,7 +429,7 @@ class IOSMediaPlayerViewModel(
 			requestHandler = { _ ->
 				runCatching {
 					val url = song.coverArtId
-						?.let { sessionManager.getCoverArtUrl(it) }
+						?.let { sessionManager.getCoverArtUrl(it, COVER_ART_MEDIUM) }
 						?.let { NSURL.URLWithString(it) } ?: return@runCatching null
 
 					val request = NSMutableURLRequest.requestWithURL(url).apply {

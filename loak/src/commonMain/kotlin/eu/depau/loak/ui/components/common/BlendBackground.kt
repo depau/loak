@@ -1,5 +1,8 @@
 package eu.depau.loak.ui.components.common
 
+import eu.depau.loak.di.COVER_ART_SMALL
+import eu.depau.loak.di.CoverArtId
+import eu.depau.loak.di.CoverArtInterceptor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
@@ -29,7 +32,6 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import org.koin.compose.koinInject
 import eu.depau.loak.di.getStaticImageLoader
-import eu.depau.loak.domain.manager.SessionManager
 import kotlin.time.TimeSource
 import coil3.compose.LocalPlatformContext as LocalCoilPlatformContext
 
@@ -49,16 +51,15 @@ fun BlendBackground(
 
 	val coilPlatformContext = LocalCoilPlatformContext.current
 
+	val coverArtInterceptor = koinInject<CoverArtInterceptor>()
 	val staticImageLoader = remember(coilPlatformContext) {
-		getStaticImageLoader(coilPlatformContext)
+		getStaticImageLoader(coilPlatformContext, coverArtInterceptor)
 	}
 
-	val sessionManager = koinInject<SessionManager>()
+	// blurred, so small is plenty
 	val model = remember(coverArtId) {
 		ImageRequest.Builder(coilPlatformContext)
-			.data(coverArtId?.let { sessionManager.getCoverArtUrl(it) })
-			.memoryCacheKey(coverArtId?.let { "${it}_static" })
-			.diskCacheKey(coverArtId)
+			.data(coverArtId?.let { CoverArtId(it, COVER_ART_SMALL) })
 			.diskCachePolicy(CachePolicy.ENABLED)
 			.memoryCachePolicy(CachePolicy.ENABLED)
 			.build()

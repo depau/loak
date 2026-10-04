@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.imageView
 
+import eu.depau.loak.di.COVER_ART_FULL
+import eu.depau.loak.di.CoverArtId
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -44,7 +46,6 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalSharedTransitionScope
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.screens.imageView.components.ImageViewScreenTopBar
 import eu.depau.loak.ui.util.EmphasizedDecelerateEasing
@@ -70,18 +71,11 @@ fun ImageViewScreen(
 	val offsetY = remember { Animatable(0f) }
 	var dismissed by rememberSaveable { mutableStateOf(false) }
 
-	val sessionManager = koinInject<SessionManager>()
-	val coverArtUri = remember(coverArtId) {
-		sessionManager.getCoverArtUrl(coverArtId)
-	}
-
 	val coilPlatformContext = LocalCoilPlatformContext.current
 	val loader = koinInject<ImageLoader>()
-	val model = remember(coverArtUri) {
+	val model = remember(coverArtId) {
 		ImageRequest.Builder(coilPlatformContext)
-			.data(coverArtUri)
-			.memoryCacheKey(coverArtId)
-			.diskCacheKey(coverArtId)
+			.data(CoverArtId(coverArtId, COVER_ART_FULL))
 			.diskCachePolicy(CachePolicy.ENABLED)
 			.memoryCachePolicy(CachePolicy.ENABLED)
 			.build()

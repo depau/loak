@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.util
 
+import eu.depau.loak.di.COVER_ART_SMALL
+import eu.depau.loak.di.CoverArtId
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
@@ -16,7 +18,6 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.settings.ThemeMode
 import eu.depau.loak.shared.MediaPlayerViewModel
 import coil3.compose.LocalPlatformContext as LocalCoilPlatformContext
@@ -28,18 +29,11 @@ fun rememberColorSchemeFromCoverArt(
 	style: PaletteStyle = PaletteStyle.Content,
 	specVersion: ColorSpec.SpecVersion = ColorSpec.SpecVersion.SPEC_2021
 ): ColorScheme {
-	val sessionManager = koinInject<SessionManager>()
-	val coverArtUri = remember(coverArtId) {
-		coverArtId?.let { sessionManager.getCoverArtUrl(it) }
-	}
-
 	val coilPlatformContext = LocalCoilPlatformContext.current
 	val loader = koinInject<ImageLoader>()
-	val model = remember(coverArtUri) {
+	val model = remember(coverArtId) {
 		ImageRequest.Builder(coilPlatformContext)
-			.data(coverArtUri)
-			.memoryCacheKey(coverArtId)
-			.diskCacheKey(coverArtId)
+			.data(coverArtId?.let { CoverArtId(it, COVER_ART_SMALL) })
 			.diskCachePolicy(CachePolicy.ENABLED)
 			.memoryCachePolicy(CachePolicy.ENABLED)
 			.build()
