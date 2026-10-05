@@ -3,9 +3,12 @@ package eu.depau.loak.ui.screens.song.components
 import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -160,42 +163,45 @@ fun SongListScreenItem(
 					)
 				},
 				trailingContent = {
-					if (starred) {
-						Icon(
-							Icons.Filled.Star,
-							null,
-							modifier = Modifier.size(16.dp)
-						)
-					}
-					if (download != null) {
-						when (download.status) {
-							DownloadStatus.DOWNLOADING -> {
-								CircularProgressIndicator(
-									progress = { download.progress },
-									modifier = Modifier.size(16.dp),
-									strokeWidth = 2.dp
-								)
-							}
+					Row(verticalAlignment = Alignment.CenterVertically) {
+						if (starred) {
+							Icon(
+								Icons.Filled.Star,
+								null,
+								modifier = Modifier.size(16.dp)
+							)
+							Spacer(Modifier.width(6.dp))
+						}
+						if (download != null) {
+							when (download.status) {
+								DownloadStatus.DOWNLOADING -> {
+									CircularProgressIndicator(
+										progress = { download.progress },
+										modifier = Modifier.size(16.dp),
+										strokeWidth = 2.dp
+									)
+								}
 
-							DownloadStatus.DOWNLOADED -> {
-								Icon(
-									Icons.Outlined.Check,
-									contentDescription = stringResource(Res.string.info_downloaded),
-									modifier = Modifier.size(16.dp),
-									tint = MaterialTheme.colorScheme.primary
-								)
-							}
+								DownloadStatus.DOWNLOADED -> {
+									Icon(
+										Icons.Outlined.Check,
+										contentDescription = stringResource(Res.string.info_downloaded),
+										modifier = Modifier.size(16.dp),
+										tint = MaterialTheme.colorScheme.primary
+									)
+								}
 
-							DownloadStatus.FAILED -> {
-								Icon(
-									Icons.Outlined.DownloadOff,
-									contentDescription = stringResource(Res.string.info_download_failed),
-									modifier = Modifier.size(16.dp),
-									tint = MaterialTheme.colorScheme.error
-								)
-							}
+								DownloadStatus.FAILED -> {
+									Icon(
+										Icons.Outlined.DownloadOff,
+										contentDescription = stringResource(Res.string.info_download_failed),
+										modifier = Modifier.size(16.dp),
+										tint = MaterialTheme.colorScheme.error
+									)
+								}
 
-							else -> {}
+								else -> {}
+							}
 						}
 					}
 				}
