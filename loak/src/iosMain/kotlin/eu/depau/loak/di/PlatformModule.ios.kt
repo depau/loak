@@ -10,7 +10,6 @@ import eu.depau.loak.data.database.DownloadDatabase
 import eu.depau.loak.data.database.migrationPolicy
 import eu.depau.loak.domain.manager.AppIconManager
 import eu.depau.loak.domain.manager.ConnectivityManager
-import eu.depau.loak.domain.manager.ExportManager
 import eu.depau.loak.domain.manager.LinkManager
 import eu.depau.loak.domain.manager.LogManager
 import eu.depau.loak.domain.manager.PermissionManager
@@ -59,7 +58,6 @@ actual val platformModule = module {
 	}
 
 	singleOf(::ShareManager)
-	singleOf(::ExportManager)
 	single<CoilPlatformContext> { CoilPlatformContext.INSTANCE }
 	singleOf(::StorageManager)
 	singleOf(::ConnectivityManager)

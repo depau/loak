@@ -34,7 +34,12 @@ class NowPlayingSceneStrategy<T : Any> : SceneStrategy<T> {
 	override fun SceneStrategyScope<T>.calculateScene(entries: List<NavEntry<T>>): Scene<T>? {
 		val entry = entries.lastOrNull() ?: return null
 		if (entry.metadata[PlayerKey] != true) return null
-		return PlayerMarkerScene(entry.contentKey as T, entry, entries.dropLast(1), entries.dropLast(1))
+		// previousEntries is empty on purpose: it makes this scene a back-stack root, so the
+		// navigation back handler of the scene underneath sees no entry to pop and disables
+		// itself. The player's own NavigationBackHandler in PlayerLayer is then the only
+		// enabled default handler while the player is up, and receives every predictive back
+		// gesture (which drives the sheet down with the swipe) instead of racing NavDisplay's.
+		return PlayerMarkerScene(entry.contentKey as T, entry, emptyList(), entries.dropLast(1))
 	}
 
 	companion object {
