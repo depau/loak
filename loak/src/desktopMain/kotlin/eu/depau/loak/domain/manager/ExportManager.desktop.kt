@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.domain.models.DomainSong
 import kotlinx.io.IOException
 import kotlinx.io.Sink
 import kotlinx.io.asSink
@@ -12,7 +13,7 @@ import java.io.File
  * There is no share sheet on desktop, so "share" is implemented as save-to-Downloads + open.
  */
 actual class ExportManager {
-	actual suspend fun prepareTarget(song: DomainSong, fileName: String): ExportTarget {
+	actual suspend fun prepareTarget(song: DomainSong, fileName: String): ExportTarget? {
 		val downloadsDir = File(System.getProperty("user.home"), "Downloads")
 		downloadsDir.mkdirs()
 		return ExportTarget(File(downloadsDir, fileName))

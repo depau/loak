@@ -25,7 +25,7 @@ import platform.darwin.dispatch_get_main_queue
  */
 @OptIn(ExperimentalForeignApi::class)
 actual class ExportManager {
-	actual suspend fun prepareTarget(song: DomainSong, fileName: String): ExportTarget {
+	actual suspend fun prepareTarget(song: DomainSong, fileName: String): ExportTarget? {
 		val path = NSTemporaryDirectory() + fileName
 		return ExportTarget(path)
 	}
