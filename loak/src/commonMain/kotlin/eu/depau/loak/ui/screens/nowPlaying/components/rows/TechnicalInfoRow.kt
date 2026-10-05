@@ -20,15 +20,15 @@ import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.shared.MediaPlayerViewModel
 
 @Composable
-fun NowPlayingTechnicalInfoRow() {
+fun NowPlayingTechnicalInfoRow(song: DomainSong?) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val connectivityManager = koinInject<ConnectivityManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsState()
-	val song = playerState.currentSong
 
 	val style = MaterialTheme.typography.bodySmall
 	val color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)

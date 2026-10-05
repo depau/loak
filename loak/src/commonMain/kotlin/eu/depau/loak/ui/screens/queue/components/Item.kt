@@ -93,8 +93,9 @@ fun QueueScreenItem(
 		state = dismissState,
 		onDismiss = { direction ->
 			scope.launch {
-				// rows are keyed by index: settle before the queue changes, or the row that
-				// takes this index inherits the dismissed state and gets removed too
+				// rows are keyed by song id: the box first returns to its slot so its
+				// own dismissed-offset transition doesn't double-fire during the
+				// removal fade (the removed row keeps its per-song key and disappears)
 				dismissState.snapTo(SwipeToDismissBoxValue.Settled)
 				if (direction == SwipeToDismissBoxValue.EndToStart) onPlayNext() else onRemove()
 			}

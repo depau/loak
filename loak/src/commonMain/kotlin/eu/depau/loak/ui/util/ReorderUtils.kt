@@ -318,7 +318,9 @@ inline fun <T> LazyListScope.draggableItemsIndexed(
 			.zIndex(1f)
 			.graphicsLayer { translationY = state.previousItemOffset.value }
 	} else {
-		loakAnimateItem(fadeInSpec = null, fadeOutSpec = null)
+		// Default specs = appearance + placement + removal animation, enabled by the
+		// stable per-song keys the queue (and other callers) pass to draggableItemsIndexed.
+		loakAnimateItem()
 	}
 	Box(modifier = draggingModifier) {
 		itemContent(index, item, isDragging)

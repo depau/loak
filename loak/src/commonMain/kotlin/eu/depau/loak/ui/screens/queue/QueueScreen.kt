@@ -100,6 +100,19 @@ import eu.depau.loak.ui.util.pickedUpFromLabel
 import eu.depau.loak.ui.util.timeAgo
 import kotlinx.collections.immutable.toImmutableList
 
+/**
+ * Stable LazyColumn key for a queue row. Songs are keyed by id, with an occurrence
+ * counter so that duplicate ids (radio, nonplayable/pending songs, enqueue-undo copies)
+ * all get distinct keys. The key is a pure function of (index, item), so it stays
+ * identical across reorders, removals and play-next moves — that identity is what
+ * lets `loakAnimateItem` animate placement/removal instead of hopping.
+ *
+ * A String key is required: Android's LazyList persists item keys in a Bundle, so
+ * custom data-class keys crash with "not supported ... can only use types stored
+ * inside the Bundle".
+ */
+private fun songQueueKey(id: String, occurrence: Int): String = "$id\u0000$occurrence"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 /** The queue: in the player's Up next sheet or pane, and the side pane on expanded windows. */
@@ -262,7 +275,12 @@ fun QueueScreen() {
 				draggableItemsIndexed(
 					state = draggableState,
 					items = queue,
-					key = { index, _ -> index }
+					key = { index, song ->
+						// number of times the same id appears before this position,
+						// so duplicate-titled entries keep distinct but stable keys
+						val occurrence = (0 until index).count { queue[it].id == song.id }
+						songQueueKey(song.id, occurrence)
+					}
 				) { index, song, isDragging ->
 					QueueScreenItem(
 						index = index,

@@ -13,15 +13,16 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
+import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.util.toHoursMinutesSeconds
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
-fun NowPlayingDurationsRow() {
+fun NowPlayingDurationsRow(song: DomainSong?) {
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsState()
-	val duration = playerState.currentSong?.duration
+	val duration = song?.duration
 	val style = MaterialTheme.typography.bodyMedium
 		.copy(
 			shadow = Shadow(

@@ -21,6 +21,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.models.DomainExplicitStatus
+import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.navigation.Screen
@@ -31,13 +32,13 @@ import eu.depau.loak.ui.util.appendArtists
 
 @Composable
 fun NowPlayingInfoRow(
+	song: DomainSong?,
 	songIsStarred: Boolean,
 	onSetSongIsStarred: (Boolean) -> Unit
 ) {
 	val backStack = LocalNavStack.current
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsState()
-	val song = playerState.currentSong
 	Row(
 		modifier = Modifier
 			.padding(horizontal = 16.dp)
