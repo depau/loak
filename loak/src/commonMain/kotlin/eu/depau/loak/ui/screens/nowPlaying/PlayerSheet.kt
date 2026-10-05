@@ -11,16 +11,11 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -29,7 +24,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.lerp
@@ -54,10 +48,8 @@ import androidx.navigationevent.NavigationEventTransitionState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.di.LocalSnackBarState
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
-import eu.depau.loak.ui.components.snackbars.LoakSnackBar
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.ui.util.rememberColorSchemeForCurrentSong
@@ -409,13 +401,6 @@ fun PlayerLayer(state: PlayerSheetState) {
 						.graphicsLayer { alpha = seg(state.fraction, .45f, 1f) }
 				) {
 					NowPlayingScreen()
-					SnackbarHost(
-						hostState = LocalSnackBarState.current,
-						modifier = Modifier
-							.align(Alignment.BottomCenter)
-							.windowInsetsPadding(WindowInsets.navigationBars)
-							.padding(bottom = 16.dp)
-					) { LoakSnackBar(snackBarData = it) }
 				}
 			}
 

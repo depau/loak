@@ -25,6 +25,7 @@ import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.toState
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.manager.VolumeProvider
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
@@ -51,6 +52,7 @@ import eu.depau.loak.generated.resources.notice_queue_loaded
 import eu.depau.loak.generated.resources.notice_queue_sent
 import eu.depau.loak.generated.resources.notice_removed_from_queue
 import eu.depau.loak.generated.resources.notice_server_unreachable
+import eu.depau.loak.generated.resources.notice_volume_muted
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -65,6 +67,7 @@ abstract class MediaPlayerViewModel(
 	/** Records the playlists and albums started, for Home. */
 	protected val playLog: PlayLogManager by inject()
 	private val audioStore: AudioStore by inject()
+	private val volumeProvider: VolumeProvider by inject()
 
 	/** Offline, only songs in the audio store (downloaded or cached) can play. */
 	protected fun canPlay(song: DomainSong) =
@@ -100,6 +103,7 @@ abstract class MediaPlayerViewModel(
 	}
 
 	init {
+		observeVolumeMuted()
 		viewModelScope.launch {
 			restoreState()
 			observeAndSaveState()
@@ -108,6 +112,30 @@ abstract class MediaPlayerViewModel(
 	}
 
 	protected abstract val snackBarManager: SnackBarManager
+
+	/**
+	 * Once per app run: when playback starts while the device's media volume is at 0, hint at
+	 * raising it. Watching the state's edge catches notification and media-button starts too,
+	 * not just the in-app play buttons. Desktop and web report 1f from [VolumeProvider], so they
+	 * never fire.
+	 */
+	private fun observeVolumeMuted() {
+		viewModelScope.launch {
+			var everWarned = false
+			var wasPlayingWithSong = false
+			uiState
+				.map { it.currentSong != null && !it.isPaused }
+				.distinctUntilChanged()
+				.collect { playing ->
+					val risingEdge = playing && !wasPlayingWithSong
+					wasPlayingWithSong = playing
+					if (!risingEdge || everWarned) return@collect
+					if (volumeProvider.read() > 0.01f) return@collect
+					everWarned = true
+					snackBarManager.notify(Res.string.notice_volume_muted)
+				}
+		}
+	}
 
 	/** Inserts [songs] at [index] of the queue, keeping the current song playing. */
 	protected abstract fun insertIntoQueue(index: Int, songs: List<DomainSong>)

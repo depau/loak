@@ -21,12 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.ui.Alignment
-import eu.depau.loak.di.LocalSnackBarState
-import eu.depau.loak.ui.components.snackbars.LoakSnackBar
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.rememberLifecycleOwner
@@ -98,16 +92,6 @@ class BottomSheetScene<T : Any>(
 				) {
 					Box(Modifier.fillMaxSize()) {
 						entry.Content()
-						val snackBarState = LocalSnackBarState.current
-						SnackbarHost(
-							hostState = snackBarState,
-							modifier = Modifier
-								.align(Alignment.BottomCenter)
-								.windowInsetsPadding(WindowInsets.navigationBars)
-								.padding(bottom = 16.dp)
-						) { snackBarData ->
-							LoakSnackBar(snackBarData = snackBarData)
-						}
 					}
 				}
 			}

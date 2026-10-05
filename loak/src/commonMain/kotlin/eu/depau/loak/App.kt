@@ -67,8 +67,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.material3.SnackbarDuration
 import kotlinx.coroutines.CancellationException
 import androidx.compose.material3.SnackbarHost
@@ -171,6 +169,7 @@ import eu.depau.loak.ui.screens.settings.SettingsNetworkStatsScreen
 import eu.depau.loak.ui.screens.settings.SettingsAppIconScreen
 import eu.depau.loak.ui.screens.settings.SettingsAppearanceScreen
 import eu.depau.loak.ui.screens.settings.SettingsCustomHeadersScreen
+import eu.depau.loak.ui.screens.settings.SettingsAudioMuseCustomHeadersScreen
 import eu.depau.loak.ui.screens.settings.SettingsDataStorageScreen
 import eu.depau.loak.ui.screens.settings.SettingsDeveloperScreen
 import eu.depau.loak.ui.screens.settings.SettingsDownloadQualityScreen
@@ -442,18 +441,7 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 									}
 								}
 							},
-						snackbarHost = {
-							// sit above the mini player and nav bar when a screen shows them
-							val barHeight = scrollManager.barHeights.values.maxOrNull() ?: 0.dp
-							SnackbarHost(
-								hostState = snackBarState,
-								modifier = Modifier
-									.padding(bottom = barHeight)
-									.consumeWindowInsets(PaddingValues(bottom = barHeight))
-							) { snackBarData ->
-								LoakSnackBar(snackBarData = snackBarData)
-							}
-						},
+						snackbarHost = {},
 						contentWindowInsets = WindowInsets()
 					) { contentPadding ->
 						Row {
@@ -575,6 +563,23 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 								}
 							}
 						)
+					}
+					// last child of the root, so snackbars always sit over the in-layout player sheet
+					// (open morph, karaoke overlay). The bar-height gap rides the mini player and
+					// nav bar when a screen shows them (and the snackbar's own LoakSnackBar pads the
+					// nav bars); it drops as the player sheet opens so the snackbar doesn't float
+					// above a player that covers the bars. Material3 ModalBottomSheet pages render
+					// in their own window, above this host — their snackbars can't be overlaid here.
+					val snackBarInset = if (!playerSheet.isVisible)
+						scrollManager.barHeights.values.maxOrNull() ?: 0.dp
+					else 0.dp
+					SnackbarHost(
+						hostState = snackBarState,
+						modifier = Modifier
+							.align(Alignment.BottomCenter)
+							.padding(bottom = snackBarInset)
+					) { snackBarData ->
+						LoakSnackBar(snackBarData = snackBarData)
 					}
 				}
 			}

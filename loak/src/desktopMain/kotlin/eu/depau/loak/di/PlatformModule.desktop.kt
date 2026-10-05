@@ -12,12 +12,14 @@ import eu.depau.loak.data.database.migrationPolicy
 import eu.depau.loak.domain.manager.AppIconManager
 import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.ConnectivityManager
+import eu.depau.loak.domain.manager.ExportManager
 import eu.depau.loak.domain.manager.LinkManager
 import eu.depau.loak.domain.manager.LogManager
 import eu.depau.loak.domain.manager.MediaControlManager
 import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.domain.manager.ShareManager
 import eu.depau.loak.domain.manager.StorageManager
+import eu.depau.loak.domain.manager.VolumeProvider
 import eu.depau.loak.shared.DesktopMediaPlayerViewModel
 import eu.depau.loak.shared.MediaPlayerViewModel
 import coil3.PlatformContext as CoilPlatformContext
@@ -86,6 +88,7 @@ actual val platformModule = module {
 	single<CoilPlatformContext> { CoilPlatformContext.INSTANCE }
 	singleOf(::MediaControlManager)
 	singleOf(::ShareManager)
+	singleOf(::ExportManager)
 	singleOf(::StorageManager)
 	singleOf(::ConnectivityManager)
 	singleOf(::LogManager)
@@ -93,6 +96,7 @@ actual val platformModule = module {
 	singleOf(::PermissionManager)
 	singleOf(::LinkManager)
 	singleOf(::AudioGainManager)
+	singleOf(::VolumeProvider)
 }
 
 private object Os {
