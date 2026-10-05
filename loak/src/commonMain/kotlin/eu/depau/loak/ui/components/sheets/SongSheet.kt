@@ -45,6 +45,7 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_another_playlist
 import eu.depau.loak.generated.resources.action_add_to_playlist
 import eu.depau.loak.generated.resources.action_add_to_queue
+import eu.depau.loak.generated.resources.action_export_original
 import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.action_mix_to_here
 import eu.depau.loak.generated.resources.action_cancel_download
@@ -70,12 +71,17 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.domain.manager.ExportManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.manager.SleepTimerMode
+import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.canUserShare
+import eu.depau.loak.domain.manager.exportOriginal
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainSong
@@ -89,6 +95,7 @@ import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.InstantMix
+import eu.depau.loak.icons.outlined.Keep
 import eu.depau.loak.icons.outlined.SonicPath
 import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.Info
@@ -153,6 +160,8 @@ fun SongSheet(
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val sessionManager = koinInject<SessionManager>()
+	val exportManager = koinInject<ExportManager>()
+	val snackBarManager = koinInject<SnackBarManager>()
 	val audioMuseInfo by koinInject<AudioMuseManager>().info.collectAsState()
 	val player = koinInject<MediaPlayerViewModel>()
 	val audioMuseRepository = koinInject<AudioMuseRepository>()
@@ -507,6 +516,24 @@ fun SongSheet(
 						onClick = {
 							onShare()
 							onDismissRequest()
+						},
+						enabled = online,
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				// the original raw file goes through the platform sink on demand, not the
+				// in-app download store; web can't write files, so the action is hidden there
+				if (LocalPlatformContext.current.platformType != PlatformType.Web) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_export_original)) },
+						leadingContent = { Icon(Icons.Outlined.Keep, null) },
+						onClick = {
+							onDismissRequest()
+							snackBarManager.launch {
+								exportManager.exportOriginal(song, sessionManager, snackBarManager)
+							}
 						},
 						enabled = online,
 						colors = colors,

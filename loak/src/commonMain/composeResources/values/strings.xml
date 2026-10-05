@@ -497,6 +497,7 @@
 	<string name="notice_loading_lyrics">Loading lyrics...\nThis might take a while.</string>
 	<string name="notice_login_suggestion">Did you mean...</string>
 	<string name="notice_local_network_denied">Permission denied</string>
+	<string name="notice_volume_muted">The volume is muted — turn it up to hear the music</string>
 	<string name="notice_link_confirmation">This link is taking you to the following website:</string>
 
 	<string name="info_app_version">Lo'ak %1$s</string>
@@ -803,6 +804,10 @@
 	<string name="title_audiomuse_connection">Connection</string>
 	<string name="option_audiomuse_address">Address</string>
 	<string name="option_audiomuse_sign_in">Sign-in</string>
+	<string name="option_audiomuse_inherit_server_headers">Inherit custom headers</string>
+	<string name="subtitle_audiomuse_inherit_server_headers">Also send your server's custom headers with AudioMuse-AI requests</string>
+	<string name="option_audiomuse_headers">Custom headers</string>
+	<string name="subtitle_audiomuse_headers">Extra HTTP headers sent with AudioMuse-AI requests</string>
 	<string name="label_analysing">Analysing new songs</string>
 	<string name="info_audiomuse_unreachable">Can't reach AudioMuse-AI: %1$s</string>
 	<string name="action_done">Done</string>
@@ -935,6 +940,11 @@
 	<string name="info_server_unreachable">Can't reach the server</string>
 	<string name="notice_queue_sent">Queue sent to the server.</string>
 	<string name="notice_queue_loaded">Loaded the queue from %1$s.</string>
+	<string name="notice_export_started">Saving the original file…</string>
+	<string name="notice_export_progress">Saving the original file… %1$d%%</string>
+	<string name="notice_export_saved">Original file saved.</string>
+	<string name="notice_export_failed">Couldn't save the original file.</string>
+	<string name="action_export_original">Save original file</string>
 	<string name="notice_server_unreachable">Couldn't reach the server.</string>
 	<string name="notice_no_server_queue">The server has no queue.</string>
 	<string name="info_queue_from">From %1$s</string>
