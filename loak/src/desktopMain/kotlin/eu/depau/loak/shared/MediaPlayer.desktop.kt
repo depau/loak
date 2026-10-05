@@ -287,7 +287,10 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	override fun resume() {
-		player.resume()
+		if (!player.resume()) {
+			playAt(_uiState.value.currentIndex)
+			return
+		}
 		_uiState.update { it.copy(isPaused = false) }
 		scrobbleManager.onPlayStateChanged(true)
 	}
@@ -551,9 +554,11 @@ class DesktopMediaPlayerViewModel(
 			}.onFailure { Logger.w("DesktopAudioPlayer", "no volume control") }
 		}
 
-		fun resume() {
+		fun resume(): Boolean {
+			val line = line ?: return false
 			paused = false
-			line?.start()
+			line.start()
+			return true
 		}
 
 		fun pause() {
