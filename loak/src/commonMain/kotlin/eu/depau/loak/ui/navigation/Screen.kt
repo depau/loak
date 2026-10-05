@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainSongListType
+import eu.depau.loak.ui.screens.search.SearchCategory
 
 @Immutable
 @Serializable
@@ -157,7 +158,8 @@ sealed interface Screen : NavKey {
 	@Immutable
 	@Serializable
 	data class Search(
-		val nested: Boolean = false
+		val nested: Boolean = false,
+		val category: SearchCategory = SearchCategory.ALL
 	) : Screen
 
 	@Immutable

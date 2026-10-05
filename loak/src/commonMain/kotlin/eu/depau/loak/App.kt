@@ -672,7 +672,7 @@ private fun entryProvider(
 			)
 		}
 		entry<Screen.Search>(metadata = navtabMetadata) { key ->
-			SearchScreen(key.nested)
+			SearchScreen(key.nested, key.category)
 		}
 		entry<Screen.ShareList> {
 			ShareListScreen()

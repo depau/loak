@@ -53,6 +53,7 @@ import eu.depau.loak.icons.outlined.Search
 import eu.depau.loak.ui.components.common.TooltipBox
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.screens.search.SearchCategory
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
 import androidx.compose.foundation.layout.add
 import androidx.compose.material3.TopAppBar
@@ -81,6 +82,7 @@ fun RootTopBar(
 	scrollBehavior: TopAppBarScrollBehavior,
 	actions: @Composable RowScope.() -> Unit = {},
 	subtitle: (@Composable () -> Unit)? = null,
+	searchCategory: SearchCategory = SearchCategory.ALL,
 ) {
 	val navViewModel = koinViewModel<NavtabsViewModel>()
 	val navState by navViewModel.state.collectAsState()
@@ -92,7 +94,7 @@ fun RootTopBar(
 
 	val barActions: @Composable RowScope.() -> Unit = {
 		actions()
-		Actions(navConfig = navConfig)
+		Actions(navConfig = navConfig, searchCategory = searchCategory)
 	}
 	val modifier = Modifier.windowDragArea()
 	val windowInsets = TopAppBarDefaults.windowInsets.add(windowControlsInsets())
@@ -140,6 +142,7 @@ fun RootTopBar(
 @Composable
 private fun Actions(
 	navConfig: NavbarConfig?,
+	searchCategory: SearchCategory,
 ) {
 	val backStack = LocalNavStack.current
 
@@ -157,7 +160,9 @@ private fun Actions(
 	// wide windows: a search field look-alike in every tab's bar, opening the search page
 	if (LocalPlatformContext.current.isExpanded()) {
 		Surface(
-			onClick = dropUnlessResumed { backStack.add(Screen.Search(nested = true)) },
+			onClick = dropUnlessResumed {
+				backStack.add(Screen.Search(nested = true, category = searchCategory))
+			},
 			modifier = Modifier.padding(end = 4.dp).width(360.dp).height(48.dp),
 			shape = CircleShape,
 			color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -180,7 +185,7 @@ private fun Actions(
 		TooltipBox(withShortcut(stringResource(Res.string.title_search), "F")) {
 			IconButton(
 				onClick = dropUnlessResumed {
-					backStack.add(Screen.Search(nested = true))
+					backStack.add(Screen.Search(nested = true, category = searchCategory))
 				}
 			) {
 				Icon(

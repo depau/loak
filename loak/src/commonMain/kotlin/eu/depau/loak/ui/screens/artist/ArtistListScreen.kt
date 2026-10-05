@@ -41,6 +41,7 @@ import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
+import eu.depau.loak.ui.screens.search.SearchCategory
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.sheets.ArtistSheet
 import eu.depau.loak.ui.components.snackbars.ErrorSnackBar
@@ -109,7 +110,8 @@ fun ArtistListScreen(
 				RootTopBar(
 					{ Text(stringResource(Res.string.title_artists)) },
 					scrollBehavior,
-					actions
+					actions,
+					searchCategory = SearchCategory.ARTISTS
 				)
 			} else {
 				NestedTopBar({ Text(stringResource(Res.string.title_artists)) }, actions)

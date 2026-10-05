@@ -87,6 +87,7 @@ import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
+import eu.depau.loak.ui.screens.search.SearchCategory
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.snackbars.ErrorSnackBar
 import eu.depau.loak.ui.core.UiState
@@ -194,7 +195,8 @@ fun PlaylistListScreen(
 				RootTopBar(
 					title = { Text(stringResource(Res.string.title_playlists)) },
 					scrollBehavior = scrollBehavior,
-					actions = actions
+					actions = actions,
+					searchCategory = SearchCategory.PLAYLISTS
 				)
 			} else {
 				NestedTopBar(

@@ -123,6 +123,7 @@ import eu.depau.loak.ui.components.dialogs.DeletionDialog
 import eu.depau.loak.ui.components.dialogs.DeletionEndpoint
 import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
 import kotlin.time.Duration
+import kotlinx.serialization.Serializable
 import eu.depau.loak.ui.screens.search.components.SearchScreenChips
 import eu.depau.loak.ui.screens.search.components.SearchScreenTopBar
 import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
@@ -134,6 +135,7 @@ import androidx.compose.foundation.layout.add
 import eu.depau.loak.ui.util.windowControlsInsets
 import eu.depau.loak.ui.util.windowDragArea
 
+@Serializable
 enum class SearchCategory(val res: StringResource) {
 	ALL(Res.string.title_all),
 	SONGS(Res.string.title_songs),
@@ -146,7 +148,8 @@ enum class SearchCategory(val res: StringResource) {
 // TODO: clean this up, holy shit
 @Composable
 fun SearchScreen(
-	nested: Boolean
+	nested: Boolean,
+	initialCategory: SearchCategory
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 
@@ -189,6 +192,9 @@ fun SearchScreen(
 	val audioMusePrefs = koinInject<PreferenceManager>()
 
 	val selectedCategory by viewModel.selectedCategory.collectAsState()
+	LaunchedEffect(initialCategory) {
+		viewModel.selectedCategory.value = initialCategory
+	}
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 	var playlistDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
