@@ -189,11 +189,22 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 		setBody(body.toString())
 	})
 
+	/** Credentials plus extra custom headers for AudioMuse-AI calls, read per request. */
+	private fun HttpRequestBuilder.audioMuseAuthHeaders() {
+		preferenceManager.audioMuseToken.takeIf { it.isNotBlank() }?.let { header("Authorization", "Bearer $it") }
+		preferenceManager.customHeadersMap(preferenceManager.audioMuseCustomHeaders).forEach { (key, value) ->
+			header(key, value)
+		}
+		if (preferenceManager.audioMuseInheritServerHeaders) {
+			preferenceManager.customHeadersMap().forEach { (key, value) -> header(key, value) }
+		}
+	}
+
 	/** POSTs [body] and hands each server-sent event's data to [onEvent] as it arrives. */
 	suspend fun stream(path: String, body: JsonElement, onEvent: suspend (JsonObject) -> Unit) = withContext(IoDispatcher) {
 		if (usesLogin && !signedIn) signIn()
 		client.preparePost("$baseUrl/${path.trimStart('/')}") {
-			preferenceManager.audioMuseToken.takeIf { it.isNotBlank() }?.let { header("Authorization", "Bearer $it") }
+			audioMuseAuthHeaders()
 			contentType(ContentType.Application.Json)
 			setBody(body.toString())
 		}.execute { response ->
@@ -230,7 +241,7 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 		suspend fun send(): HttpResponse {
 			val url = "$baseUrl/${path.trimStart('/')}"
 			val auth: HttpRequestBuilder.() -> Unit = {
-				preferenceManager.audioMuseToken.takeIf { it.isNotBlank() }?.let { header("Authorization", "Bearer $it") }
+				audioMuseAuthHeaders()
 				block()
 			}
 			return when {

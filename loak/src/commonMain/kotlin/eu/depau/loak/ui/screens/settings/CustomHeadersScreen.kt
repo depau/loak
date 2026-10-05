@@ -34,6 +34,7 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_delete
 import eu.depau.loak.generated.resources.action_new
 import eu.depau.loak.generated.resources.option_custom_headers
+import eu.depau.loak.generated.resources.option_audiomuse_headers
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -58,8 +59,50 @@ fun SettingsCustomHeadersScreen() {
 	val sessionManager = koinInject<SessionManager>()
 	val preferenceManager = koinInject<PreferenceManager>()
 
+	Scaffold(
+		topBar = { NestedTopBar({ Text(stringResource(Res.string.option_custom_headers)) }) }
+	) { innerPadding ->
+		CustomHeadersEditor(
+			modifier = Modifier.padding(innerPadding),
+			prefs = { preferenceManager.customHeaders },
+			onSet = {
+				preferenceManager.customHeaders = it
+				sessionManager.refreshClient()
+			}
+		)
+	}
+}
+
+/** AudioMuse-AI's own custom HTTP headers; reuses the server headers editor. */
+@Composable
+fun SettingsAudioMuseCustomHeadersScreen() {
+	val preferenceManager = koinInject<PreferenceManager>()
+
+	Scaffold(
+		topBar = { NestedTopBar({ Text(stringResource(Res.string.option_audiomuse_headers)) }) }
+	) { innerPadding ->
+		CustomHeadersEditor(
+			modifier = Modifier.padding(innerPadding),
+			prefs = { preferenceManager.audioMuseCustomHeaders },
+			onSet = { preferenceManager.audioMuseCustomHeaders = it }
+		)
+	}
+}
+
+/**
+ * Edits a newline-separated list of custom HTTP headers stored in a string preference.
+ * Shared by the server's and AudioMuse-AI's "Custom headers" screens. [onSet] fires
+ * with the new value after every edit; a freshly-created row is kept until it has
+ * both a key and a value.
+ */
+@Composable
+fun CustomHeadersEditor(
+	prefs: () -> String,
+	onSet: (String) -> Unit,
+	modifier: Modifier = Modifier
+) {
 	val headers = remember {
-		preferenceManager.customHeaders.lines()
+		prefs().lines()
 			.filter { it.contains(":") }
 			.map {
 				val parts = it.split(":", limit = 2)
@@ -71,66 +114,60 @@ fun SettingsCustomHeadersScreen() {
 	val hiddenHeaders = remember { mutableStateSetOf<Long>() }
 
 	fun updateSettings() {
-		preferenceManager.customHeaders = headers
+		onSet(headers
 			.filter { !hiddenHeaders.contains(it.id) }
-			.joinToString("\n") { "${it.key}:${it.value}" }
-		sessionManager.refreshClient()
+			.joinToString("\n") { "${it.key}:${it.value}" })
 	}
 
-	Scaffold(
-		topBar = { NestedTopBar({ Text(stringResource(Res.string.option_custom_headers)) }) }
-	) { innerPadding ->
-		CompositionLocalProvider(
-			LocalMinimumInteractiveComponentSize provides 0.dp
+	CompositionLocalProvider(
+		LocalMinimumInteractiveComponentSize provides 0.dp
+	) {
+		Column(
+			modifier = modifier
+				.verticalScroll(rememberScrollState())
+				.padding(horizontal = 16.dp),
+			verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
 		) {
-			Column(
-				modifier = Modifier
-					.padding(innerPadding)
-					.verticalScroll(rememberScrollState())
-					.padding(horizontal = 16.dp),
-				verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
+			SettingsGroup(
+				modifier = Modifier.animateContentSize()
 			) {
-				SettingsGroup(
-					modifier = Modifier.animateContentSize()
-				) {
-					headers.forEachIndexed { index, header ->
-						AnimatedVisibility(
-							modifier = Modifier.fillMaxWidth(),
-							visible = !hiddenHeaders.contains(header.id)
-						) {
-							HeaderRow(
-								key = header.key,
-								value = header.value,
-								onSetKey = {
-									headers[index] = header.copy(key = it)
-									updateSettings()
-								},
-								onSetValue = {
-									headers[index] = header.copy(value = it)
-									updateSettings()
-								},
-								onDelete = {
-									hiddenHeaders.add(header.id)
-									updateSettings()
-								}
-							)
-						}
+				headers.forEachIndexed { index, header ->
+					AnimatedVisibility(
+						modifier = Modifier.fillMaxWidth(),
+						visible = !hiddenHeaders.contains(header.id)
+					) {
+						HeaderRow(
+							key = header.key,
+							value = header.value,
+							onSetKey = {
+								headers[index] = header.copy(key = it)
+								updateSettings()
+							},
+							onSetValue = {
+								headers[index] = header.copy(value = it)
+								updateSettings()
+							},
+							onDelete = {
+								hiddenHeaders.add(header.id)
+								updateSettings()
+							}
+						)
 					}
 				}
-				FilledTonalButton(
-					onClick = {
-						headers.add(Header(key = "", value = ""))
-						updateSettings()
-					},
-					modifier = Modifier.fillMaxWidth()
-				) {
-					Icon(Icons.Outlined.Add, null)
-					Spacer(Modifier.width(8.dp))
-					Text(
-						stringResource(Res.string.action_new),
-						fontFamily = defaultFont(100)
-					)
-				}
+			}
+			FilledTonalButton(
+				onClick = {
+					headers.add(Header(key = "", value = ""))
+					updateSettings()
+				},
+				modifier = Modifier.fillMaxWidth()
+			) {
+				Icon(Icons.Outlined.Add, null)
+				Spacer(Modifier.width(8.dp))
+				Text(
+					stringResource(Res.string.action_new),
+					fontFamily = defaultFont(100)
+				)
 			}
 		}
 	}

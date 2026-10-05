@@ -132,6 +132,10 @@ class PreferenceManager(
 	var audioMuseUsername by preference("")
 	var audioMusePassword by preference("")
 	var audioMuseToken by preference("")
+	/** Extra HTTP headers for AudioMuse-AI calls, one "Key:Value" per line. */
+	var audioMuseCustomHeaders by preference("")
+	/** Also send the server's customHeaders with AudioMuse-AI calls, on top of audioMuseCustomHeaders. */
+	var audioMuseInheritServerHeaders by preference(false)
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
 
@@ -178,8 +182,11 @@ class PreferenceManager(
 	var artistFilters by preference(0)
 	var playlistFilters by preference(0)
 
-	fun customHeadersMap(): Map<String, String> = buildMap {
-		for (line in customHeaders.lines()) {
+	fun customHeadersMap(): Map<String, String> = customHeadersMap(customHeaders)
+
+	/** Parses a newline-separated list of `Key:Value` lines into a headers map. */
+	fun customHeadersMap(raw: String): Map<String, String> = buildMap {
+		for (line in raw.lines()) {
 			val parts = line.split(":", limit = 2)
 			if (parts.size < 2) continue
 

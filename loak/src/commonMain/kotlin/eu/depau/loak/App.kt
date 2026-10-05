@@ -89,6 +89,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
@@ -729,6 +730,9 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.AudioMuseConnect>(metadata = detailPane("settings")) {
 			AudioMuseConnectScreen()
+		}
+		entry<Screen.Settings.AudioMuseCustomHeaders>(metadata = detailPane("settings")) {
+			SettingsAudioMuseCustomHeadersScreen()
 		}
 		entry<Screen.Settings.Effects>(metadata = detailPane("settings")) {
 			AudioEffectsScreen()

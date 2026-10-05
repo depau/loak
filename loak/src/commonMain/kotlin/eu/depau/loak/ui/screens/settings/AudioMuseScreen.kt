@@ -175,17 +175,30 @@ fun AudioMuseSettingsScreen() {
 		if (manager.isConfigured) {
 			AudioMuseScheduleGroup(manager)
 			SettingsGroup(title = { Text(stringResource(Res.string.title_audiomuse_connection)) }) {
+				SettingsToggleItem(
+					content = { Text(stringResource(Res.string.option_audiomuse_inherit_server_headers)) },
+					supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_inherit_server_headers)) },
+					checked = preferenceManager.audioMuseInheritServerHeaders,
+					onCheckedChange = { preferenceManager.audioMuseInheritServerHeaders = it },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 4)
+				)
 				SettingsNavItem(
 					onClick = dropUnlessResumed { backStack.add(Screen.Settings.AudioMuseConnect) },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2),
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4),
 					content = { Text(stringResource(Res.string.option_audiomuse_address)) },
 					supportingContent = { Text(preferenceManager.audioMuseUrl) }
 				)
 				SettingsNavItem(
 					onClick = dropUnlessResumed { backStack.add(Screen.Settings.AudioMuseConnect) },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2),
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 4),
 					content = { Text(stringResource(Res.string.option_audiomuse_sign_in)) },
 					supportingContent = { Text(signInLine(preferenceManager)) }
+				)
+				SettingsNavItem(
+					onClick = dropUnlessResumed { backStack.add(Screen.Settings.AudioMuseCustomHeaders) },
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4),
+					content = { Text(stringResource(Res.string.option_audiomuse_headers)) },
+					supportingContent = { Text(stringResource(Res.string.subtitle_audiomuse_headers)) }
 				)
 			}
 			OutlinedButton(
