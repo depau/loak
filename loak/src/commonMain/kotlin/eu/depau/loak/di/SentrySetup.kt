@@ -44,11 +44,17 @@ fun isSentryEnabled(): Boolean {
 	return settings.get(SENTRY_ENABLED_KEY, true)
 }
 
-fun initializeSentry() {
+fun initializeSentry(release: String? = null) {
 	if (!isSentryEnabled()) return
 	Sentry.init { options ->
 		options.dsn = SENTRY_DSN
 		options.environment = "production"
+		// Attribute issues to the exact build: release = human version (nightlies
+		// already embed `…-nightly.<sha>`; release builds the tag), dist = the
+		// short git commit baked in at compile time. Every event, including
+		// nightlies and desktop dev builds, is traceable back to a commit.
+		options.release = release ?: "unknown"
+		options.dist = SENTRY_BUILD_COMMIT
 		options.attachStackTrace = true
 		options.attachThreads = true
 		// Compose Multiplatform on Apple targets: unhandled Kotlin exceptions can

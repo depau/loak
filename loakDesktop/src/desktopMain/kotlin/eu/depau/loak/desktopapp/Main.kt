@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.rememberWindowState
 import dev.nucleusframework.application.DecoratedWindow
 import dev.nucleusframework.application.nucleusApplication
+import dev.nucleusframework.core.runtime.NucleusApp
 import dev.nucleusframework.window.DecoratedWindowScope
 import dev.nucleusframework.window.WindowControlType
 import dev.nucleusframework.window.WindowControlsRenderer
@@ -71,7 +72,8 @@ fun main(args: Array<String>) {
 		System.setProperty("sun.java2d.uiScale", "1")
 	}
 	initKoin()
-	initializeSentry()
+	// The packaged app's version (nucleus.app.properties); null under `./gradlew run`.
+	initializeSentry(release = NucleusApp.version ?: "desktop-dev")
 	nucleusApplication(args) {
 		DecoratedWindow(
 			onCloseRequest = ::exitApplication,

@@ -64,11 +64,48 @@ valkyrie {
 
 tasks.withType<KotlinCompilationTask<*>>().configureEach {
 	dependsOn("generateValkyrieImageVector")
+	dependsOn(generateSentryBuildInfo)
 }
 
 // no idea why ksp tasks depend on valkyrie
 tasks.withType<KspAATask>().configureEach {
 	dependsOn("generateValkyrieImageVector")
+	dependsOn(generateSentryBuildInfo)
+}
+
+// The exact commit this build came from, baked in as a commonMain constant so
+// Sentry events (`options.dist`) can be traced back to a source commit even for
+// nightlies and desktop dev builds. Read every time the task runs; a checkout
+// without a HEAD (shallow/pristine archive) falls back to the short GitHub SHA.
+val generateSentryBuildInfo = tasks.register("generateSentryBuildInfo") {
+	val outDir = layout.buildDirectory.dir("generated/sentryBuildInfo/commonMain/kotlin/eu/depau/loak/di")
+	val projDir = rootProject.projectDir
+	inputs.property("commit", providers.environmentVariable("GITHUB_SHA").orElse("unknown"))
+	outputs.dir(outDir)
+	// make the baked-in commit visible to commonMain compilations; like the iOS
+	// workaround below, the generated source set has to be wired explicitly.
+	kotlin.sourceSets["commonMain"].kotlin.srcDir(layout.buildDirectory.dir("generated/sentryBuildInfo/commonMain/kotlin"))
+
+	doLast {
+		val sha = runCatching {
+			ProcessBuilder("git", "rev-parse", "--short=8", "HEAD")
+				.directory(projDir)
+				.start()
+				.inputStream.bufferedReader().readText().trim()
+		}.getOrNull()?.takeIf { it.matches(Regex("[0-9a-fA-F]{7,40}")) }
+			?: System.getenv("GITHUB_SHA")?.takeLast(8)
+			?: "unknown"
+
+		outDir.get().asFile.mkdirs()
+		outDir.get().file("SentryBuildInfo.kt").asFile.writeText(
+			"""
+package eu.depau.loak.di
+
+/** Baked-in short git SHA (or "unknown") for Sentry build attribution. */
+internal const val SENTRY_BUILD_COMMIT: String = "$sha"
+"""
+		)
+	}
 }
 
 tasks.matching { it.name.startsWith("compileKotlinIos") }.configureEach {

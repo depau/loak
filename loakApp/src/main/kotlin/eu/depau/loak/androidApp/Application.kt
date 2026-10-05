@@ -41,7 +41,11 @@ class Application : android.app.Application() {
 		// After the crash-screen handler so Sentry's own uncaught-exception
 		// integration chains to it (report → crash screen → exit) instead of
 		// being replaced wholesale by Thread.setDefaultUncaughtExceptionHandler.
-		initializeSentry()
+		initializeSentry(
+			release = packageManager
+				.getPackageInfo(packageName, 0)
+				.versionName.toString()
+		)
 
 		initKoin {
 			modules(module(createdAtStart = true) {

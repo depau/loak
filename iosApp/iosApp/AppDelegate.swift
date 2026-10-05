@@ -22,7 +22,8 @@ struct ComposeView: UIViewControllerRepresentable {
 struct ComposeApp: App {
 	init() {
 		KoinInitKt.doInitKoin()
-		SentrySetupKt.initializeSentry()
+		let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+		SentrySetupKt.initializeSentry(release: version)
 	}
 
 	var body: some Scene {
