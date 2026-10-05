@@ -57,7 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.action_add_to_queue
+import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_from_history
 import eu.depau.loak.generated.resources.action_search_history
 import eu.depau.loak.generated.resources.info_explicit
@@ -95,7 +95,7 @@ import eu.depau.loak.icons.outlined.History
 import eu.depau.loak.icons.outlined.Lock
 import eu.depau.loak.icons.outlined.NoSearchResults
 import eu.depau.loak.icons.outlined.Offline
-import eu.depau.loak.icons.outlined.Queue
+import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.common.CoverArt
@@ -308,7 +308,7 @@ fun SearchScreen(
 
 									LaunchedEffect(dismissState.currentValue) {
 										if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-											player.addToQueueSingle(song)
+											player.playNextSingle(song)
 											dismissState.snapTo(SwipeToDismissBoxValue.Settled)
 										}
 									}
@@ -339,8 +339,8 @@ fun SearchScreen(
 												contentAlignment = Alignment.CenterEnd
 											) {
 												Icon(
-													imageVector = Icons.Outlined.Queue,
-													contentDescription = stringResource(Res.string.action_add_to_queue),
+												imageVector = Icons.Outlined.QueuePlayNext,
+												contentDescription = stringResource(Res.string.action_play_next),
 													tint = iconColor
 												)
 											}
