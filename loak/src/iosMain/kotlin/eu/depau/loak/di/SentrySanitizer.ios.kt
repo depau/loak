@@ -11,3 +11,7 @@ internal actual fun registerJvmSentrySanitizer() {}
 internal actual fun startSentrySpan(parent: Any?, op: String, name: String): Any? = null
 
 internal actual fun finishSentrySpan(span: Any, ok: Boolean, data: Map<String, Any>) {}
+
+// The KMP Apple pipeline scrubs via beforeSend; a layer-2 alert needs a capture
+// path that isn't wired until Sentry Cocoa is linked, so this is a no-op.
+internal actual fun fireBreachAlert(message: String) {}

@@ -1,6 +1,7 @@
 package eu.depau.loak.domain.manager
 
 import eu.depau.loak.di.setSentryUser
+import eu.depau.loak.di.recordPii
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
 import eu.depau.loak.util.systemDeviceName
@@ -114,6 +115,10 @@ class SessionManager(
 		settings["username"] = username
 		settings["password"] = password
 
+		// teach the layer-2 censor this account's real server identifiers ahead
+		// of any error the session may produce
+		recordPii(instanceUrl)
+
 		api = client
 		isLoggedIn.value = true
 		updateServerKey()
@@ -156,6 +161,7 @@ class SessionManager(
 	): User? {
 		mutex.withLock {
 			if (username.isNotBlank()) {
+				recordPii(instanceUrl)
 				currentUser = client.getUser(username)
 				setSentryUser(currentUser)
 				return currentUser

@@ -22,6 +22,15 @@ import io.sentry.protocol.Message
  * raw JVM event in place instead. This covers every capture path on JVM,
  * including uncaught-exception crashes captured by the native Android handler.
  */
+internal actual fun fireBreachAlert(message: String) {
+	// Sentry.captureMessage from a throwaway thread: capturing from inside the
+	// running beforeSend would re-enter it (and its sibling callbacks).
+	Thread {
+		io.sentry.Sentry.setTag(CENSOR_BREACH_TAG, "1")
+		io.sentry.Sentry.captureMessage(message)
+	}.start()
+}
+
 internal actual fun registerJvmSentrySanitizer() {
 	val options = Sentry.getCurrentHub().options
 	options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, _ ->
@@ -55,25 +64,41 @@ internal fun sanitizeJvmEvent(event: SentryEvent): SentryEvent? {
 	) {
 		return null
 	}
+	val breached = mutableListOf<String>()
+	fun scrub(s: String?): String? {
+		if (s == null) return null
+		val c = censorSentryText(s)
+		breached += c.breached
+		return c.text
+	}
 	event.message?.let { msg ->
-		msg.message = msg.message?.sanitizeSentryText()
-		msg.formatted = msg.formatted?.sanitizeSentryText()
-		msg.params?.let { params -> msg.params = params.map { it.sanitizeSentryText() } }
+		msg.message = scrub(msg.message)
+		msg.formatted = scrub(msg.formatted)
+		msg.params?.let { params -> msg.params = params.map { scrub(it) } }
 	}
 	event.exceptions?.forEach { ex ->
-		ex.value = ex.value?.sanitizeSentryText()
+		ex.value = scrub(ex.value)
 	}
-	event.transaction = event.transaction?.sanitizeSentryText()
+	event.transaction = scrub(event.transaction)
+	if (breached.isNotEmpty()) {
+		// layer 2 had to scrub a real identifier: flag the shipping event and alert
+		event.setTag(CENSOR_BREACH_TAG, "1")
+		reportCensorshipBreach(breached.distinct())
+	}
 	return event
 }
 
 internal fun sanitizeJvmBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
 	breadcrumb.message = breadcrumb.message?.sanitizeSentryText()
 	breadcrumb.category = breadcrumb.category?.sanitizeSentryText()
+	val breached = mutableListOf<String>()
 	breadcrumb.data.forEach { (key, value) ->
 		if (value is String) {
-			breadcrumb.setData(key, value.sanitizeSentryText())
+			val c = censorSentryText(value)
+			breached += c.breached
+			breadcrumb.setData(key, c.text)
 		}
 	}
+	if (breached.isNotEmpty()) reportCensorshipBreach(breached.distinct())
 	return breadcrumb
 }

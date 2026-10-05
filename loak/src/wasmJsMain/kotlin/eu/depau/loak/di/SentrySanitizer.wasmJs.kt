@@ -7,3 +7,6 @@ internal actual fun registerJvmSentrySanitizer() {}
 internal actual fun startSentrySpan(parent: Any?, op: String, name: String): Any? = null
 
 internal actual fun finishSentrySpan(span: Any, ok: Boolean, data: Map<String, Any>) {}
+
+/** No web capture path (KMP SDK stubs wasmJs), so the breach alert is a no-op. */
+internal actual fun fireBreachAlert(message: String) {}

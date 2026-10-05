@@ -44,43 +44,6 @@ fun isSentryEnabled(): Boolean {
 	return settings.get(SENTRY_ENABLED_KEY, true)
 }
 
-/**
- * Matches any URL (http/https) up to whitespace or a closing bracket/quote.
- * Ktor error messages embed the full request URL here, and the Subsonic API's
- * signed query params (`username`, `token`, `salt`) ride along in it.
- */
-private val URL_REGEX = Regex("""https?://\S+""", RegexOption.IGNORE_CASE)
-
-/**
- * Matches bare hostnames, host:port and InetSocketAddress-style `host/ip:port`
- * chains, plus bare IPv4/IPv6, as Java/Ktor print them in connect errors:
- * `failed to connect to starrs.depau.eu/192.168.3.204 (port 443)` or
- * `Failed to connect to navikek.puntokek.com/172.67.183.168:443`. URLs are
- * handled first by [URL_REGEX]; this catches the host/IP when it leaks without
- * an `https?://` prefix.
- */
-private val HOST_PORT_REGEX = Regex(
-	"""[^\s(),]+/\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?""" +
-		// bare IPv4[:port]
-		"""|(?<!\d)(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}(?!\d)(?::\d{1,5})?""" +
-		// bracketed IPv6 (InetSocketAddress form) with optional :port
-		"""|\[[0-9a-fA-F:.%]+\](?::\d{1,5})?""" +
-		// compressed IPv6 (contains ::)
-		"""|[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4}){0,3}::[0-9a-fA-F]{0,4}""" +
-		// hostname followed by " (port N)" — Java's ConnectException toString
-		"""|(?<![A-Za-z0-9])(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?=\s*\(\s*port\b)""",
-	RegexOption.IGNORE_CASE
-)
-
-/**
- * Matches credential-style `key=value` / `key: value` assignments anywhere in
- * error text, in case a token or username surfaces without an enclosing URL.
- */
-private const val SENSITIVE_PARAM_KEYS =
-	"(?:u|user|username|t|token|s|salt|passw(?:or)?d|pw|api[_-]?key|auth(?:orization)?|signature|secret)"
-private val SENSITIVE_PARAM_REGEX =
-	Regex("""\b($SENSITIVE_PARAM_KEYS\s*[=:]\s*)[^&\s,"']+""", RegexOption.IGNORE_CASE)
-
 fun initializeSentry() {
 	if (!isSentryEnabled()) return
 	Sentry.init { options ->
@@ -157,19 +120,30 @@ internal fun isNoiseEvent(type: String?, value: String?): Boolean {
 
 /** For raw [Throwable] sources: adapt the class name into [isNoiseEvent]. */
 internal fun isNoiseException(ex: Throwable?): Boolean =
-	isNoiseEvent(ex?.javaClass?.name, ex?.message)
+	isNoiseEvent(ex?.let { it::class.qualifiedName }, ex?.message)
 
 private fun sanitizeSentryEvent(event: SentryEvent): SentryEvent {
+	val breached = mutableListOf<String>()
+	fun scrub(s: String?): String? {
+		if (s == null) return null
+		val c = censorSentryText(s)
+		breached += c.breached
+		return c.text
+	}
 	event.message?.let { m ->
 		event.message = m.copy(
-			message = m.message?.sanitizeSentryText(),
-			params = m.params?.mapTo(mutableListOf()) { it.sanitizeSentryText() },
-			formatted = m.formatted?.sanitizeSentryText(),
+			message = scrub(m.message),
+			params = m.params?.mapTo(mutableListOf()) { scrub(it) ?: it },
+			formatted = scrub(m.formatted),
 		)
 	}
 	event.exceptions = event.exceptions.mapNotNull { ex ->
-		ex.value?.sanitizeSentryText()?.let { ex.copy(value = it) }
+		scrub(ex.value)?.let { ex.copy(value = it) }
 	}.toMutableList()
+	if (breached.isNotEmpty()) {
+		event.setTag(CENSOR_BREACH_TAG, "1")
+		reportCensorshipBreach(breached.distinct())
+	}
 	return event
 }
 
@@ -180,24 +154,12 @@ private fun sanitizeBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
 }
 
 /**
- * Redact URLs and credential assignments from a string. Shared by the KMP
- * beforeSend and the JVM-native sentry sanitizers (Android and desktop).
- */
-private val UNKNOWN_HOST_REGEX =
-	Regex("""UnknownHostException[: ]{2}[A-Za-z0-9.\-]+""", RegexOption.IGNORE_CASE)
-
-internal fun String.sanitizeSentryText(): String =
-	URL_REGEX.replace(this, "[REDACTED_URL]")
-		.let { HOST_PORT_REGEX.replace(it, "[REDACTED_HOST]") }
-		// `UnknownHostException: navikek.puntokek.com` — the bare host is the whole message
-		.let { UNKNOWN_HOST_REGEX.replace(it, "UnknownHostException: [REDACTED_HOST]") }
-		.let { SENSITIVE_PARAM_REGEX.replace(it, "$1[REDACTED]") }
-
-/**
  * Attach the logged-in user to Sentry events. With multiple accounts managed
  * from one app install this makes issues attributable; `sendDefaultPii` is on,
  * so only a username is sent (no PII collection beyond what the user already
- * exposes as their Subsonic login).
+ * exposes as their Subsonic login). Also seeds the layer-2 censor with the
+ * server this account talks to, so the user's real identifiers are redacted
+ * verbatim even if the regexes ever miss a spelling.
  */
 fun setSentryUser(user: SubsonicUser?) {
 	if (!isSentryEnabled()) return
