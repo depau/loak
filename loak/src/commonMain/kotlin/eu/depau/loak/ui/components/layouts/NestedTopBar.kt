@@ -83,12 +83,12 @@ fun NestedTopBar(
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				actions()
-				if (searchCategory != null) SearchTopBarAction(searchCategory)
 				refreshButtonSlot()?.let { slot ->
 					TooltipBox("${stringResource(Res.string.action_refresh)} (F5)") {
 						TopBarButton(onClick = { slot.refresh?.invoke() }) { RefreshIcon(slot) }
 					}
 				}
+				if (searchCategory != null) SearchTopBarAction(searchCategory)
 				if (trailing) QueuePaneToggle()
 			}
 		},
