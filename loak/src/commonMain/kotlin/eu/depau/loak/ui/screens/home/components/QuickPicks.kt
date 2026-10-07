@@ -5,9 +5,12 @@ import eu.depau.loak.ui.util.pageBy
 import eu.depau.loak.ui.util.HorizontalScrollArrows
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -20,8 +23,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.SongRow
+import eu.depau.loak.ui.components.layouts.ArtGridPlaceholder
 import eu.depau.loak.ui.screens.home.viewmodels.HomeViewModel
 import kotlinx.collections.immutable.persistentListOf
 import org.koin.compose.koinInject
@@ -82,6 +87,24 @@ fun SongColumns(
 						rating = rating,
 						onSetRating = { viewModel.rateSelectedSong(it) }
 					)
+				}
+			}
+		}
+	}
+}
+
+/** [SongColumns]' skeleton, while Quick picks are being built. */
+@Composable
+fun SongColumnsPlaceholder(columnWidth: Int?) {
+	BoxWithConstraints(Modifier.fillMaxWidth()) {
+		val width = columnWidth?.dp ?: (maxWidth - 16.dp - 48.dp)
+		val columns = (maxWidth / width).toInt() + 1
+		Row(Modifier.padding(horizontal = 4.dp)) {
+			repeat(columns) {
+				Column {
+					repeat(4) {
+						ArtGridPlaceholder(Modifier.width(width).height(ROW_HEIGHT), ListViewMode.List)
+					}
 				}
 			}
 		}

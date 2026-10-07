@@ -87,6 +87,7 @@ import eu.depau.loak.ui.components.layouts.RootTopBar
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.layouts.horizontalSection
 import eu.depau.loak.ui.components.sheets.SongSheet
+import eu.depau.loak.ui.components.layouts.ArtGridPlaceholder
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
 import eu.depau.loak.ui.navigation.Screen
@@ -99,11 +100,14 @@ import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.ui.screens.home.components.ListenerRow
 import eu.depau.loak.ui.screens.home.components.MixCard
 import eu.depau.loak.ui.screens.home.components.ShelfHeader
+import eu.depau.loak.ui.screens.home.components.ShelfHeaderPlaceholder
 import eu.depau.loak.ui.screens.home.components.SmallOutlinedButton
 import eu.depau.loak.ui.screens.home.components.SonicJourneyCard
 import eu.depau.loak.ui.screens.home.components.SongColumns
+import eu.depau.loak.ui.screens.home.components.SongColumnsPlaceholder
 import eu.depau.loak.ui.screens.home.components.SpeedDial
 import eu.depau.loak.ui.screens.home.components.SpeedDialLayout
+import eu.depau.loak.ui.screens.home.components.SpeedDialPlaceholder
 import eu.depau.loak.ui.screens.home.components.TAB
 import eu.depau.loak.ui.screens.home.viewmodels.HomeViewModel
 import eu.depau.loak.ui.screens.playlist.components.PlaylistListScreenGridItem
@@ -250,7 +254,26 @@ fun HomeFeed(
 			}
 			return@LazyVerticalGrid
 		}
-		if (!state.ready) return@LazyVerticalGrid
+		val speedDialLayout = when {
+			expanded -> SpeedDialLayout.Row
+			medium -> SpeedDialLayout.GridPeek
+			else -> SpeedDialLayout.Grid
+		}
+		val picksColumnWidth = if (expanded) 520 else if (medium) 300 else null
+		// the first load: the top of Home as a skeleton, so shelves don't pop in above the fold
+		if (!state.ready) {
+			if (viewModel.fixedGenre == null) {
+				item(key = "speed dial header", span = full) {
+					ShelfHeader(stringResource(Res.string.title_speed_dial))
+				}
+				item(key = "speed dial", span = full) { SpeedDialPlaceholder(speedDialLayout) }
+			}
+			item(key = "quick picks header", span = full) {
+				ShelfHeader(stringResource(Res.string.title_quick_picks))
+			}
+			item(key = "quick picks", span = full) { SongColumnsPlaceholder(picksColumnWidth) }
+			return@LazyVerticalGrid
+		}
 		if (state.genres.isNotEmpty()) item(key = "genres", span = full) {
 			GenreChips(state.genres, selectedGenre, viewModel::selectGenre)
 		}
@@ -262,25 +285,22 @@ fun HomeFeed(
 			item(key = "speed dial", span = full) {
 				SpeedDial(
 					items = state.speedDial,
-					layout = when {
-						expanded -> SpeedDialLayout.Row
-						medium -> SpeedDialLayout.GridPeek
-						else -> SpeedDialLayout.Grid
-					},
+					layout = speedDialLayout,
 					onPlayRadio = { viewModel.playRadio(it.song) },
 					onFeelingLucky = viewModel::feelingLucky
 				)
 			}
 		}
 
-		if (state.quickPicks.isNotEmpty()) {
+		val quickPicks = state.quickPicks.data.orEmpty()
+		if (quickPicks.isNotEmpty() || state.quickPicks is UiState.Loading) {
 			item(key = "quick picks header", span = full) {
 				val title = stringResource(Res.string.title_quick_picks)
 				ShelfHeader(title) {
-					Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+					if (quickPicks.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
 						if (canMix) {
 							OutlinedButton(
-								onClick = { player.playInstantMix(state.quickPicks, title) },
+								onClick = { player.playInstantMix(quickPicks, title) },
 								contentPadding = PaddingValues(0.dp),
 								modifier = Modifier.size(width = 40.dp, height = 32.dp)
 							) {
@@ -296,13 +316,14 @@ fun HomeFeed(
 				}
 			}
 			item(key = "quick picks", span = full) {
-				SongColumns(
-					songs = state.quickPicks,
+				if (quickPicks.isEmpty()) SongColumnsPlaceholder(picksColumnWidth)
+				else SongColumns(
+					songs = quickPicks,
 					viewModel = viewModel,
-					columnWidth = if (expanded) 520 else if (medium) 300 else null,
+					columnWidth = picksColumnWidth,
 					onSetShareId = { shareId = it },
 					// a song plays its radio; Play all plays the list
-					onPlay = { viewModel.playRadio(state.quickPicks[it]) }
+					onPlay = { viewModel.playRadio(quickPicks[it]) }
 				)
 			}
 		}
@@ -339,7 +360,7 @@ fun HomeFeed(
 		horizontalSection(
 			title = Res.string.title_your_radios,
 			destination = Screen.PlaylistList(true, PlaylistKindFilter.Radios),
-			state = UiState.Success(if (audioMuse && audioMuseHome) state.radios else emptyList()),
+			state = if (audioMuse && audioMuseHome) state.radios else UiState.Success(emptyList()),
 			key = { it.id },
 			seeAll = true
 		) { playlist ->
@@ -363,7 +384,19 @@ fun HomeFeed(
 			}
 		}
 
-		state.similarTo?.let { (seed, similar) ->
+		if (state.similarTo is UiState.Loading) {
+			item(key = "similar header", span = full) { ShelfHeaderPlaceholder() }
+			item(key = "similar", span = full) {
+				LazyRow(
+					horizontalArrangement = Arrangement.spacedBy(12.dp),
+					contentPadding = PaddingValues(horizontal = 16.dp),
+					userScrollEnabled = false
+				) {
+					items(8) { ArtGridPlaceholder(Modifier.width(cardWidth)) }
+				}
+			}
+		}
+		state.similarTo.data?.let { (seed, similar) ->
 			item(key = "similar header", span = full) {
 				ShelfHeader(
 					stringResource(Res.string.title_similar_to, seed.name),

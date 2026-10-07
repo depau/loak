@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import eu.depau.loak.ui.util.shimmerLoading
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
@@ -130,6 +131,29 @@ fun SpeedDial(
 				}
 			}
 			if (pages.size > 1) PageDots(pages.size, pagerState.currentPage)
+		}
+	}
+}
+
+/** [SpeedDial]'s first page as a skeleton, while Home loads. */
+@Composable
+fun SpeedDialPlaceholder(layout: SpeedDialLayout) {
+	val gap = 8.dp
+	BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+		val tile = when (layout) {
+			SpeedDialLayout.Grid -> (maxWidth - gap * 2) / 3
+			SpeedDialLayout.GridPeek -> minOf(140.dp, (maxWidth - gap * 2) / 3)
+			SpeedDialLayout.Row -> (maxWidth - gap * 8) / 9
+		}
+		val (rows, columns) = if (layout == SpeedDialLayout.Row) 1 to 9 else 3 to 3
+		Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+			repeat(rows) {
+				Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+					repeat(columns) {
+						Box(Modifier.size(tile).clip(RoundedCornerShape(12.dp)).shimmerLoading())
+					}
+				}
+			}
 		}
 	}
 }

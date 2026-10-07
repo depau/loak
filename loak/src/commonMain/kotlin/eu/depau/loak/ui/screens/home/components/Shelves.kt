@@ -5,6 +5,7 @@ import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.ui.util.verticalWheelToParent
 import eu.depau.loak.ui.util.onSecondaryClick
+import eu.depau.loak.ui.util.shimmerLoading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -107,6 +108,19 @@ fun ShelfHeader(
 			}
 		}
 		action?.invoke()
+	}
+}
+
+/** [ShelfHeader]'s skeleton, for a shelf whose title isn't known yet. */
+@Composable
+fun ShelfHeaderPlaceholder() {
+	Row(
+		modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 12.dp, start = 16.dp, end = 16.dp),
+		verticalAlignment = Alignment.CenterVertically,
+		horizontalArrangement = Arrangement.spacedBy(12.dp)
+	) {
+		Box(Modifier.size(40.dp).clip(CircleShape).shimmerLoading())
+		Box(Modifier.width(160.dp).height(18.dp).clip(CircleShape).shimmerLoading())
 	}
 }
 
