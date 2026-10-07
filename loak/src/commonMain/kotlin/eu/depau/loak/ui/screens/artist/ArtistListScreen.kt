@@ -114,7 +114,11 @@ fun ArtistListScreen(
 					searchCategory = SearchCategory.ARTISTS
 				)
 			} else {
-				NestedTopBar({ Text(stringResource(Res.string.title_artists)) }, actions)
+				NestedTopBar(
+					{ Text(stringResource(Res.string.title_artists)) },
+					actions,
+					searchCategory = SearchCategory.ARTISTS
+				)
 			}
 		},
 		bottomBar = {

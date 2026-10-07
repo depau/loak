@@ -112,7 +112,8 @@ fun SongListScreen(
 			} else {
 				NestedTopBar(
 					title = { Text(stringResource(Res.string.title_songs)) },
-					actions = actions
+					actions = actions,
+					searchCategory = SearchCategory.SONGS
 				)
 			}
 		},

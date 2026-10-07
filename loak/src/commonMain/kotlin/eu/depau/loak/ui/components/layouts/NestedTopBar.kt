@@ -34,6 +34,7 @@ import eu.depau.loak.icons.outlined.ArrowBack
 import androidx.compose.foundation.layout.add
 import eu.depau.loak.ui.util.windowControlsInsets
 import eu.depau.loak.ui.screens.queue.QueuePaneToggle
+import eu.depau.loak.ui.screens.search.SearchCategory
 import eu.depau.loak.ui.util.windowDragArea
 
 
@@ -67,7 +68,9 @@ fun NestedTopBar(
 	navigationAction: @Composable () -> Unit = NestedTopBarDefaults::NavigationAction,
 	colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
 	/** False for a pane with another pane to its right (list-detail), which owns the bar's end. */
-	trailing: Boolean = true
+	trailing: Boolean = true,
+	/** When non-null, a search button opening the search page with this chip preselected. */
+	searchCategory: SearchCategory? = null,
 ) {
 	TopAppBar(
 		modifier = Modifier.windowDragArea(),
@@ -80,6 +83,7 @@ fun NestedTopBar(
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				actions()
+				if (searchCategory != null) SearchTopBarAction(searchCategory)
 				refreshButtonSlot()?.let { slot ->
 					TooltipBox("${stringResource(Res.string.action_refresh)} (F5)") {
 						TopBarButton(onClick = { slot.refresh?.invoke() }) { RefreshIcon(slot) }

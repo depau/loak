@@ -157,7 +157,36 @@ private fun Actions(
 		}
 	}
 
-	// wide windows: a search field look-alike in every tab's bar, opening the search page
+	// the search entry point: a wide field look-alike on expanded windows, an icon otherwise.
+	// Skip it when the Search tab itself sits on the bottom bar, to avoid duplication.
+	if (LocalPlatformContext.current.isExpanded() || !isSearchEnabled) {
+		SearchTopBarAction(searchCategory)
+	}
+
+	OfflineButton()
+
+	QueuePaneToggle()
+
+	// wider windows have it at the bottom of the navigation rail
+	if (!LocalPlatformContext.current.isLandscape()) TooltipBox(stringResource(Res.string.title_settings)) {
+		IconButton(onClick = dropUnlessResumed { backStack.add(Screen.Settings.Root) }) {
+			Icon(
+				imageVector = Icons.Outlined.Settings,
+				contentDescription = stringResource(Res.string.title_settings)
+			)
+		}
+	}
+}
+
+/**
+ * The search entry point shared by [RootTopBar] and [NestedTopBar]: a wide field look-alike on
+ * expanded windows, an icon button otherwise, both opening the search page with [searchCategory]
+ * preselecting its chip.
+ */
+@Composable
+internal fun SearchTopBarAction(searchCategory: SearchCategory) {
+	val backStack = LocalNavStack.current
+
 	if (LocalPlatformContext.current.isExpanded()) {
 		Surface(
 			onClick = dropUnlessResumed {
@@ -181,7 +210,7 @@ private fun Actions(
 				)
 			}
 		}
-	} else if (!isSearchEnabled) {
+	} else {
 		TooltipBox(withShortcut(stringResource(Res.string.title_search), "F")) {
 			IconButton(
 				onClick = dropUnlessResumed {
@@ -193,20 +222,6 @@ private fun Actions(
 					contentDescription = stringResource(Res.string.title_search)
 				)
 			}
-		}
-	}
-
-	OfflineButton()
-
-	QueuePaneToggle()
-
-	// wider windows have it at the bottom of the navigation rail
-	if (!LocalPlatformContext.current.isLandscape()) TooltipBox(stringResource(Res.string.title_settings)) {
-		IconButton(onClick = dropUnlessResumed { backStack.add(Screen.Settings.Root) }) {
-			Icon(
-				imageVector = Icons.Outlined.Settings,
-				contentDescription = stringResource(Res.string.title_settings)
-			)
 		}
 	}
 }

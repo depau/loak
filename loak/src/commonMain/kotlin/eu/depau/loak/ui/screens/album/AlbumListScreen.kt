@@ -116,7 +116,11 @@ fun AlbumListScreen(
 					searchCategory = SearchCategory.ALBUMS
 				)
 			} else {
-				NestedTopBar({ Text(stringResource(Res.string.title_albums)) }, actions)
+				NestedTopBar(
+					{ Text(stringResource(Res.string.title_albums)) },
+					actions,
+					searchCategory = SearchCategory.ALBUMS
+				)
 			}
 		},
 		bottomBar = {

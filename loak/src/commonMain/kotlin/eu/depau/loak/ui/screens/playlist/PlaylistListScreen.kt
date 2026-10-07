@@ -201,7 +201,8 @@ fun PlaylistListScreen(
 			} else {
 				NestedTopBar(
 					title = { Text(stringResource(Res.string.title_playlists)) },
-					actions = actions
+					actions = actions,
+					searchCategory = SearchCategory.PLAYLISTS
 				)
 			}
 		},
