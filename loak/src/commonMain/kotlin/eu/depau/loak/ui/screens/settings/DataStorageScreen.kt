@@ -47,6 +47,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel_download
+import eu.depau.loak.generated.resources.action_download_now
 import eu.depau.loak.generated.resources.action_clear_downloads
 import eu.depau.loak.generated.resources.action_clear_image_cache
 import eu.depau.loak.generated.resources.action_clear_pending_actions
@@ -62,6 +63,11 @@ import eu.depau.loak.generated.resources.info_status_downloading
 import eu.depau.loak.generated.resources.info_sync_never
 import eu.depau.loak.generated.resources.option_cover_art_quality
 import eu.depau.loak.generated.resources.option_downloaded_songs
+import eu.depau.loak.generated.resources.pref_download_over_cellular
+import eu.depau.loak.generated.resources.pref_download_over_roaming
+import eu.depau.loak.generated.resources.pref_download_schedule
+import eu.depau.loak.generated.resources.pref_download_schedule_desc
+import eu.depau.loak.generated.resources.pref_download_schedule_off
 import eu.depau.loak.generated.resources.option_image_cache_size
 import eu.depau.loak.generated.resources.option_last_sync
 import eu.depau.loak.generated.resources.option_live_status
@@ -72,6 +78,7 @@ import eu.depau.loak.generated.resources.subtitle_offline_mode
 import eu.depau.loak.generated.resources.subtitle_pending_actions
 import eu.depau.loak.generated.resources.subtitle_rebuild_database
 import eu.depau.loak.generated.resources.subtitle_trigger_sync
+import eu.depau.loak.generated.resources.title_downloads_settings
 import eu.depau.loak.generated.resources.title_cache_management
 import eu.depau.loak.generated.resources.title_danger_zone
 import eu.depau.loak.generated.resources.title_data_storage
@@ -87,6 +94,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.AudioStoreUsage
 import eu.depau.loak.domain.models.settings.AudioCacheLimit
@@ -110,6 +118,7 @@ import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.dialogs.BulkDownloadDialog
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
+import eu.depau.loak.ui.components.sheets.ScheduleSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsChoiceItem
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
@@ -127,6 +136,7 @@ fun SettingsDataStorageScreen() {
 	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	val backStack = LocalNavStack.current
 	val preferenceManager = koinInject<PreferenceManager>()
+	val downloadManager = koinInject<DownloadManager>()
 	val scope = rememberCoroutineScope()
 	val imageLoader = koinInject<ImageLoader>()
 
@@ -136,6 +146,7 @@ fun SettingsDataStorageScreen() {
 	val downloadSize by viewModel.downloadSize.collectAsStateWithLifecycle(0L)
 
 	var showLibraryDownloadDialog by remember { mutableStateOf(false) }
+	var showDefaultSchedule by remember { mutableStateOf(false) }
 	val isDownloadingLibrary by viewModel.isDownloadingLibrary.collectAsStateWithLifecycle()
 	val libraryDownloadProgress by viewModel.libraryDownloadProgress.collectAsStateWithLifecycle()
 
@@ -204,6 +215,18 @@ fun SettingsDataStorageScreen() {
 			viewModel.downloadEntireLibrary()
 		}
 	)
+
+	if (showDefaultSchedule) {
+		ScheduleSheet(
+			initialCron = preferenceManager.downloadScheduleCron.takeIf { it.isNotBlank() },
+			initialEnabled = preferenceManager.downloadScheduleCron.isNotBlank(),
+			onDismissRequest = { showDefaultSchedule = false },
+			onSave = { cron, enabled ->
+				preferenceManager.downloadScheduleCron = if (enabled) cron.orEmpty() else ""
+				showDefaultSchedule = false
+			}
+		)
+	}
 
 	Scaffold(
 		topBar = {
@@ -426,6 +449,43 @@ fun SettingsDataStorageScreen() {
 								}
 							}
 						},
+						trailingContent = offlineIcon,
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4)
+					)
+				}
+
+				SettingsGroup(title = { Text(stringResource(Res.string.title_downloads_settings)) }) {
+					val overCellular by downloadManager.overCellular.collectAsStateWithLifecycle()
+					val overRoaming by downloadManager.overRoaming.collectAsStateWithLifecycle()
+					val defaultCron = preferenceManager.downloadScheduleCron
+					SettingsToggleItem(
+						checked = overCellular,
+						onCheckedChange = downloadManager::setOverCellular,
+						content = { Text(stringResource(Res.string.pref_download_over_cellular)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 4)
+					)
+					SettingsToggleItem(
+						checked = overRoaming,
+						onCheckedChange = downloadManager::setOverRoaming,
+						content = { Text(stringResource(Res.string.pref_download_over_roaming)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4)
+					)
+					SegmentedListItem(
+						onClick = { showDefaultSchedule = true },
+						content = { Text(stringResource(Res.string.pref_download_schedule)) },
+						supportingContent = {
+							Text(
+								if (defaultCron.isBlank()) stringResource(Res.string.pref_download_schedule_off)
+								else stringResource(Res.string.pref_download_schedule_desc)
+							)
+						},
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 4)
+					)
+					SegmentedListItem(
+						onClick = { downloadManager.kickAll() },
+						enabled = isOnline,
+						content = { Text(stringResource(Res.string.action_download_now)) },
+						supportingContent = { Text(stringResource(Res.string.pref_download_schedule_desc)) },
 						trailingContent = offlineIcon,
 						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4)
 					)
