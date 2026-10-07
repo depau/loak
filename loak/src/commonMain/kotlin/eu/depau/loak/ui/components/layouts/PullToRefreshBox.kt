@@ -100,11 +100,15 @@ fun PullToRefreshBox(
 		}
 		SideEffect { slot.isRefreshing = isRefreshing }
 	}
+	// A mouse can't pull (and scrolling up with the wheel would trigger it); the top bar's
+	// refresh button and F5 still work. Touch devices stay pull-to-refresh.
+	val mouseInUse = LocalMouseInUse.current
 	M3PullToRefreshBox(
 		modifier = modifier,
 		state = state,
 		isRefreshing = isRefreshing,
 		onRefresh = onRefresh,
+		enabled = !mouseInUse,
 		indicator = {
 			Box(
 				Modifier.align(Alignment.TopCenter).graphicsLayer {
