@@ -124,7 +124,6 @@ class HomeViewModel(
 					speedDial = if (genre == null) repository.speedDial(library) else emptyList(),
 					mixArtists = topArtists,
 					madeForYou = if (genre == null) repository.madeForYou() else emptyList(),
-					radios = if (genre == null) runCatching { repository.radios() }.getOrDefault(emptyList()) else emptyList(),
 					recentlyAdded = repository.recentlyAdded(library, genre),
 					forgotten = repository.forgottenFavourites(library, genre),
 					// Quick picks may wait on the server: they come in below the top
@@ -136,6 +135,7 @@ class HomeViewModel(
 			}
 
 			// the server's answers come last, each on its own
+			launchRemote { state.update { it.copy(radios = if (genre == null) repository.radios() else emptyList()) } }
 			launchRemote { state.update { it.copy(similarTo = if (genre == null) repository.similarTo(topArtists) else null) } }
 			launchRemote {
 				state.update { it.copy(nowPlaying = if (genre == null) repository.nowPlaying(library) else emptyList()) }
