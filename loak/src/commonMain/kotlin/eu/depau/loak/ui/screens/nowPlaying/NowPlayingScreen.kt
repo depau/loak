@@ -206,8 +206,8 @@ private val PeekHeight = 56.dp
 private val ShortPeekHeight = 40.dp
 private val HeaderHeight = 72.dp
 
-/** The smallest player that still works above a split: small cover, info and controls. */
-private val SplitPlayerHeight = 400.dp
+/** The smallest player worth keeping above a split: a readable cover, info and controls. */
+private val SplitPlayerHeight = 560.dp
 
 private fun seg(t: Float, a: Float, b: Float) = ((t - a) / (b - a)).coerceIn(0f, 1f)
 
@@ -229,6 +229,8 @@ private fun PlayerWithSheet(
 		val h = constraints.maxHeight.toFloat()
 		// short screens: a slimmer peek leaves the controls room
 		val short = maxHeight < 480.dp
+		val mw = maxWidth
+		val mh = maxHeight
 		val peekHeight = if (short) ShortPeekHeight else PeekHeight
 		val (top, peek, header, splitMin) = with(density) {
 			listOf(
@@ -241,8 +243,8 @@ private fun PlayerWithSheet(
 		val peekTop = h - peek
 		val raisedTop = top + header
 		// a split only where the queue still gets a good part of the screen
-		val splitTop = maxOf(top + splitMin, h * .5f)
-		sheet.splitAvailable = peekTop - splitTop > h * .2f && h - splitTop >= h * .4f
+		val splitTop = maxOf(top + splitMin, h * .55f)
+		sheet.splitAvailable = peekTop - splitTop > h * .15f && h - splitTop >= h * .3f
 		sheet.queueTravel = peekTop - raisedTop
 		val sheetTop = { q: Float ->
 			if (!sheet.splitAvailable) peekTop + (raisedTop - peekTop) * q
@@ -250,8 +252,8 @@ private fun PlayerWithSheet(
 			else splitTop + (raisedTop - splitTop) * (q * 2f - 1f)
 		}
 
-		// the player, given the room above the sheet: it shrinks into the split, then fades
-		// out as the sheet covers it
+		// the player shrinks continuously into the split, then collapses into the row: the
+		// hero's own layout walks it there, so this only fades it out once it has arrived
 		Box(
 			Modifier
 				.layout { measurable, constraints ->
@@ -260,16 +262,15 @@ private fun PlayerWithSheet(
 					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
 					layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, top.toInt()) }
 				}
-				.graphicsLayer {
-					val q = sheet.queueFraction
-					alpha = 1f - seg(q, .55f, .85f)
-					translationY = -seg(q, .5f, 1f) * 48.dp.toPx()
-				}
+				.graphicsLayer { alpha = 1f - seg(sheet.queueFraction, .66f, .86f) }
 		) {
 			NowPlayingHero(
 				modifier = Modifier.fillMaxSize().padding(vertical = if (short) 0.dp else 8.dp),
 				songIsStarred = songIsStarred,
-				onSetSongIsStarred = onSetSongIsStarred
+				onSetSongIsStarred = onSetSongIsStarred,
+				// read in the layout phase, so dragging the queue never recomposes the hero
+				queueFraction =
+					if (sheet.splitAvailable && mw <= mh) ({ sheet.queueFraction }) else null
 			)
 		}
 
@@ -281,7 +282,7 @@ private fun PlayerWithSheet(
 					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, header.toInt()))
 					layout(constraints.maxWidth, header.toInt()) { placeable.place(0, top.toInt()) }
 				}
-				.graphicsLayer { alpha = seg(sheet.queueFraction, .7f, 1f) }
+				.graphicsLayer { alpha = seg(sheet.queueFraction, .70f, .90f) }
 		)
 
 		Surface(
@@ -293,7 +294,9 @@ private fun PlayerWithSheet(
 				}
 				.nestedScroll(sheet.sheetScroll),
 			shape = ContinuousRoundedRectangle(topStart = 28.dp, topEnd = 28.dp),
-			color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .72f)
+			color = MaterialTheme.colorScheme.surfaceContainer.copy(
+				alpha = .72f + .28f * seg(sheet.queueFraction, .5f, .72f)
+			)
 		) {
 			Column {
 				Box(Modifier.fillMaxWidth().height(peekHeight)) {
@@ -386,7 +389,8 @@ private fun CollapsedPlayerRow(song: DomainSong?, modifier: Modifier = Modifier)
 private fun NowPlayingHero(
 	modifier: Modifier,
 	songIsStarred: Boolean,
-	onSetSongIsStarred: (Boolean) -> Unit
+	onSetSongIsStarred: (Boolean) -> Unit,
+	queueFraction: (() -> Float)? = null
 ) {
 	SubcomposeLayout(modifier) { cs ->
 		val w = cs.maxWidth
@@ -394,19 +398,51 @@ private fun NowPlayingHero(
 		val pad = (if (w < 360.dp.roundToPx()) 12.dp else if (w < 600.dp.roundToPx()) 20.dp else 24.dp).roundToPx()
 		val gap = 16.dp.roundToPx()
 		val minArt = MinArt.roundToPx()
-		fun controls(slot: String, width: Int, techInfo: Boolean) = subcompose(slot) {
+		fun controls(slot: String, width: Int, showTechInfo: Boolean) = subcompose(slot) {
 			CompositionLocalProvider(LocalCompactTransport provides (width < 300.dp.roundToPx())) {
 				NowPlayingControlsRow(
 					isLandscape = false,
 					songIsStarred = songIsStarred,
 					onSetSongIsStarred = onSetSongIsStarred,
-					showTechInfo = techInfo
+					showTechInfo = showTechInfo
 				)
 			}
 		}.first().measure(Constraints(maxWidth = width.coerceAtLeast(0)))
 		fun art(size: Int) = subcompose("art") {
 			NowPlayingArtworkPager(isLandscape = true)
 		}.first().measure(Constraints.fixed(size, size))
+
+		// Compact portrait sheet: always the cover above the controls, squeezing as the
+		// sheet eats the height. Past the anchor the pair walks into the collapsed row,
+		// landing on its thumbnail and its text, so the handover settles instead of swapping.
+		if (queueFraction != null) {
+			fun lerp(from: Int, to: Int, f: Float) = (from + (to - from) * f).toInt()
+			val r = seg(queueFraction(), .5f, .8f)
+			// where CollapsedPlayerRow draws: 16dp padding, a 48dp cover, 12dp gaps and a
+			// 48dp icon button, so its text runs from 76dp to w - 76dp in a 72dp row. The
+			// hero's own first row pads itself 16dp, so its block sits that much wider out
+			val thumb = 48.dp.roundToPx()
+			val textX = (16.dp + 48.dp + 12.dp).roundToPx()
+			val textPad = 16.dp.roundToPx()
+			val row = HeaderHeight.roundToPx()
+			val cw = minOf(w - 2 * pad, 560.dp.roundToPx())
+			val c = controls("morph", lerp(cw, w - 2 * (textX - textPad), r), true)
+			val a = minOf(w - 2 * pad, h - c.height - gap - 2 * pad, (h * .55f).toInt())
+				.coerceAtLeast(0)
+			val y0 = ((h - (a + gap + c.height)) / 2).coerceAtLeast(0)
+			val art = art(lerp(a, thumb, r).coerceAtLeast(0))
+			val artX = lerp((w - a) / 2, 16.dp.roundToPx(), r)
+			val artY = lerp(y0, (row - thumb) / 2, r)
+			val cX = lerp((w - cw) / 2, textX - textPad, r)
+			// both centre the same two text lines, but the hero's first row centres them
+			// inside its taller star / overflow buttons (58dp measured), which pushes them
+			// 7dp down, so its block lands that much higher than the row's text
+			val cY = lerp(y0 + a + gap, ((row - 58.dp.roundToPx()) / 2).coerceAtLeast(0), r)
+			return@SubcomposeLayout layout(w, h) {
+				art.place(artX, artY)
+				c.place(cX, cY)
+			}
+		}
 
 		// 1. cover above, the big play button's row allowing; drop the format line if that helps
 		val cw = minOf(w - 2 * pad, 560.dp.roundToPx())
