@@ -18,4 +18,6 @@ val databaseModule = module {
 	single { get<CacheDatabase>().networkStatsDao() }
 	single { get<CacheDatabase>().audioFileDao() }
 	single { get<DownloadDatabase>().downloadDao() }
+	single { get<DownloadDatabase>().downloadCollectionDao() }
+	single { get<DownloadDatabase>().manualDownloadDao() }
 }
