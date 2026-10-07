@@ -1,5 +1,15 @@
 package eu.depau.loak.domain.models
 
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
+
 /**
  * The cron expressions people pick from a schedule sheet: every day, some weekdays or one day
  * of the month, at a time. Anything else stays a custom expression ([parse] returns null).
@@ -48,3 +58,26 @@ data class CronSchedule(
 		}.map { it % 7 }.toSet().takeIf { it.isNotEmpty() }
 	}
 }
+
+/**
+ * The first instant strictly after [from] that [this] schedule fires, at the schedule's time of
+ * day, in epoch millis — so a due run doesn't re-fire on the next poll. Weekday/day-of-month
+ * mirror the [CronSchedule] values; custom (unparseable) expressions are never enabled, so this
+ * is only used on parsed day/week/month schedules.
+ */
+fun CronSchedule.nextRun(from: Instant): Long {
+	val zone = TimeZone.currentSystemDefault()
+	var date = from.toLocalDateTime(zone).date
+	repeat(400) {
+		date = date.plus(1, DateTimeUnit.DAY)
+		val target = date.atStartOfDayIn(zone).plus(hour.hours + minute.minutes)
+		val ok = when (every) {
+			CronSchedule.Every.Day -> true
+			CronSchedule.Every.Week -> ((date.dayOfWeek.ordinal + 1) % 7) in days
+			CronSchedule.Every.Month -> date.dayOfMonth == dayOfMonth
+		}
+		if (ok && target > from) return target.toEpochMilliseconds()
+	}
+	return Long.MAX_VALUE
+}
+

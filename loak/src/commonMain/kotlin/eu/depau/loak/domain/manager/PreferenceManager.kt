@@ -90,6 +90,16 @@ class PreferenceManager(
 	/** Off: downloads wait for Wi-Fi (an unmetered network). */
 	var downloadOverCellular by preference(false)
 
+	/**
+	 * Besides [downloadOverCellular]: let downloads also use a roaming connection. Gated behind
+	 * [android.net.NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING]/Network.framework's
+	 * [nw_path_is_expensive]-adjacent flag; no extra permission is needed on either platform.
+	 */
+	var downloadOverRoaming by preference(false)
+
+	/** Global default cron for downloaded playlists that have no per-collection schedule; blank = Off. */
+	var downloadScheduleCron by preference("")
+
 	var nowPlayingToolbarPosition by preference(ToolbarPosition.Bottom)
 	var nowPlayingSongInfo by preference(true)
 	var nowPlayingSliderStyle by preference(NowPlayingSliderStyle.Yoyo)

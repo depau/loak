@@ -23,7 +23,8 @@ import android.net.ConnectivityManager as AndroidConnectivityManager
 
 private data class NetworkStatus(
 	val isOnline: Boolean = false,
-	val isCellular: Boolean = false
+	val isCellular: Boolean = false,
+	val isRoaming: Boolean = false
 ) {
 	companion object {
 		fun fromCaps(
@@ -32,7 +33,9 @@ private data class NetworkStatus(
 			isOnline = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
 				&& caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED),
 			// "cellular" here means "pay for every byte": metered WiFi hotspots count too
-			isCellular = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+			isCellular = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED),
+			// reading link properties' roaming flag needs no permission on current Android
+			isRoaming = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING).not()
 		)
 	}
 }
@@ -83,6 +86,12 @@ actual class ConnectivityManager(
 
 	actual val isCellular = networkStatus
 		.map { it.isCellular }
+		.distinctUntilChanged()
+		.flowOn(dispatcher)
+		.stateIn(scope, started, false)
+
+	actual val isRoaming = networkStatus
+		.map { it.isRoaming }
 		.distinctUntilChanged()
 		.flowOn(dispatcher)
 		.stateIn(scope, started, false)

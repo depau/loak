@@ -8,18 +8,29 @@ import coil3.ImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import eu.depau.loak.data.database.dao.AlbumDao
+import eu.depau.loak.data.database.dao.DownloadCollectionDao
 import eu.depau.loak.data.database.dao.DownloadDao
 import eu.depau.loak.data.database.dao.LyricDao
+import eu.depau.loak.data.database.dao.ManualDownloadDao
+import eu.depau.loak.data.database.dao.PlaylistDao
 import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.entities.AudioFileEntity
+import eu.depau.loak.data.database.entities.DownloadCollectionEntity
+import eu.depau.loak.data.database.entities.DownloadCollectionType
 import eu.depau.loak.data.database.entities.DownloadEntity
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.entities.LyricEntity
+import eu.depau.loak.data.database.entities.ManualDownloadEntity
 import eu.depau.loak.data.database.mappers.toDomainModel
+import eu.depau.loak.data.database.mappers.toEntity
 import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.models.AudioQuality
+import eu.depau.loak.domain.models.CronSchedule
+import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
+import eu.depau.loak.domain.models.nextRun
+import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.domain.repositories.LyricsRepository
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_download_waiting_wifi
@@ -35,6 +46,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,6 +66,8 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.seconds
 import coil3.PlatformContext as CoilPlatformContext
 
@@ -68,8 +82,12 @@ class DownloadManager(
 	private val coilPlatformContext: CoilPlatformContext,
 	private val imageLoader: ImageLoader,
 	private val legacyDao: DownloadDao,
+	private val collectionDao: DownloadCollectionDao,
+	private val manualDao: ManualDownloadDao,
+	private val dbRepository: DbRepository,
 	private val albumDao: AlbumDao,
 	private val songDao: SongDao,
+	private val playlistDao: PlaylistDao,
 	private val lyricsRepository: LyricsRepository,
 	private val lyricDao: LyricDao,
 	private val sessionManager: SessionManager,
@@ -94,15 +112,33 @@ class DownloadManager(
 	private val pinned: StateFlow<List<AudioFileEntity>> =
 		store.pinned.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
+	/** The current server's downloaded collections: albums/artists/playlists pinned, any status. */
+	val collections: StateFlow<List<DownloadCollectionEntity>> =
+		collectionDao.observeAll().stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+	/** Songs the user pinned individually (not via a whole collection), which orphan-unpin keeps. */
+	val manualDownloadedIds: StateFlow<Set<String>> =
+		manualDao.observeIds().map { it.toSet() }.stateIn(scope, SharingStarted.Eagerly, emptySet())
+
+	/** Downloaded songs pinned for an entire library: never orphan-unpinned either. */
+	private val libraryPinned = MutableStateFlow(false)
+
 	/** Whether downloads may use mobile data; else they wait for Wi-Fi (an unmetered network). */
 	val overCellular: StateFlow<Boolean>
 		field = MutableStateFlow(preferenceManager.downloadOverCellular)
 
+	/** Whether downloads may also use a roaming connection (per [preferenceManager.downloadOverRoaming]). */
+	val overRoaming: StateFlow<Boolean>
+		field = MutableStateFlow(preferenceManager.downloadOverRoaming)
+
 	/** Whether queued downloads may run now. */
 	val canRun: StateFlow<Boolean> = combine(
-		connectivityManager.isOnline, connectivityManager.isCellular, overCellular
-	) { online, cellular, overCellular -> online && (overCellular || !cellular) }
-		.stateIn(scope, SharingStarted.Eagerly, false)
+		connectivityManager.isOnline, connectivityManager.isCellular,
+		connectivityManager.isRoaming, overCellular, overRoaming
+	) { online, cellular, roaming, overCellular, overRoaming ->
+		// a metered/roaming connection is usable only when the user allowed it
+		online && ((!cellular && !roaming) || overCellular || (roaming && overRoaming))
+	}.stateIn(scope, SharingStarted.Eagerly, false)
 
 	/** Whether any download is queued, failed ones aside. */
 	val queued: Flow<Boolean> = combine(pinned, failed) { entries, failed ->
@@ -159,8 +195,16 @@ class DownloadManager(
 			} catch (e: Exception) {
 				Logger.e(TAG, "importing old downloads failed", e)
 			}
+			// download declaration, not cache, drives the Downloads screen and orphan-unpin
+			try {
+				reconcileOrphans()
+			} catch (e: Exception) {
+				Logger.e(TAG, "reconciling orphan downloads failed", e)
+			}
 			canRun.collectLatest { if (it) runQueue() }
 		}
+		// scheduled playlist re-syncs, mirroring SyncManager's cadence
+		startScheduledDownloads()
 	}
 
 	/** The downloaded file to play for [songId], if any. */
@@ -171,12 +215,43 @@ class DownloadManager(
 		overCellular.value = allowed
 	}
 
+	fun setOverRoaming(allowed: Boolean) {
+		preferenceManager.downloadOverRoaming = allowed
+		overRoaming.value = allowed
+	}
+
 	fun downloadSong(song: DomainSong) {
-		scope.launch { enqueue(listOf(song)) }
+		scope.launch {
+			manualDao.upsert(ManualDownloadEntity(song.id))
+			enqueue(listOf(song))
+		}
 	}
 
 	suspend fun downloadCollection(collection: DomainSongCollection) {
-		enqueue(collection.songs.filter { it.id !in downloadedSongs.value })
+		downloadCollection(collection, collection.collectionType())
+	}
+
+	/**
+	 * Pins every song of [collection] and records the collection itself as downloaded, so the
+	 * Downloads screen lists it and (for playlists) it can re-sync on [startScheduledDownloads].
+	 * [type] is what gets stored; an album or artist's collection id is its own id.
+	 */
+	suspend fun downloadCollection(collection: DomainSongCollection, type: DownloadCollectionType) {
+		if (!store.available) return
+		collectionDao.upsert(
+			DownloadCollectionEntity(
+				collectionId = collection.id,
+				type = type,
+				// an existing schedule survives a plain re-download
+				scheduleCron = collectionDao.getById(collection.id)?.scheduleCron,
+				scheduleEnabled = collectionDao.getById(collection.id)?.scheduleEnabled ?: false,
+				createdAt = kotlin.time.Clock.System.now().toEpochMilliseconds()
+			)
+		)
+		// a song may already be pinned via another collection or manually; pin() is idempotent
+		val ids = collection.songs.map { it.id }
+		enqueue(collection.songs.filter { it.id !in pinned.value.map { p -> p.songId }.toSet() })
+		scope.launch { reconcileOrphans(keep = ids.toSet()) }
 	}
 
 	fun downloadEntireLibrary(songs: List<DomainSong>) {
@@ -184,12 +259,14 @@ class DownloadManager(
 		scope.launch {
 			val toDownload = songs.filter { it.id !in downloadedSongs.value }
 			libraryTotal.value = toDownload.size
+			libraryPinned.value = toDownload.isNotEmpty()
 			enqueue(toDownload)
 		}
 	}
 
 	fun cancelAllActiveDownloads() {
 		libraryTotal.value = 0
+		libraryPinned.value = false
 		scope.launch {
 			cancel(jobs.value.keys) {
 				store.dropPending(pinned.value.filter { !it.complete }.map { it.songId }.toSet())
@@ -208,13 +285,63 @@ class DownloadManager(
 
 	/** Turns the song back into cache, which eviction frees when over the cache limit. */
 	fun deleteDownload(songId: String) {
-		scope.launch { cancel(listOf(songId)) { store.unpin(listOf(songId)) } }
+		scope.launch {
+			manualDao.delete(songId)
+			cancel(listOf(songId)) { store.unpin(listOf(songId)) }
+		}
 	}
 
+	/** Forgets the collection (and its schedule); its songs become cache again. */
 	fun deleteDownloadedCollection(collection: DomainSongCollection) {
 		val ids = collection.songs.map { it.id }
-		scope.launch { cancel(ids) { store.unpin(ids) } }
+		scope.launch {
+			collectionDao.delete(collection.id)
+			cancel(ids) { store.unpin(ids) }
+			reconcileOrphans(keep = emptySet())
+		}
 	}
+
+	/** Forgets a subscribed collection row but keeps pins (e.g. schedule no longer wanted). */
+	suspend fun removeCollectionRow(collectionId: String) {
+		collectionDao.delete(collectionId)
+	}
+
+	fun setCollectionSchedule(collectionId: String, cron: String?, enabled: Boolean) {
+		scope.launch { setCollectionScheduleSuspend(collectionId, cron, enabled) }
+	}
+
+	private suspend fun setCollectionScheduleSuspend(collectionId: String, cron: String?, enabled: Boolean) {
+		collectionDao.upsert(
+			collectionDao.getById(collectionId)?.copy(scheduleCron = cron, scheduleEnabled = enabled)
+				?: DownloadCollectionEntity(collectionId, DownloadCollectionType.PLAYLIST)
+					.copy(scheduleCron = cron, scheduleEnabled = enabled)
+		)
+	}
+
+	/** Re-fetches a pinned collection's current songs and pins changes; recollects orphans. */
+	fun kickDownload(collectionId: String) {
+		scope.launch {
+			refreshCollection(collectionId)
+			reconcileOrphans()
+		}
+	}
+
+	/** Re-sync every subscribed collection (the Settings "download now"). */
+	fun kickAll() {
+		scope.launch {
+			for (rec in collectionDao.getAll()) {
+				refreshCollection(rec.collectionId)
+				reconcileOrphans()
+			}
+		}
+	}
+
+	/** The whole library is treated as its own "collection" for orphan-unpin. */
+	fun setLibraryPinned() {
+		libraryPinned.value = true
+	}
+
+	fun isLibraryPinned(): Boolean = libraryPinned.value
 
 	suspend fun isDownloaded(songId: String): Boolean = songId in store.downloadedIds()
 
@@ -236,8 +363,11 @@ class DownloadManager(
 
 	fun clearAllDownloads() {
 		libraryTotal.value = 0
+		libraryPinned.value = false
 		scope.launch {
 			cancel(jobs.value.keys) { store.unpin(pinned.value.map { it.songId }.toSet()) }
+			collectionDao.clearAll()
+			manualDao.clearAll()
 			Logger.i(TAG, "cleared all downloads")
 		}
 	}
@@ -445,10 +575,129 @@ class DownloadManager(
 		}
 	}
 
+	/**
+	 * Fetches [collectionId]'s current songs from the server, pins ones that appeared and unpins
+	 * ones that left (keeping those still wanted by another downloaded collection or by hand).
+	 * Best effort on the fetch; pinning is idempotent, so a repeated call just tops things up.
+	 */
+	suspend fun refreshCollection(collectionId: String) {
+		if (!store.available || !sessionManager.isLoggedIn.value) return
+		val current: List<DomainSong> = try {
+			val album = runCatching { sessionManager.api.getAlbum(collectionId) }.getOrNull()
+			if (album != null) {
+				val songs = album.songs.map { it.toEntity() }
+				songDao.updateSongsByAlbumId(album.id, songs)
+				albumDao.insertAlbum(album.toEntity())
+				albumDao.getAlbumById(album.id)?.toDomainModel()?.songs ?: emptyList()
+			} else {
+				dbRepository.syncPlaylistSongs(collectionId).getOrNull()
+				playlistDao.getPlaylistById(collectionId)?.songs.orEmpty().map { it.song.toDomainModel() }
+			}
+		} catch (e: Exception) {
+			if (e is CancellationException) throw e
+			Logger.w(TAG, "couldn't refresh collection $collectionId", e)
+			return
+		}
+		// pin new songs, unpin gone ones (collection-safe)
+		val ids = current.map { it.id }.toSet()
+		enqueue(current.filter { it.id !in pinned.value.map { p -> p.songId }.toSet() })
+		reconcileOrphans(keep = ids, exceptCollection = collectionId)
+	}
+
+	/**
+	 * Songs pinned without any current reason get unpinned: they're not in a downloaded
+	 * collection's current song set, not downloaded by hand and not part of a whole-library
+	 * download. [keep] are ids forced to stay (the caller is downloading them); [exceptCollection]
+	 * skips that collection when computing membership (the refresh already handled it).
+	 * Unpinning just flips the pin: the file stays as evictable cache (see [AudioStore.unpin]).
+	 */
+	suspend fun reconcileOrphans(
+		keep: Set<String> = emptySet(),
+		exceptCollection: String? = null
+	) {
+		if (!store.available || sessionManager.serverKey.value.isEmpty()) return
+		val own = pinned.value.filter { it.server == sessionManager.serverKey.value }
+		if (own.isEmpty()) return
+		val wanted = mutableSetOf<String>()
+		wanted += manualDao.getAllIds().toSet()
+		if (libraryPinned.value) wanted += own.map { it.songId }
+		val subscribed = collectionDao.getAll()
+		for (rec in subscribed) {
+			if (rec.collectionId == exceptCollection) continue
+			val members = collectionMembers(rec)
+			wanted += members
+		}
+		wanted += keep
+		val orphans = own.map { it.songId }.toSet() - wanted
+		if (orphans.isNotEmpty()) {
+			Logger.i(TAG, "unpinning ${orphans.size} orphan downloads")
+			store.unpin(orphans)
+		}
+	}
+
+	/** The song ids a downloaded collection currently contains, resolved per its type. */
+	private suspend fun collectionMembers(rec: DownloadCollectionEntity): Set<String> = try {
+		when (rec.type) {
+			DownloadCollectionType.ALBUM -> albumDao.getAlbumById(rec.collectionId)?.songs.orEmpty()
+				.map { it.songId }.toSet()
+			DownloadCollectionType.ARTIST -> songDao.getSongsByArtistId(rec.collectionId)
+				.map { it.songId }.toSet()
+			DownloadCollectionType.PLAYLIST -> playlistDao.getPlaylistSongIds(rec.collectionId).toSet()
+		}
+	} catch (e: Exception) {
+		if (e is CancellationException) throw e
+		Logger.w(TAG, "couldn't resolve members of ${rec.collectionId}", e)
+		emptySet()
+	}
+
+	/**
+	 * Periodic re-sync of schedules enabled playlists (and albums/artists), mirroring
+	 * SyncManager.startPeriodicSync's cadence. Re-pins current songs, drops ones removed.
+	 */
+	fun startScheduledDownloads() {
+		scope.launch {
+			while (isActive) {
+				sessionManager.isLoggedIn.first { it }
+				connectivityManager.isOnline.first { it }
+				runScheduledCollections()
+				delay(SCHEDULE_POLL)
+			}
+		}
+	}
+
+	private suspend fun runScheduledCollections() {
+		val nowMillis = kotlin.time.Clock.System.now().toEpochMilliseconds()
+		val defaultCron = preferenceManager.downloadScheduleCron.takeIf { it.isNotBlank() }
+		for (rec in collectionDao.getAll()) {
+			val cron = when {
+				rec.scheduleEnabled -> rec.scheduleCron
+				// per-collection switch is off: only a global default keeps it enabled
+				!rec.scheduleEnabled && rec.scheduleCron == null -> defaultCron
+				else -> null
+			} ?: continue
+			val schedule = CronSchedule.parse(cron) ?: continue
+			val anchor = Clock.System.now().let {
+				Instant.fromEpochMilliseconds(rec.lastRunAt.takeIf { it > 0 } ?: rec.createdAt)
+			}
+			if (schedule.nextRun(anchor) <= nowMillis) {
+				refreshCollection(rec.collectionId)
+				collectionDao.upsert(rec.copy(lastRunAt = nowMillis))
+			}
+		}
+	}
+
 	private companion object {
 		const val TAG = "DownloadManager"
 		const val CONCURRENCY = 3
 		const val MAX_ATTEMPTS = 5
 		val RETRY_DELAY = 30.seconds
+		const val SCHEDULE_POLL = 60L * 60L * 1000L // once an hour, like the library sync
 	}
+}
+
+/** Which [DownloadCollectionType] an album/artist/playlist collection is stored as. */
+fun DomainSongCollection.collectionType(): DownloadCollectionType = when (this) {
+	is DomainAlbum -> DownloadCollectionType.ALBUM
+	is eu.depau.loak.domain.models.DomainPlaylist -> DownloadCollectionType.PLAYLIST
+	else -> DownloadCollectionType.ARTIST
 }

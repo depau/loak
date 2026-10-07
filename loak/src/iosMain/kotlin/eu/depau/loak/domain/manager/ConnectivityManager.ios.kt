@@ -30,7 +30,8 @@ import platform.darwin.dispatch_get_main_queue
 
 private data class NetworkStatus(
 	val isOnline: Boolean = false,
-	val isCellular: Boolean = false
+	val isCellular: Boolean = false,
+	val isRoaming: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -54,7 +55,8 @@ actual class ConnectivityManager(
 					// covers personal hotspots, constrained = Low Data Mode
 					isCellular = nw_path_uses_interface_type(path, nw_interface_type_cellular)
 						|| nw_path_is_expensive(path)
-						|| nw_path_is_constrained(path)
+						|| nw_path_is_constrained(path),
+					isRoaming = nw_path_is_expensive(path)
 				)
 			)
 		}
@@ -66,6 +68,12 @@ actual class ConnectivityManager(
 
 	actual val isCellular = networkStatus
 		.map { it.isCellular }
+		.distinctUntilChanged()
+		.flowOn(dispatcher)
+		.stateIn(scope, started, false)
+
+	actual val isRoaming = networkStatus
+		.map { it.isRoaming }
 		.distinctUntilChanged()
 		.flowOn(dispatcher)
 		.stateIn(scope, started, false)
