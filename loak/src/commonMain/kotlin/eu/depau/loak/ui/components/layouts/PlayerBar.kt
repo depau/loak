@@ -2,8 +2,11 @@ package eu.depau.loak.ui.components.layouts
 
 import eu.depau.loak.di.CoverArtId
 import eu.depau.loak.ui.util.escapeToDismiss
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberDraggableState
 import eu.depau.loak.ui.screens.nowPlaying.LocalPlayerSheet
 import eu.depau.loak.ui.screens.nowPlaying.playerPill
@@ -16,6 +19,9 @@ import eu.depau.loak.icons.outlined.VolumeUp
 import eu.depau.loak.generated.resources.action_volume
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Slider
 import androidx.compose.foundation.clickable
@@ -47,6 +53,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -62,6 +71,7 @@ import eu.depau.loak.generated.resources.action_repeat
 import eu.depau.loak.generated.resources.action_shuffle
 import eu.depau.loak.generated.resources.action_star
 import eu.depau.loak.generated.resources.info_not_playing
+import eu.depau.loak.generated.resources.info_progress
 import eu.depau.loak.generated.resources.title_now_playing
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Note
@@ -79,6 +89,8 @@ import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.nowPlaying.viewmodels.NowPlayingViewModel
+import eu.depau.loak.di.LocalMouseInUse
+import eu.depau.loak.ui.theme.ContinuousCapsule
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import eu.depau.loak.util.toHoursMinutesSeconds
 import org.jetbrains.compose.resources.stringResource
@@ -136,24 +148,28 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 	val drag = rememberDraggableState { playerSheet.dragBy(it) }
 	val shape = ContinuousRoundedRectangle(28.dp)
 
-	Surface(
+	Box(
 		modifier = modifier
 			.windowInsetsPadding(WindowInsets.navigationBars)
-			.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
 			.fillMaxWidth()
-			.height(80.dp)
-			// the open player grows out of the bar, following the finger
-			.playerPill(playerSheet, 28.dp, NavigationBarDefaults.containerColor)
-			.draggable(
-				state = drag,
-				orientation = Orientation.Vertical,
-				enabled = interactive,
-				onDragStopped = { velocity -> playerSheet.settle(velocity) }
-			),
-		shape = shape,
-		color = NavigationBarDefaults.containerColor,
-		shadowElevation = 6.dp
 	) {
+		Surface(
+			modifier = Modifier
+				.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+				.fillMaxWidth()
+				.height(80.dp)
+				// the open player grows out of the bar, following the finger
+				.playerPill(playerSheet, 28.dp, NavigationBarDefaults.containerColor)
+				.draggable(
+					state = drag,
+					orientation = Orientation.Vertical,
+					enabled = interactive,
+					onDragStopped = { velocity -> playerSheet.settle(velocity) }
+				),
+			shape = shape,
+			color = NavigationBarDefaults.containerColor,
+			shadowElevation = 6.dp
+		) {
 		Box {
 			Row(
 				modifier = Modifier.fillMaxHeight().padding(start = 12.dp, end = 12.dp),
@@ -307,23 +323,124 @@ fun PlayerBar(modifier: Modifier = Modifier, enabled: Boolean = true) {
 					}
 				}
 			}
-			if (song != null) {
-				Box(
-					Modifier
-						.align(Alignment.BottomStart)
-						.padding(horizontal = 24.dp)
-						.fillMaxWidth()
-						.height(3.dp)
-						.background(MaterialTheme.colorScheme.onSurface.copy(alpha = .12f))
-				) {
-					Box(
-						Modifier
-							.fillMaxWidth(playerState.progress.coerceIn(0f, 1f))
-							.height(3.dp)
-							.background(MaterialTheme.colorScheme.primary)
-					)
+			}
+		}
+
+		PlayerBarBottomStrip(
+			progress = song?.let { playerState.progress },
+			onSeek = player::seek,
+			enabled = interactive,
+			label = stringResource(Res.string.info_progress),
+			modifier = Modifier
+				.align(Alignment.BottomStart)
+				.fillMaxWidth()
+				.height(32.dp)
+		)
+	}
+}
+
+@Composable
+private fun PlayerBarBottomStrip(
+	progress: Float?,
+	onSeek: (Float) -> Unit,
+	enabled: Boolean,
+	label: String,
+	modifier: Modifier = Modifier
+) {
+	Box(modifier) {
+		// Own the visual gap so clicks cannot reach the page behind this floating bar.
+		Box(
+			Modifier
+				.align(Alignment.BottomStart)
+				.fillMaxWidth()
+				.height(16.dp)
+				.pointerInput(Unit) {
+					awaitPointerEventScope {
+						while (true) {
+							awaitPointerEvent().changes.forEach { it.consume() }
+						}
+					}
+				}
+		)
+		if (progress != null) {
+			PlayerBarProgress(
+				progress = progress,
+				onSeek = onSeek,
+				enabled = enabled,
+				label = label,
+				modifier = Modifier
+					.align(Alignment.BottomStart)
+					.padding(horizontal = 40.dp)
+					.fillMaxWidth()
+			)
+		}
+	}
+}
+
+@Composable
+private fun PlayerBarProgress(
+	progress: Float,
+	onSeek: (Float) -> Unit,
+	enabled: Boolean,
+	label: String,
+	modifier: Modifier = Modifier
+) {
+	val mouseInUse = LocalMouseInUse.current
+	val haptics = LocalHapticFeedback.current
+	val hover = remember { MutableInteractionSource() }
+	val hovered by hover.collectIsHoveredAsState()
+	var dragging by remember { mutableStateOf(false) }
+	val trackHeight by animateDpAsState(if (hovered || dragging) 8.dp else 3.dp)
+	val progress = progress.coerceIn(0f, 1f)
+
+	Box(
+		modifier = modifier
+			.height(32.dp)
+			.hoverable(hover, enabled)
+			.semantics {
+				contentDescription = label
+				progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+				if (enabled) setProgress {
+					onSeek(it.coerceIn(0f, 1f))
+					true
 				}
 			}
+			.pointerInput(enabled, mouseInUse) {
+				if (enabled && mouseInUse) detectTapGestures {
+					onSeek((it.x / size.width.toFloat()).coerceIn(0f, 1f))
+				}
+			}
+			.pointerInput(enabled) {
+				if (enabled) detectDragGestures(
+					onDragStart = {
+						dragging = true
+						haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+					},
+					onDragEnd = {
+						dragging = false
+						haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
+					},
+					onDragCancel = { dragging = false }
+				) { change, _ ->
+					onSeek((change.position.x / size.width.toFloat()).coerceIn(0f, 1f))
+					change.consume()
+				}
+			},
+		contentAlignment = Alignment.Center
+	) {
+		Box(
+			Modifier
+				.fillMaxWidth()
+				.height(trackHeight)
+				.clip(ContinuousCapsule)
+				.background(MaterialTheme.colorScheme.onSurface.copy(alpha = .12f))
+		) {
+			Box(
+				Modifier
+					.fillMaxWidth(progress)
+					.fillMaxHeight()
+					.background(MaterialTheme.colorScheme.primary)
+			)
 		}
 	}
 }
