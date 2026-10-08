@@ -18,29 +18,30 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
-import eu.depau.loak.domain.manager.ConnectivityManager
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.domain.models.formatSampleRate
 import eu.depau.loak.shared.MediaPlayerViewModel
 
 @Composable
-fun NowPlayingTechnicalInfoRow(song: DomainSong?) {
-	val preferenceManager = koinInject<PreferenceManager>()
-	val connectivityManager = koinInject<ConnectivityManager>()
+fun NowPlayingTechnicalInfoRow(
+	song: DomainSong?,
+	modifier: Modifier = Modifier,
+	onClick: (() -> Unit)? = null
+) {
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsState()
+	val details = playerState.playbackDetails?.takeIf { it.songId == song?.id }
 
 	val style = MaterialTheme.typography.bodySmall
 	val color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.9f)
 
 	Row(
-		modifier = Modifier
+		modifier = modifier
 			.fillMaxWidth()
 			.padding(horizontal = 16.dp),
 		horizontalArrangement = Arrangement.Center
 	) {
 		Box(contentAlignment = Alignment.Center) {
-
 			Box(
 				modifier = Modifier
 					.matchParentSize()
@@ -53,30 +54,16 @@ fun NowPlayingTechnicalInfoRow(song: DomainSong?) {
 				modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
 				verticalAlignment = Alignment.CenterVertically
 			) {
-				val sampleRateFormatted =
-					(playerState.playbackSampleRate ?: song?.sampleRate)?.let {
-						if (it >= 1000) "${it / 1000.0} kHz" else "$it Hz"
-					} ?: "-- kHz"
+				val format = details?.codec
+					?: song?.fileExtension?.uppercase()
+					?: "--"
 
-				val isCellular = connectivityManager.isCellular.value
-				val requestedBitrate = if (preferenceManager.isAdvancedTranscodingActive) {
-					if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
-				} else {
-					if (isCellular) preferenceManager.streamingQualityCellular.bitrateAndroid else preferenceManager.streamingQualityWifi.bitrateAndroid
-				}
+				val sampleRateFormatted = (details?.sampleRateHz ?: song?.sampleRate)
+					?.let { formatSampleRate(it) }
+					?: "-- kHz"
 
-				val bitrateFormatted = playerState.playbackBitrate?.let { "${it / 1000} kbps" }
-					?: if (requestedBitrate > 0) {
-						"$requestedBitrate kbps"
-					} else {
-						song?.bitRate?.let { "$it kbps" }
-					} ?: "-- kbps"
-
-				val format =
-					playerState.playbackMimeType?.split("/")?.lastOrNull()?.replace("mpeg", "mp3")
-						?.uppercase()
-						?: song?.fileExtension?.uppercase()
-						?: "--"
+				val bitrateFormatted = (details?.bitrateKbps ?: song?.bitRate)?.let { "$it kbps" }
+					?: "-- kbps"
 
 				Text(
 					text = "$format • $sampleRateFormatted • $bitrateFormatted",

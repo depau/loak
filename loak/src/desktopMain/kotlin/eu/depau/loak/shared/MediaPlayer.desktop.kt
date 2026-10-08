@@ -19,6 +19,7 @@ import eu.depau.loak.domain.manager.ScrobblePlayerSource
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
+import eu.depau.loak.domain.models.AudioQuality
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
 import eu.depau.loak.domain.models.DomainSong
@@ -150,6 +151,22 @@ class DesktopMediaPlayerViewModel(
 			maxBitRate = bitrate,
 			format = container?.takeIf { it.isNotBlank() } ?: "mp3"
 		) + "&estimateContentLength=true"
+	}
+
+	override fun requestedQuality(): AudioQuality {
+		val isCellular = connectivityManager.isCellular.value
+		val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
+			if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
+		} else {
+			val quality = if (isCellular) preferenceManager.streamingQualityCellular else preferenceManager.streamingQualityWifi
+			if (quality.bitrateIos > 0) quality.bitrateIos else 320
+		}
+		val container = if (preferenceManager.isAdvancedTranscodingActive) {
+			if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi
+		} else {
+			"mp3"
+		}
+		return AudioQuality.of(container?.takeIf { it.isNotBlank() } ?: "mp3", bitrate)
 	}
 
 	private fun resolveSourceUrl(song: DomainSong): String? =

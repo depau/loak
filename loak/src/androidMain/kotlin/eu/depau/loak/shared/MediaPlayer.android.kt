@@ -103,6 +103,8 @@ import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
+import eu.depau.loak.domain.models.PlaybackDetails
+import eu.depau.loak.domain.models.formatCodecName
 import eu.depau.loak.domain.models.settings.EqualiserMode
 import eu.depau.loak.domain.models.settings.ReplayGainMode
 import eu.depau.loak.domain.repositories.PlayerStateRepository
@@ -961,17 +963,38 @@ class AndroidMediaPlayerViewModel(
 				if (audioGroup.isTrackSelected(i)) {
 					val format = audioGroup.getTrackFormat(i)
 					Logger.i("MediaPlayer", "Active Track Format: $format")
+					val songId = _uiState.value.currentSong?.id ?: return
 					_uiState.update { state ->
+						val current = state.playbackDetails?.takeIf { it.songId == songId }
+							?: PlaybackDetails(songId = songId)
 						state.copy(
-							playbackBitrate = format.bitrate.takeIf { it > 0 },
-							playbackSampleRate = format.sampleRate.takeIf { it > 0 },
-							playbackMimeType = format.sampleMimeType
+							playbackDetails = current.copy(
+								codec = formatCodecName(format.sampleMimeType, format.containerMimeType) ?: current.codec,
+								bitrateKbps = format.bitrate.takeIf { it > 0 }?.let { it / 1000 } ?: current.bitrateKbps,
+								sampleRateHz = format.sampleRate.takeIf { it > 0 } ?: current.sampleRateHz,
+								channelCount = format.channelCount.takeIf { it > 0 } ?: current.channelCount
+							)
 						)
 					}
 					break
 				}
 			}
 		}
+	}
+
+	override fun requestedQuality(): AudioQuality {
+		val isCellular = connectivityManager.isCellular.value
+		val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
+			if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
+		} else {
+			if (isCellular) preferenceManager.streamingQualityCellular.bitrateAndroid else preferenceManager.streamingQualityWifi.bitrateAndroid
+		}
+		val container = if (preferenceManager.isAdvancedTranscodingActive) {
+			if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi
+		} else {
+			if (isCellular) preferenceManager.streamingQualityCellular.containerAndroid else preferenceManager.streamingQualityWifi.containerAndroid
+		}
+		return AudioQuality.of(container, bitrate)
 	}
 
 

@@ -1,8 +1,10 @@
 package eu.depau.loak.ui.core
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
+import eu.depau.loak.domain.models.PlaybackDetails
 
 @Serializable
 data class PlayerUiState(
@@ -16,9 +18,8 @@ data class PlayerUiState(
 	val progress: Float = 0f,
 	val isLoading: Boolean = false,
 	val playbackSpeed: Float = 1.0f,
-	val playbackBitrate: Int? = null,
-	val playbackSampleRate: Int? = null,
-	val playbackMimeType: String? = null,
+	@Transient
+	val playbackDetails: PlaybackDetails? = null,
 	val instantMix: InstantMix? = null
 )
 

@@ -37,6 +37,10 @@ import eu.depau.loak.domain.models.DomainRadio
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
+import eu.depau.loak.domain.models.AudioQuality
+import eu.depau.loak.domain.models.PlaybackDetails
+import eu.depau.loak.domain.models.PlaybackSource
+import eu.depau.loak.domain.models.formatCodecName
 import eu.depau.loak.domain.repositories.PlayerStateRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.InstantMix
@@ -71,7 +75,7 @@ abstract class MediaPlayerViewModel(
 ) : ViewModel(), KoinComponent {
 	/** Records the playlists and albums started, for Home. */
 	protected val playLog: PlayLogManager by inject()
-	private val audioStore: AudioStore by inject()
+	protected val audioStore: AudioStore by inject()
 	private val volumeProvider: VolumeProvider by inject()
 
 	/** Offline, only songs in the audio store (downloaded or cached) can play. */
@@ -126,6 +130,7 @@ abstract class MediaPlayerViewModel(
 
 	init {
 		observeVolumeMuted()
+		observeCurrentSongDelivery()
 		viewModelScope.launch {
 			restoreState()
 			observeAndSaveState()
@@ -158,6 +163,73 @@ abstract class MediaPlayerViewModel(
 					snackBarManager.notify(Res.string.notice_volume_muted)
 				}
 		}
+	}
+
+	private fun observeCurrentSongDelivery() {
+		viewModelScope.launch {
+			uiState
+				.map { it.currentSong }
+				.distinctUntilChanged { old, new -> old?.id == new?.id }
+				.collect { song ->
+					updateDeliveryDetails(song)
+				}
+		}
+	}
+
+	protected fun updateDeliveryDetails(song: DomainSong?) {
+		if (song == null) {
+			_uiState.update { it.copy(playbackDetails = null) }
+			return
+		}
+		viewModelScope.launch {
+			val wanted = requestedQuality()
+			val entry = audioStore.playable(song.id, wanted, connectivityManager.isOnline.value)
+			val (source, quality, isTranscoded) = if (entry != null) {
+				val q = AudioQuality.parse(entry.quality)
+				Triple(
+					if (entry.pinned) PlaybackSource.Download else PlaybackSource.Cache,
+					q,
+					q != AudioQuality.Raw
+				)
+			} else {
+				Triple(
+					PlaybackSource.Stream,
+					wanted,
+					wanted != AudioQuality.Raw
+				)
+			}
+			_uiState.update { state ->
+				if (state.currentSong?.id != song.id) return@update state
+				val existing = state.playbackDetails?.takeIf { it.songId == song.id }
+				val details = (existing ?: PlaybackDetails(songId = song.id)).copy(
+					source = source,
+					codec = existing?.codec ?: formatCodecName(null, quality.format ?: song.fileExtension),
+					bitrateKbps = existing?.bitrateKbps ?: (quality.kbps.takeIf { it > 0 } ?: song.bitRate),
+					sampleRateHz = existing?.sampleRateHz ?: song.sampleRate,
+					channelCount = existing?.channelCount ?: song.audioChannelCount,
+					bitDepth = existing?.bitDepth ?: song.bitDepth,
+					isTranscoded = isTranscoded
+				)
+				state.copy(playbackDetails = details)
+			}
+		}
+	}
+
+	protected open fun requestedQuality(): AudioQuality {
+		val isCellular = connectivityManager.isCellular.value
+		val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
+			if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
+		} else {
+			val q = if (isCellular) preferenceManager.streamingQualityCellular else preferenceManager.streamingQualityWifi
+			q.bitrateIos
+		}
+		val container = if (preferenceManager.isAdvancedTranscodingActive) {
+			if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi
+		} else {
+			val q = if (isCellular) preferenceManager.streamingQualityCellular else preferenceManager.streamingQualityWifi
+			q.containerIos
+		}
+		return AudioQuality.of(container, bitrate)
 	}
 
 	/** Inserts [songs] at [index] of the queue, keeping the current song playing. */
