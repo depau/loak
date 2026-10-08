@@ -204,7 +204,9 @@ fun StarredScreenContent(
 							modifier = Modifier.weight(1f),
 							song = song,
 							onClick = { onPlaySong(index) },
-							download = download
+							download = download,
+							// sideways-scrolling: a swipe scrolls the list
+							swipeable = false
 						)
 					}
 				}

@@ -340,7 +340,9 @@ fun ArtistDetailScreen(
 																	player.togglePlay()
 																}
 															},
-															download = download
+															download = download,
+															// sideways-scrolling: a swipe scrolls the list
+															swipeable = false
 														)
 													}
 												}

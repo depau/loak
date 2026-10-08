@@ -1,12 +1,9 @@
 package eu.depau.loak.ui.screens.collection.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,26 +13,18 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.action_add_to_queue
-import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.info_download_failed
 import eu.depau.loak.generated.resources.info_downloaded
 import eu.depau.loak.generated.resources.info_explicit
@@ -55,8 +44,6 @@ import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.Lock
 import eu.depau.loak.icons.outlined.Offline
-import eu.depau.loak.icons.outlined.Queue
-import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.MarqueeText
@@ -78,6 +65,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.components.sheets.SongActionsSheet
+import eu.depau.loak.ui.components.common.SongSwipeBox
 
 @Composable
 fun CollectionDetailScreenSongRow(
@@ -114,56 +102,15 @@ fun CollectionDetailScreenSongRow(
 		&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
 	val maybeUnavailable = !LocalAvailability.current.song(song.id)
 
-	val dismissState = rememberSwipeToDismissBoxState()
-	val scope = rememberCoroutineScope()
-
 	val backStack = LocalNavStack.current
 
-	SwipeToDismissBox(
+	SongSwipeBox(
+		onAddToQueue = onAddToQueue,
+		onPlayNext = onPlayNext,
 		modifier = Modifier.padding(horizontal = 16.dp, vertical = 1.5.dp),
-		state = dismissState,
-		gesturesEnabled = !isExplicit,
-		onDismiss = {
-			if (it == SwipeToDismissBoxValue.StartToEnd) {
-				onAddToQueue()
-			}
-			if (it == SwipeToDismissBoxValue.EndToStart) {
-				onPlayNext()
-			}
-			scope.launch { dismissState.reset() }
-		},
-		backgroundContent = {
-			Box(
-				modifier = Modifier
-					.fillMaxSize()
-					.clip(MaterialTheme.shapes.largeIncreased)
-					.background(MaterialTheme.colorScheme.primaryContainer)
-					.padding(horizontal = 20.dp)
-			) {
-				when (dismissState.dismissDirection) {
-					SwipeToDismissBoxValue.StartToEnd -> {
-						Icon(
-							imageVector = Icons.Outlined.Queue,
-							contentDescription = stringResource(Res.string.action_add_to_queue),
-							tint = MaterialTheme.colorScheme.onPrimaryContainer,
-							modifier = Modifier.align(Alignment.CenterStart)
-						)
-					}
-
-					SwipeToDismissBoxValue.EndToStart -> {
-						Icon(
-							imageVector = Icons.Outlined.QueuePlayNext,
-							contentDescription = stringResource(Res.string.action_play_next),
-							tint = MaterialTheme.colorScheme.onPrimaryContainer,
-							modifier = Modifier.align(Alignment.CenterEnd)
-						)
-					}
-
-					else -> {}
-				}
-			}
-		}
-	) {
+		enabled = !isExplicit,
+		shape = MaterialTheme.shapes.largeIncreased
+	) { direction ->
 		SegmentedListItem(
 			modifier = Modifier.unavailable(maybeUnavailable),
 			enabled = !isExplicit,
@@ -173,7 +120,7 @@ fun CollectionDetailScreenSongRow(
 			shapes = SegmentedListItemDefaults.segmentedShapes(
 				index = index,
 				count = count,
-				dismissDirection = dismissState.dismissDirection
+				dismissDirection = direction
 			),
 			leadingContent = {
 				if (isPlaylist)

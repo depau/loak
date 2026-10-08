@@ -53,20 +53,39 @@ import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.util.InlineExplicitIcon
 import eu.depau.loak.ui.util.buildSongInfoString
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import kotlinx.coroutines.launch
+import eu.depau.loak.generated.resources.action_add_to_queue
+import eu.depau.loak.generated.resources.action_play_next
+import eu.depau.loak.icons.outlined.Queue
+import eu.depau.loak.icons.outlined.QueuePlayNext
 
-/** A song in a list: tap plays it ([onClick]), long-press opens its [SongActionsSheet]. */
+/**
+ * A song in a list: tap plays it ([onClick]), long-press opens its [SongActionsSheet], and
+ * swiping it ([SongSwipeBox]) queues it, unless the list scrolls sideways ([swipeable] false).
+ */
 @Composable
 fun SongRow(
 	song: DomainSong,
 	onClick: () -> Unit,
 	modifier: Modifier = Modifier,
-	download: DownloadEntity? = null
+	download: DownloadEntity? = null,
+	swipeable: Boolean = true
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 
-	val backStack = LocalNavStack.current
 	var sheetOpen by rememberSaveable { mutableStateOf(false) }
 	val onLongClick = { sheetOpen = true }
 	val songRepository = koinInject<SongRepository>()
@@ -77,6 +96,43 @@ fun SongRow(
 	val isExplicit = song.explicitStatus == DomainExplicitStatus.Explicit
 		&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
 	val maybeUnavailable = !LocalAvailability.current.song(song.id)
+
+	if (swipeable) SongSwipeBox(
+		onAddToQueue = { player.addToQueueSingle(song) },
+		onPlayNext = { player.playNextSingle(song) },
+		modifier = modifier,
+		enabled = !isExplicit
+	) {
+		SongRowContent(
+			song, onClick, Modifier.fillMaxWidth(), download, starredState, isCurrentTrack,
+			isExplicit, maybeUnavailable, onLongClick
+		)
+	} else {
+		SongRowContent(
+			song, onClick, modifier, download, starredState, isCurrentTrack, isExplicit,
+			maybeUnavailable, onLongClick
+		)
+	}
+
+	SongActionsSheet(song = song, open = sheetOpen, onDismissRequest = { sheetOpen = false })
+}
+
+@Composable
+private fun SongRowContent(
+	song: DomainSong,
+	onClick: () -> Unit,
+	modifier: Modifier,
+	download: DownloadEntity?,
+	starredState: Boolean,
+	isCurrentTrack: Boolean,
+	isExplicit: Boolean,
+	maybeUnavailable: Boolean,
+	onLongClick: () -> Unit
+) {
+	val preferenceManager = koinInject<PreferenceManager>()
+	val player = koinInject<MediaPlayerViewModel>()
+	val playerState by player.uiState.collectAsStateWithLifecycle()
+	val backStack = LocalNavStack.current
 
 	ListItem(
 		modifier = modifier
@@ -186,6 +242,59 @@ fun SongRow(
 			}
 		}
 	)
+}
 
-	SongActionsSheet(song = song, open = sheetOpen, onDismissRequest = { sheetOpen = false })
+/**
+ * A song row's swipe actions: towards the end adds the song to the queue, towards the start
+ * plays it next. The row springs back after either; [content] gets the swipe's direction.
+ */
+@Composable
+fun SongSwipeBox(
+	onAddToQueue: () -> Unit,
+	onPlayNext: () -> Unit,
+	modifier: Modifier = Modifier,
+	enabled: Boolean = true,
+	shape: Shape = MaterialTheme.shapes.extraSmall,
+	content: @Composable RowScope.(direction: SwipeToDismissBoxValue) -> Unit
+) {
+	val dismissState = rememberSwipeToDismissBoxState()
+	val scope = rememberCoroutineScope()
+	SwipeToDismissBox(
+		modifier = modifier,
+		state = dismissState,
+		gesturesEnabled = enabled,
+		onDismiss = {
+			if (it == SwipeToDismissBoxValue.StartToEnd) onAddToQueue()
+			if (it == SwipeToDismissBoxValue.EndToStart) onPlayNext()
+			scope.launch { dismissState.reset() }
+		},
+		backgroundContent = {
+			Box(
+				modifier = Modifier
+					.fillMaxSize()
+					.clip(shape)
+					.background(MaterialTheme.colorScheme.primaryContainer)
+					.padding(horizontal = 20.dp)
+			) {
+				when (dismissState.dismissDirection) {
+					SwipeToDismissBoxValue.StartToEnd -> Icon(
+						imageVector = Icons.Outlined.Queue,
+						contentDescription = stringResource(Res.string.action_add_to_queue),
+						tint = MaterialTheme.colorScheme.onPrimaryContainer,
+						modifier = Modifier.align(Alignment.CenterStart)
+					)
+
+					SwipeToDismissBoxValue.EndToStart -> Icon(
+						imageVector = Icons.Outlined.QueuePlayNext,
+						contentDescription = stringResource(Res.string.action_play_next),
+						tint = MaterialTheme.colorScheme.onPrimaryContainer,
+						modifier = Modifier.align(Alignment.CenterEnd)
+					)
+
+					else -> {}
+				}
+			}
+		},
+		content = { content(dismissState.dismissDirection) }
+	)
 }

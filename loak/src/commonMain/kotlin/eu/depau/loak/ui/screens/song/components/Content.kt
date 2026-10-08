@@ -14,23 +14,21 @@ import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.common.libraryEmptyLabel
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.util.loakAnimateItem
+import eu.depau.loak.ui.components.common.SongRow
+import androidx.compose.foundation.layout.fillMaxWidth
 
 fun LazyListScope.songListScreenContent(
 	state: UiState<ImmutableList<DomainSong>>,
 	allDownloads: List<DownloadEntity>,
-	onPlayNext: (DomainSong) -> Unit,
-	onAddToQueue: (DomainSong) -> Unit,
 	onPlaySong: (DomainSong) -> Unit
 ) {
 	val data = state.data.orEmpty()
 	if (data.isNotEmpty()) {
 		items(data) { song ->
 			val download = allDownloads.find { it.songId == song.id }
-			SongListScreenItem(
-				modifier = loakAnimateItem(),
+			SongRow(
+				modifier = loakAnimateItem().fillMaxWidth(),
 				song = song,
-				onPlayNext = { onPlayNext(song) },
-				onAddToQueue = { onAddToQueue(song) },
 				onClick = { onPlaySong(song) },
 				download = download
 			)

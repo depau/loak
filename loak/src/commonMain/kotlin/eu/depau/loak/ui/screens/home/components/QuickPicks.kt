@@ -63,7 +63,9 @@ fun SongColumns(
 						modifier = Modifier.width(width),
 						song = song,
 						onClick = { onPlay(index) },
-						download = allDownloads.find { it.songId == song.id }
+						download = allDownloads.find { it.songId == song.id },
+						// sideways-scrolling: a swipe scrolls the list
+						swipeable = false
 					)
 				}
 			}

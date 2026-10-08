@@ -136,12 +136,6 @@ fun SongListScreen(
 				songListScreenContent(
 					state = songsState,
 					allDownloads = allDownloads,
-					onPlayNext = { song ->
-						player.playNextSingle(song)
-					},
-					onAddToQueue = { song ->
-						player.addToQueueSingle(song)
-					},
 					onPlaySong = { song ->
 						player.playNow(song)
 					}

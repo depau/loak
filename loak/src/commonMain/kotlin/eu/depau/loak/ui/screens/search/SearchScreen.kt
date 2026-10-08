@@ -16,11 +16,9 @@ import androidx.compose.material3.ListItemDefaults
 import eu.depau.loak.icons.outlined.ChevronForward
 import eu.depau.loak.icons.filled.Sparkle
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,11 +35,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,17 +46,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_from_history
 import eu.depau.loak.generated.resources.action_search_history
-import eu.depau.loak.generated.resources.info_explicit
 import eu.depau.loak.generated.resources.info_no_search_results
-import eu.depau.loak.generated.resources.info_not_available_offline
 import eu.depau.loak.generated.resources.title_albums
 import eu.depau.loak.generated.resources.title_all
 import eu.depau.loak.generated.resources.title_artists
@@ -79,33 +70,23 @@ import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.domain.models.DomainArtistListType
-import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
-import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
 import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.History
-import eu.depau.loak.icons.outlined.Lock
 import eu.depau.loak.icons.outlined.NoSearchResults
-import eu.depau.loak.icons.outlined.Offline
-import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.common.CoverArt
-import eu.depau.loak.ui.components.common.LocalAvailability
-import eu.depau.loak.ui.components.common.playOrExplain
-import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.ui.components.common.ErrorBox
-import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.layouts.ArtGrid
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.artGridPlaceholder
 import eu.depau.loak.ui.components.layouts.horizontalSection
-import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
 import eu.depau.loak.ui.navigation.Screen
@@ -124,13 +105,12 @@ import kotlinx.serialization.Serializable
 import eu.depau.loak.ui.screens.search.components.SearchScreenChips
 import eu.depau.loak.ui.screens.search.components.SearchScreenTopBar
 import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
-import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.ui.viewmodel.RootViewModel
 import eu.depau.loak.ui.util.loakAnimateItem
-import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.layout.add
 import eu.depau.loak.ui.util.windowControlsInsets
 import eu.depau.loak.ui.util.windowDragArea
+import eu.depau.loak.ui.components.common.SongRow
 
 @Serializable
 enum class SearchCategory(val res: StringResource) {
@@ -293,99 +273,11 @@ fun SearchScreen(
 									songs.take(10).size,
 									span = { GridItemSpan(maxLineSpan) }) { index ->
 									val song = songs[index]
-									val isExplicit = song.explicitStatus == DomainExplicitStatus.Explicit
-										&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
-									val maybeUnavailable = !LocalAvailability.current.song(song.id)
-
-									val dismissState = rememberSwipeToDismissBoxState()
-									var sheetOpen by rememberSaveable { mutableStateOf(false) }
-
-									LaunchedEffect(dismissState.currentValue) {
-										if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-											player.playNextSingle(song)
-											dismissState.snapTo(SwipeToDismissBoxValue.Settled)
-										}
-									}
-
-									SwipeToDismissBox(
-										state = dismissState,
-										enableDismissFromStartToEnd = false,
-										enableDismissFromEndToStart = true,
-										backgroundContent = {
-											val backgroundColor by animateColorAsState(
-												targetValue = when (dismissState.targetValue) {
-													SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.primaryContainer
-													else -> Color.Transparent
-												}
-											)
-											val iconColor by animateColorAsState(
-												targetValue = when (dismissState.targetValue) {
-													SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onPrimaryContainer
-													else -> MaterialTheme.colorScheme.onSurfaceVariant
-												}
-											)
-
-											Box(
-												modifier = Modifier
-													.fillMaxSize()
-													.background(color = backgroundColor)
-													.padding(horizontal = 20.dp),
-												contentAlignment = Alignment.CenterEnd
-											) {
-												Icon(
-												imageVector = Icons.Outlined.QueuePlayNext,
-												contentDescription = stringResource(Res.string.action_play_next),
-													tint = iconColor
-												)
-											}
-										}
-									) {
-										ListItem(
-											modifier = Modifier
-												.background(MaterialTheme.colorScheme.surface)
-												.unavailable(maybeUnavailable)
-												.onSecondaryClick { sheetOpen = true },
-											onClick = playOrExplain(song.id) { player.playNow(song) },
-											onLongClick = { sheetOpen = true },
-											content = { Text(song.title) },
-											supportingContent = {
-												MarqueeText(
-													buildSongInfoString(
-														song = song,
-														onClickArtist = { backStack.add(Screen.ArtistDetail(it)) }
-													)
-												)
-											},
-											leadingContent = {
-												CoverArt(
-													coverArtId = song.coverArtId,
-													modifier = Modifier.size(50.dp),
-													shape = preferenceManager.coverArtShape.decreasedShape
-												)
-											},
-											trailingContent = {
-												if (isExplicit) {
-													Icon(
-														Icons.Outlined.Lock,
-														stringResource(Res.string.info_explicit),
-														modifier = Modifier.size(20.dp)
-													)
-												}
-												if (maybeUnavailable) {
-													Icon(
-														Icons.Outlined.Offline,
-														stringResource(Res.string.info_not_available_offline),
-														modifier = Modifier.size(20.dp)
-													)
-												}
-											}
-										)
-										SongActionsSheet(
-											song = song,
-											open = sheetOpen,
-											onDismissRequest = { sheetOpen = false }
-										)
-									}
+									SongRow(
+										song = song,
+										onClick = { player.playNow(song) },
+										modifier = Modifier.fillMaxWidth()
+									)
 								}
 							}
 
