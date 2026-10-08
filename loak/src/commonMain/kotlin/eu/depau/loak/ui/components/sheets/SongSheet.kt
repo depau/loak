@@ -340,17 +340,6 @@ fun SongSheet(
 							enabled = playable
 						)
 					},
-					onAddToPlaylist?.let { addToPlaylist ->
-						SheetAction(
-							stringResource(
-								if (collection != null && collection !is DomainAlbum)
-									Res.string.action_add_to_another_playlist
-								else Res.string.action_add_to_playlist
-							),
-							Icons.Outlined.PlaylistAdd,
-							{ addToPlaylist(); onDismissRequest() }
-						)
-					},
 					if (starred != null && onSetStarred != null) SheetAction(
 						stringResource(if (starred) Res.string.action_remove_star else Res.string.action_star),
 						if (starred) Icons.Filled.Star else Icons.Outlined.Star,
@@ -393,6 +382,27 @@ fun SongSheet(
 						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
 						onClick = {
 							onRemoveFromQueue()
+							onDismissRequest()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				if (onAddToPlaylist != null) {
+					ListItem(
+						content = {
+							Text(
+								stringResource(
+									if (collection != null && collection !is DomainAlbum)
+										Res.string.action_add_to_another_playlist
+									else Res.string.action_add_to_playlist
+								)
+							)
+						},
+						leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
+						onClick = {
+							onAddToPlaylist()
 							onDismissRequest()
 						},
 						colors = colors,

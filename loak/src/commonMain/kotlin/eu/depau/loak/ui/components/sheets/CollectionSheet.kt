@@ -206,14 +206,6 @@ fun CollectionSheet(
 						enabled = hasSongs && playable
 					)
 				},
-				onAddAllToPlaylist?.let { addToPlaylist ->
-					SheetAction(
-						stringResource(Res.string.action_add_to_playlist),
-						Icons.Outlined.PlaylistAdd,
-						{ addToPlaylist(); onDismissRequest() },
-						enabled = hasSongs
-					)
-				},
 				if (starred != null && onSetStarred != null) SheetAction(
 					stringResource(if (starred) Res.string.action_remove_star else Res.string.action_star),
 					if (starred) Icons.Filled.Star else Icons.Outlined.Star,
@@ -238,6 +230,20 @@ fun CollectionSheet(
 		)
 
 		Column(Modifier.verticalScroll(rememberScrollState())) {
+			if (onAddAllToPlaylist != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_add_to_playlist)) },
+					leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
+					onClick = {
+						onAddAllToPlaylist()
+						onDismissRequest()
+					},
+					enabled = hasSongs,
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
 			// getSimilarSongs takes album ids, not playlist ones
 			if (collection is DomainAlbum) {
 				ListItem(

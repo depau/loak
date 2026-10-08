@@ -130,13 +130,6 @@ fun ArtistSheet(
 						enabled = playable
 					)
 				},
-				onAddAllToPlaylist?.let { addToPlaylist ->
-					SheetAction(
-						stringResource(Res.string.action_add_to_playlist),
-						Icons.Outlined.PlaylistAdd,
-						{ addToPlaylist(); onDismissRequest() }
-					)
-				},
 				if (starred != null && onSetStarred != null) SheetAction(
 					stringResource(if (starred) Res.string.action_remove_star else Res.string.action_star),
 					if (starred) Icons.Filled.Star else Icons.Outlined.Star,
@@ -154,6 +147,19 @@ fun ArtistSheet(
 		)
 
 		Column(Modifier.verticalScroll(rememberScrollState())) {
+			if (onAddAllToPlaylist != null) {
+				ListItem(
+					content = { Text(stringResource(Res.string.action_add_to_playlist)) },
+					leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
+					onClick = {
+						onAddAllToPlaylist()
+						onDismissRequest()
+					},
+					colors = colors,
+					contentPadding = contentPadding
+				)
+			}
+
 			ListItem(
 				content = { Text(stringResource(Res.string.action_instant_mix)) },
 				leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
