@@ -26,6 +26,12 @@ import platform.Network.nw_path_monitor_set_update_handler
 import platform.Network.nw_path_monitor_start
 import platform.Network.nw_path_status_satisfied
 import platform.Network.nw_path_uses_interface_type
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
+import platform.UIKit.UIDevice
+import platform.UIKit.UIDeviceBatteryStateCharging
+import platform.UIKit.UIDeviceBatteryStateFull
+import platform.UIKit.UIDeviceBatteryStateDidChangeNotification
 import platform.darwin.dispatch_get_main_queue
 
 private data class NetworkStatus(
@@ -33,6 +39,10 @@ private data class NetworkStatus(
 	val isCellular: Boolean = false,
 	val isRoaming: Boolean = false
 )
+
+/** True while the device is plugged in (charging or full). */
+private fun chargingState(uid: UIDevice = UIDevice.currentDevice): Boolean =
+	uid.batteryState == UIDeviceBatteryStateCharging || uid.batteryState == UIDeviceBatteryStateFull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 actual class ConnectivityManager(
@@ -77,6 +87,26 @@ actual class ConnectivityManager(
 		.distinctUntilChanged()
 		.flowOn(dispatcher)
 		.stateIn(scope, started, false)
+
+	// charge state via UIDevice; enabling battery monitoring is harmless and gives us the
+	// current value synchronously after start.
+	actual val isCharging = callbackFlow {
+		val uid = UIDevice.currentDevice
+		uid.batteryMonitoringEnabled = true
+		val observer = NSNotificationCenter.defaultCenter.addObserverForName(
+			name = UIDeviceBatteryStateDidChangeNotification,
+			`object` = uid,
+			queue = NSOperationQueue.mainQueue
+		) { trySend(chargingState(uid)) }
+		trySend(chargingState(uid))
+		awaitClose {
+			NSNotificationCenter.defaultCenter.removeObserver(observer)
+			uid.batteryMonitoringEnabled = false
+		}
+	}
+		.flowOn(dispatcher)
+		.distinctUntilChanged()
+		.stateIn(scope, started, chargingState(UIDevice.currentDevice))
 
 	actual val isOnline = combine(
 		networkStatus,

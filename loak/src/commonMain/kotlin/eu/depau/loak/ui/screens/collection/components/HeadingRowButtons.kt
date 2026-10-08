@@ -61,12 +61,10 @@ import androidx.compose.ui.unit.sp
 import eu.depau.loak.ui.theme.ContinuousCapsule
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.action_cancel_schedule
 import eu.depau.loak.generated.resources.action_download
+import eu.depau.loak.generated.resources.action_download_now
 import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.action_play
-import eu.depau.loak.generated.resources.action_schedule
-import eu.depau.loak.generated.resources.action_scheduled
 import eu.depau.loak.generated.resources.action_shuffle
 import eu.depau.loak.generated.resources.info_download_failed
 import eu.depau.loak.generated.resources.info_downloaded
@@ -77,8 +75,6 @@ import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.SnackBarManager
-import eu.depau.loak.domain.models.CronSchedule
-import eu.depau.loak.domain.models.describe
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
@@ -89,11 +85,9 @@ import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.Refresh
-import eu.depau.loak.icons.outlined.Schedule
 import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.LocalAvailability
-import eu.depau.loak.ui.components.sheets.ScheduleSheet
 import eu.depau.loak.ui.theme.defaultFont
 
 @Composable
@@ -112,7 +106,6 @@ fun CollectionDetailScreenHeadingRowButtons(
 	val collections by downloadManager.collections.collectAsState(initial = emptyList())
 	val allDownloads by downloadManager.allDownloads.collectAsState(initial = emptyList())
 	val rec = collections.find { it.collectionId == collection.id }
-	var showSchedule by remember { mutableStateOf(false) }
 
 	// per-song status of this collection, derived once from the live download stream, so the
 	// heading shows real progress instead of the old all-or-nothing 4-state readout
@@ -288,36 +281,13 @@ fun CollectionDetailScreenHeadingRowButtons(
 					color = MaterialTheme.colorScheme.onSurfaceVariant
 				)
 			}
-		} else if (rec != null && (rec.scheduleEnabled && rec.scheduleCron != null)) {
-			// done + a schedule is on: surface it instead of a bare checkmark
-			AssistChip(
-				onClick = { showSchedule = true },
-				label = {
-					Text(
-						CronSchedule.parse(rec.scheduleCron)?.describe()
-							?: stringResource(Res.string.action_scheduled),
-						maxLines = 1
-					)
-				},
-				leadingIcon = { Icon(Icons.Outlined.Schedule, null, Modifier.size(16.dp)) }
-			)
 		} else if (rec != null) {
 			AssistChip(
-				onClick = { showSchedule = true },
-				label = { Text(stringResource(Res.string.action_schedule), maxLines = 1) },
-				leadingIcon = { Icon(Icons.Outlined.Schedule, null, Modifier.size(16.dp)) }
+				onClick = { downloadManager.kickDownload(collection.id) },
+				label = { Text(stringResource(Res.string.action_download_now), maxLines = 1) },
+				leadingIcon = { Icon(Icons.Outlined.Refresh, null, Modifier.size(16.dp)) }
 			)
 		}
-		if (showSchedule) ScheduleSheet(
-			initialCron = rec?.scheduleCron,
-			initialEnabled = rec?.scheduleEnabled == true,
-			onDismissRequest = { showSchedule = false },
-			onSave = { cron, enabled ->
-				downloadManager.setCollectionSchedule(collection.id, cron, enabled)
-				showSchedule = false
-			},
-			onKick = { downloadManager.kickDownload(collection.id) }
-		)
 	}
 }
 

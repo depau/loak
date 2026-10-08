@@ -25,11 +25,9 @@ import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.data.database.mappers.toEntity
 import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.models.AudioQuality
-import eu.depau.loak.domain.models.CronSchedule
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
-import eu.depau.loak.domain.models.nextRun
 import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.domain.repositories.LyricsRepository
 import eu.depau.loak.generated.resources.Res
@@ -131,13 +129,23 @@ class DownloadManager(
 	val overRoaming: StateFlow<Boolean>
 		field = MutableStateFlow(preferenceManager.downloadOverRoaming)
 
+	/** Whether downloads may only run while charging (per [preferenceManager.downloadOnlyWhileCharging]). */
+	val whileCharging: StateFlow<Boolean>
+		field = MutableStateFlow(preferenceManager.downloadOnlyWhileCharging)
+
 	/** Whether queued downloads may run now. */
 	val canRun: StateFlow<Boolean> = combine(
 		connectivityManager.isOnline, connectivityManager.isCellular,
-		connectivityManager.isRoaming, overCellular, overRoaming
-	) { online, cellular, roaming, overCellular, overRoaming ->
-		// a metered/roaming connection is usable only when the user allowed it
-		online && ((!cellular && !roaming) || overCellular || (roaming && overRoaming))
+		connectivityManager.isRoaming, connectivityManager.isCharging,
+		overCellular, overRoaming, whileCharging
+	) { states: Array<Boolean> ->
+		// a metered/roaming connection is usable only when the user allowed it;
+		// same for a charger when the user asked for one
+		val online = states[0]; val cellular = states[1]; val roaming = states[2]
+		val charging = states[3]; val overCellular = states[4]
+		val overRoaming = states[5]; val whileCharging = states[6]
+		online && ((!cellular && !roaming) || overCellular || (roaming && overRoaming)) &&
+			(!whileCharging || charging)
 	}.stateIn(scope, SharingStarted.Eagerly, false)
 
 	/** Whether any download is queued, failed ones aside. */
@@ -203,8 +211,6 @@ class DownloadManager(
 			}
 			canRun.collectLatest { if (it) runQueue() }
 		}
-		// scheduled playlist re-syncs, mirroring SyncManager's cadence
-		startScheduledDownloads()
 	}
 
 	/** The downloaded file to play for [songId], if any. */
@@ -220,6 +226,11 @@ class DownloadManager(
 		overRoaming.value = allowed
 	}
 
+	fun setWhileCharging(enabled: Boolean) {
+		preferenceManager.downloadOnlyWhileCharging = enabled
+		whileCharging.value = enabled
+	}
+
 	fun downloadSong(song: DomainSong) {
 		scope.launch {
 			manualDao.upsert(ManualDownloadEntity(song.id))
@@ -233,7 +244,7 @@ class DownloadManager(
 
 	/**
 	 * Pins every song of [collection] and records the collection itself as downloaded, so the
-	 * Downloads screen lists it and (for playlists) it can re-sync on [startScheduledDownloads].
+	 * Downloads screen lists it and it keeps re-syncing on [onLibrarySynced].
 	 * [type] is what gets stored; an album or artist's collection id is its own id.
 	 */
 	suspend fun downloadCollection(collection: DomainSongCollection, type: DownloadCollectionType) {
@@ -242,9 +253,6 @@ class DownloadManager(
 			DownloadCollectionEntity(
 				collectionId = collection.id,
 				type = type,
-				// an existing schedule survives a plain re-download
-				scheduleCron = collectionDao.getById(collection.id)?.scheduleCron,
-				scheduleEnabled = collectionDao.getById(collection.id)?.scheduleEnabled ?: false,
 				createdAt = kotlin.time.Clock.System.now().toEpochMilliseconds()
 			)
 		)
@@ -308,23 +316,6 @@ class DownloadManager(
 		collectionDao.delete(collectionId)
 		cancel(ids) { store.dropPending(ids) }
 		reconcileOrphans()
-	}
-
-	fun setCollectionSchedule(collectionId: String, cron: String?, enabled: Boolean) {
-		scope.launch { setCollectionScheduleSuspend(collectionId, cron, enabled) }
-	}
-
-	private suspend fun setCollectionScheduleSuspend(collectionId: String, cron: String?, enabled: Boolean) {
-		val rec = collectionDao.getById(collectionId) ?: run {
-			// only schedule a collection that was actually downloaded; "save Off" on a fresh
-			// playlist must not create a subscription row
-			if (enabled) collectionDao.upsert(
-				DownloadCollectionEntity(collectionId, DownloadCollectionType.PLAYLIST)
-					.copy(scheduleCron = cron, scheduleEnabled = enabled)
-			)
-			return
-		}
-		collectionDao.upsert(rec.copy(scheduleCron = cron, scheduleEnabled = enabled))
 	}
 
 	/** Re-fetches a pinned collection's current songs and pins changes; recollects orphans. */
@@ -660,37 +651,25 @@ class DownloadManager(
 	}
 
 	/**
-	 * Periodic re-sync of schedules enabled playlists (and albums/artists), mirroring
-	 * SyncManager.startPeriodicSync's cadence. Re-pins current songs, drops ones removed.
+	 * Refreshes every downloaded collection (re-pins new songs, unpins removed ones), so what
+	 * was downloaded stays current with the server. Called by SyncManager after every successful
+	 * library pull. Idempotent: pinning is per-song and refreshCollection tops up; a song already
+	 * downloaded at a better quality is left alone.
+	 * ponytail: a single refreshLock dedupes concurrent calls (foreground + periodic sync);
+	 * download concurrency across collections is still bounded by the queue's semaphore. A
+	 * parallel fan-out would need each refreshCollection to not hammer one server at once.
 	 */
-	fun startScheduledDownloads() {
-		scope.launch {
-			while (isActive) {
-				sessionManager.isLoggedIn.first { it }
-				connectivityManager.isOnline.first { it }
-				runScheduledCollections()
-				delay(SCHEDULE_POLL)
-			}
-		}
+	private val refreshLock = Mutex()
+
+	fun onLibrarySynced() {
+		scope.launch { refreshDownloadedCollections() }
 	}
 
-	private suspend fun runScheduledCollections() {
-		val nowMillis = kotlin.time.Clock.System.now().toEpochMilliseconds()
+	private suspend fun refreshDownloadedCollections() = refreshLock.withLock {
 		for (rec in collectionDao.getAll()) {
-			// opt-in per collection only. The global default is just the prefill in the schedule
-			// sheet; applying it here used to silently re-pin + queue every plain download once a
-			// global cron was set (the "playlists I never meant to download" reports).
-			val cron = rec.scheduleCron?.takeIf { it.isNotBlank() }?.takeIf { rec.scheduleEnabled }
-				?: continue
-			val schedule = CronSchedule.parse(cron) ?: continue
-			val anchor = Clock.System.now().let {
-				Instant.fromEpochMilliseconds(rec.lastRunAt.takeIf { it > 0 } ?: rec.createdAt)
-			}
-			if (schedule.nextRun(anchor) <= nowMillis) {
-				refreshCollection(rec.collectionId)
-				collectionDao.upsert(rec.copy(lastRunAt = nowMillis))
-			}
+			refreshCollection(rec.collectionId)
 		}
+		reconcileOrphans()
 	}
 
 	private companion object {
@@ -698,7 +677,6 @@ class DownloadManager(
 		const val CONCURRENCY = 3
 		const val MAX_ATTEMPTS = 5
 		val RETRY_DELAY = 30.seconds
-		const val SCHEDULE_POLL = 60L * 60L * 1000L // once an hour, like the library sync
 	}
 }
 

@@ -1,9 +1,13 @@
 package eu.depau.loak.domain.manager
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.runtime.snapshotFlow
@@ -96,6 +100,26 @@ actual class ConnectivityManager(
 		.flowOn(dispatcher)
 		.stateIn(scope, started, false)
 
+	// battery status, broadcast on charge plug/unplug and level changes; received with no
+	// permission. The sticky broadcast gives us the current value on process start too.
+	actual val isCharging = callbackFlow {
+		val receiver = object : BroadcastReceiver() {
+			override fun onReceive(context: Context, intent: Intent) {
+				trySend(chargingFrom(intent))
+			}
+		}
+		context.registerReceiver(
+			receiver,
+			IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+			Context.RECEIVER_NOT_EXPORTED
+		)
+		trySend(stickyCharging(context))
+		awaitClose { context.unregisterReceiver(receiver) }
+	}
+		.flowOn(dispatcher)
+		.distinctUntilChanged()
+		.stateIn(scope, started, stickyCharging(context))
+
 	actual val isOnline = combine(
 		networkStatus,
 		snapshotFlow { preferenceManager.offlineMode }
@@ -110,3 +134,15 @@ actual class ConnectivityManager(
 		.flowOn(dispatcher)
 		.stateIn(scope, started, true)
 }
+
+/** The current charging state from the sticky battery broadcast, without a receiver. */
+private fun stickyCharging(context: Context): Boolean =
+	context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+		?.let { chargingFrom(it) }
+		?: true
+
+private fun chargingFrom(intent: Intent): Boolean =
+	when (intent.getIntExtra(BatteryManager.EXTRA_STATUS, BatteryManager.BATTERY_STATUS_UNKNOWN)) {
+		BatteryManager.BATTERY_STATUS_CHARGING, BatteryManager.BATTERY_STATUS_FULL -> true
+		else -> false
+	}

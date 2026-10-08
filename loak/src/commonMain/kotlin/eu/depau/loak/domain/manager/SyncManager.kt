@@ -59,7 +59,8 @@ class SyncManager(
 	private val sessionManager: SessionManager,
 	private val preferenceManager: PreferenceManager,
 	private val playlistDao: PlaylistDao,
-	private val snackBarManager: SnackBarManager
+	private val snackBarManager: SnackBarManager,
+	private val downloadManager: DownloadManager
 ) {
 	private val scope = CoroutineScope(SupervisorJob() + IoDispatcher)
 	private var syncJob: Job? = null
@@ -213,6 +214,9 @@ class SyncManager(
 			preferenceManager.lastFullSyncTime = startedAt.toEpochMilliseconds()
 			preferenceManager.lastScanCount = scan?.count ?: -1
 			Logger.i("SyncManager", "Full library sync complete.")
+			// keep downloaded collections in step with the server (AI playlists included):
+			// refresh them right after the library pull, then the download queue picks them up
+			downloadManager.onLibrarySynced()
 		}.onFailure {
 			Logger.e("SyncManager", "couldn't sync library", it)
 		}

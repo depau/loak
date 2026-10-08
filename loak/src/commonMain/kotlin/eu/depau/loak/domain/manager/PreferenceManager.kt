@@ -97,8 +97,12 @@ class PreferenceManager(
 	 */
 	var downloadOverRoaming by preference(false)
 
-	/** Global default cron for downloaded playlists that have no per-collection schedule; blank = Off. */
-	var downloadScheduleCron by preference("")
+	/**
+	 * Only download while the device is charging (a "don't wear the battery" guard). Off by
+	 * default: downloads run whenever the other conditions allow it. On Android this also adds
+	 * [androidx.work.Constraints.Builder.setRequiresCharging] to the download worker's wake-ups.
+	 */
+	var downloadOnlyWhileCharging by preference(false)
 
 	var nowPlayingToolbarPosition by preference(ToolbarPosition.Bottom)
 	var nowPlayingSongInfo by preference(true)

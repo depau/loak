@@ -6,4 +6,6 @@ expect class ConnectivityManager {
 	val isCellular: StateFlow<Boolean>
 	val isOnline: StateFlow<Boolean>
 	val isRoaming: StateFlow<Boolean>
+	/** True while a charger is connected; platform-specific (desktop/web: always true). */
+	val isCharging: StateFlow<Boolean>
 }

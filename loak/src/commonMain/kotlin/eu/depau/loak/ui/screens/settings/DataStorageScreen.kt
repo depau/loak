@@ -65,9 +65,9 @@ import eu.depau.loak.generated.resources.option_cover_art_quality
 import eu.depau.loak.generated.resources.option_downloaded_songs
 import eu.depau.loak.generated.resources.pref_download_over_cellular
 import eu.depau.loak.generated.resources.pref_download_over_roaming
-import eu.depau.loak.generated.resources.pref_download_schedule
-import eu.depau.loak.generated.resources.pref_download_schedule_desc
-import eu.depau.loak.generated.resources.pref_download_schedule_off
+import eu.depau.loak.generated.resources.pref_download_only_while_charging
+import eu.depau.loak.generated.resources.pref_download_only_while_charging_desc
+import eu.depau.loak.generated.resources.pref_download_refresh_now_desc
 import eu.depau.loak.generated.resources.option_image_cache_size
 import eu.depau.loak.generated.resources.option_last_sync
 import eu.depau.loak.generated.resources.option_live_status
@@ -118,7 +118,6 @@ import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.dialogs.BulkDownloadDialog
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
-import eu.depau.loak.ui.components.sheets.ScheduleSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsChoiceItem
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
@@ -146,7 +145,6 @@ fun SettingsDataStorageScreen() {
 	val downloadSize by viewModel.downloadSize.collectAsStateWithLifecycle(0L)
 
 	var showLibraryDownloadDialog by remember { mutableStateOf(false) }
-	var showDefaultSchedule by remember { mutableStateOf(false) }
 	val isDownloadingLibrary by viewModel.isDownloadingLibrary.collectAsStateWithLifecycle()
 	val libraryDownloadProgress by viewModel.libraryDownloadProgress.collectAsStateWithLifecycle()
 
@@ -215,18 +213,6 @@ fun SettingsDataStorageScreen() {
 			viewModel.downloadEntireLibrary()
 		}
 	)
-
-	if (showDefaultSchedule) {
-		ScheduleSheet(
-			initialCron = preferenceManager.downloadScheduleCron.takeIf { it.isNotBlank() },
-			initialEnabled = preferenceManager.downloadScheduleCron.isNotBlank(),
-			onDismissRequest = { showDefaultSchedule = false },
-			onSave = { cron, enabled ->
-				preferenceManager.downloadScheduleCron = if (enabled) cron.orEmpty() else ""
-				showDefaultSchedule = false
-			}
-		)
-	}
 
 	Scaffold(
 		topBar = {
@@ -457,7 +443,7 @@ fun SettingsDataStorageScreen() {
 				SettingsGroup(title = { Text(stringResource(Res.string.title_downloads_settings)) }) {
 					val overCellular by downloadManager.overCellular.collectAsStateWithLifecycle()
 					val overRoaming by downloadManager.overRoaming.collectAsStateWithLifecycle()
-					val defaultCron = preferenceManager.downloadScheduleCron
+					val whileCharging by downloadManager.whileCharging.collectAsStateWithLifecycle()
 					SettingsToggleItem(
 						checked = overCellular,
 						onCheckedChange = downloadManager::setOverCellular,
@@ -470,22 +456,18 @@ fun SettingsDataStorageScreen() {
 						content = { Text(stringResource(Res.string.pref_download_over_roaming)) },
 						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4)
 					)
-					SegmentedListItem(
-						onClick = { showDefaultSchedule = true },
-						content = { Text(stringResource(Res.string.pref_download_schedule)) },
-						supportingContent = {
-							Text(
-								if (defaultCron.isBlank()) stringResource(Res.string.pref_download_schedule_off)
-								else stringResource(Res.string.pref_download_schedule_desc)
-							)
-						},
+					SettingsToggleItem(
+						checked = whileCharging,
+						onCheckedChange = downloadManager::setWhileCharging,
+						content = { Text(stringResource(Res.string.pref_download_only_while_charging)) },
+						supportingContent = { Text(stringResource(Res.string.pref_download_only_while_charging_desc)) },
 						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 4)
 					)
 					SegmentedListItem(
 						onClick = { downloadManager.kickAll() },
 						enabled = isOnline,
 						content = { Text(stringResource(Res.string.action_download_now)) },
-						supportingContent = { Text(stringResource(Res.string.pref_download_schedule_desc)) },
+						supportingContent = { Text(stringResource(Res.string.pref_download_refresh_now_desc)) },
 						trailingContent = offlineIcon,
 						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4)
 					)

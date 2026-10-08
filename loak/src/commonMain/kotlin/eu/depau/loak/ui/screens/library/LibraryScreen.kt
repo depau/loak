@@ -1,7 +1,6 @@
 package eu.depau.loak.ui.screens.library
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -52,8 +51,6 @@ import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.DownloadManager
-import eu.depau.loak.domain.models.CronSchedule
-import eu.depau.loak.domain.models.describe
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.generated.resources.*
@@ -86,7 +83,6 @@ import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
-import eu.depau.loak.ui.components.sheets.ScheduleSheet
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.util.IoDispatcher
@@ -219,8 +215,6 @@ fun DownloadsScreen(initial: DownloadsTab) {
 	val collections by downloadManager.collections.collectAsState()
 	val storedSongs by store.storedSongs.collectAsState()
 	var tab by rememberSaveable { mutableStateOf(initial) }
-	// <playlistId, rec> for the rows with a schedule; null otherwise
-	var scheduling by remember { mutableStateOf<DownloadCollectionEntity?>(null) }
 
 	// downloaded (pinned + complete) song ids, one set for every tab's "done" count
 	val completeBySong = remember(downloads) { downloads.associateBy { it.songId } }
@@ -251,24 +245,10 @@ fun DownloadsScreen(initial: DownloadsTab) {
 				DownloadsTab.Albums -> DownloadsAlbumsTab(albumDao, backStack, collections, downloadedIds)
 				DownloadsTab.Artists -> DownloadsArtistsTab(artistDao, songDao, backStack, collections, downloadedIds)
 				DownloadsTab.Playlists -> DownloadsPlaylistsTab(
-					playlistDao, backStack, collections, downloadedIds,
-					downloadManager, scheduling, { scheduling = it }
+					playlistDao, backStack, collections, downloadedIds, downloadManager
 				)
 			}
 		}
-	}
-
-	scheduling?.let { rec ->
-		ScheduleSheet(
-			initialCron = rec.scheduleCron,
-			initialEnabled = rec.scheduleEnabled,
-			onDismissRequest = { scheduling = null },
-			onSave = { cron, enabled ->
-				downloadManager.setCollectionSchedule(rec.collectionId, cron, enabled)
-				scheduling = null
-			},
-			onKick = { downloadManager.kickDownload(rec.collectionId); scheduling = null }
-		)
 	}
 }
 
@@ -402,9 +382,7 @@ private fun DownloadsPlaylistsTab(
 	backStack: NavBackStack<NavKey>,
 	collections: List<DownloadCollectionEntity>,
 	downloadedIds: Set<String>,
-	downloadManager: DownloadManager,
-	scheduling: DownloadCollectionEntity?,
-	onSchedule: (DownloadCollectionEntity) -> Unit
+	downloadManager: DownloadManager
 ) {
 	val byId = remember(collections) { collections.associateBy { it.collectionId } }
 	val ids by produceState(emptyList<String>(), byId.keys) {
@@ -429,24 +407,14 @@ private fun DownloadsPlaylistsTab(
 			val total = entity.songCount.coerceAtLeast(row.playlist.songs.size.coerceAtLeast(1))
 			val done = row.playlist.songs.count { it.song.songId in downloadedIds }
 			val rec = row.subscribed
-			val subtitle = buildList {
-				add("${done}/$total")
-				rec?.takeIf { it.scheduleEnabled && it.scheduleCron != null }?.let {
-					add(CronSchedule.parse(it.scheduleCron!!)?.describe() ?: it.scheduleCron)
-				}
-			}
 			val scope = rememberCoroutineScope()
 			CollectionRow(
 				title = entity.name.orEmpty(),
-				subtitle = subtitle.joinToString(" · "),
+				subtitle = "${done}/$total",
 				coverArtId = entity.coverArtId,
 				done = done,
 				total = total,
 				onClick = { backStack.add(Screen.CollectionDetail(entity.playlistId, "")) },
-				modifier = Modifier.combinedClickable(
-					onClick = {},
-					onLongClick = { rec?.let(onSchedule) }
-				),
 				trailing = {
 					if (rec != null) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
 						Icon(

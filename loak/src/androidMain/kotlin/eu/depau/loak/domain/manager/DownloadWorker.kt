@@ -146,13 +146,18 @@ fun scheduleDownloads(context: Context) {
 	val downloads = KoinPlatform.getKoin().get<DownloadManager>()
 	val workManager = WorkManager.getInstance(context)
 	CoroutineScope(Dispatchers.Default).launch {
-		combine(downloads.queued, downloads.overCellular, ::Pair)
+		combine(downloads.queued, downloads.overCellular, downloads.whileCharging, ::Triple)
 			.distinctUntilChanged()
-			.collect { (queued, overCellular) ->
+			.collect { (queued, overCellular, whileCharging) ->
 				if (!queued) return@collect
 				val network = if (overCellular) NetworkType.CONNECTED else NetworkType.UNMETERED
 				val request = OneTimeWorkRequestBuilder<DownloadWorker>()
-					.setConstraints(Constraints(requiredNetworkType = network))
+					.setConstraints(
+						Constraints(
+							requiredNetworkType = network,
+							requiresCharging = whileCharging
+						)
+					)
 					.setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
 					.build()
 				// replacing only drops a waiting worker: the downloads run in DownloadManager
