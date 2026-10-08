@@ -91,4 +91,3 @@ fun CronSchedule.describe(): String {
 		CronSchedule.Every.Month -> "Monthly $dayOfMonth $time"
 	}
 }
-

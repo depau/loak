@@ -60,4 +60,3 @@ interface UpdateState {
  * other platform leaves the no-op default, so the shared UI degrades to doing nothing.
  */
 val LocalUpdateController = compositionLocalOf<UpdateController?> { null }
-

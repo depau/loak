@@ -36,7 +36,7 @@ On macOS, you will also need:
 * [Xcode](https://developer.apple.com/xcode/) if developing for iOS
 	* **Highly recommended to use [Xcodes](https://www.xcodes.app/)**
 > [!WARNING]
-> If you want to work on the **iOS version**, note that you strictly need an **Apple silicon** for development.  
+> If you want to work on the **iOS version**, note that you strictly need an **Apple silicon** for development.
 > Unfortunately, JetBrains Compose Multiplatform **no longer compiles** on **Intel (x86_64) hosts** since
 > the 1.11.1 version, even though Kotlin Native itself still supports them (although it's deprecated).
 * Even more storage and compute. Kotlin Native is very heavy and slow.

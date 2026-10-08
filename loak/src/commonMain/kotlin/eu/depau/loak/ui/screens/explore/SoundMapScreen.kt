@@ -235,7 +235,7 @@ fun SoundMapScreen() {
 					}
 				}
 			}
-		
+
 				}
 			}
 		}

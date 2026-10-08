@@ -123,7 +123,7 @@ fun ArtistActionButtons(
 		OutlinedButton(
 			modifier = Modifier.size(width = 52.dp, height = 44.dp),
 			onClick = {
-				
+
 				when (downloadStatus) {
 					DownloadStatus.NOT_DOWNLOADED, DownloadStatus.FAILED -> onDownload()
 					DownloadStatus.DOWNLOADING -> onCancelDownload()

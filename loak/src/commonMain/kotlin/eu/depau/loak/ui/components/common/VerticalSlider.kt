@@ -56,4 +56,3 @@ fun VerticalSlider(
 			.then(modifier)
 	)
 }
-

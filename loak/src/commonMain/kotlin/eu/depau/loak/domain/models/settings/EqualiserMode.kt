@@ -6,7 +6,7 @@ import eu.depau.loak.generated.resources.option_equaliser_mode_disabled
 import eu.depau.loak.generated.resources.option_equaliser_mode_external
 import org.jetbrains.compose.resources.StringResource
 
-// Which equaliser processes Lo'ak's audio session. Builtin/External need to be mutually exclusive, 
+// Which equaliser processes Lo'ak's audio session. Builtin/External need to be mutually exclusive,
 // otherwise they will fight for effect control and cause audio issues
 enum class EqualiserMode(val displayName: StringResource) {
 	Disabled(Res.string.option_equaliser_mode_disabled),

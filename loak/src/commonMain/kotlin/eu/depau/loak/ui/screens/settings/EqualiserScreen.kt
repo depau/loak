@@ -173,4 +173,3 @@ private fun formatDb(millibels: Float): String {
 
 private fun formatHz(hz: Int) =
 	if (hz >= 1000) "${(hz / 100) / 10.0}".removeSuffix(".0") + " kHz" else "$hz Hz"
-

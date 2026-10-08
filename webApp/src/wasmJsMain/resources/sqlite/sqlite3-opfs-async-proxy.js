@@ -60,10 +60,10 @@ const installAsyncProxy = function(){
     toss("This API requires navigator.storage.getDirectory.");
   }
 
-  
+
   const state = Object.create(null);
 
-  
+
   state.verbose = 1;
 
   const loggers = {
@@ -78,12 +78,12 @@ const installAsyncProxy = function(){
   const warn =   (...args)=>logImpl(1, ...args);
   const error =  (...args)=>logImpl(0, ...args);
 
-  
+
   const __openFiles = Object.create(null);
-  
+
   const __implicitLocks = new Set();
 
-  
+
   const getResolvedPath = function(filename,splitIt){
     const p = new URL(
       filename, 'file://irrelevant'
@@ -91,7 +91,7 @@ const installAsyncProxy = function(){
     return splitIt ? p.split('/').filter((v)=>!!v) : p;
   };
 
-  
+
   const getDirForFilename = async function f(absFilename, createDirs = false){
     const path = getResolvedPath(absFilename, true);
     const filename = path.pop();
@@ -104,7 +104,7 @@ const installAsyncProxy = function(){
     return [dh, filename];
   };
 
-  
+
   const closeSyncHandle = async (fh)=>{
     if(fh.syncHandle){
       log("Closing sync handle for",fh.filenameAbs);
@@ -116,7 +116,7 @@ const installAsyncProxy = function(){
     }
   };
 
-  
+
   const closeSyncHandleNoThrow = async (fh)=>{
     try{await closeSyncHandle(fh)}
     catch(e){
@@ -124,10 +124,10 @@ const installAsyncProxy = function(){
     }
   };
 
-  
+
   const releaseImplicitLocks = async ()=>{
     if(__implicitLocks.size){
-      
+
       for(const fid of __implicitLocks){
         const fh = __openFiles[fid];
         await closeSyncHandleNoThrow(fh);
@@ -136,14 +136,14 @@ const installAsyncProxy = function(){
     }
   };
 
-  
+
   const releaseImplicitLock = async (fh)=>{
     if(fh.releaseImplicitLocks && __implicitLocks.has(fh.fid)){
       return closeSyncHandleNoThrow(fh);
     }
   };
 
-  
+
   class GetSyncHandleError extends Error {
     constructor(errorObject, ...msg){
       super([
@@ -156,16 +156,16 @@ const installAsyncProxy = function(){
     }
   };
 
-  
+
   GetSyncHandleError.convertRc = (e,rc)=>{
     if( e instanceof GetSyncHandleError ){
       if( e.cause.name==='NoModificationAllowedError'
-        
+
           || (e.cause.name==='DOMException'
               && 0===e.cause.message.indexOf('Access Handles cannot')) ){
         return state.sq3Codes.SQLITE_BUSY;
       }else if( 'NotFoundError'===e.cause.name ){
-        
+
         return state.sq3Codes.SQLITE_CANTOPEN;
       }
     }else if( 'NotFoundError'===e?.name ){
@@ -174,7 +174,7 @@ const installAsyncProxy = function(){
     return rc;
   };
 
-  
+
   const getSyncHandle = async (fh,opName)=>{
     if(!fh.syncHandle){
       const t = performance.now();
@@ -184,9 +184,9 @@ const installAsyncProxy = function(){
       let i = 1, ms = msBase;
       for(; true; ms = msBase * ++i){
         try {
-          
-          
-          
+
+
+
           fh.syncHandle = await fh.fileHandle.createSyncAccessHandle();
           break;
         }catch(e){
@@ -211,22 +211,22 @@ const installAsyncProxy = function(){
     return fh.syncHandle;
   };
 
-  
+
   const storeAndNotify = (opName, value)=>{
     log(opName+"() => notify(",value,")");
     Atomics.store(state.sabOPView, state.opIds.rc, value);
     Atomics.notify(state.sabOPView, state.opIds.rc);
   };
 
-  
+
   const affirmNotRO = function(opName,fh){
     if(fh.readOnly) toss(opName+"(): File is read-only: "+fh.filenameAbs);
   };
 
-  
+
   let flagAsyncShutdown = false;
 
-  
+
   const vfsAsyncImpls = {
     'opfs-async-shutdown': async ()=>{
       flagAsyncShutdown = true;
@@ -243,7 +243,7 @@ const installAsyncProxy = function(){
       storeAndNotify('mkdir', rc);
     },
     xAccess: async (filename)=>{
-      
+
       let rc = 0;
       try{
         const [dh, fn] = await getDirForFilename(filename);
@@ -277,7 +277,7 @@ const installAsyncProxy = function(){
       storeAndNotify('xDelete', rc);
     },
     xDeleteNoWait: async function(filename, syncDir = 0, recursive = false){
-      
+
       let rc = 0;
       try {
         while(filename){
@@ -345,8 +345,8 @@ const installAsyncProxy = function(){
           try{
             await hDir.removeEntry(filenamePart);
           }catch(e){
-            
-            
+
+
           }
         }
         const hFile = await hDir.getFileHandle(filenamePart, {create});
@@ -454,7 +454,7 @@ const installAsyncProxy = function(){
   };
 
   const initS11n = ()=>{
-    
+
     if(state.s11n) return state.s11n;
     const textDecoder = new TextDecoder(),
           textEncoder = new TextEncoder('utf-8'),
@@ -503,22 +503,22 @@ const installAsyncProxy = function(){
         }
       }
       if(clear) viewU8[0] = 0;
-      
+
       return rc;
     };
     state.s11n.serialize = function(...args){
       if(args.length){
-        
+
         const typeIds = [];
         let i = 0, offset = 1;
         viewU8[0] = args.length & 0xff ;
         for(; i < args.length; ++i, ++offset){
-          
+
           typeIds.push(getTypeId(args[i]));
           viewU8[offset] = typeIds[i].id;
         }
         for(i = 0; i < args.length; ++i) {
-          
+
           const t = typeIds[i];
           if(t.setter){
             viewDV[t.setter](offset, args[i], state.littleEndian);
@@ -531,7 +531,7 @@ const installAsyncProxy = function(){
             offset += s.byteLength;
           }
         }
-        
+
       }else{
         viewU8[0] = 0;
       }
@@ -563,7 +563,7 @@ const installAsyncProxy = function(){
         if('not-equal'!==Atomics.wait(
           state.sabOPView, state.opIds.whichOp, 0, state.asyncIdleWaitTime
         )){
-          
+
           await releaseImplicitLocks();
           continue;
         }
@@ -571,9 +571,9 @@ const installAsyncProxy = function(){
         Atomics.store(state.sabOPView, state.opIds.whichOp, 0);
         const hnd = opHandlers[opId] ?? toss("No waitLoop handler for whichOp #",opId);
         const args = state.s11n.deserialize(
-          true 
+          true
         ) || [];
-        
+
         if(hnd.f) await hnd.f(...args);
         else error("Missing callback for opId",opId);
       }catch(e){
@@ -587,7 +587,7 @@ const installAsyncProxy = function(){
     globalThis.onmessage = function({data}){
       switch(data.type){
           case 'opfs-async-init':{
-            
+
             const opt = data.args;
             for(const k in opt) state[k] = opt[k];
             state.verbose = opt.verbose ?? 1;
