@@ -104,6 +104,8 @@ fun NowPlayingMoreButton() {
 				},
 				onTrackInfo = dropUnlessResumed {
 					expanded = false
+					// track info renders as a sheet under the player, so close the player first
+					backStack.remove(Screen.NowPlaying)
 					backStack.add(Screen.SongDetailSheet(songId = menuSong.id, coverArtId = menuSong.coverArtId))
 				},
 				rating = rating,
@@ -120,6 +122,8 @@ fun NowPlayingMoreButton() {
 				showPlaybackSpeed = true,
 				onPlaybackSpeed = {
 					expanded = false
+					// playback speed renders as a sheet under the player, so close the player first
+					backStack.remove(Screen.NowPlaying)
 					backStack.add(Screen.PlaybackSpeed)
 				}
 			)

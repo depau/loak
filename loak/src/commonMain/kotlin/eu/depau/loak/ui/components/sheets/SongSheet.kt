@@ -224,6 +224,8 @@ fun SongSheet(
 							song = song,
 							onClickArtist = {
 								onDismissRequest()
+								// leaving the sheet for a screen underneath closes the player, if it's up
+								backStack.remove(Screen.NowPlaying)
 								backStack.add(Screen.ArtistDetail(it))
 							}
 						)
@@ -310,6 +312,8 @@ fun SongSheet(
 						content = { Text(stringResource(Res.string.action_song_alchemy_with)) },
 						leadingContent = { Icon(Icons.Outlined.Flask, null) },
 						onClick = {
+							// leaving the sheet for a screen underneath closes the player, if it's up
+							backStack.remove(Screen.NowPlaying)
 							backStack.add(Screen.Alchemy(song.toIngredient()))
 							onDismissRequest()
 						},
