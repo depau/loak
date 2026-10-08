@@ -20,6 +20,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.rememberWindowState
 import dev.nucleusframework.application.DecoratedWindow
@@ -80,6 +81,7 @@ fun main(args: Array<String>) {
 			title = "Lo'ak",
 			icon = remember { loadIcon() },
 			state = rememberWindowState(width = 1400.dp, height = 900.dp),
+			minimumSize = DpSize(width = 380.dp, height = 300.dp),
 		) {
 			// the bar slot only reports the title bar height to the OS (macOS centres the
 			// traffic lights in it, Windows sizes its caption zone); the app draws the bar

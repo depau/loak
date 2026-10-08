@@ -398,7 +398,7 @@ fun PlayerLayer(state: PlayerSheetState) {
 				Box(
 					Modifier
 						.layout { measurable, _ ->
-							val placeable = measurable.measure(Constraints.fixed(fullW, fullH))
+							val placeable = measurable.measure(Constraints.fixed(fullW.coerceAtLeast(0), fullH.coerceAtLeast(0)))
 							layout(rect.width.toInt().coerceAtLeast(0), rect.height.toInt().coerceAtLeast(0)) {
 								placeable.place(-rect.left.toInt(), -rect.top.toInt())
 							}

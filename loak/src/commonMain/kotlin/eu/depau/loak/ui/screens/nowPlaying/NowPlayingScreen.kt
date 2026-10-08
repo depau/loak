@@ -259,8 +259,8 @@ private fun PlayerWithSheet(
 				.layout { measurable, constraints ->
 					val q = sheet.queueFraction
 					val height = (sheetTop(minOf(q, .5f)) - top).toInt().coerceAtLeast(0)
-					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
-					layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, top.toInt()) }
+					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth.coerceAtLeast(0), height))
+					layout(constraints.maxWidth.coerceAtLeast(0), constraints.maxHeight.coerceAtLeast(0)) { placeable.place(0, top.toInt()) }
 				}
 				.graphicsLayer { alpha = 1f - seg(sheet.queueFraction, .66f, .86f) }
 		) {
@@ -279,8 +279,8 @@ private fun PlayerWithSheet(
 			song = song,
 			modifier = Modifier
 				.layout { measurable, constraints ->
-					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, header.toInt()))
-					layout(constraints.maxWidth, header.toInt()) { placeable.place(0, top.toInt()) }
+					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth.coerceAtLeast(0), header.toInt().coerceAtLeast(0)))
+					layout(constraints.maxWidth.coerceAtLeast(0), header.toInt().coerceAtLeast(0)) { placeable.place(0, top.toInt()) }
 				}
 				.graphicsLayer { alpha = seg(sheet.queueFraction, .70f, .90f) }
 		)
@@ -289,8 +289,8 @@ private fun PlayerWithSheet(
 			modifier = Modifier
 				.layout { measurable, constraints ->
 					val y = sheetTop(sheet.queueFraction)
-					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, (h - raisedTop).toInt()))
-					layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, y.toInt()) }
+					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth.coerceAtLeast(0), (h - raisedTop).toInt().coerceAtLeast(0)))
+					layout(constraints.maxWidth.coerceAtLeast(0), constraints.maxHeight.coerceAtLeast(0)) { placeable.place(0, y.toInt()) }
 				}
 				.nestedScroll(sheet.sheetScroll),
 			shape = ContinuousRoundedRectangle(topStart = 28.dp, topEnd = 28.dp),
