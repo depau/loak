@@ -961,4 +961,15 @@
 	<string name="title_server_account">Server &amp; account</string>
 	<string name="title_updates_privacy">Updates &amp; privacy</string>
 	<string name="title_links">Links</string>
+	<string name="title_audio_quality">Audio quality</string>
+	<string name="subtitle_audio_quality">What reaches your ears, step by step</string>
+	<string name="label_stage_source">SOURCE</string>
+	<string name="label_stage_delivery">DELIVERY</string>
+	<string name="label_stage_processing">PROCESSING</string>
+	<string name="label_stage_output">OUTPUT</string>
+	<string name="label_direct_play">Direct play</string>
+	<string name="label_server_transcode">Server transcode</string>
+	<string name="label_cached_copy">Audio cache</string>
+	<string name="label_downloaded_copy">Downloaded</string>
+	<string name="info_audio_quality_footnote">Only active processing is shown. Values update when the track, network preset, or output device changes.</string>
 </resources>
