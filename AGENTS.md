@@ -153,7 +153,9 @@ Debug realm: the Android `debug` build has **no ABIs excluded** (`x86_64` is add
 - **Never experiment on a real device and never try to control a desktop without explicit user consent.** Use an Android emulator or a VM instead, and ask permission first.
 - When the user authorizes a real device, install the **development package-name variant** (the `debug` build gets the `.debug` applicationId suffix, so it installs alongside the release app).
 - Use **`https://demo.navidrome.org`** with **`demo:demo`** as the test server unless instructed otherwise.
-- Running an Android emulator: use `$ANDROID_HOME/emulator/emulator -avd <avd>` and wait for boot with `adb wait-for-device` + `adb shell getprop sys.boot_completed` == `1`. A headless run is fine for CI-style checks; keep only one instance per AVD running.
+- Running an Android emulator: use `$ANDROID_HOME/emulator/emulator -avd <avd>` (if `ANDROID_HOME` is unset, the SDK is at `sdk.dir` in `local.properties`) and wait for boot with `adb wait-for-device` + `adb shell getprop sys.boot_completed` == `1`. A headless run is fine for CI-style checks; keep only one instance per AVD running.
+- **An emulator launched from a sandboxed agent shell has no internet** (`ip route` shows no default route, and the app reports itself offline). Launch it outside the sandbox.
+- Driving the app: `adb shell uiautomator dump` lists on-screen texts with their bounds; `adb shell input tap|swipe|text` acts on them (a long-press is a `swipe` that starts and ends at the same point, held ~900 ms); `adb shell input keyevent 4` is the system back, `111` is Esc. Compose sheets and dialogs are separate windows, so check that back reaches them (see gotcha 11).
 
 ## Sentry (error reporting)
 
@@ -166,12 +168,12 @@ Crash/error reporting uses the **Sentry Kotlin Multiplatform SDK** (`io.sentry:s
 
 ## Tests
 
-> **Important: this repository currently has NO tests.** There is no `commonTest`/`androidUnitTest`/`iosTest` source set, no test dependencies in `gradle/libs.versions.toml`, and no CI test job. Do not claim "tests pass" — the closest sanity gates are compile/assemble tasks above and manual UI verification.
+Unit tests live in `loak/src/commonTest/` (shared logic: models, managers, navigation helpers) and `loak/src/desktopTest/` (desktop player, cache database migrations), with `kotlin("test")` as the only test dependency (`commonTest.dependencies` in `loak/build.gradle.kts`). There is no UI test suite, and **CI runs no tests** — run them yourself:
 
-**If you add tests** (KMP style, for `:loak`):
-1. Create `loak/src/commonTest/kotlin/...` (or `androidUnitTest`/`iosTest`).
-2. Add a dependency in `loak/build.gradle.kts`'s `sourceSets { commonTest.dependencies { implementation(kotlin("test")) } }`.
-3. Run them with the KMP test tasks — confirmed: `./gradlew :loak:allTests` (aggregate), `:loak:iosSimulatorArm64Test`, and target-specific `*Test` tasks (list with `./gradlew :loak:tasks --all`).
+- `./gradlew :loak:desktopTest` — the quickest (JVM, runs both commonTest and desktopTest).
+- `./gradlew :loak:allTests` — every target, aggregated report; also `:loak:iosSimulatorArm64Test`, `:loak:wasmJsTest`.
+
+Add new tests to `commonTest` when the logic is shared, `desktopTest` when it needs the JVM. They don't cover UI: compile/assemble plus manual verification remain the gate for UI changes.
 
 For UI changes: **manually verify on different themes and form factors and include a screenshot.**
 
@@ -205,6 +207,8 @@ Nothing in CI runs tests today.
 8. Building Android requires networked dependency resolution on first run (long). Use `--offline` only after a successful full build.
 9. **Fork placeholders:** a couple of spots still carry upstream-era placeholders (`.github/README.md` update links). Point these at the fork's own hosting when they matter. This is a **self-maintained fork** — the upstream "no LLM-assisted contributions" rule does not apply here.
 10. **App name: `Lo'ak` is official; `Loak` is only for search labels.** The official name is **Lo'ak** (with the apostrophe) everywhere in-app and in the repo. But labels used for *searching* the app — e.g. the Android launcher name — should be **`Loak`** (apostrophe-free) when the search engine doesn't handle fuzzy/quoted matching or when there's any concern a user typing "loak" wouldn't find the app. On **Android** the launcher/recents label is `@string/app_name` (`loakApp/src/main/res/values/strings.xml` → `Loak`, plus the debug `resValue` `"Loak (Dev)"`); on **iOS** it's `LOAK_DISPLAY_NAME=Loak` in `Config.xcconfig` → `INFOPLIST_KEY_CFBundleDisplayName` (the internal bundle filename stays `Lo'ak.app` via `LOAK_PRODUCT_NAME`). The in-app brand (shared Compose res `app_name` used in the UI) stays `Lo'ak` on both. Also note: an *unescaped* `'` in an aapt-compiled Android string makes build-tools 37 aapt2 fail with a baffling `Invalid unicode escape sequence in string "{str}"` on `app_name` — if you ever reintroduce `Lo'ak` in an Android res string, escape it as `Lo\'ak` (renders identical). Compose-resource strings (`composeResources/values/strings.xml`) don't go through aapt (they're assets), so they don't need escaping.
+
+11. **Never provide `LocalNavigationEventDispatcherOwner` over the platform's.** Dialogs (`ModalBottomSheet`, `Dialog`) inherit composition locals from the screen that shows them, so their back handlers would register with the provided dispatcher, while Android delivers back to the dialog's own window: back and the back gesture then silently do nothing on every open sheet. `App.kt` feeds keyboard/mouse back into the platform's dispatcher and only provides one of its own where the platform has none.
 
 ## Quick orientation questions
 
