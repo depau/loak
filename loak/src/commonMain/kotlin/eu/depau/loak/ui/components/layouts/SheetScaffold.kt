@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import org.koin.compose.koinInject
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.ToolbarPosition
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.add
@@ -20,12 +18,10 @@ import eu.depau.loak.ui.util.windowDragArea
 @Composable
 fun SheetScaffold(
 	toolbar: @Composable (windowInsets: WindowInsets) -> Unit,
-	toolbarPosition: ToolbarPosition? = null,
+	toolbarPosition: ToolbarPosition = ToolbarPosition.Bottom,
 	floatingActionButton: @Composable () -> Unit = {},
 	content: @Composable (contentPadding: PaddingValues) -> Unit
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
-	val toolbarPosition = toolbarPosition ?: preferenceManager.nowPlayingToolbarPosition
 	Scaffold(
 		topBar = {
 			// sheets cover the whole window, rail included

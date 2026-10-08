@@ -97,15 +97,12 @@ import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.AudioStoreUsage
-import eu.depau.loak.domain.models.settings.AudioCacheLimit
 import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import eu.depau.loak.util.toFileSize
 import eu.depau.loak.generated.resources.action_clear_audio_cache
 import eu.depau.loak.generated.resources.info_audio_storage_usage
 import eu.depau.loak.generated.resources.option_audio_cache
-import eu.depau.loak.generated.resources.option_audio_cache_limit
 import eu.depau.loak.generated.resources.option_audio_cache_max_size
-import eu.depau.loak.generated.resources.option_audio_cache_max_songs
 import eu.depau.loak.generated.resources.option_audio_storage
 import eu.depau.loak.generated.resources.subtitle_audio_cache
 import eu.depau.loak.generated.resources.title_audio_cache
@@ -541,7 +538,6 @@ fun SettingsDataStorageScreen() {
 private const val MB = 1024L * 1024
 private val cacheSizes = listOf(512 * MB, 1024 * MB, 2048 * MB, 5120 * MB, 10240 * MB, 20480 * MB)
 	.toImmutableList()
-private val cacheSongCounts = listOf(100, 300, 500, 1000, 2000, 5000).toImmutableList()
 
 private fun cacheSizeLabel(bytes: Long) =
 	if (bytes >= 1024 * MB) "${bytes / (1024 * MB)} GB" else "${bytes / MB} MB"
@@ -553,7 +549,7 @@ private fun AudioCacheGroup(
 	onLimitsChanged: () -> Unit
 ) {
 	val enabled = preferenceManager.audioCacheEnabled
-	val count = if (enabled) 4 else 2
+	val count = if (enabled) 3 else 2
 	SettingsGroup(title = { Text(stringResource(Res.string.title_audio_cache)) }) {
 		SettingsToggleItem(
 			checked = enabled,
@@ -567,41 +563,16 @@ private fun AudioCacheGroup(
 		)
 		if (enabled) {
 			SettingsChoiceItem(
-				choices = AudioCacheLimit.entries.toImmutableList(),
-				selectedChoice = preferenceManager.audioCacheLimit,
+				choices = cacheSizes,
+				selectedChoice = preferenceManager.audioCacheMaxBytes,
 				onChoiceSelected = {
-					preferenceManager.audioCacheLimit = it
+					preferenceManager.audioCacheMaxBytes = it
 					onLimitsChanged()
 				},
-				content = { Text(stringResource(Res.string.option_audio_cache_limit)) },
-				label = { stringResource(it.displayName) },
+				content = { Text(stringResource(Res.string.option_audio_cache_max_size)) },
+				label = { cacheSizeLabel(it) },
 				shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
 			)
-			if (preferenceManager.audioCacheLimit == AudioCacheLimit.Size) {
-				SettingsChoiceItem(
-					choices = cacheSizes,
-					selectedChoice = preferenceManager.audioCacheMaxBytes,
-					onChoiceSelected = {
-						preferenceManager.audioCacheMaxBytes = it
-						onLimitsChanged()
-					},
-					content = { Text(stringResource(Res.string.option_audio_cache_max_size)) },
-					label = { cacheSizeLabel(it) },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
-				)
-			} else {
-				SettingsChoiceItem(
-					choices = cacheSongCounts,
-					selectedChoice = preferenceManager.audioCacheMaxSongs,
-					onChoiceSelected = {
-						preferenceManager.audioCacheMaxSongs = it
-						onLimitsChanged()
-					},
-					content = { Text(stringResource(Res.string.option_audio_cache_max_songs)) },
-					label = { pluralStringResource(Res.plurals.count_songs, it, it) },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
-				)
-			}
 		}
 		SegmentedListItem(
 			onClick = {},

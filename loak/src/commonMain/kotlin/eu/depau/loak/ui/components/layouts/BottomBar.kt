@@ -8,7 +8,6 @@ import eu.depau.loak.generated.resources.title_settings
 import eu.depau.loak.generated.resources.title_library
 import eu.depau.loak.icons.outlined.LibraryMusic
 import eu.depau.loak.icons.filled.LibraryMusic
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.text.TextAutoSize
@@ -30,9 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationItemIconPosition
-import androidx.compose.material3.ShortNavigationBar
-import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -57,11 +53,8 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.NavbarConfig
 import eu.depau.loak.domain.models.settings.NavbarTab
-import eu.depau.loak.domain.models.settings.NavigationBarLabelVisibility
-import eu.depau.loak.domain.models.settings.NavigationBarStyle
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Album
 import eu.depau.loak.icons.filled.Artist
@@ -166,102 +159,50 @@ fun BottomBar(
 	val containerColor by animateColorAsState(containerColor)
 	val tabs = ((state as? UiState.Success)?.data ?: NavbarConfig.default)
 		.tabs.filter { tab -> tab.visible }
-	val preferenceManager = koinInject<PreferenceManager>()
 
 	val onTabSelected = rememberOnTabSelected()
 
 	// wider windows get the navigation rail instead (AppNavigationRail)
 	if (platformContext.isLandscape()) return
 
-	AnimatedContent(
-		preferenceManager.navigationBarStyle != NavigationBarStyle.Short && tabs.size > 0
+	if (tabs.isEmpty()) return
+	NavigationBar(
+		modifier = modifier,
+		containerColor = containerColor,
+		windowInsets = windowInsets
 	) {
-		if (tabs.isEmpty()) return@AnimatedContent
-		if (it) {
-			NavigationBar(
-				modifier = modifier,
-				containerColor = containerColor,
-				windowInsets = windowInsets
-			) {
-				(tabs.map { it.id.navItem() } + NavItem.LIBRARY).forEach { item ->
-					val selected = backStack.firstOrNull() == item.destination
+		(tabs.map { it.id.navItem() } + NavItem.LIBRARY).forEach { item ->
+			val selected = backStack.firstOrNull() == item.destination
 
-					NavigationBarItem(
-						selected = selected,
-						enabled = enabled,
-						alwaysShowLabel = preferenceManager.navigationBarLabelVisibility
-							== NavigationBarLabelVisibility.Always,
-						onClick = dropUnlessResumed {
-							onTabSelected(item.destination)
-						},
-						icon = {
-							if (selected) {
-								val painter = animatedTabIconPainter(item.destination)
-								if (painter != null) {
-									Icon(painter = painter, null)
-								} else {
-									Icon(item.icon, null)
-								}
-							} else {
-								Icon(item.iconUnselected, null)
-							}
-						},
-						label = if (preferenceManager.navigationBarLabelVisibility
-							!== NavigationBarLabelVisibility.Never) {
-							{
-								Text(
-									stringResource(item.label),
-									maxLines = 1,
-									autoSize = TextAutoSize.StepBased(
-										minFontSize = 1.sp,
-										maxFontSize = MaterialTheme.typography.labelMedium.fontSize
-									)
-								)
-							}
+			NavigationBarItem(
+				selected = selected,
+				enabled = enabled,
+				onClick = dropUnlessResumed {
+					onTabSelected(item.destination)
+				},
+				icon = {
+					if (selected) {
+						val painter = animatedTabIconPainter(item.destination)
+						if (painter != null) {
+							Icon(painter = painter, null)
 						} else {
-							null
+							Icon(item.icon, null)
 						}
+					} else {
+						Icon(item.iconUnselected, null)
+					}
+				},
+				label = {
+					Text(
+						stringResource(item.label),
+						maxLines = 1,
+						autoSize = TextAutoSize.StepBased(
+							minFontSize = 1.sp,
+							maxFontSize = MaterialTheme.typography.labelMedium.fontSize
+						)
 					)
 				}
-			}
-		} else {
-			ShortNavigationBar(
-				modifier = modifier,
-				containerColor = containerColor
-			) {
-				(tabs.map { it.id.navItem() } + NavItem.LIBRARY).forEach { item ->
-					val selected = backStack.firstOrNull() == item.destination
-
-					ShortNavigationBarItem(
-						iconPosition = NavigationItemIconPosition.Top,
-						selected = selected,
-						enabled = enabled,
-						onClick = dropUnlessResumed {
-							onTabSelected(item.destination)
-						},
-						icon = {
-							if (selected) {
-								val painter = animatedTabIconPainter(item.destination)
-								if (painter != null) {
-									Icon(painter = painter, null)
-								} else {
-									Icon(item.icon, null)
-								}
-							} else {
-								Icon(item.iconUnselected, null)
-							}
-						},
-						label = if (
-							preferenceManager.navigationBarLabelVisibility == NavigationBarLabelVisibility.Always ||
-							(preferenceManager.navigationBarLabelVisibility == NavigationBarLabelVisibility.OnlySelected && selected)
-						) {
-							{ Text(stringResource(item.label)) }
-						} else {
-							null
-						},
-					)
-				}
-			}
+			)
 		}
 	}
 }

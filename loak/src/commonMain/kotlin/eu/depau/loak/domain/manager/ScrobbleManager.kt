@@ -95,7 +95,7 @@ class ScrobbleManager(
 
 		val percent = playedTime().toFloat() / duration.toFloat()
 		val playedEnoughPercent = percent >= preferenceManager.scrobblePercentage
-		val isValidSong = duration >= preferenceManager.minDurationToScrobble * 1000
+		val isValidSong = duration >= MIN_SCROBBLE_DURATION_MS
 
 		if (isValidSong && playedEnoughPercent) {
 			currentMediaId?.let { playLog.recordSong(it) }
@@ -137,5 +137,8 @@ class ScrobbleManager(
 
 	private companion object {
 		const val MIN_CHECK_INTERVAL_MS = 2_000L
+
+		/** Shorter songs (jingles, interludes) are never scrobbled, as Last.fm does. */
+		const val MIN_SCROBBLE_DURATION_MS = 30_000
 	}
 }

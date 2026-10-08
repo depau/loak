@@ -30,7 +30,6 @@ import eu.depau.loak.generated.resources.option_lyrics_keep_alive
 import eu.depau.loak.generated.resources.option_now_playing_background_style
 import eu.depau.loak.generated.resources.option_now_playing_slider_style
 import eu.depau.loak.generated.resources.option_now_playing_song_info
-import eu.depau.loak.generated.resources.option_now_playing_toolbar_position
 import eu.depau.loak.generated.resources.option_swipe_to_skip
 import eu.depau.loak.generated.resources.subtitle_configure_lyric_providers
 import eu.depau.loak.generated.resources.subtitle_now_playing_background_style
@@ -42,7 +41,6 @@ import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.CoverArtTapAction
 import eu.depau.loak.domain.models.settings.NowPlayingBackgroundStyle
-import eu.depau.loak.domain.models.settings.ToolbarPosition
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.layouts.NestedTopBar
@@ -161,15 +159,7 @@ fun SettingsNowPlayingScreen() {
 						checked = preferenceManager.nowPlayingSongInfo,
 						onCheckedChange = { preferenceManager.nowPlayingSongInfo = it },
 						content = { Text(stringResource(Res.string.option_now_playing_song_info)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2)
-					)
-					SettingsChoiceItem(
-						content = { Text(stringResource(Res.string.option_now_playing_toolbar_position)) },
-						choices = ToolbarPosition.entries.toImmutableList(),
-						selectedChoice = preferenceManager.nowPlayingToolbarPosition,
-						onChoiceSelected = { preferenceManager.nowPlayingToolbarPosition = it },
-						label = { stringResource(it.displayName) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
 					)
 				}
 			}

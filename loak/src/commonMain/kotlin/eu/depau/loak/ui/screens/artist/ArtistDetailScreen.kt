@@ -87,7 +87,6 @@ import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainSongListType
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.common.SongRow
@@ -180,10 +179,7 @@ fun ArtistDetailScreen(
 			},
 			bottomBar = {
 				val scrollManager = LocalBottomBarScrollManager.current
-				val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-				if (preferVisible) {
-					RootBottomBar(scrolled = scrollManager.isTriggered)
-				}
+				RootBottomBar(scrolled = scrollManager.isTriggered)
 			}
 		) { contentPadding ->
 			AnimatedContent(

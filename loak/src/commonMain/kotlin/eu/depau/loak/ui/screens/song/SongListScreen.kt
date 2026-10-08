@@ -26,9 +26,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalBottomBarScrollManager
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainSongListType
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
@@ -58,7 +56,6 @@ fun SongListScreen(
 			koinInject<PersistentViewModelStoreOwner>()
 		}
 	)
-	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 	val songsState by viewModel.songsState.collectAsStateWithLifecycle()
 	val selectedSorting by viewModel.selectedSorting.collectAsStateWithLifecycle()
@@ -109,10 +106,7 @@ fun SongListScreen(
 		},
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
-			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!nested || preferVisible) {
-				RootBottomBar(scrolled = scrollManager.isTriggered)
-			}
+			RootBottomBar(scrolled = scrollManager.isTriggered)
 		}
 	) { innerPadding ->
 		PullToRefreshBox(

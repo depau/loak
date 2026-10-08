@@ -110,7 +110,7 @@ fun NowPlayingScreen() {
 		WindowChromeHost(paneOpen = layout == PlayerPaneLayout.Beside) {
 			Box(Modifier.fillMaxSize()) {
 				SheetScaffold(
-					toolbarPosition = if (chrome != null || layout == PlayerPaneLayout.Sheet) ToolbarPosition.Top else null,
+					toolbarPosition = if (chrome != null || layout == PlayerPaneLayout.Sheet) ToolbarPosition.Top else ToolbarPosition.Bottom,
 					toolbar = { windowInsets ->
 						SheetToolbar(
 							modifier = Modifier

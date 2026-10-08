@@ -22,8 +22,6 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalPlatformContext
-import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.ui.components.layouts.ArtGrid
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
@@ -42,7 +40,6 @@ import eu.depau.loak.ui.viewmodel.RootViewModel
 fun GenreListScreen(
 	nested: Boolean
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
 	val viewModel = koinViewModel<GenreListViewModel>(
 		viewModelStoreOwner = if (nested) {
 			LocalViewModelStoreOwner.current!!
@@ -77,10 +74,7 @@ fun GenreListScreen(
 		},
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
-			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!nested || preferVisible) {
-				RootBottomBar(scrolled = scrollManager.isTriggered)
-			}
+			RootBottomBar(scrolled = scrollManager.isTriggered)
 		}
 	) { innerPadding ->
 		PullToRefreshBox(

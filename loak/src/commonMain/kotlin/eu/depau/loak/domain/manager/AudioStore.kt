@@ -3,7 +3,6 @@ package eu.depau.loak.domain.manager
 import eu.depau.loak.data.database.dao.AudioFileDao
 import eu.depau.loak.data.database.entities.AudioFileEntity
 import eu.depau.loak.domain.models.AudioQuality
-import eu.depau.loak.domain.models.settings.AudioCacheLimit
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
 import io.ktor.http.encodeURLParameter
@@ -276,11 +275,8 @@ class AudioStore(
 		mutex.withLock {
 			val entries = dao.getAll()
 			val enabled = preferenceManager.audioCacheEnabled
-			val bySize = preferenceManager.audioCacheLimit == AudioCacheLimit.Size
-			var maxBytes = if (!enabled) 0 else if (bySize) preferenceManager.audioCacheMaxBytes
-			else Long.MAX_VALUE
-			val maxCount = if (!enabled) 0 else if (bySize) Int.MAX_VALUE
-			else preferenceManager.audioCacheMaxSongs
+			var maxBytes = if (enabled) preferenceManager.audioCacheMaxBytes else 0
+			val maxCount = if (enabled) Int.MAX_VALUE else 0
 			freeSpace(dir)?.let { free ->
 				val cached = entries.filter { it.complete && !it.pinned }.sumOf { it.bytes }
 				maxBytes = minOf(maxBytes, cached + free - MIN_FREE_BYTES)

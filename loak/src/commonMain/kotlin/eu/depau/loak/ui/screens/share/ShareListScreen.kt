@@ -31,9 +31,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalSnackBarState
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.ShareManager
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.ShareOff
 import eu.depau.loak.ui.components.common.ContentUnavailable
@@ -59,7 +57,6 @@ fun ShareListScreen() {
 	val isRefreshingFlow by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
 	val shareManager = koinInject<ShareManager>()
-	val preferenceManager = koinInject<PreferenceManager>()
 	val snackBarState = LocalSnackBarState.current
 	val scope = rememberCoroutineScope()
 
@@ -69,9 +66,7 @@ fun ShareListScreen() {
 		topBar = { NestedTopBar({ Text(stringResource(Res.string.title_shares)) }) },
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
-			if (preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens) {
-				RootBottomBar(scrolled = scrollManager.isTriggered)
-			}
+			RootBottomBar(scrolled = scrollManager.isTriggered)
 		}
 	) { contentPadding ->
 		PullToRefreshBox(

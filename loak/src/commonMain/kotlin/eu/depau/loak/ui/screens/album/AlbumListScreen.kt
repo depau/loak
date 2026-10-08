@@ -32,7 +32,6 @@ import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainSongCollection
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.AlphabeticalScroller
@@ -125,10 +124,7 @@ fun AlbumListScreen(
 		},
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
-			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!nested || preferVisible) {
-				RootBottomBar(scrolled = scrollManager.isTriggered)
-			}
+			RootBottomBar(scrolled = scrollManager.isTriggered)
 		}
 	) { innerPadding ->
 		PullToRefreshBox(

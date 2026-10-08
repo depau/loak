@@ -4,17 +4,12 @@ import com.materialkolor.PaletteStyle
 import eu.depau.loak.domain.manager.base.BasePreferenceManager
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainPlaylistListType
-import eu.depau.loak.domain.models.settings.AudioCacheLimit
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.domain.models.settings.CoverArtQuality
 import eu.depau.loak.domain.models.settings.CoverArtTapAction
 import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
 import eu.depau.loak.domain.models.settings.ListViewMode
-import eu.depau.loak.domain.models.settings.MiniPlayerProgressStyle
 import eu.depau.loak.domain.models.settings.MiniPlayerStyle
-import eu.depau.loak.domain.models.settings.NavigationBarLabelVisibility
-import eu.depau.loak.domain.models.settings.NavigationBarStyle
 import eu.depau.loak.domain.models.settings.NowPlayingBackgroundStyle
 import eu.depau.loak.domain.models.settings.NowPlayingSliderStyle
 import eu.depau.loak.domain.models.settings.OfflineMode
@@ -24,7 +19,6 @@ import eu.depau.loak.domain.models.settings.StartupQueue
 import eu.depau.loak.domain.models.settings.StreamingQuality
 import eu.depau.loak.domain.models.settings.Theme
 import eu.depau.loak.domain.models.settings.ThemeMode
-import eu.depau.loak.domain.models.settings.ToolbarPosition
 import com.russhwolf.settings.Settings as KmpSettings
 
 class PreferenceManager(
@@ -35,7 +29,6 @@ class PreferenceManager(
 	var swipeToSkip by preference(true)
 	/** The queue side pane on wide windows, kept across launches. */
 	var queuePaneOpen by preference(false)
-	var hideIfIdle by preference(false)
 	var coverArtQuality by preference(CoverArtQuality.High)
 	var enableRatings by preference(true)
 	var lyricsAutoscroll by preference(true)
@@ -45,7 +38,6 @@ class PreferenceManager(
 	var lyricsBrightInactive by preference(false)
 	var enableScrobbling by preference(true)
 	var scrobblePercentage by preference(.5f)
-	var minDurationToScrobble by preference(30f)
 	var replayGainMode by preference(ReplayGainMode.Off)
 	var rgAmpGain by preference(0f)
 	var ampGain by preference(0f)
@@ -62,13 +54,11 @@ class PreferenceManager(
 	var customFormatWifi by preference("")
 	var customFormatCellular by preference("")
 
-	var downloadQualityWifi by preference(StreamingQuality.Lossless)
-	var downloadQualityCellular by preference(StreamingQuality.Lossless)
+	// keys kept from when downloads had a Wi-Fi and a mobile data quality
+	var downloadQuality by preference("downloadQualityWifi", StreamingQuality.Lossless)
 	var isAdvancedDownloadTranscodingActive by preference(false)
-	var customDownloadMaxBitrateWifi by preference(0)
-	var customDownloadMaxBitrateCellular by preference(0)
-	var customDownloadFormatWifi by preference("")
-	var customDownloadFormatCellular by preference("")
+	var customDownloadMaxBitrate by preference("customDownloadMaxBitrateWifi", 0)
+	var customDownloadFormat by preference("customDownloadFormatWifi", "")
 	/** Off: downloads wait for Wi-Fi (an unmetered network). */
 	var downloadOverCellular by preference(false)
 
@@ -86,7 +76,6 @@ class PreferenceManager(
 	 */
 	var downloadOnlyWhileCharging by preference(false)
 
-	var nowPlayingToolbarPosition by preference(ToolbarPosition.Bottom)
 	var nowPlayingSongInfo by preference(true)
 	var nowPlayingSliderStyle by preference(NowPlayingSliderStyle.Yoyo)
 	var nowPlayingCoverArtAction by preference(CoverArtTapAction.TogglePlayback)
@@ -137,13 +126,7 @@ class PreferenceManager(
 
 	// navigation bar settings
 	var bottomBarCollapseMode by preference(BottomBarCollapseMode.Never)
-	var bottomBarVisibilityMode by preference(BottomBarVisibilityMode.AllScreens)
-	var navigationBarStyle by preference(NavigationBarStyle.Normal)
-	var navigationBarLabelVisibility by preference(
-		NavigationBarLabelVisibility.Always
-	)
 	var miniPlayerStyle by preference(MiniPlayerStyle.Detached)
-	var miniPlayerProgressStyle by preference(MiniPlayerProgressStyle.Seekable)
 
 	// theme related settings
 	var theme by preference(Theme.Dynamic)
@@ -198,7 +181,5 @@ class PreferenceManager(
 
 	// streamed songs kept on disk (AudioStore); downloads don't count towards the limit
 	var audioCacheEnabled by preference(true)
-	var audioCacheLimit by preference(AudioCacheLimit.Size)
 	var audioCacheMaxBytes by preference(2L * 1024 * 1024 * 1024)
-	var audioCacheMaxSongs by preference(300)
 }

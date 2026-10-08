@@ -23,11 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.depau.loak.di.LocalBottomBarScrollManager
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.DomainSongListType
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.title_albums
 import eu.depau.loak.generated.resources.title_songs
@@ -56,7 +54,6 @@ import kotlin.time.Duration
 fun GenreDetailScreen(
 	genreName: String
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 
 	val viewModel = koinViewModel<HomeViewModel>(
@@ -82,10 +79,7 @@ fun GenreDetailScreen(
 		topBar = { NestedTopBar({ Text(genreName) }) },
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
-			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (preferVisible) {
-				RootBottomBar(scrolled = scrollManager.isTriggered)
-			}
+			RootBottomBar(scrolled = scrollManager.isTriggered)
 		}
 	) { innerPadding ->
 		PullToRefreshBox(

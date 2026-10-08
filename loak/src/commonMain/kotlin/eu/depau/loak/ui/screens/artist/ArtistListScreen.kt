@@ -34,7 +34,6 @@ import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.domain.models.DomainArtistListType
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.layouts.ArtGridItem
 import eu.depau.loak.ui.components.layouts.NestedTopBar
@@ -123,10 +122,7 @@ fun ArtistListScreen(
 		},
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
-			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!nested || preferVisible) {
-				RootBottomBar(scrolled = scrollManager.isTriggered)
-			}
+			RootBottomBar(scrolled = scrollManager.isTriggered)
 		}
 	) { innerPadding ->
 		PullToRefreshBox(

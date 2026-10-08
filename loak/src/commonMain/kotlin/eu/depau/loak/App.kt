@@ -127,7 +127,6 @@ import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.PermissionManager
-import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.dialogs.DialogButton
 import eu.depau.loak.ui.components.dialogs.FormDialog
@@ -258,7 +257,6 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 		BottomBarScrollManager(with(density) { 50.dp.toPx() })
 	}
 
-	var appStarted by rememberSaveable { mutableStateOf(false) }
 	val queuePaneOpen = remember { mutableStateOf(preferenceManager.queuePaneOpen) }
 	LaunchedEffect(queuePaneOpen.value) { preferenceManager.queuePaneOpen = queuePaneOpen.value }
 	val mediaPlayer = koinInject<MediaPlayerViewModel>()
@@ -296,15 +294,6 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 		mutableStateOf(platformContext.platformType.let { it == PlatformType.Desktop || it == PlatformType.Web })
 	}
 	LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
-
-	LaunchedEffect(Unit) {
-		if (!appStarted) {
-			appStarted = true
-			if (preferenceManager.explicitContentPlayback == ExplicitContentPlayback.SkipForThisSession) {
-				preferenceManager.explicitContentPlayback = ExplicitContentPlayback.Allowed
-			}
-		}
-	}
 
 	// On a restored (already-logged-in) session the login screen never shows, so the
 	// ACCESS_LOCAL_NETWORK prompt it triggers is skipped. Android 16+ requires that

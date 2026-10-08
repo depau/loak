@@ -75,7 +75,6 @@ import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Add
@@ -306,10 +305,7 @@ fun PlaylistListScreen(
 		},
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
-			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!nested || preferVisible) {
-				RootBottomBar(scrolled = scrollManager.isTriggered)
-			}
+			RootBottomBar(scrolled = scrollManager.isTriggered)
 		}
 	) { innerPadding ->
 		PullToRefreshBox(

@@ -32,13 +32,13 @@ import eu.depau.loak.generated.resources.info_streaming_quality
 import eu.depau.loak.generated.resources.info_download_quality
 import eu.depau.loak.generated.resources.info_transcoding_defaults
 import eu.depau.loak.generated.resources.option_max_bitrate_cellular
+import eu.depau.loak.generated.resources.option_max_bitrate
 import eu.depau.loak.generated.resources.option_max_bitrate_wifi
+import eu.depau.loak.generated.resources.option_download_format
 import eu.depau.loak.generated.resources.option_stream_custom_quality
 import eu.depau.loak.generated.resources.option_download_custom_quality
 import eu.depau.loak.generated.resources.option_stream_format_cellular
-import eu.depau.loak.generated.resources.option_download_format_cellular
 import eu.depau.loak.generated.resources.option_stream_format_wifi
-import eu.depau.loak.generated.resources.option_download_format_wifi
 import eu.depau.loak.generated.resources.option_download_over_cellular
 import eu.depau.loak.generated.resources.title_advanced
 import eu.depau.loak.generated.resources.title_cellular
@@ -89,7 +89,20 @@ internal fun QualityScreen(download: Boolean) {
 					.verticalScroll(rememberScrollState())
 					.padding(horizontal = 16.dp)
 			) {
-				AnimatedVisibility(visible = !advanced) {
+				AnimatedVisibility(visible = !advanced && download) {
+					SettingsGroup(
+						modifier = Modifier
+							.selectableGroup()
+							.padding(bottom = SettingsGroupDefaults.GapBetweenGroups)
+					) {
+						RadioButtons(
+							value = preferenceManager.downloadQuality,
+							onChangeValue = { preferenceManager.downloadQuality = it }
+						)
+					}
+				}
+
+				AnimatedVisibility(visible = !advanced && !download) {
 					SettingsGroup(
 						modifier = Modifier
 							.selectableGroup()
@@ -104,17 +117,13 @@ internal fun QualityScreen(download: Boolean) {
 						}
 					) {
 						RadioButtons(
-							value = if (download) preferenceManager.downloadQualityWifi
-								else preferenceManager.streamingQualityWifi,
-							onChangeValue = {
-								if (download) preferenceManager.downloadQualityWifi = it
-								else preferenceManager.streamingQualityWifi = it
-							}
+							value = preferenceManager.streamingQualityWifi,
+							onChangeValue = { preferenceManager.streamingQualityWifi = it }
 						)
 					}
 				}
 
-				AnimatedVisibility(visible = !advanced) {
+				AnimatedVisibility(visible = !advanced && !download) {
 					SettingsGroup(
 						modifier = Modifier
 							.selectableGroup()
@@ -129,12 +138,8 @@ internal fun QualityScreen(download: Boolean) {
 						}
 					) {
 						RadioButtons(
-							value = if (download) preferenceManager.downloadQualityCellular
-								else preferenceManager.streamingQualityCellular,
-							onChangeValue = {
-								if (download) preferenceManager.downloadQualityCellular = it
-								else preferenceManager.streamingQualityCellular = it
-							}
+							value = preferenceManager.streamingQualityCellular,
+							onChangeValue = { preferenceManager.streamingQualityCellular = it }
 						)
 					}
 				}
@@ -232,15 +237,56 @@ private fun RadioButtons(
 
 @Composable
 private fun CustomOptions(download: Boolean) {
+	if (download) CustomDownloadOptions() else CustomStreamingOptions()
+}
+
+@Composable
+private fun CustomDownloadOptions() {
+	val preferenceManager = koinInject<PreferenceManager>()
+	var bitrateInput by remember {
+		val current = preferenceManager.customDownloadMaxBitrate
+		mutableStateOf(if (current > 0) current.toString() else "")
+	}
+
+	Column(
+		modifier = Modifier.padding(16.dp),
+		verticalArrangement = Arrangement.spacedBy(8.dp)
+	) {
+		OutlinedTextField(
+			value = bitrateInput,
+			onValueChange = { newValue ->
+				if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+					bitrateInput = newValue
+					preferenceManager.customDownloadMaxBitrate = newValue.toIntOrNull() ?: 0
+				}
+			},
+			label = { Text(stringResource(Res.string.option_max_bitrate)) },
+			placeholder = { Text("0") },
+			keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+			modifier = Modifier.fillMaxWidth(),
+			singleLine = true
+		)
+
+		OutlinedTextField(
+			value = preferenceManager.customDownloadFormat,
+			onValueChange = { preferenceManager.customDownloadFormat = it },
+			label = { Text(stringResource(Res.string.option_download_format)) },
+			supportingText = { Text(stringResource(Res.string.info_transcoding_defaults)) },
+			modifier = Modifier.fillMaxWidth(),
+			singleLine = true
+		)
+	}
+}
+
+@Composable
+private fun CustomStreamingOptions() {
 	val preferenceManager = koinInject<PreferenceManager>()
 	var wifiInput by remember {
-		val current = if (download) preferenceManager.customDownloadMaxBitrateWifi
-			else preferenceManager.customMaxBitrateWifi
+		val current = preferenceManager.customMaxBitrateWifi
 		mutableStateOf(if (current > 0) current.toString() else "")
 	}
 	var cellularInput by remember {
-		val current = if (download) preferenceManager.customDownloadMaxBitrateCellular
-			else preferenceManager.customMaxBitrateCellular
+		val current = preferenceManager.customMaxBitrateCellular
 		mutableStateOf(if (current > 0) current.toString() else "")
 	}
 
@@ -253,9 +299,7 @@ private fun CustomOptions(download: Boolean) {
 			onValueChange = { newValue ->
 				if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
 					wifiInput = newValue
-					if (download) preferenceManager.customDownloadMaxBitrateWifi =
-						newValue.toIntOrNull() ?: 0
-					else preferenceManager.customMaxBitrateWifi = newValue.toIntOrNull() ?: 0
+					preferenceManager.customMaxBitrateWifi = newValue.toIntOrNull() ?: 0
 				}
 			},
 			label = { Text(stringResource(Res.string.option_max_bitrate_wifi)) },
@@ -270,9 +314,7 @@ private fun CustomOptions(download: Boolean) {
 			onValueChange = { newValue ->
 				if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
 					cellularInput = newValue
-					if (download) preferenceManager.customDownloadMaxBitrateCellular =
-						newValue.toIntOrNull() ?: 0
-					else preferenceManager.customMaxBitrateCellular = newValue.toIntOrNull() ?: 0
+					preferenceManager.customMaxBitrateCellular = newValue.toIntOrNull() ?: 0
 				}
 			},
 			label = { Text(stringResource(Res.string.option_max_bitrate_cellular)) },
@@ -283,35 +325,17 @@ private fun CustomOptions(download: Boolean) {
 		)
 
 		OutlinedTextField(
-			value = if (download) preferenceManager.customDownloadFormatWifi
-				else preferenceManager.customFormatWifi,
-			onValueChange = {
-				if (download) preferenceManager.customDownloadFormatWifi = it
-				else preferenceManager.customFormatWifi = it
-			},
-			label = {
-				Text(stringResource(
-					if (download) Res.string.option_download_format_wifi
-					else Res.string.option_stream_format_wifi
-				))
-			},
+			value = preferenceManager.customFormatWifi,
+			onValueChange = { preferenceManager.customFormatWifi = it },
+			label = { Text(stringResource(Res.string.option_stream_format_wifi)) },
 			modifier = Modifier.fillMaxWidth(),
 			singleLine = true
 		)
 
 		OutlinedTextField(
-			value = if (download) preferenceManager.customDownloadFormatCellular
-				else preferenceManager.customFormatCellular,
-			onValueChange = {
-				if (download) preferenceManager.customDownloadFormatCellular = it
-				else preferenceManager.customFormatCellular = it
-			},
-			label = {
-				Text(stringResource(
-					if (download) Res.string.option_download_format_cellular
-					else Res.string.option_stream_format_cellular
-				))
-			},
+			value = preferenceManager.customFormatCellular,
+			onValueChange = { preferenceManager.customFormatCellular = it },
+			label = { Text(stringResource(Res.string.option_stream_format_cellular)) },
 			supportingText = { Text(stringResource(Res.string.info_transcoding_defaults)) },
 			modifier = Modifier.fillMaxWidth(),
 			singleLine = true

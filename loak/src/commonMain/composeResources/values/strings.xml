@@ -31,12 +31,10 @@
 	<string name="title_radios">Internet radios</string>
 	<string name="title_all">All</string>
 	<string name="title_similar_artists">Similar artists</string>
-	<string name="title_discord_server">Discord server</string>
 	<string name="title_shares">Shares</string>
 	<string name="title_more_by_artist">More by %1$s</string>
 	<string name="title_disc_number">Disc %1$s</string>
 	<string name="title_genres">Genres</string>
-	<string name="title_navigation_bar">Navigation Bar</string>
 	<string name="title_mini_player">Mini Player</string>
 	<string name="title_layout">Layout</string>
 	<string name="title_sort_by">Sort by</string>
@@ -103,7 +101,6 @@
 	<string name="option_now_playing_slider_style_slim">Slim</string>
 	<string name="option_now_playing_slider_style_yoyo">Yoyo</string>
 	<string name="option_swipe_to_skip">Swipe to change songs</string>
-	<string name="option_hide_bottom_bar_if_idle">Hide if idle</string>
 	<string name="option_auto_fill_queue">Autoplay</string>
 	<string name="subtitle_auto_fill_queue">Add similar songs when the queue ends</string>
 	<string name="option_lyrics_keep_alive">Keep screen on in lyrics view</string>
@@ -133,7 +130,6 @@
 	<string name="option_sort_ascending">Ascending</string>
 	<string name="option_sort_descending">Descending</string>
 	<string name="option_scrobble_percentage">Scrobble percentage</string>
-	<string name="option_min_duration_to_scrobble">Min. duration to scrobble</string>
 	<string name="option_playlist_name">Name</string>
 	<string name="option_playlist_songs">Songs</string>
 	<string name="option_enable_scrobbling">Enable scrobbling</string>
@@ -154,11 +150,7 @@
 	<string name="option_downloaded_songs">Downloaded songs</string>
 	<string name="option_audio_cache">Cache streamed songs</string>
 	<string name="subtitle_audio_cache">Keep recently played songs on the device to replay them without using data</string>
-	<string name="option_audio_cache_limit">Limit by</string>
-	<string name="option_audio_cache_limit_size">Size</string>
-	<string name="option_audio_cache_limit_songs">Number of songs</string>
 	<string name="option_audio_cache_max_size">Maximum cache size</string>
-	<string name="option_audio_cache_max_songs">Maximum cached songs</string>
 	<string name="option_audio_storage">Song storage</string>
 	<string name="info_audio_storage_usage">Cache: %1$s · Downloads: %2$s</string>
 	<string name="option_custom_headers">Custom server headers</string>
@@ -182,15 +174,14 @@
 	<string name="option_max_bitrate_cellular">Max bitrate over cellular (kbps)</string>
 	<string name="option_stream_format_wifi">Stream format Wi-Fi</string>
 	<string name="option_stream_format_cellular">Stream format over cellular</string>
-	<string name="option_download_format_wifi">Download format over Wi-Fi</string>
-	<string name="option_download_format_cellular">Download format Cellular</string>
+	<string name="option_max_bitrate">Max bitrate (kbps)</string>
+	<string name="option_download_format">Download format</string>
 	<string name="option_download_over_cellular">Download over mobile data</string>
 	<string name="option_cover_art_quality">Cover art quality</string>
 	<string name="option_palette_style">Palette style</string>
 	<string name="option_explicit_playback">Explicit content playback</string>
 	<string name="option_explicit_playback_allowed">Allowed</string>
 	<string name="option_explicit_playback_skip">Skip explicit songs</string>
-	<string name="option_explicit_playback_skip_session">Skip explicit songs for this session</string>
 	<string name="option_dynamic_theming">Dynamic theming</string>
 	<string name="option_cover_art_action">Cover art tap action</string>
 	<string name="option_cover_art_action_disabled">Disabled</string>
@@ -221,34 +212,16 @@
 	<string name="info_external_song">External</string>
 	<string name="info_external_song_description">This song was marked as external by your server, so you may not be able to listen to it.</string>
 
-	<string name="option_now_playing_toolbar_position">Toolbar position</string>
-	<string name="option_position_top">Top</string>
-	<string name="option_position_bottom">Bottom</string>
 
 	<string name="option_bottom_bar_collapse_mode">Collapse mode</string>
 	<string name="option_bottom_bar_collapse_mode_never">Never</string>
 	<string name="option_bottom_bar_collapse_mode_on_scroll">On scroll</string>
 
-	<string name="option_bottom_bar_visibility_mode">Visibility mode</string>
-	<string name="option_bottom_bar_visibility_mode_default">Default</string>
-	<string name="option_bottom_bar_visibility_mode_all_screens">All screens</string>
 
-	<string name="option_navigation_bar_style">Navigation bar style</string>
-	<string name="option_navigation_bar_style_normal">Normal</string>
-	<string name="option_navigation_bar_style_short">Short</string>
-	<string name="option_navigation_bar_label_visibility">Label visibility</string>
-	<string name="option_navigation_bar_label_visibility_always">Always</string>
-	<string name="option_navigation_bar_label_visibility_only_selected">Only selected</string>
-	<string name="option_navigation_bar_label_visibility_never">Never</string>
-	<string name="option_navigation_bar_tabs">Configure and re-order tabs</string>
 
 	<string name="option_mini_player_style">Mini player style</string>
 	<string name="option_mini_player_style_unified">Unified</string>
 	<string name="option_mini_player_style_detached">Detached</string>
-	<string name="option_mini_player_progress_style">Progress bar visibility</string>
-	<string name="option_mini_player_progress_style_hidden">Hidden</string>
-	<string name="option_mini_player_progress_style_visible">Visible</string>
-	<string name="option_mini_player_progress_style_seekable">Seekable</string>
 
 	<string name="option_queue_info_type">Queue information</string>
 	<string name="option_queue_info_type_remining">Show songs/time remaining</string>
@@ -438,7 +411,6 @@
 	<string name="action_clear_audio_cache">Clear streaming cache</string>
 	<string name="action_rebuild_database">Rebuild database</string>
 	<string name="action_trigger_sync">Trigger manual sync</string>
-	<string name="action_test_exception_handler">Test exception handler</string>
 	<string name="action_dont_show_again">Don't show again</string>
 	<string name="action_undo">Undo</string>
 	<string name="action_open_settings">Open settings</string>
@@ -569,7 +541,6 @@
 	<string name="title_syncing_library">Syncing your library…</string>
 	<string name="info_library_still_syncing">Still syncing your library…</string>
 	<string name="info_login_description">Log into a Subsonic compatible music server.</string>
-	<string name="info_exception_handler">This will immediately crash the application. Are you sure?</string>
 	<string name="info_streaming_quality">Higher quality presets will use more data. Transcoding can severely impact load times and cause lyrics to become unsynced. Select Lossless if you encounter any issues.</string>
 	<string name="info_download_quality">Higher quality presets will use more storage and data. Transcoding can increase download times. Select Lossless if you encounter any issues.</string>
 	<string name="info_repeat_off">Repeat off</string>

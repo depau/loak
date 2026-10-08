@@ -22,7 +22,6 @@ import eu.depau.loak.generated.resources.info_app_version
 import eu.depau.loak.generated.resources.option_check_for_updates
 import eu.depau.loak.generated.resources.subtitle_check_for_updates
 import eu.depau.loak.generated.resources.title_about
-import eu.depau.loak.generated.resources.title_discord_server
 import eu.depau.loak.generated.resources.title_github
 import eu.depau.loak.generated.resources.title_navic
 import org.jetbrains.compose.resources.stringResource
@@ -89,18 +88,13 @@ fun SettingsAboutScreen() {
 			SettingsGroup {
 				SettingsNavItem(
 					onClick = { linkToOpen = "https://github.com/depau/loak" },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3),
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2),
 					content = { Text(stringResource(Res.string.title_github)) }
 				)
 				SettingsNavItem(
 					onClick = { linkToOpen = "https://github.com/ssalggnikool/Navic" },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3),
+					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2),
 					content = { Text(stringResource(Res.string.title_navic)) }
-				)
-				SettingsNavItem(
-					onClick = { linkToOpen = "https://discord.gg/TBcnNX66PH" },
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3),
-					content = { Text(stringResource(Res.string.title_discord_server)) }
 				)
 			}
 

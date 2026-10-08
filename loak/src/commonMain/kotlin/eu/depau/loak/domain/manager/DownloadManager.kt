@@ -473,19 +473,13 @@ class DownloadManager(
 		}
 	}
 
-	/** The quality to download at, per the network downloads use and the download settings. */
+	/** The quality to download at, per the download settings. */
 	private fun downloadQuality(): AudioQuality {
-		val cellular = connectivityManager.isCellular.value && overCellular.value
 		val prefs = preferenceManager
 		if (prefs.isAdvancedDownloadTranscodingActive) {
-			return AudioQuality.of(
-				if (cellular) prefs.customDownloadFormatCellular
-				else prefs.customDownloadFormatWifi,
-				if (cellular) prefs.customDownloadMaxBitrateCellular
-				else prefs.customDownloadMaxBitrateWifi
-			)
+			return AudioQuality.of(prefs.customDownloadFormat, prefs.customDownloadMaxBitrate)
 		}
-		val q = if (cellular) prefs.downloadQualityCellular else prefs.downloadQualityWifi
+		val q = prefs.downloadQuality
 		return when (platformType) {
 			PlatformType.Android -> AudioQuality.of(q.containerAndroid, q.bitrateAndroid)
 			PlatformType.Desktop -> AudioQuality.of("mp3", q.bitrateIos)

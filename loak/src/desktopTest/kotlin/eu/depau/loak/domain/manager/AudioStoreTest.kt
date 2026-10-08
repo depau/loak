@@ -6,7 +6,6 @@ import eu.depau.loak.di.JdbcSQLiteDriver
 import com.russhwolf.settings.PropertiesSettings
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.domain.models.AudioQuality
-import eu.depau.loak.domain.models.settings.AudioCacheLimit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -28,8 +27,7 @@ class AudioStoreTest {
 			.setDriver(JdbcSQLiteDriver())
 			.build()
 		val prefs = PreferenceManager(PropertiesSettings(Properties())).apply {
-			audioCacheLimit = AudioCacheLimit.Songs
-			audioCacheMaxSongs = 1
+			audioCacheMaxBytes = 1000
 		}
 		val store = AudioStore(dir.path, db.audioFileDao(), prefs, MutableStateFlow(""))
 		val bytes = ByteArray(1000) { it.toByte() }
@@ -51,7 +49,7 @@ class AudioStoreTest {
 		assertEquals(raw, store.bestComplete("s1"))
 		assertFalse(store.pin("s1", AudioQuality.of("opus", 192), "opus"))
 
-		// only 1 cached song allowed; the pinned one doesn't count
+		// room for 1 cached song; the pinned one doesn't count
 		val s2 = write("s2", AudioQuality.Raw)!!
 		val s3 = write("s3", AudioQuality.Raw)!!
 		assertNull(store.bestComplete("s2"))

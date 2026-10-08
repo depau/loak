@@ -76,7 +76,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.models.settings.MiniPlayerProgressStyle
 import eu.depau.loak.domain.models.settings.MiniPlayerStyle
 import eu.depau.loak.domain.models.settings.NavbarConfig
 import eu.depau.loak.icons.Icons
@@ -149,7 +148,7 @@ fun MiniPlayer(
 	val isInteractive = enabled && hasSong
 
 	AnimatedVisibility(
-		visible = hasSong || !preferenceManager.hideIfIdle,
+		visible = hasSong,
 		modifier = modifier
 	) {
 		Swiper(
@@ -311,72 +310,66 @@ fun MiniPlayer(
 					},
 					enabled = enabled
 				)
-				if (preferenceManager.miniPlayerProgressStyle == MiniPlayerProgressStyle.Visible
-					|| preferenceManager.miniPlayerProgressStyle == MiniPlayerProgressStyle.Seekable
+				var dragging by remember { mutableStateOf(false) }
+				val alpha by animateFloatAsState(
+					if (dragging) 1f else .7f
+				)
+				val progress by animateFloatAsState(
+					playerState.progress.coerceIn(0f, 1f)
+				)
+				val alignment = if (detached) Alignment.BottomStart else Alignment.TopStart
+				Box(
+					modifier = Modifier
+						.matchParentSize()
+						.clip(shape)
+						.align(alignment),
+					contentAlignment = alignment
 				) {
-					var dragging by remember { mutableStateOf(false) }
-					val alpha by animateFloatAsState(
-						if (dragging) 1f else .7f
-					)
-					val progress by animateFloatAsState(
-						playerState.progress.coerceIn(0f, 1f)
-					)
-					val alignment = if (detached) Alignment.BottomStart else Alignment.TopStart
-					Box(
-						modifier = Modifier
-							.matchParentSize()
-							.clip(shape)
-							.align(alignment),
-						contentAlignment = alignment
-					) {
-						if (!detached) {
-							Box(
-								Modifier
-									.background(MaterialTheme.colorScheme.surfaceBright)
-									.fillMaxWidth()
-									.height(3.dp)
-							)
-						}
+					if (!detached) {
 						Box(
 							Modifier
-								.background(MaterialTheme.colorScheme.primary.copy(alpha = alpha))
-								.fillMaxWidth(if (song != null) progress else 0f)
+								.background(MaterialTheme.colorScheme.surfaceBright)
+								.fillMaxWidth()
 								.height(3.dp)
 						)
-						Box(
-							Modifier
-								.fillMaxWidth()
-								.height(14.dp)
-								.then(
-									if (song != null
-										&& preferenceManager.miniPlayerProgressStyle == MiniPlayerProgressStyle.Seekable
-										&& isInteractive
-									)
-										Modifier.pointerInput(Unit) {
-											detectDragGestures(
-												onDragStart = {
-													dragging = true
-													haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-												},
-												onDragEnd = {
-													dragging = false
-													haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
-												}
-											) { change, _ ->
-												player.seek(
-													(change.position.x / size.width.toFloat()).coerceIn(
-														0f,
-														1f
-													)
-												)
-												change.consume()
-											}
-										}
-									else Modifier
-								)
-						)
 					}
+					Box(
+						Modifier
+							.background(MaterialTheme.colorScheme.primary.copy(alpha = alpha))
+							.fillMaxWidth(if (song != null) progress else 0f)
+							.height(3.dp)
+					)
+					Box(
+						Modifier
+							.fillMaxWidth()
+							.height(14.dp)
+							.then(
+								if (song != null && isInteractive)
+									Modifier.pointerInput(Unit) {
+										detectDragGestures(
+											onDragStart = {
+												dragging = true
+												haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+											},
+											onDragEnd = {
+												dragging = false
+												haptics.performHapticFeedback(HapticFeedbackType.GestureEnd)
+											}
+										) { change, _ ->
+											player.seek(
+												(change.position.x / size.width.toFloat()).coerceIn(
+													0f,
+													1f
+												)
+											)
+											change.consume()
+										}
+									}
+								else Modifier
+							)
+					)
 				}
+
 			}
 		}
 	}

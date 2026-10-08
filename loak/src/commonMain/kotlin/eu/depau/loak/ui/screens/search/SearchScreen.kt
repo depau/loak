@@ -73,7 +73,6 @@ import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
-import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Close
@@ -127,7 +126,6 @@ fun SearchScreen(
 	nested: Boolean,
 	initialCategory: SearchCategory
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
 
 	val viewModel = koinViewModel<SearchViewModel>(
 		viewModelStoreOwner = if (nested) {
@@ -210,10 +208,7 @@ fun SearchScreen(
 		},
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
-			val preferVisible = preferenceManager.bottomBarVisibilityMode == BottomBarVisibilityMode.AllScreens
-			if (!nested || preferVisible) {
-				RootBottomBar(scrolled = scrollManager.isTriggered)
-			}
+			RootBottomBar(scrolled = scrollManager.isTriggered)
 		}
 	) { contentPadding ->
 		AnimatedContent(

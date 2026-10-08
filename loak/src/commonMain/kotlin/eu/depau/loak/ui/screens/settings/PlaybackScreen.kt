@@ -21,7 +21,6 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.option_auto_fill_queue
 import eu.depau.loak.generated.resources.option_enable_scrobbling
 import eu.depau.loak.generated.resources.option_explicit_playback
-import eu.depau.loak.generated.resources.option_min_duration_to_scrobble
 import eu.depau.loak.generated.resources.option_scrobble_percentage
 import eu.depau.loak.generated.resources.subtitle_audio_effects
 import eu.depau.loak.generated.resources.subtitle_auto_fill_queue
@@ -136,7 +135,7 @@ fun SettingsPlaybackScreen() {
 
 				SettingsGroup(title = { Text(stringResource(Res.string.title_behaviour)) }) {
 					val enableScrobbling = preferenceManager.enableScrobbling
-					val count = if (enableScrobbling) 3 else 1
+					val count = if (enableScrobbling) 2 else 1
 
 					SettingsToggleItem(
 						checked = enableScrobbling,
@@ -154,17 +153,6 @@ fun SettingsPlaybackScreen() {
 							trailingContent = { Text("${(preferenceManager.scrobblePercentage * 100).roundToInt()}%") },
 							content = { Text(stringResource(Res.string.option_scrobble_percentage)) },
 							shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
-						)
-					}
-
-					AnimatedVisibility(visible = enableScrobbling) {
-						SettingsSliderItem(
-							value = preferenceManager.minDurationToScrobble,
-							valueRange = 0f..60f,
-							onValueChange = { preferenceManager.minDurationToScrobble = it },
-							trailingContent = { Text("${preferenceManager.minDurationToScrobble.toInt()}s") },
-							content = { Text(stringResource(Res.string.option_min_duration_to_scrobble)) },
-							shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = count)
 						)
 					}
 				}
