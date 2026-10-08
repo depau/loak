@@ -427,6 +427,12 @@
 	<string name="action_unpin_speed_dial">Unpin from speed dial</string>
 	<string name="action_mix">Mix</string>
 	<string name="action_mix_to_here">Mix to here</string>
+	<string name="title_make_a_mix">Make a mix</string>
+	<string name="info_mix_from">Starting from %1$s</string>
+	<string name="info_mix_instant">Songs that sound like this one</string>
+	<string name="info_mix_to_here">A smooth path from the playing song to this one</string>
+	<string name="info_mix_alchemy">Blend this song with others you pick</string>
+	<string name="info_mix_lyrics_sound">Matches the words as well as the music</string>
 	<string name="action_queue">Queue</string>
 	<string name="title_up_next">Up next</string>
 	<string name="action_show_queue">Show queue</string>

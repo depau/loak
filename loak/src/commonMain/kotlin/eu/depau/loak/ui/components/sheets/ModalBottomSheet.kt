@@ -37,6 +37,9 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.semantics.paneTitle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -65,11 +68,13 @@ fun ModalBottomSheet(
 	sheetTitle: String? = null,
 	/** Options sheets: on expanded windows, a menu anchored to the item instead. */
 	menuOnWideWindows: Boolean = false,
+	/** While set, back and Esc call it instead of closing: for a sheet showing a sub-page. */
+	onBack: (() -> Unit)? = null,
 	content: @Composable ColumnScope.() -> Unit,
 ) {
 	if (menuOnWideWindows && LocalPlatformContext.current.isExpanded()) {
 		// right-click menus: Esc closes them like the sheets
-		val escape = Modifier.escapeToDismiss(onDismissRequest)
+		val escape = Modifier.escapeToDismiss { (onBack ?: onDismissRequest)() }
 		val menuShape = ContinuousRoundedRectangle(16.dp)
 		// the sheets scroll their own content; the menu has to give them a bounded height
 		val bounded = Modifier.width(340.dp).heightIn(max = 560.dp)
@@ -88,6 +93,7 @@ fun ModalBottomSheet(
 					tonalElevation = MenuDefaults.TonalElevation,
 					shadowElevation = MenuDefaults.ShadowElevation
 				) {
+					SubPageBack(onBack)
 					Column(Modifier.padding(vertical = 8.dp).then(bounded), content = content)
 				}
 			}
@@ -99,6 +105,7 @@ fun ModalBottomSheet(
 				shape = menuShape,
 				containerColor = containerColor
 			) {
+				SubPageBack(onBack)
 				Column(bounded, content = content)
 			}
 		}
@@ -124,9 +131,11 @@ fun ModalBottomSheet(
 		properties = properties,
 	) {
 		val scope = rememberCoroutineScope()
+		SubPageBack(onBack)
 		Column(
 			Modifier.escapeToDismiss {
-				scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() }
+				if (onBack != null) onBack()
+				else scope.launch { sheetState.hide() }.invokeOnCompletion { onDismissRequest() }
 			},
 			content = content
 		)
@@ -170,4 +179,17 @@ internal class AtPointerPositionProvider(private val pointer: IntOffset) :
 			y.coerceIn(0, (windowSize.height - height).coerceAtLeast(0))
 		)
 	}
+}
+
+/**
+ * Back goes to the sheet's main page while it shows a sub-page. Composed inside the sheet, so it
+ * registers with the back dispatcher of the sheet's own window, where back arrives.
+ */
+@Composable
+private fun SubPageBack(onBack: (() -> Unit)?) {
+	NavigationBackHandler(
+		state = rememberNavigationEventState(NavigationEventInfo.None),
+		isBackEnabled = onBack != null,
+		onBackCompleted = { onBack?.invoke() }
+	)
 }

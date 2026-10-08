@@ -33,6 +33,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.ListItemColors
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
+import eu.depau.loak.generated.resources.action_back
+import eu.depau.loak.generated.resources.info_mix_alchemy
+import eu.depau.loak.generated.resources.info_mix_from
+import eu.depau.loak.generated.resources.info_mix_instant
+import eu.depau.loak.generated.resources.info_mix_lyrics_sound
+import eu.depau.loak.generated.resources.info_mix_to_here
+import eu.depau.loak.generated.resources.title_make_a_mix
+import eu.depau.loak.icons.outlined.ArrowBack
+import eu.depau.loak.icons.outlined.ChevronForward
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -162,6 +177,7 @@ fun SongSheet(
 	val contentPadding = PaddingValues(horizontal = 16.dp)
 
 	val colorScheme = if (useSongTheme) rememberColorSchemeFromCoverArt(song.coverArtId) else null
+	var mixPage by rememberSaveable { mutableStateOf(false) }
 
 	val backStack = LocalNavStack.current
 	// offline, what needs the server is greyed out; starring, rating, downloading and playlist
@@ -175,9 +191,50 @@ fun SongSheet(
 			trailingIconColor = MaterialTheme.colorScheme.onSurface,
 			headlineColor = MaterialTheme.colorScheme.onSurface
 		)
+		// from the song playing now into this one
+		val playingId = playerState.currentSong?.id
+		val mixes = buildList {
+			add(MixOption(
+				stringResource(Res.string.action_instant_mix),
+				stringResource(Res.string.info_mix_instant),
+				Icons.Outlined.InstantMix
+			) {
+				player.playInstantMix(song.id, song.title, seed = song)
+				onDismissRequest()
+			})
+			if (canFindSonicPaths && playingId != null && playingId != song.id) add(MixOption(
+				stringResource(Res.string.action_mix_to_here),
+				stringResource(Res.string.info_mix_to_here),
+				Icons.Outlined.SonicPath
+			) {
+				player.playSonicPathTo(song)
+				onDismissRequest()
+			})
+			if (audioMuseInfo != null) {
+				add(MixOption(
+					stringResource(Res.string.action_song_alchemy_with),
+					stringResource(Res.string.info_mix_alchemy),
+					Icons.Outlined.Flask
+				) {
+					// leaving the sheet for a screen underneath closes the player, if it's up
+					backStack.remove(Screen.NowPlaying)
+					backStack.add(Screen.Alchemy(song.toIngredient()))
+					onDismissRequest()
+				})
+				if (audioMuseInfo?.lyricsSearch == true) add(MixOption(
+					stringResource(Res.string.action_similar_lyrics_sound),
+					stringResource(Res.string.info_mix_lyrics_sound),
+					Icons.Outlined.Lyrics
+				) {
+					player.playMix(song.title) { audioMuseRepository.similarLyricsAndSound(song.id) }
+					onDismissRequest()
+				})
+			}
+		}
 		ModalBottomSheet(
 			onDismissRequest = onDismissRequest,
 			menuOnWideWindows = true,
+			onBack = if (mixPage) ({ mixPage = false }) else null,
 			containerColor = MaterialTheme.colorScheme.surface,
 			sheetState = rememberBottomSheetState(
 				initialValue = SheetValue.Hidden,
@@ -193,6 +250,10 @@ fun SongSheet(
 			}
 		) {
 			Spacer(Modifier.height(16.dp))
+			if (mixPage) {
+				MixPage(song, mixes, online, colors, contentPadding, onBack = { mixPage = false })
+				return@ModalBottomSheet
+			}
 
 			ListItem(
 				headlineContent = {
@@ -335,55 +396,26 @@ fun SongSheet(
 					)
 				}
 
-				ListItem(
-					content = { Text(stringResource(Res.string.action_instant_mix)) },
-					leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
-					onClick = {
-						player.playInstantMix(song.id, song.title, seed = song)
-						onDismissRequest()
-					},
-					enabled = online,
-					colors = colors,
-					contentPadding = contentPadding
-				)
-
-				// from the song playing now into this one
-				val playingId = playerState.currentSong?.id
-				if (canFindSonicPaths && playingId != null && playingId != song.id) {
+				// one plain row while instant mix is the only kind, a sub-page once there are more
+				if (mixes.size == 1) {
+					val mix = mixes.single()
 					ListItem(
-						content = { Text(stringResource(Res.string.action_mix_to_here)) },
-						leadingContent = { Icon(Icons.Outlined.SonicPath, null) },
-						onClick = {
-							player.playSonicPathTo(song)
-							onDismissRequest()
-						},
+						content = { Text(mix.label) },
+						leadingContent = { Icon(mix.icon, null) },
+						onClick = mix.onClick,
 						enabled = online,
 						colors = colors,
 						contentPadding = contentPadding
 					)
-				}
-
-				if (audioMuseInfo != null) {
+				} else {
 					ListItem(
-						content = { Text(stringResource(Res.string.action_song_alchemy_with)) },
-						leadingContent = { Icon(Icons.Outlined.Flask, null) },
-						onClick = {
-							// leaving the sheet for a screen underneath closes the player, if it's up
-							backStack.remove(Screen.NowPlaying)
-							backStack.add(Screen.Alchemy(song.toIngredient()))
-							onDismissRequest()
+						content = { Text(stringResource(Res.string.title_make_a_mix)) },
+						supportingContent = {
+							Text(mixes.joinToString { it.label }, maxLines = 1, overflow = TextOverflow.Ellipsis)
 						},
-						enabled = online,
-						colors = colors,
-						contentPadding = contentPadding
-					)
-					if (audioMuseInfo?.lyricsSearch == true) ListItem(
-						content = { Text(stringResource(Res.string.action_similar_lyrics_sound)) },
-						leadingContent = { Icon(Icons.Outlined.Lyrics, null) },
-						onClick = {
-							player.playMix(song.title) { audioMuseRepository.similarLyricsAndSound(song.id) }
-							onDismissRequest()
-						},
+						leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
+						trailingContent = { Icon(Icons.Outlined.ChevronForward, null) },
+						onClick = { mixPage = true },
 						enabled = online,
 						colors = colors,
 						contentPadding = contentPadding
@@ -522,6 +554,55 @@ fun SongSheet(
 					)
 				}
 			}
+		}
+	}
+}
+
+private class MixOption(
+	val label: String,
+	val description: String,
+	val icon: ImageVector,
+	val onClick: () -> Unit
+)
+
+/** The kinds of mix a song can start, with a way back to the rest of its options. */
+@Composable
+private fun MixPage(
+	song: DomainSong,
+	mixes: List<MixOption>,
+	enabled: Boolean,
+	colors: ListItemColors,
+	contentPadding: PaddingValues,
+	onBack: () -> Unit
+) {
+	ListItem(
+		headlineContent = { Text(stringResource(Res.string.title_make_a_mix)) },
+		supportingContent = {
+			Text(
+				stringResource(Res.string.info_mix_from, song.title),
+				maxLines = 1,
+				overflow = TextOverflow.Ellipsis
+			)
+		},
+		leadingContent = {
+			val label = stringResource(Res.string.action_back)
+			TooltipBox(label) {
+				IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, label) }
+			}
+		},
+		colors = colors
+	)
+	Column(Modifier.verticalScroll(rememberScrollState())) {
+		mixes.forEach { mix ->
+			ListItem(
+				content = { Text(mix.label) },
+				supportingContent = { Text(mix.description) },
+				leadingContent = { Icon(mix.icon, null) },
+				onClick = mix.onClick,
+				enabled = enabled,
+				colors = colors,
+				contentPadding = contentPadding
+			)
 		}
 	}
 }
