@@ -15,3 +15,7 @@ xcuserdata/
 prepare/
 *.mobileprovision
 .home-env
+
+.omp/
+.claude/
+
