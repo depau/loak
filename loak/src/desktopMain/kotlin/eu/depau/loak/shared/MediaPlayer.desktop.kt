@@ -20,6 +20,7 @@ import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.models.AudioQuality
+import eu.depau.loak.domain.models.formatSampleRate
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
 import eu.depau.loak.domain.models.DomainSong
@@ -69,7 +70,28 @@ class DesktopMediaPlayerViewModel(
 	queueSyncManager = queueSyncManager
 ) {
 
-	private val player = DesktopAudioPlayer()
+	private val player = DesktopAudioPlayer(
+		onFormatDecoded = { _, decodedFormat ->
+			val songId = _uiState.value.currentSong?.id ?: return@DesktopAudioPlayer
+			val sampleRate = decodedFormat.sampleRate.toInt()
+			val channels = if (decodedFormat.channels == 1) "Mono" else "Stereo"
+			val pcmBits = if (decodedFormat.sampleSizeInBits > 0) "${decodedFormat.sampleSizeInBits}-bit PCM" else "16-bit PCM"
+			val outFmt = "${formatSampleRate(sampleRate)} · $channels"
+			_uiState.update { state ->
+				val current = state.playbackDetails?.takeIf { it.songId == songId } ?: return@update state
+				state.copy(
+					playbackDetails = current.copy(
+						sampleRateHz = sampleRate,
+						channelCount = decodedFormat.channels,
+						decoder = "Java Sound",
+						pcmFormat = pcmBits,
+						outputFormat = outFmt,
+						outputDevice = "Default audio device"
+					)
+				)
+			}
+		}
+	)
 	private var isTransitioningBetweenTracks = false
 	private var progressJob: Job? = null
 	private var lastTrackEndTime = 0L
@@ -405,7 +427,9 @@ class DesktopMediaPlayerViewModel(
 		}
 	}
 
-	private class DesktopAudioPlayer : ScrobblePlayerSource {
+	private class DesktopAudioPlayer(
+		private val onFormatDecoded: ((base: AudioFormat, decoded: AudioFormat) -> Unit)? = null
+	) : ScrobblePlayerSource {
 		private var line: SourceDataLine? = null
 		private var stream: AudioInputStream? = null
 		private var source: HttpURLConnection? = null
@@ -491,6 +515,7 @@ class DesktopMediaPlayerViewModel(
 					audioStream
 				}
 				stream = pcmStream
+				onFormatDecoded?.invoke(baseFormat, decodedFormat)
 
 				bytesPerSecond = (decodedFormat.sampleRate * decodedFormat.frameSize).toLong()
 				frameSize = decodedFormat.frameSize.coerceAtLeast(1)

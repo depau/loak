@@ -35,6 +35,7 @@ import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionPortDescription
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
 import platform.AVFAudio.setActive
 import platform.AVFoundation.AVPlayer
@@ -249,6 +250,7 @@ class IOSMediaPlayerViewModel(
 			player.replaceCurrentItemWithPlayerItem(item)
 			if (!_uiState.value.isPaused) player.play()
 			updateNowPlayingInfo(songToPlay)
+			updateIosPlaybackDetails(songToPlay.id)
 		}
 	}
 
@@ -318,6 +320,7 @@ class IOSMediaPlayerViewModel(
 		scrobbleManager.onMediaChanged(radioId)
 		scrobbleManager.onIsPlayingChanged(true)
 		updateNowPlayingInfo(dummyRadioSong)
+		updateIosPlaybackDetails(dummyRadioSong.id)
 	}
 
 
@@ -573,6 +576,25 @@ class IOSMediaPlayerViewModel(
 			}
 
 			updateNowPlayingInfo(song)
+			updateIosPlaybackDetails(song.id)
+		}
+	}
+
+	private fun updateIosPlaybackDetails(songId: String) {
+		val session = AVAudioSession.sharedInstance()
+		val sampleRate = session.sampleRate.toInt()
+		val outputs = session.currentRoute.outputs
+		val port = outputs.firstOrNull() as? AVAudioSessionPortDescription
+		val deviceName = port?.portName
+		_uiState.update { state ->
+			val current = state.playbackDetails?.takeIf { it.songId == songId } ?: return@update state
+			state.copy(
+				playbackDetails = current.copy(
+					decoder = "AVFoundation",
+					sampleRateHz = if (sampleRate > 0) sampleRate else current.sampleRateHz,
+					outputDevice = deviceName ?: current.outputDevice
+				)
+			)
 		}
 	}
 
