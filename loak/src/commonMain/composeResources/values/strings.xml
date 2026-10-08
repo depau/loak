@@ -79,7 +79,6 @@
 	<string name="option_account_username">Username</string>
 	<string name="option_account_password">Password</string>
 	<string name="option_lyrics_autoscroll">Scroll along with the song</string>
-	<string name="option_lyrics_beat_by_beat">Highlight word by word</string>
 	<string name="option_sort_random">Random</string>
 	<string name="option_sort_newest">Recently added</string>
 	<string name="option_sort_rating">Rating</string>
@@ -920,7 +919,6 @@
 	<string name="option_progress_bar_style">Progress bar style</string>
 	<string name="option_lyrics_sources">Lyrics sources</string>
 	<string name="subtitle_lyrics_autoscroll">Keep the current line in the middle</string>
-	<string name="subtitle_lyrics_beat_by_beat">When the lyrics have timing for each word</string>
 	<string name="subtitle_lyrics_blur">Blur lines near the top and bottom</string>
 	<string name="subtitle_lyrics_bright_inactive">Easier to read ahead, less focus on the current line</string>
 	<string name="subtitle_lyrics_keep_alive">While the lyrics are open</string>
