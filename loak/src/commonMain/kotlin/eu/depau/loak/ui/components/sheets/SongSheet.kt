@@ -17,14 +17,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -51,9 +49,6 @@ import eu.depau.loak.generated.resources.action_add_to_queue
 import eu.depau.loak.generated.resources.action_export_original
 import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.action_mix_to_here
-import eu.depau.loak.generated.resources.action_cancel_download
-import eu.depau.loak.generated.resources.action_delete_download
-import eu.depau.loak.generated.resources.action_download
 import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_from_playlist
 import eu.depau.loak.generated.resources.action_remove_from_queue
@@ -65,8 +60,6 @@ import eu.depau.loak.generated.resources.action_sleep_timer_queue_enabled
 import eu.depau.loak.generated.resources.action_sleep_timer_songs_enabled
 import eu.depau.loak.generated.resources.action_star
 import eu.depau.loak.generated.resources.action_track_info
-import eu.depau.loak.generated.resources.info_click_to_retry
-import eu.depau.loak.generated.resources.info_download_failed
 import eu.depau.loak.generated.resources.option_playback_speed
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -90,13 +83,9 @@ import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.Bedtime
-import eu.depau.loak.icons.outlined.Close
-import eu.depau.loak.icons.outlined.Delete
-import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.Keep
 import eu.depau.loak.icons.outlined.SonicPath
-import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.Info
 import eu.depau.loak.icons.outlined.PlaylistAdd
 import eu.depau.loak.icons.outlined.PlaylistRemove
@@ -268,32 +257,79 @@ fun SongSheet(
 				Spacer(Modifier.height(14.dp))
 			}
 
-			HorizontalDivider(Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+			SheetActionBar(
+				listOfNotNull(
+					onPlayNext?.let { playNext ->
+						SheetAction(
+							stringResource(Res.string.action_play_next),
+							Icons.Outlined.QueuePlayNext,
+							{ playNext(); onDismissRequest() },
+							enabled = playable
+						)
+					},
+					onAddToQueue?.let { addToQueue ->
+						SheetAction(
+							stringResource(Res.string.action_add_to_queue),
+							Icons.Outlined.Queue,
+							{ addToQueue(); onDismissRequest() },
+							enabled = playable
+						)
+					},
+					onAddToPlaylist?.let { addToPlaylist ->
+						SheetAction(
+							stringResource(
+								if (collection != null && collection !is DomainAlbum)
+									Res.string.action_add_to_another_playlist
+								else Res.string.action_add_to_playlist
+							),
+							Icons.Outlined.PlaylistAdd,
+							{ addToPlaylist(); onDismissRequest() }
+						)
+					},
+					if (starred != null && onSetStarred != null) SheetAction(
+						stringResource(if (starred) Res.string.action_remove_star else Res.string.action_star),
+						if (starred) Icons.Filled.Star else Icons.Outlined.Star,
+						{ onSetStarred(!starred); onDismissRequest() },
+						checked = starred
+					) else null,
+					downloadAction(
+						downloadStatus,
+						onDownload = onDownload,
+						onCancel = onCancelDownload,
+						onDelete = onDeleteDownload,
+						onDismissRequest = onDismissRequest
+					),
+					if (onShare != null && sessionManager.canUserShare()) SheetAction(
+						stringResource(Res.string.action_share),
+						Icons.Outlined.Share,
+						{ onShare(); onDismissRequest() },
+						enabled = online
+					) else null
+				)
+			)
 
 			Column(Modifier.verticalScroll(rememberScrollState())) {
-				if (onPlayNext != null) {
+				if (onRemoveFromPlaylist != null && (collection as? DomainPlaylist)?.songsEditableBy(sessionManager.username) == true) {
 					ListItem(
-						content = { Text(stringResource(Res.string.action_play_next)) },
-						leadingContent = { Icon(Icons.Outlined.QueuePlayNext, null) },
+						content = { Text(stringResource(Res.string.action_remove_from_playlist)) },
+						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
 						onClick = {
-							onPlayNext()
+							onRemoveFromPlaylist()
 							onDismissRequest()
 						},
-						enabled = playable,
 						colors = colors,
 						contentPadding = contentPadding
 					)
 				}
 
-				if (onAddToQueue != null) {
+				if (onRemoveFromQueue != null) {
 					ListItem(
-						content = { Text(stringResource(Res.string.action_add_to_queue)) },
-						leadingContent = { Icon(Icons.Outlined.Queue, null) },
+						content = { Text(stringResource(Res.string.action_remove_from_queue)) },
+						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
 						onClick = {
-							onAddToQueue()
+							onRemoveFromQueue()
 							onDismissRequest()
 						},
-						enabled = playable,
 						colors = colors,
 						contentPadding = contentPadding
 					)
@@ -354,170 +390,7 @@ fun SongSheet(
 					)
 				}
 
-				if (onAddToPlaylist != null) {
-					ListItem(
-						content = {
-							Text(
-								stringResource(
-									if (collection != null && collection !is DomainAlbum)
-										Res.string.action_add_to_another_playlist
-									else Res.string.action_add_to_playlist
-								)
-							)
-						},
-						leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
-						onClick = {
-							onAddToPlaylist()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onRemoveFromPlaylist != null && (collection as? DomainPlaylist)?.songsEditableBy(sessionManager.username) == true) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_remove_from_playlist)) },
-						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
-						onClick = {
-							onRemoveFromPlaylist()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onRemoveFromQueue != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_remove_from_queue)) },
-						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
-						onClick = {
-							onRemoveFromQueue()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (starred != null && onSetStarred != null) {
-					ListItem(
-						content = {
-							Text(stringResource(if (starred) Res.string.action_remove_star else Res.string.action_star))
-						},
-						leadingContent = {
-							Icon(if (starred) Icons.Filled.Star else Icons.Outlined.Star, null)
-						},
-						onClick = {
-							onSetStarred(!starred)
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
 				SpeedDialPinItem(HomeRepository.keyOf(song), colors, contentPadding, onDismissRequest)
-
-				if (downloadStatus != null) {
-					when (downloadStatus) {
-						DownloadStatus.DOWNLOADING -> {
-							ListItem(
-								content = { Text(stringResource(Res.string.action_cancel_download)) },
-								leadingContent = { Icon(Icons.Outlined.Close, null) },
-								onClick = {
-									onCancelDownload?.invoke()
-									onDismissRequest()
-								},
-								colors = colors,
-								contentPadding = contentPadding
-							)
-						}
-
-						DownloadStatus.DOWNLOADED -> {
-							ListItem(
-								content = { Text(stringResource(Res.string.action_delete_download)) },
-								leadingContent = { Icon(Icons.Outlined.Delete, null) },
-								onClick = {
-									onDeleteDownload?.invoke()
-									onDismissRequest()
-								},
-								colors = colors,
-								contentPadding = contentPadding
-							)
-						}
-
-						DownloadStatus.FAILED -> {
-							ListItem(
-								content = {
-									Text(
-										text = stringResource(Res.string.info_download_failed),
-										color = MaterialTheme.colorScheme.error
-									)
-								},
-								supportingContent = {
-									Text(
-										text = stringResource(Res.string.info_click_to_retry),
-										color = MaterialTheme.colorScheme.error,
-										style = MaterialTheme.typography.labelSmall
-									)
-								},
-								leadingContent = {
-									Icon(
-										Icons.Outlined.DownloadOff,
-										null,
-										tint = MaterialTheme.colorScheme.error
-									)
-								},
-								onClick = {
-									onDownload?.invoke()
-									onDismissRequest()
-								},
-								colors = colors,
-								contentPadding = contentPadding
-							)
-						}
-
-						else -> {
-							ListItem(
-								content = { Text(stringResource(Res.string.action_download)) },
-								leadingContent = { Icon(Icons.Outlined.Download, null) },
-								onClick = {
-									onDownload?.invoke()
-									onDismissRequest()
-								},
-								colors = colors,
-								contentPadding = contentPadding
-							)
-						}
-					}
-				} else if (onDownload != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_download)) },
-						leadingContent = { Icon(Icons.Outlined.Download, null) },
-						onClick = {
-							onDownload()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onShare != null && sessionManager.canUserShare()) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_share)) },
-						leadingContent = { Icon(Icons.Outlined.Share, null) },
-						onClick = {
-							onShare()
-							onDismissRequest()
-						},
-						enabled = online,
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
 
 				// the original raw file goes through the platform sink on demand, not the
 				// in-app download store; web can't write files, so the action is hidden there
