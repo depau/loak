@@ -152,6 +152,7 @@ Debug realm: the Android `debug` build has **no ABIs excluded** (`x86_64` is add
 
 - **Never experiment on a real device and never try to control a desktop without explicit user consent.** Use an Android emulator or a VM instead, and ask permission first.
 - When the user authorizes a real device, install the **development package-name variant** (the `debug` build gets the `.debug` applicationId suffix, so it installs alongside the release app).
+- Use **`https://demo.navidrome.org`** with **`demo:demo`** as the test server unless instructed otherwise.
 - Running an Android emulator: use `$ANDROID_HOME/emulator/emulator -avd <avd>` and wait for boot with `adb wait-for-device` + `adb shell getprop sys.boot_completed` == `1`. A headless run is fine for CI-style checks; keep only one instance per AVD running.
 
 ## Sentry (error reporting)
