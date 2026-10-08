@@ -19,6 +19,7 @@ actual class ConnectivityManager(
 	private val preferenceManager: PreferenceManager
 ) {
 	actual val isCellular: StateFlow<Boolean> = MutableStateFlow(false)
+	actual val isRoaming: StateFlow<Boolean> = MutableStateFlow(false)
 	actual val isOnline: StateFlow<Boolean> =
 		snapshotFlow { preferenceManager.offlineMode != OfflineMode.Forced }
 			.stateIn(
