@@ -1,7 +1,6 @@
 package eu.depau.loak.di
 
 import androidx.room3.Room
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.russhwolf.settings.PropertiesSettings
 import com.russhwolf.settings.Settings
 import org.koin.core.module.dsl.singleOf
@@ -57,7 +56,7 @@ actual val platformModule = module {
 	single<CacheDatabase> {
 		Room
 			.databaseBuilder<CacheDatabase>(File(desktopDataDir, "cache.db").absolutePath)
-			.setDriver(BundledSQLiteDriver())
+			.setDriver(JdbcSQLiteDriver())
 			.migrationPolicy(firstMigratedVersion = 21)
 			.build()
 	}
@@ -65,7 +64,7 @@ actual val platformModule = module {
 	single<DownloadDatabase> {
 		Room
 			.databaseBuilder<DownloadDatabase>(File(desktopDataDir, "downloads.db").absolutePath)
-			.setDriver(BundledSQLiteDriver())
+			.setDriver(JdbcSQLiteDriver())
 			.migrationPolicy(firstMigratedVersion = 3)
 			.build()
 	}

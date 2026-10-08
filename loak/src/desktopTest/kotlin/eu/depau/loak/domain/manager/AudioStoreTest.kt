@@ -2,7 +2,7 @@ package eu.depau.loak.domain.manager
 
 import androidx.room3.Room
 import androidx.room3.useWriterConnection
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import eu.depau.loak.di.JdbcSQLiteDriver
 import com.russhwolf.settings.PropertiesSettings
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.domain.models.AudioQuality
@@ -25,7 +25,7 @@ class AudioStoreTest {
 	fun writeCompleteUpgradeEvictSweep() = runBlocking {
 		val dir = Files.createTempDirectory("audio").toFile().apply { deleteOnExit() }
 		val db = Room.inMemoryDatabaseBuilder<CacheDatabase>()
-			.setDriver(BundledSQLiteDriver())
+			.setDriver(JdbcSQLiteDriver())
 			.build()
 		val prefs = PreferenceManager(PropertiesSettings(Properties())).apply {
 			audioCacheLimit = AudioCacheLimit.Songs
@@ -81,7 +81,7 @@ class AudioStoreTest {
 	fun downloadsArePinnedEntriesPerServer() = runBlocking {
 		val dir = Files.createTempDirectory("audio").toFile().apply { deleteOnExit() }
 		val db = Room.inMemoryDatabaseBuilder<CacheDatabase>()
-			.setDriver(BundledSQLiteDriver())
+			.setDriver(JdbcSQLiteDriver())
 			.build()
 		val prefs = PreferenceManager(PropertiesSettings(Properties()))
 		val server = MutableStateFlow("a")
@@ -124,7 +124,7 @@ class AudioStoreTest {
 	fun storedSongsAndTheirCollections() = runBlocking {
 		val dir = Files.createTempDirectory("audio").toFile().apply { deleteOnExit() }
 		val db = Room.inMemoryDatabaseBuilder<CacheDatabase>()
-			.setDriver(BundledSQLiteDriver())
+			.setDriver(JdbcSQLiteDriver())
 			.build()
 		val prefs = PreferenceManager(PropertiesSettings(Properties()))
 		val store = AudioStore(dir.path, db.audioFileDao(), prefs, MutableStateFlow("a"))

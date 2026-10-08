@@ -1,8 +1,8 @@
 package eu.depau.loak.data.database
 
 import androidx.room3.Room
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
+import eu.depau.loak.di.JdbcSQLiteDriver
 import eu.depau.loak.data.database.entities.AudioFileEntity
 import eu.depau.loak.data.database.entities.SyncActionEntity
 import eu.depau.loak.data.database.entities.SyncActionType
@@ -27,7 +27,7 @@ class CacheDatabaseMigrationTest {
 		val schema = Json.parseToJsonElement(
 			File("schemas/eu.depau.loak.data.database.CacheDatabase/21.json").readText()
 		).jsonObject.getValue("database").jsonObject
-		val conn = BundledSQLiteDriver().open(dbFile.path)
+		val conn = JdbcSQLiteDriver().open(dbFile.path)
 		schema.getValue("entities").jsonArray.forEach { e ->
 			val table = e.jsonObject.getValue("tableName").jsonPrimitive.content
 			val sqls = listOf(e.jsonObject.getValue("createSql")) +
@@ -41,7 +41,7 @@ class CacheDatabaseMigrationTest {
 		conn.close()
 
 		val db = Room.databaseBuilder<CacheDatabase>(dbFile.path)
-			.setDriver(BundledSQLiteDriver())
+			.setDriver(JdbcSQLiteDriver())
 			.migrationPolicy(firstMigratedVersion = 21)
 			.build()
 		val actions = db.syncActionDao().getPendingActions()
