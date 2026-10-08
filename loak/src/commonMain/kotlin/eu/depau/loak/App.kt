@@ -270,10 +270,13 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 	val rootFocus = remember { FocusRequester() }
 	// keyboard and mouse back: the same path as Esc and the system back gesture
 	val backInput = remember { DirectNavigationEventInput() }
-	val dispatcherOwner = rememberNavigationEventDispatcherOwner(
-		parent = LocalNavigationEventDispatcherOwner.current
-	)
-	val backDispatcher = dispatcherOwner.navigationEventDispatcher
+	// the platform's dispatcher, or one of our own where there's none. Ours is provided only
+	// then: provided over the platform's, it would also reach dialogs, whose back handlers
+	// (the sheets') would then wait here while back goes to the dialog's own window
+	val platformOwner = LocalNavigationEventDispatcherOwner.current
+	val ownOwner =
+		if (platformOwner == null) rememberNavigationEventDispatcherOwner(parent = null) else null
+	val backDispatcher = (platformOwner ?: ownOwner!!).navigationEventDispatcher
 	DisposableEffect(backDispatcher) {
 		backDispatcher.addInput(backInput)
 		onDispose { backDispatcher.removeInput(backInput) }
@@ -328,7 +331,8 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 
 	SharedTransitionLayout {
 		CompositionLocalProvider(
-			LocalNavigationEventDispatcherOwner provides dispatcherOwner,
+			*listOfNotNull(ownOwner?.let { LocalNavigationEventDispatcherOwner provides it })
+				.toTypedArray(),
 			LocalPlatformContext provides platformContext,
 			LocalNavStack provides backStack,
 			LocalSnackBarState provides snackBarState,
