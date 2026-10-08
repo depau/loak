@@ -11,9 +11,18 @@ Rework Lo'ak (fork of Navic, KMP Compose app) download/library UX. Consolidated 
 5. **Settings**: inside "Data & storage", a Downloads section — schedule picker (global default), "download now", mobile-data toggle, roaming toggle (no permission needed).
 6. **Process guard**: protect user's unrelated uncommitted edits in `NowPlayingScreen.kt` / `ControlsRow.kt` + any concurrent player-UI edits.
 
-## Current status (2026-10-07, + post-plan follow-ups 2026-10-08)
+## Current status (2026-10-07, + post-plan follow-ups 2026-10-08, + 2026-10-08 fixes)
 
 All six requirements are **implemented**, compile green, verified on device + emulator, and **committed**. ✅ COMPLETE.
+
+### Post-plan fixes 2026-10-08 (phantom downloads + invisible download state) — supersedes the note on line 43
+
+After two more desktop commits landed, a device review found: (a) "a bunch of playlists I never meant to download" **were** being downloaded, and (b) from a playlist/album detail there was no way to tell if it was set for download, or its progress. Root causes + fixes (commit `…`):
+
+1. **Global-default auto-schedule was a real bug.** `runScheduledCollections` applied `preferenceManager.downloadScheduleCron` as a fallback to *every* plain-downloaded collection (`!scheduleEnabled && scheduleCron == null -> defaultCron`). The moment a global cron was set, every previously-downloaded playlist re-pinned + queued at schedule time. **Fix:** per-collection opt-in only — `rec.scheduleCron.takeIf { non-blank } .takeIf { scheduleEnabled }`. The global setting is now only the *prefill* in the per-playlist schedule sheet (its label/description reworded to "Default playlist sync").
+2. **`setCollectionScheduleSuspend` created phantom subscription rows.** "Save Off" on a fresh playlist used to `upsert` a new PLAYLIST row. **Fix:** only upsert when `enabled`; otherwise no-op when there's no existing row.
+3. **Detail screen hid real state.** `HeadingRowButtons` derived one icon from `getCollectionDownloadStatus`, which collapses to NOT_DOWNLOADED for any partial state (3/10 done + nothing active → looked like "never downloaded"). **Fix:** derive per-song status from `downloadManager.allDownloads`; show a live `x/y` progress bar when in-progress/partial, a checkmark when done, and a per-collection schedule chip (`CronSchedule.describe()`) with a re-openable `ScheduleSheet` (Download now / set / cancel).
+4. Shared `CronSchedule.describe()` replaces `LibraryScreen.shortSchedule` (same output).
 
 ### Post-plan follow-ups (2026-10-08) — two desktop fixes that shipped after the main commits
 
@@ -40,7 +49,7 @@ All six requirements are **implemented**, compile green, verified on device + em
 - **Pinned = explicit download intent.** `AudioFileEntity.pinned` (complete OR pending) is the truth for collection qualification; collection songs count regardless of complete status. Collection tables are attribution so tabs show "clicked download" even if nothing downloaded yet.
 - **Persist attribution in DownloadDatabase** (not CacheDatabase): version 3→4, new `DownloadCollectionEntity` (collectionId PK, type ALBUM|ARTIST|PLAYLIST, scheduleCron, scheduleEnabled, createdAt, lastRunAt) + `ManualDownloadEntity` (songId PK). Authorized "deep refactor".
 - **3→4 AutoMigration shipped** (`autoMigrations = [AutoMigration(from = 3, to = 4)]`) — device DBs at exactly v3 crash without it (`migrationPolicy(firstMigratedVersion=3)` only covers below-3 destructive). Verified app launches + keeps v3 download DB data.
-- **Schedule loop mirrors SyncManager** (hourly poll; `nextRun(anchor)` where anchor = `lastRunAt ?: createdAt`). Global default cron (`preferenceManager.downloadScheduleCron`, blank = Off) is a fallback for subscribed playlists with `scheduleCron == null` when `!scheduleEnabled`.
+- **Schedule loop mirrors SyncManager** (hourly poll; `nextRun(anchor)` where anchor = `lastRunAt ?: createdAt`). **Per-collection opt-in only** — the global `downloadScheduleCron` pref is the *default* prefill in each playlist's schedule sheet, and is **never** auto-applied at runtime (that superseded earlier behavior: it silently re-pinned every plain download once a global cron was set).
 - **Roaming uses existing network capabilities, no new permission**: Android `NET_CAPABILITY_NOT_ROAMING`, iOS `nw_path_is_expensive`; `ConnectivityManager.isRoaming: StateFlow<Boolean>` on all 3 platforms.
 - **Orphan-unpin must be collection-safe + manual-safe**: keep = current songs of each subscribed collection (resolved via DAOs) ∪ manual set ∪ library-download set ∪ caller `keep`. Path is `store.unpin()` — see Requirement-5 write-up below.
 - **Collection tabs**: subscribed = `collections` flow (DownloadCollectionEntity), available = `storedSongs`/`storedCollections` (union in tabs). Not driven from `storedCollections` alone (accidental memberships).
