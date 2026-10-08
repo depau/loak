@@ -433,6 +433,7 @@
 	<string name="info_mix_to_here">A smooth path from the playing song to this one</string>
 	<string name="info_mix_alchemy">Blend this song with others you pick</string>
 	<string name="info_mix_lyrics_sound">Matches the words as well as the music</string>
+	<string name="label_open_in">Open in</string>
 	<string name="action_queue">Queue</string>
 	<string name="title_up_next">Up next</string>
 	<string name="action_show_queue">Show queue</string>

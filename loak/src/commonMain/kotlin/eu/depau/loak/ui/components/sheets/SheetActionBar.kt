@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -33,7 +38,10 @@ import eu.depau.loak.generated.resources.action_delete_download
 import eu.depau.loak.generated.resources.action_download
 import eu.depau.loak.generated.resources.info_click_to_retry
 import eu.depau.loak.generated.resources.info_download_failed
+import eu.depau.loak.generated.resources.label_open_in
 import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.brand.Lastfm
+import eu.depau.loak.icons.brand.Musicbrainz
 import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Download
@@ -115,7 +123,9 @@ fun downloadAction(
 	onDownload: (() -> Unit)?,
 	onCancel: (() -> Unit)?,
 	onDelete: (() -> Unit)?,
-	onDismissRequest: () -> Unit
+	onDismissRequest: () -> Unit,
+	/** For starting a download: false when there's nothing to download. */
+	enabled: Boolean = true
 ): SheetAction? {
 	fun then(action: (() -> Unit)?): () -> Unit = {
 		action?.invoke()
@@ -137,7 +147,36 @@ fun downloadAction(
 			then(onDownload),
 			tint = MaterialTheme.colorScheme.error
 		)
-		null -> onDownload?.let { SheetAction(download, Icons.Outlined.Download, then(it)) }
-		else -> SheetAction(download, Icons.Outlined.Download, then(onDownload))
+		null -> onDownload?.let { SheetAction(download, Icons.Outlined.Download, then(it), enabled = enabled) }
+		else -> SheetAction(download, Icons.Outlined.Download, then(onDownload), enabled = enabled)
 	}
+}
+
+/** An item's pages elsewhere, as chips after "Open in"; nothing when it has none. */
+@Composable
+fun SheetLinks(lastFmUrl: String?, musicBrainzUrl: String?, onOpen: (url: String) -> Unit) {
+	if (lastFmUrl == null && musicBrainzUrl == null) return
+	Row(
+		Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+		horizontalArrangement = Arrangement.spacedBy(8.dp),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Text(
+			stringResource(Res.string.label_open_in),
+			style = MaterialTheme.typography.bodyMedium,
+			color = MaterialTheme.colorScheme.onSurfaceVariant
+		)
+		// brand names, not translated
+		lastFmUrl?.let { LinkChip("last.fm", Icons.Brand.Lastfm) { onOpen(it) } }
+		musicBrainzUrl?.let { LinkChip("MusicBrainz", Icons.Brand.Musicbrainz) { onOpen(it) } }
+	}
+}
+
+@Composable
+private fun LinkChip(label: String, icon: ImageVector, onClick: () -> Unit) {
+	AssistChip(
+		onClick = onClick,
+		label = { Text(label) },
+		leadingIcon = { Icon(icon, null, Modifier.size(AssistChipDefaults.IconSize)) }
+	)
 }
