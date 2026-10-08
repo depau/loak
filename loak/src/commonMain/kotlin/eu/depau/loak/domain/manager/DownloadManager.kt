@@ -311,11 +311,16 @@ class DownloadManager(
 	}
 
 	private suspend fun setCollectionScheduleSuspend(collectionId: String, cron: String?, enabled: Boolean) {
-		collectionDao.upsert(
-			collectionDao.getById(collectionId)?.copy(scheduleCron = cron, scheduleEnabled = enabled)
-				?: DownloadCollectionEntity(collectionId, DownloadCollectionType.PLAYLIST)
+		val rec = collectionDao.getById(collectionId) ?: run {
+			// only schedule a collection that was actually downloaded; "save Off" on a fresh
+			// playlist must not create a subscription row
+			if (enabled) collectionDao.upsert(
+				DownloadCollectionEntity(collectionId, DownloadCollectionType.PLAYLIST)
 					.copy(scheduleCron = cron, scheduleEnabled = enabled)
-		)
+			)
+			return
+		}
+		collectionDao.upsert(rec.copy(scheduleCron = cron, scheduleEnabled = enabled))
 	}
 
 	/** Re-fetches a pinned collection's current songs and pins changes; recollects orphans. */
@@ -667,14 +672,12 @@ class DownloadManager(
 
 	private suspend fun runScheduledCollections() {
 		val nowMillis = kotlin.time.Clock.System.now().toEpochMilliseconds()
-		val defaultCron = preferenceManager.downloadScheduleCron.takeIf { it.isNotBlank() }
 		for (rec in collectionDao.getAll()) {
-			val cron = when {
-				rec.scheduleEnabled -> rec.scheduleCron
-				// per-collection switch is off: only a global default keeps it enabled
-				!rec.scheduleEnabled && rec.scheduleCron == null -> defaultCron
-				else -> null
-			} ?: continue
+			// opt-in per collection only. The global default is just the prefill in the schedule
+			// sheet; applying it here used to silently re-pin + queue every plain download once a
+			// global cron was set (the "playlists I never meant to download" reports).
+			val cron = rec.scheduleCron?.takeIf { it.isNotBlank() }?.takeIf { rec.scheduleEnabled }
+				?: continue
 			val schedule = CronSchedule.parse(cron) ?: continue
 			val anchor = Clock.System.now().let {
 				Instant.fromEpochMilliseconds(rec.lastRunAt.takeIf { it > 0 } ?: rec.createdAt)
