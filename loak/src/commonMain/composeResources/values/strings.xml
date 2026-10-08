@@ -971,5 +971,4 @@
 	<string name="label_server_transcode">Server transcode</string>
 	<string name="label_cached_copy">Audio cache</string>
 	<string name="label_downloaded_copy">Downloaded</string>
-	<string name="info_audio_quality_footnote">Only active processing is shown. Values update when the track, network preset, or output device changes.</string>
 </resources>

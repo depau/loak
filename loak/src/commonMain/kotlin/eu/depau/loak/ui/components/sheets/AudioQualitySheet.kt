@@ -32,7 +32,6 @@ import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.PlaybackSource
 import eu.depau.loak.domain.models.formatSampleRate
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.info_audio_quality_footnote
 import eu.depau.loak.generated.resources.label_cached_copy
 import eu.depau.loak.generated.resources.label_direct_play
 import eu.depau.loak.generated.resources.label_downloaded_copy
@@ -212,15 +211,6 @@ fun AudioQualitySheet(
 				}
 			}
 
-			Text(
-				text = stringResource(Res.string.info_audio_quality_footnote),
-				style = MaterialTheme.typography.bodySmall,
-				color = MaterialTheme.colorScheme.outline,
-				textAlign = TextAlign.Center,
-				modifier = Modifier
-					.fillMaxWidth()
-					.padding(top = 4.dp)
-			)
 		}
 	}
 }
