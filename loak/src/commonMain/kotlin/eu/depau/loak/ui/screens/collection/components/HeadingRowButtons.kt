@@ -31,6 +31,7 @@ import eu.depau.loak.ui.components.common.displayName
 import eu.depau.loak.ui.screens.playlist.dialogs.CopyPlaylistDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
@@ -38,9 +39,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -48,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,11 +61,15 @@ import androidx.compose.ui.unit.sp
 import eu.depau.loak.ui.theme.ContinuousCapsule
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.action_delete_download
+import eu.depau.loak.generated.resources.action_cancel_schedule
+import eu.depau.loak.generated.resources.action_download
 import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.action_play
+import eu.depau.loak.generated.resources.action_schedule
+import eu.depau.loak.generated.resources.action_scheduled
 import eu.depau.loak.generated.resources.action_shuffle
 import eu.depau.loak.generated.resources.info_download_failed
+import eu.depau.loak.generated.resources.info_downloaded
 import eu.depau.loak.generated.resources.notice_deleted_download
 import eu.depau.loak.generated.resources.notice_download_started
 import org.jetbrains.compose.resources.stringResource
@@ -69,18 +77,23 @@ import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.models.CronSchedule
+import eu.depau.loak.domain.models.describe
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Play
+import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.Close
-import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.InstantMix
+import eu.depau.loak.icons.outlined.Refresh
+import eu.depau.loak.icons.outlined.Schedule
 import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.LocalAvailability
+import eu.depau.loak.ui.components.sheets.ScheduleSheet
 import eu.depau.loak.ui.theme.defaultFont
 
 @Composable
@@ -96,13 +109,31 @@ fun CollectionDetailScreenHeadingRowButtons(
 	val availability = LocalAvailability.current
 	val playable = collection.songs.any { availability.song(it.id) }
 
-	val downloadStatus by downloadManager
-		.getCollectionDownloadStatus(collection.songs.map { it.id })
-		.collectAsState(initial = DownloadStatus.NOT_DOWNLOADED)
+	val collections by downloadManager.collections.collectAsState(initial = emptyList())
+	val allDownloads by downloadManager.allDownloads.collectAsState(initial = emptyList())
+	val rec = collections.find { it.collectionId == collection.id }
+	var showSchedule by remember { mutableStateOf(false) }
 
+	// per-song status of this collection, derived once from the live download stream, so the
+	// heading shows real progress instead of the old all-or-nothing 4-state readout
+	val songStatus = collection.songs.associate { s -> s.id to allDownloads.find { it.songId == s.id }?.status }
+	val statuses = songStatus.values
+	val done = statuses.count { it == DownloadStatus.DOWNLOADED }
+	val active = statuses.count { it == DownloadStatus.DOWNLOADING }
+	val failed = statuses.count { it == DownloadStatus.FAILED }
+	val total = statuses.size
+	val downloadStatus = when {
+		active > 0 -> DownloadStatus.DOWNLOADING
+		failed == total && failed > 0 -> DownloadStatus.FAILED
+		done == total && total > 0 -> DownloadStatus.DOWNLOADED
+		else -> DownloadStatus.NOT_DOWNLOADED
+	}
+
+	Column(
+		modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp).padding(horizontal = 31.dp, vertical = 10.dp),
+		horizontalAlignment = Alignment.CenterHorizontally
+	) {
 	Row(
-		// on wide windows the play button keeps a phone-like width
-		modifier = Modifier.widthIn(max = 560.dp).padding(horizontal = 31.dp, vertical = 10.dp),
 		verticalAlignment = Alignment.CenterVertically,
 		horizontalArrangement = Arrangement.spacedBy(
 			10.dp,
@@ -217,8 +248,8 @@ fun CollectionDetailScreenHeadingRowButtons(
 
 				DownloadStatus.DOWNLOADED -> {
 					Icon(
-						imageVector = Icons.Outlined.Delete,
-						contentDescription = stringResource(Res.string.action_delete_download),
+						imageVector = Icons.Outlined.Check,
+						contentDescription = stringResource(Res.string.info_downloaded),
 						modifier = Modifier.size(24.dp),
 						tint = MaterialTheme.colorScheme.primary
 					)
@@ -236,12 +267,57 @@ fun CollectionDetailScreenHeadingRowButtons(
 				else -> {
 					Icon(
 						imageVector = Icons.Outlined.Download,
-						contentDescription = null,
+						contentDescription = stringResource(Res.string.action_download),
 						modifier = Modifier.size(24.dp)
 					)
 				}
 			}
 		}
+	}
+		// a live progress/summary line under the buttons
+		if (active > 0 || (done > 0 && done < total)) {
+			val fraction = if (total > 0) done.toFloat() / total else 0f
+			Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+				LinearProgressIndicator(
+					progress = { fraction },
+					modifier = Modifier.weight(1f).height(4.dp)
+				)
+				Text(
+					"${done}/$total",
+					style = MaterialTheme.typography.labelSmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
+			}
+		} else if (rec != null && (rec.scheduleEnabled && rec.scheduleCron != null)) {
+			// done + a schedule is on: surface it instead of a bare checkmark
+			AssistChip(
+				onClick = { showSchedule = true },
+				label = {
+					Text(
+						CronSchedule.parse(rec.scheduleCron)?.describe()
+							?: stringResource(Res.string.action_scheduled),
+						maxLines = 1
+					)
+				},
+				leadingIcon = { Icon(Icons.Outlined.Schedule, null, Modifier.size(16.dp)) }
+			)
+		} else if (rec != null) {
+			AssistChip(
+				onClick = { showSchedule = true },
+				label = { Text(stringResource(Res.string.action_schedule), maxLines = 1) },
+				leadingIcon = { Icon(Icons.Outlined.Schedule, null, Modifier.size(16.dp)) }
+			)
+		}
+		if (showSchedule) ScheduleSheet(
+			initialCron = rec?.scheduleCron,
+			initialEnabled = rec?.scheduleEnabled == true,
+			onDismissRequest = { showSchedule = false },
+			onSave = { cron, enabled ->
+				downloadManager.setCollectionSchedule(collection.id, cron, enabled)
+				showSchedule = false
+			},
+			onKick = { downloadManager.kickDownload(collection.id) }
+		)
 	}
 }
 

@@ -81,3 +81,14 @@ fun CronSchedule.nextRun(from: Instant): Long {
 	return Long.MAX_VALUE
 }
 
+/** Compact human summary of a schedule, e.g. "Daily 03:00", "Weekly Mon 03:00", "Monthly 5 03:00". */
+fun CronSchedule.describe(): String {
+	val time = "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+	val day = "SMTWTFS"[(days.minOrNull() ?: 0)].toString()
+	return when (every) {
+		CronSchedule.Every.Day -> "Daily $time"
+		CronSchedule.Every.Week -> "Weekly $day $time"
+		CronSchedule.Every.Month -> "Monthly $dayOfMonth $time"
+	}
+}
+

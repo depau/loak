@@ -52,6 +52,7 @@ import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.models.CronSchedule
+import eu.depau.loak.domain.models.describe
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.generated.resources.*
@@ -455,7 +456,7 @@ private fun DownloadsPlaylistsTab(
 			val subtitle = buildList {
 				add("${done}/$total")
 				rec?.takeIf { it.scheduleEnabled && it.scheduleCron != null }?.let {
-					add(shortSchedule(it.scheduleCron!!))
+					add(CronSchedule.parse(it.scheduleCron!!)?.describe() ?: it.scheduleCron)
 				}
 			}
 			CollectionRow(
@@ -529,16 +530,4 @@ private fun EmptyDownloads(message: StringResource) {
 		textAlign = TextAlign.Center,
 		color = MaterialTheme.colorScheme.onSurfaceVariant
 	)
-}
-
-/** Compact schedule summary, e.g. "Weekly · Mon 03:00". */
-private fun shortSchedule(cron: String): String {
-	val s = CronSchedule.parse(cron) ?: return cron
-	val time = "${s.hour.toString().padStart(2, '0')}:${s.minute.toString().padStart(2, '0')}"
-	val day = "SMTWTFS"[(s.days.minOrNull() ?: 0)].toString()
-	return when (s.every) {
-		CronSchedule.Every.Day -> "Daily $time"
-		CronSchedule.Every.Week -> "Weekly $day $time"
-		CronSchedule.Every.Month -> "Monthly ${s.dayOfMonth} $time"
-	}
 }

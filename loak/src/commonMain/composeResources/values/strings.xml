@@ -363,6 +363,10 @@
 	<string name="action_download">Download</string>
 	<string name="action_delete_download">Delete download</string>
 	<string name="action_cancel_download">Cancel download</string>
+	<string name="action_schedule">Set schedule</string>
+	<string name="action_cancel_schedule">Cancel schedule</string>
+	<string name="action_scheduled">Scheduled</string>
+	<string name="info_downloaded_x_of_y">Downloaded %1$d of %2$d</string>
 	<string name="action_sleep_timer">Sleep timer</string>
 	<string name="action_sleep_timer_enabled">Sleep timer - %1$s left </string>
 	<string name="action_sleep_timer_songs_enabled">Sleep timer - %1$d songs left</string>
@@ -773,11 +777,11 @@
 	<string name="title_downloads_settings">Downloads</string>
 	<string name="pref_download_over_cellular">Allow mobile data downloads</string>
 	<string name="pref_download_over_roaming">Allow downloads while roaming</string>
-	<string name="pref_download_schedule">Playlist sync schedule</string>
-	<string name="pref_download_schedule_off">Off</string>
-	<string name="pref_download_schedule_desc">Playlists you have downloaded will re-sync and pick up new songs</string>
 	<string name="action_download_now">Download now</string>
 	<string name="notice_schedule_saved">Schedule updated</string>
+	<string name="pref_download_schedule">Default playlist sync</string>
+	<string name="pref_download_schedule_off">No default schedule</string>
+	<string name="pref_download_schedule_desc">The schedule new playlist downloads start with. Each playlist tunes its own in the Downloads screen.</string>
 	<string name="info_audiomuse_connected">Connected · alchemy, radios, describe a mix</string>
 	<string name="info_audiomuse_not_connected">Sonic analysis on your own server: mixes of songs that sound alike, alchemy, AI playlists</string>
 	<string name="action_set_up">Set up</string>
