@@ -190,6 +190,7 @@ import eu.depau.loak.ui.components.layouts.AppNavigationRail
 import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.availability
+import eu.depau.loak.ui.util.trackRightClicks
 import eu.depau.loak.ui.util.Material3Transitions
 import eu.depau.loak.ui.util.WindowChromeHost
 import eu.depau.loak.ui.screens.queue.queuePaneFits
@@ -350,6 +351,8 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 				Box(
 					Modifier
 						.fillMaxSize()
+						// right-click menus open where the click was
+						.trackRightClicks()
 						// keyboards (desktop, web, tablets with one): F5 / Ctrl+R refresh the
 						// screen, / and Ctrl+F search, Ctrl+, opens settings, Alt+Left and
 						// Cmd+[ go back (Esc already does), Alt+Right and Cmd+] go forward,

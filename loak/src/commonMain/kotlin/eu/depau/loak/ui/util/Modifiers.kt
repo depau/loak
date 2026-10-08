@@ -16,10 +16,12 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridItemScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.changedToDown
@@ -30,7 +32,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.round
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.PlatformType
 
@@ -225,3 +230,29 @@ fun Modifier.onSecondaryClick(onClick: (() -> Unit)?): Modifier =
 			}
 		}
 	}
+
+/**
+ * Where the latest pointer press landed, in window coordinates, if it was a right click; null
+ * after any other press. The options menus a right click opens read it to open at the pointer.
+ */
+// ponytail: one value for the whole app, fine with a single window
+var lastRightClick: IntOffset? = null
+	private set
+
+/** On the app's root, so it sees every press first: keeps [lastRightClick] up to date. */
+@Composable
+fun Modifier.trackRightClicks(): Modifier {
+	val root = remember { arrayOfNulls<LayoutCoordinates>(1) }
+	return onPlaced { root[0] = it }.pointerInput(Unit) {
+		awaitPointerEventScope {
+			while (true) {
+				val event = awaitPointerEvent(PointerEventPass.Initial)
+				if (event.type != PointerEventType.Press) continue
+				val position = event.changes.firstOrNull()?.position ?: continue
+				lastRightClick = if (event.buttons.isSecondaryPressed) {
+					root[0]?.localToWindow(position)?.round()
+				} else null
+			}
+		}
+	}
+}

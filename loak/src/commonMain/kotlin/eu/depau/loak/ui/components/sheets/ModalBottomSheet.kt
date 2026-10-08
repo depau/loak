@@ -6,7 +6,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.DropdownMenuPopupPositionProvider
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.SheetState
@@ -15,12 +20,22 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import eu.depau.loak.ui.util.escapeToDismiss
+import eu.depau.loak.ui.util.lastRightClick
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -53,16 +68,39 @@ fun ModalBottomSheet(
 	content: @Composable ColumnScope.() -> Unit,
 ) {
 	if (menuOnWideWindows && LocalPlatformContext.current.isExpanded()) {
-		DropdownMenu(
-			expanded = true,
-			onDismissRequest = onDismissRequest,
-			// right-click menus: Esc closes them like the sheets
-			modifier = Modifier.escapeToDismiss(onDismissRequest),
-			shape = ContinuousRoundedRectangle(16.dp),
-			containerColor = containerColor
-		) {
-			// the sheets scroll their own content; the menu has to give them a bounded height
-			Column(Modifier.width(340.dp).heightIn(max = 560.dp), content = content)
+		// right-click menus: Esc closes them like the sheets
+		val escape = Modifier.escapeToDismiss(onDismissRequest)
+		val menuShape = ContinuousRoundedRectangle(16.dp)
+		// the sheets scroll their own content; the menu has to give them a bounded height
+		val bounded = Modifier.width(340.dp).heightIn(max = 560.dp)
+		// opened by a right click: at the pointer, like any desktop context menu
+		val pointer = remember { lastRightClick }
+		if (pointer != null) {
+			DropdownMenuPopup(
+				expanded = true,
+				onDismissRequest = onDismissRequest,
+				modifier = escape,
+				popupPositionProvider = remember { AtPointerPositionProvider(pointer) }
+			) {
+				Surface(
+					shape = menuShape,
+					color = containerColor,
+					tonalElevation = MenuDefaults.TonalElevation,
+					shadowElevation = MenuDefaults.ShadowElevation
+				) {
+					Column(Modifier.padding(vertical = 8.dp).then(bounded), content = content)
+				}
+			}
+		} else {
+			DropdownMenu(
+				expanded = true,
+				onDismissRequest = onDismissRequest,
+				modifier = escape,
+				shape = menuShape,
+				containerColor = containerColor
+			) {
+				Column(bounded, content = content)
+			}
 		}
 		return
 	}
@@ -98,5 +136,38 @@ fun ModalBottomSheet(
 	LaunchedEffect(Unit) {
 		sheetState.showMotionSpec = SheetShowMotionSpec
 		sheetState.hideMotionSpec = SheetHideMotionSpec
+	}
+}
+
+/**
+ * Puts a menu's corner on [pointer] (window coordinates): its top-left one, or top-right in
+ * right-to-left layouts. Where the menu doesn't fit it opens the other way, then it's kept
+ * inside the window.
+ */
+internal class AtPointerPositionProvider(private val pointer: IntOffset) :
+	DropdownMenuPopupPositionProvider {
+	// read by the menu's open animation, which may draw before the position is known
+	override var transformOrigin by mutableStateOf(TransformOrigin(0f, 0f))
+		private set
+
+	override fun calculatePosition(
+		anchorBounds: IntRect,
+		windowSize: IntSize,
+		layoutDirection: LayoutDirection,
+		popupContentSize: IntSize
+	): IntOffset {
+		val (width, height) = popupContentSize
+		val fitsRight = pointer.x + width <= windowSize.width
+		val fitsLeft = pointer.x - width >= 0
+		val toLeft =
+			if (layoutDirection == LayoutDirection.Rtl) fitsLeft || !fitsRight else !fitsRight
+		val up = pointer.y + height > windowSize.height && pointer.y - height >= 0
+		transformOrigin = TransformOrigin(if (toLeft) 1f else 0f, if (up) 1f else 0f)
+		val x = if (toLeft) pointer.x - width else pointer.x
+		val y = if (up) pointer.y - height else pointer.y
+		return IntOffset(
+			x.coerceIn(0, (windowSize.width - width).coerceAtLeast(0)),
+			y.coerceIn(0, (windowSize.height - height).coerceAtLeast(0))
+		)
 	}
 }
