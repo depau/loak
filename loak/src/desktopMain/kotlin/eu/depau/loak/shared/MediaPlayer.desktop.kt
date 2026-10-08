@@ -157,9 +157,12 @@ class DesktopMediaPlayerViewModel(
 			song.id.startsWith("radio_") && !song.filePath.isNullOrEmpty() -> song.filePath
 			else -> {
 				val localPath = downloadManager.getDownloadedFilePath(song.id)
-				// Only use local file if it's already decoded PCM / WAV or MP3 that Java Sound can decode
+				// Only use local file if it's already decoded PCM / WAV or MP3 that Java Sound can decode.
+				// File.toURI() percent-encodes properly: a raw "file://$localPath" breaks URI parsing on
+				// spaces (e.g. "Application Support") and literal %NN in the store's file names (song ids
+				// are URL-encoded, so @ shows up as %40 in the on-disk name).
 				if (localPath != null && (localPath.endsWith(".mp3", true) || localPath.endsWith(".wav", true))) {
-					"file://$localPath"
+					File(localPath).toURI().toString()
 				} else {
 					getStreamUrl(song.id)
 				}
