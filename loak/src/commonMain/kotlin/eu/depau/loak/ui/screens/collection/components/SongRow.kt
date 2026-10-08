@@ -70,6 +70,14 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.util.InlineExplicitIcon
 import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.util.toHoursMinutesSeconds
+import eu.depau.loak.domain.models.DomainSongCollection
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import eu.depau.loak.domain.repositories.SongRepository
+import eu.depau.loak.ui.components.sheets.SongActionsSheet
 
 @Composable
 fun CollectionDetailScreenSongRow(
@@ -77,14 +85,26 @@ fun CollectionDetailScreenSongRow(
 	index: Int,
 	count: Int,
 	isPlaylist: Boolean = false,
+	collection: DomainSongCollection,
 	onClick: (() -> Unit),
-	onLongClick: (() -> Unit),
 	onPlayNext: (() -> Unit),
 	onAddToQueue: (() -> Unit),
-	isStarred: Boolean,
+	onRemoveFromPlaylist: (() -> Unit)?,
 	download: DownloadEntity? = null
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
+	var sheetOpen by rememberSaveable { mutableStateOf(false) }
+	val onLongClick = { sheetOpen = true }
+	val songRepository = koinInject<SongRepository>()
+	val isStarred by remember(song.id) { songRepository.observeSongStarred(song.id) }
+		.collectAsState(song.starredAt != null)
+	SongActionsSheet(
+		song = song,
+		open = sheetOpen,
+		onDismissRequest = { sheetOpen = false },
+		collection = collection,
+		onRemoveFromPlaylist = onRemoveFromPlaylist
+	)
 
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()

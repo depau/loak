@@ -60,7 +60,7 @@ import eu.depau.loak.icons.outlined.ChevronForward
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.sheets.CollectionSheet
-import eu.depau.loak.ui.components.sheets.SongSheet
+import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.navigation.Screen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -255,14 +255,13 @@ private fun SpeedDialTile(
 		}
 	}
 
-	if (menuShown) when (item) {
-		is SpeedDialItem.Song -> SongSheet(
-			onDismissRequest = { menuShown = false },
+	when (item) {
+		is SpeedDialItem.Song -> SongActionsSheet(
 			song = item.song,
-			onPlayNext = { player.playNextSingle(item.song) },
-			onAddToQueue = { player.addToQueueSingle(item.song) }
+			open = menuShown,
+			onDismissRequest = { menuShown = false }
 		)
-		else -> {
+		else -> if (menuShown) {
 			val collection = (item as? SpeedDialItem.Album)?.album
 				?: (item as SpeedDialItem.Playlist).playlist
 			CollectionSheet(

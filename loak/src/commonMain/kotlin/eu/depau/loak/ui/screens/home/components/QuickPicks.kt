@@ -24,10 +24,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.settings.ListViewMode
-import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.SongRow
 import eu.depau.loak.ui.components.layouts.ArtGridPlaceholder
-import eu.depau.loak.ui.screens.home.viewmodels.HomeViewModel
 import kotlinx.collections.immutable.persistentListOf
 import org.koin.compose.koinInject
 
@@ -38,17 +36,11 @@ import org.koin.compose.koinInject
 @Composable
 fun SongColumns(
 	songs: List<DomainSong>,
-	viewModel: HomeViewModel,
 	columnWidth: Int?,
-	onSetShareId: (String) -> Unit,
 	onPlay: (index: Int) -> Unit
 ) {
-	val player = koinInject<MediaPlayerViewModel>()
 	val downloadManager = koinInject<DownloadManager>()
 	val allDownloads by downloadManager.allDownloads.collectAsStateWithLifecycle(persistentListOf())
-	val selection by viewModel.selectedSong.collectAsStateWithLifecycle()
-	val starred by viewModel.selectedSongStarred.collectAsStateWithLifecycle()
-	val rating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
 	val gridState = rememberLazyGridState()
 
 	BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -70,22 +62,8 @@ fun SongColumns(
 					SongRow(
 						modifier = Modifier.width(width),
 						song = song,
-						selected = selection == song,
 						onClick = { onPlay(index) },
-						onLongClick = { viewModel.selectSong(song) },
-						onDismissRequest = { viewModel.clearSongSelection() },
-						onRemoveStar = { viewModel.starSelectedSong(false) },
-						onAddStar = { viewModel.starSelectedSong(true) },
-						onShare = { onSetShareId(song.id) },
-						starredState = if (selection == song) starred else song.starredAt != null,
-						download = allDownloads.find { it.songId == song.id },
-						onDownload = { downloadManager.downloadSong(song) },
-						onCancelDownload = { downloadManager.cancelDownload(song.id) },
-						onDeleteDownload = { downloadManager.deleteDownload(song.id) },
-						onPlayNext = { player.playNextSingle(song) },
-						onAddToQueue = { player.addToQueueSingle(song) },
-						rating = rating,
-						onSetRating = { viewModel.rateSelectedSong(it) }
+						download = allDownloads.find { it.songId == song.id }
 					)
 				}
 			}

@@ -23,7 +23,6 @@ import eu.depau.loak.ui.screens.nowPlaying.viewmodels.NowPlayingViewModel
 import eu.depau.loak.ui.screens.playlist.viewmodels.PlaylistCreateDialogViewModel
 import eu.depau.loak.ui.screens.playlist.viewmodels.PlaylistListViewModel
 import eu.depau.loak.ui.screens.playlist.viewmodels.PlaylistUpdateDialogViewModel
-import eu.depau.loak.ui.screens.queue.viewmodels.QueueViewModel
 import eu.depau.loak.ui.screens.radio.viewmodels.RadioCreateDialogViewModel
 import eu.depau.loak.ui.screens.radio.viewmodels.RadioListViewModel
 import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
@@ -126,7 +125,6 @@ val viewModelModule = module {
 	viewModelOf(::RadioListViewModel)
 	viewModelOf(::RadioCreateDialogViewModel)
 	viewModelOf(::PlaylistListViewModel)
-	viewModelOf(::QueueViewModel)
 	viewModelOf(::ShareListViewModel)
 	viewModelOf(::DeletionViewModel)
 	viewModelOf(::ShareDialogViewModel)

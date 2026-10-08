@@ -13,8 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -28,7 +26,6 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalBottomBarScrollManager
-import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainSongListType
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
@@ -41,13 +38,11 @@ import eu.depau.loak.ui.screens.search.SearchCategory
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
-import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
 import eu.depau.loak.ui.screens.song.components.SongListScreenSortButton
 import eu.depau.loak.ui.screens.song.components.songListScreenContent
 import eu.depau.loak.ui.screens.song.viewmodels.SongListViewModel
 import eu.depau.loak.ui.util.withoutTop
 import eu.depau.loak.ui.viewmodel.RootViewModel
-import kotlin.time.Duration
 
 @Composable
 fun SongListScreen(
@@ -66,16 +61,11 @@ fun SongListScreen(
 	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 	val songsState by viewModel.songsState.collectAsStateWithLifecycle()
-	val selectedSong by viewModel.selectedSong.collectAsStateWithLifecycle()
 	val selectedSorting by viewModel.selectedSorting.collectAsStateWithLifecycle()
 	val selectedReversed by viewModel.selectedReversed.collectAsStateWithLifecycle()
 	val selectedFilters by viewModel.selectedFilters.collectAsStateWithLifecycle()
-	val starred by viewModel.starred.collectAsStateWithLifecycle()
-	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
 	val allDownloads by viewModel.allDownloads.collectAsStateWithLifecycle()
 
-	var shareId by remember { mutableStateOf<String?>(null) }
-	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 	val scrollBehavior = rootTopBarScrollBehavior()
 
 	val actions: @Composable RowScope.() -> Unit = {
@@ -145,15 +135,7 @@ fun SongListScreen(
 			) {
 				songListScreenContent(
 					state = songsState,
-					selectedSongIsStarred = starred,
-					selectedSongRating = selectedSongRating,
-					selectedSong = selectedSong,
-					onUpdateSelection = { viewModel.selectSong(it) },
-					onClearSelection = { viewModel.clearSelection() },
-					onSetShareId = { newShareId ->
-						shareId = newShareId
-					},
-					onSetStarred = { viewModel.starSong(it) },
+					allDownloads = allDownloads,
 					onPlayNext = { song ->
 						player.playNextSingle(song)
 					},
@@ -162,21 +144,9 @@ fun SongListScreen(
 					},
 					onPlaySong = { song ->
 						player.playNow(song)
-					},
-					onSetRating = { viewModel.rateSelectedSong(it) },
-					onDownload = { viewModel.downloadSong(it) },
-					allDownloads = allDownloads,
-					onCancelDownload = { viewModel.cancelDownload(it.id) },
-					onDeleteDownload = { viewModel.deleteDownload(it.id) }
+					}
 				)
 			}
 		}
 	}
-
-	ShareDialog(
-		id = shareId,
-		onIdClear = { shareId = null },
-		expiry = shareExpiry,
-		onExpiryChange = { shareExpiry = it }
-	)
 }

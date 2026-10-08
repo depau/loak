@@ -77,21 +77,8 @@ fun StarredScreenContent(
 	onSetShareId: (String) -> Unit,
 
 	songsState: UiState<ImmutableList<DomainSong>>,
-	selectedSong: DomainSong?,
-	selectedSongIsStarred: Boolean,
-	selectedSongRating: Int,
 	allDownloads: ImmutableList<DownloadEntity>,
-	onSelectSong: (DomainSong) -> Unit,
-	onClearSongSelection: () -> Unit,
-	onAddSongStar: () -> Unit,
-	onRemoveSongStar: () -> Unit,
-	onPlaySongNext: (DomainSong) -> Unit,
-	onAddSongToQueue: (DomainSong) -> Unit,
 	onPlaySong: (Int) -> Unit,
-	onSetSongRating: (Int) -> Unit,
-	onDownloadSong: (DomainSong) -> Unit,
-	onCancelDownloadSong: (DomainSong) -> Unit,
-	onDeleteDownloadSong: (DomainSong) -> Unit,
 
 	// albums
 	albumsState: UiState<ImmutableList<DomainAlbum>>,
@@ -216,22 +203,8 @@ fun StarredScreenContent(
 						SongRow(
 							modifier = Modifier.weight(1f),
 							song = song,
-							selected = selectedSong == song,
 							onClick = { onPlaySong(index) },
-							onLongClick = { onSelectSong(song) },
-							onDismissRequest = { onClearSongSelection() },
-							starredState = if (selectedSong == song) selectedSongIsStarred else song.starredAt != null,
-							onAddStar = onAddSongStar,
-							onRemoveStar = onRemoveSongStar,
-							download = download,
-							onDownload = { onDownloadSong(song) },
-							onCancelDownload = { onCancelDownloadSong(song) },
-							onDeleteDownload = { onDeleteDownloadSong(song) },
-							onPlayNext = { onPlaySongNext(song) },
-							onAddToQueue = { onAddSongToQueue(song) },
-							onShare = { onSetShareId(song.id) },
-							rating = selectedSongRating,
-							onSetRating = { onSetSongRating(it) }
+							download = download
 						)
 					}
 				}

@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.home
 
+import androidx.compose.foundation.layout.plus
 import eu.depau.loak.di.LocalNavStack
 import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.ui.screens.playlist.components.PlaylistKindFilter
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -52,16 +52,11 @@ import eu.depau.loak.di.isLandscape
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainArtistListType
-import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_play_all
-import eu.depau.loak.generated.resources.option_sort_frequent
 import eu.depau.loak.generated.resources.option_sort_newest
-import eu.depau.loak.generated.resources.option_sort_random
-import eu.depau.loak.generated.resources.option_sort_starred
 import eu.depau.loak.generated.resources.title_forgotten_favourites
-import eu.depau.loak.generated.resources.title_genres
 import eu.depau.loak.generated.resources.title_home
 import eu.depau.loak.generated.resources.title_made_for_you
 import eu.depau.loak.generated.resources.title_mixed_for_you
@@ -71,11 +66,7 @@ import eu.depau.loak.generated.resources.action_instant_mix
 import eu.depau.loak.generated.resources.title_similar_to
 import eu.depau.loak.generated.resources.title_speed_dial
 import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.outlined.Genre
-import eu.depau.loak.icons.outlined.History
 import eu.depau.loak.icons.outlined.InstantMix
-import eu.depau.loak.icons.outlined.Shuffle
-import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.SyncingCard
@@ -86,7 +77,6 @@ import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.layouts.horizontalSection
-import eu.depau.loak.ui.components.sheets.SongSheet
 import eu.depau.loak.ui.components.layouts.ArtGridPlaceholder
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
@@ -96,7 +86,6 @@ import eu.depau.loak.ui.screens.album.viewmodels.AlbumListViewModel
 import eu.depau.loak.ui.screens.artist.ArtistListScreenGridItem
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistListViewModel
 import eu.depau.loak.ui.screens.home.components.GenreChips
-import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.ui.screens.home.components.ListenerRow
 import eu.depau.loak.ui.screens.home.components.MixCard
 import eu.depau.loak.ui.screens.home.components.ShelfHeader
@@ -208,7 +197,6 @@ fun HomeFeed(
 	var shareId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 	var playlistDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
-	var listenerSong by remember { mutableStateOf<DomainSong?>(null) }
 
 	LifecycleResumeEffect(Unit) {
 		viewModel.onShown()
@@ -319,9 +307,7 @@ fun HomeFeed(
 				if (quickPicks.isEmpty()) SongColumnsPlaceholder(picksColumnWidth)
 				else SongColumns(
 					songs = quickPicks,
-					viewModel = viewModel,
 					columnWidth = picksColumnWidth,
-					onSetShareId = { shareId = it },
 					// a song plays its radio; Play all plays the list
 					onPlay = { viewModel.playRadio(quickPicks[it]) }
 				)
@@ -462,8 +448,7 @@ fun HomeFeed(
 				item(key = "listener ${listener.username} ${listener.song.id}", span = full) {
 					ListenerRow(
 						listener = listener,
-						onClick = { viewModel.playRadio(listener.song) },
-						onLongClick = { listenerSong = listener.song }
+						onClick = { viewModel.playRadio(listener.song) }
 					)
 				}
 			}
@@ -471,15 +456,6 @@ fun HomeFeed(
 
 		// on a genre's page the library shortcuts give way to its albums
 		footer?.invoke(this)
-	}
-
-	listenerSong?.let { song ->
-		SongSheet(
-			onDismissRequest = { listenerSong = null },
-			song = song,
-			onPlayNext = { player.playNextSingle(song) },
-			onAddToQueue = { player.addToQueueSingle(song) }
-		)
 	}
 
 	ShareDialog(

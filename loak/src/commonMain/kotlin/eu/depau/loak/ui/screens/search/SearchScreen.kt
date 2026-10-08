@@ -54,7 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_play_next
@@ -73,10 +72,8 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
-import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainAlbumListType
@@ -108,7 +105,7 @@ import eu.depau.loak.ui.components.layouts.ArtGrid
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.artGridPlaceholder
 import eu.depau.loak.ui.components.layouts.horizontalSection
-import eu.depau.loak.ui.components.sheets.SongSheet
+import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
 import eu.depau.loak.ui.navigation.Screen
@@ -160,9 +157,6 @@ fun SearchScreen(
 			koinInject<PersistentViewModelStoreOwner>()
 		}
 	)
-	val selectedSong by viewModel.selectedSong.collectAsStateWithLifecycle()
-	val selectedSongIsStarred by viewModel.selectedSongIsStarred.collectAsStateWithLifecycle()
-	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
 
 	val artistListViewModel = koinViewModel<ArtistListViewModel> {
 		parametersOf(DomainArtistListType.AlphabeticalByName)
@@ -183,7 +177,6 @@ fun SearchScreen(
 	val query = viewModel.searchQuery
 	val state by viewModel.searchState.collectAsState()
 	val searchHistory by viewModel.searchHistory.collectAsState(initial = emptyList())
-	val downloadedSongs by viewModel.downloadedSongs.collectAsState()
 
 	val player = koinInject<MediaPlayerViewModel>()
 	val backStack = LocalNavStack.current
@@ -305,6 +298,7 @@ fun SearchScreen(
 									val maybeUnavailable = !LocalAvailability.current.song(song.id)
 
 									val dismissState = rememberSwipeToDismissBoxState()
+									var sheetOpen by rememberSaveable { mutableStateOf(false) }
 
 									LaunchedEffect(dismissState.currentValue) {
 										if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
@@ -350,9 +344,9 @@ fun SearchScreen(
 											modifier = Modifier
 												.background(MaterialTheme.colorScheme.surface)
 												.unavailable(maybeUnavailable)
-												.onSecondaryClick { viewModel.selectSong(song) },
+												.onSecondaryClick { sheetOpen = true },
 											onClick = playOrExplain(song.id) { player.playNow(song) },
-											onLongClick = { viewModel.selectSong(song) },
+											onLongClick = { sheetOpen = true },
 											content = { Text(song.title) },
 											supportingContent = {
 												MarqueeText(
@@ -386,39 +380,11 @@ fun SearchScreen(
 												}
 											}
 										)
-										if (selectedSong == song) {
-											SongSheet(
-												onDismissRequest = { viewModel.clearSelectedSong() },
-												song = song,
-												onPlayNext = {
-													player.playNextSingle(song)
-												},
-												onAddToQueue = {
-													player.addToQueueSingle(song)
-												},
-												downloadStatus = if (downloadedSongs.containsKey(
-														song.id
-													)
-												) DownloadStatus.DOWNLOADED else null,
-												onTrackInfo = dropUnlessResumed {
-													backStack.add(Screen.SongDetailScreen(song.id, song.coverArtId))
-												},
-												onViewAlbum = song.albumId?.let { albumId ->
-													dropUnlessResumed {
-														backStack.add(
-															Screen.CollectionDetail(
-																collectionId = albumId,
-																tab = "search"
-															)
-														)
-													}
-												},
-												starred = selectedSongIsStarred,
-												onSetStarred = { viewModel.starSelectedSong(it) },
-												rating = selectedSongRating,
-												onSetRating = { viewModel.rateSelectedSong(it) }
-											)
-										}
+										SongActionsSheet(
+											song = song,
+											open = sheetOpen,
+											onDismissRequest = { sheetOpen = false }
+										)
 									}
 								}
 							}

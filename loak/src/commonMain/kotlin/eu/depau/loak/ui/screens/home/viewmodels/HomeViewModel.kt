@@ -196,47 +196,6 @@ class HomeViewModel(
 		}
 	}
 
-	// region song options, for Quick picks and Playing on your server
-
-	val selectedSong: StateFlow<DomainSong?>
-		field = MutableStateFlow(null)
-
-	val selectedSongStarred: StateFlow<Boolean>
-		field = MutableStateFlow(false)
-
-	val selectedSongRating: StateFlow<Int>
-		field = MutableStateFlow(0)
-
-	fun selectSong(song: DomainSong) {
-		viewModelScope.launch {
-			selectedSong.value = song
-			selectedSongStarred.value = songRepository.isSongStarred(song)
-			selectedSongRating.value = songRepository.getSongRating(song)
-		}
-	}
-
-	fun clearSongSelection() {
-		selectedSong.value = null
-	}
-
-	fun starSelectedSong(starred: Boolean) {
-		val song = selectedSong.value ?: return
-		viewModelScope.launch {
-			songRepository.setSongStarred(song.id, starred)
-			selectedSongStarred.value = starred
-		}
-	}
-
-	fun rateSelectedSong(rating: Int) {
-		val song = selectedSong.value ?: return
-		viewModelScope.launch {
-			songRepository.rateSong(song, rating)
-			selectedSongRating.value = rating
-		}
-	}
-
-	// endregion
-
 	companion object {
 		private const val TAG = "HomeViewModel"
 	}

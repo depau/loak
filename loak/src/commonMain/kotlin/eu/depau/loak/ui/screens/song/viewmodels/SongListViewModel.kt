@@ -49,15 +49,6 @@ class SongListViewModel(
 			initialValue = persistentListOf()
 		)
 
-	val selectedSong: StateFlow<DomainSong?>
-		field = MutableStateFlow(null)
-
-	val starred: StateFlow<Boolean>
-		field = MutableStateFlow(false)
-
-	val selectedSongRating: StateFlow<Int>
-		field = MutableStateFlow(0)
-
 	val selectedSorting: StateFlow<DomainSongListType>
 		field = MutableStateFlow(
 			initialListType
@@ -88,18 +79,6 @@ class SongListViewModel(
 		}
 	}
 
-	fun selectSong(song: DomainSong) {
-		viewModelScope.launch {
-			selectedSong.value = song
-			starred.value = repository.isSongStarred(song)
-			selectedSongRating.value = repository.getSongRating(song)
-		}
-	}
-
-	fun clearSelection() {
-		selectedSong.value = null
-	}
-
 	fun refreshSongs(fullRefresh: Boolean) {
 		viewModelScope.launch {
 			repository.getSongsFlow(
@@ -109,31 +88,6 @@ class SongListViewModel(
 				selectedFilters.value
 			).collect {
 				songsState.value = it
-			}
-		}
-	}
-
-	fun starSong(isStarred: Boolean) {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				if (isStarred) {
-					repository.starSong(selection)
-				} else {
-					repository.unstarSong(selection)
-				}
-				starred.value = isStarred
-				refreshSongs(false)
-			}
-		}
-	}
-
-	fun rateSelectedSong(rating: Int) {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				repository.rateSong(selection, rating)
-				selectedSongRating.value = rating
 			}
 		}
 	}
@@ -164,17 +118,5 @@ class SongListViewModel(
 
 	fun clearError() {
 		songsState.value = UiState.Success(songsState.value.data ?: persistentListOf())
-	}
-
-	fun downloadSong(song: DomainSong) {
-		downloadManager.downloadSong(song)
-	}
-
-	fun cancelDownload(songId: String) {
-		downloadManager.cancelDownload(songId)
-	}
-
-	fun deleteDownload(songId: String) {
-		downloadManager.deleteDownload(songId)
 	}
 }

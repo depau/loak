@@ -35,6 +35,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -253,7 +258,10 @@ fun SonicJourneyCard(from: DomainSong, to: DomainSong, onPlay: () -> Unit) {
 
 /** A song someone else is playing, with who and when. */
 @Composable
-fun ListenerRow(listener: ServerListener, onClick: () -> Unit, onLongClick: () -> Unit) {
+fun ListenerRow(listener: ServerListener, onClick: () -> Unit) {
+	var sheetOpen by rememberSaveable { mutableStateOf(false) }
+	val onLongClick = { sheetOpen = true }
+	SongActionsSheet(song = listener.song, open = sheetOpen, onDismissRequest = { sheetOpen = false })
 	ListItem(
 		modifier = Modifier.onSecondaryClick(onLongClick).combinedClickable(onClick = onClick, onLongClick = onLongClick),
 		colors = ListItemDefaults.colors(containerColor = Color.Transparent),

@@ -28,8 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.dropUnlessResumed
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_queue
@@ -55,36 +53,31 @@ import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.playOrExplain
 import eu.depau.loak.ui.components.common.unavailable
 import eu.depau.loak.ui.components.common.MarqueeText
-import eu.depau.loak.ui.components.sheets.SongSheet
 import eu.depau.loak.ui.navigation.Screen
-import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
 import eu.depau.loak.ui.util.InlineExplicitIcon
 import eu.depau.loak.ui.util.buildSongInfoString
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import eu.depau.loak.domain.repositories.SongRepository
+import eu.depau.loak.ui.components.sheets.SongActionsSheet
 
 @Composable
 fun SongListScreenItem(
 	modifier: Modifier,
 	song: DomainSong,
-	selected: Boolean,
-	starred: Boolean,
-	rating: Int,
-	onSelect: () -> Unit,
-	onDeselect: () -> Unit,
-	onSetStarred: (starred: Boolean) -> Unit,
-	onSetShareId: (String) -> Unit,
 	onPlayNext: () -> Unit,
 	onAddToQueue: () -> Unit,
 	onClick: () -> Unit,
-	onSetRating: (Int) -> Unit,
-	download: DownloadEntity?,
-	onDownload: () -> Unit,
-	onCancelDownload: () -> Unit,
-	onDeleteDownload: () -> Unit,
+	download: DownloadEntity?
 ) {
 	val backStack = LocalNavStack.current
 	val dismissState = rememberSwipeToDismissBoxState()
 	val scope = rememberCoroutineScope()
-	var playlistDialogShown by rememberSaveable { mutableStateOf(false) }
+	var sheetOpen by rememberSaveable { mutableStateOf(false) }
+	val onSelect = { sheetOpen = true }
+	val songRepository = koinInject<SongRepository>()
+	val starred by remember(song.id) { songRepository.observeSongStarred(song.id) }
+		.collectAsState(song.starredAt != null)
 	val preferenceManager = koinInject<PreferenceManager>()
 
 	SwipeToDismissBox(
@@ -206,46 +199,7 @@ fun SongListScreenItem(
 					}
 				}
 			)
-			if (selected) {
-				SongSheet(
-					onDismissRequest = onDeselect,
-					song = song,
-					starred = starred,
-					rating = rating,
-					onSetStarred = onSetStarred,
-					onShare = { onSetShareId(song.id) },
-					onPlayNext = onPlayNext,
-					onAddToQueue = onAddToQueue,
-					onTrackInfo = dropUnlessResumed {
-						backStack.add(Screen.SongDetailScreen(song.id, song.coverArtId))
-					},
-					onViewAlbum = song.albumId?.let { albumId ->
-						dropUnlessResumed {
-							backStack.add(
-								Screen.CollectionDetail(
-									collectionId = albumId,
-									tab = "library"
-								)
-							)
-						}
-					},
-					onAddToPlaylist = {
-						playlistDialogShown = true
-					},
-					onSetRating = onSetRating,
-					downloadStatus = download?.status ?: DownloadStatus.NOT_DOWNLOADED,
-					onDownload = onDownload,
-					onCancelDownload = onCancelDownload,
-					onDeleteDownload = onDeleteDownload
-				)
-			}
+			SongActionsSheet(song = song, open = sheetOpen, onDismissRequest = { sheetOpen = false })
 		}
-	}
-
-	if (playlistDialogShown) {
-		PlaylistUpdateDialog(
-			songs = persistentListOf(song),
-			onDismissRequest = { playlistDialogShown = false }
-		)
 	}
 }

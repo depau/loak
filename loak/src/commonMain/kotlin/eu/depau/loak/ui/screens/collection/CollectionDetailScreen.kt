@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -68,7 +67,6 @@ import eu.depau.loak.ui.screens.collection.components.CollectionDetailScreenFoot
 import eu.depau.loak.ui.screens.collection.components.CollectionDetailScreenHeadingRow
 import eu.depau.loak.ui.screens.collection.components.CollectionDetailScreenHeadingRowButtons
 import eu.depau.loak.ui.screens.collection.components.CollectionDetailScreenSongRow
-import eu.depau.loak.ui.screens.collection.components.CollectionDetailScreenSongRowDropdown
 import eu.depau.loak.ui.screens.collection.components.CollectionDetailScreenTopBar
 import eu.depau.loak.ui.screens.collection.components.collectionDetailScreenMoreByArtistRow
 import eu.depau.loak.ui.screens.collection.viewmodels.CollectionDetailViewModel
@@ -96,7 +94,6 @@ fun CollectionDetailScreen(
 
 	val collectionState by viewModel.collectionState.collectAsState()
 	val collection = collectionState.data
-	val selection by viewModel.selectedSong.collectAsState()
 	val selectedAlbum by viewModel.selectedAlbum.collectAsState()
 	val starred by viewModel.starred.collectAsState()
 
@@ -105,8 +102,6 @@ fun CollectionDetailScreen(
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 
 	val albumInfoState by viewModel.albumInfoState.collectAsState()
-	val selectedSongIsStarred by viewModel.selectedSongIsStarred.collectAsStateWithLifecycle()
-	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
 	val selectedAlbumIsStarred by viewModel.selectedAlbumIsStarred.collectAsStateWithLifecycle()
 	val selectedAlbumRating by viewModel.selectedAlbumRating.collectAsStateWithLifecycle()
 	val otherAlbums by viewModel.otherAlbums.collectAsState()
@@ -318,36 +313,15 @@ fun CollectionDetailScreen(
 														player.togglePlay()
 													}
 												},
-												onLongClick = {
-													viewModel.selectSong(song)
-												},
 												onPlayNext = {
 													player.playNextSingle(song)
 												},
 												onAddToQueue = {
 													player.addToQueueSingle(song)
 												},
-												isStarred = if (selection == song) selectedSongIsStarred else song.starredAt != null,
-												download = download
-											)
-											CollectionDetailScreenSongRowDropdown(
-												expanded = selection == song,
-												onDismissRequest = { viewModel.clearSelection() },
-												onRemoveStar = { viewModel.unstarSelectedSong() },
-												onAddStar = { viewModel.starSelectedSong() },
-												onShare = { shareId = song.id },
 												collection = collection,
-												song = song,
-												onRemoveFromPlaylist = { viewModel.removeFromPlaylist() },
-												starred = selectedSongIsStarred,
-												downloadStatus = download?.status,
-												onDownload = { viewModel.downloadSong(song) },
-												onCancelDownload = { viewModel.cancelDownload(song.id) },
-												onDeleteDownload = { viewModel.deleteDownload(song.id) },
-												onPlayNext = { player.playNextSingle(song) },
-												onAddToQueue = { player.addToQueueSingle(song) },
-												rating = selectedSongRating,
-												onSetRating = { viewModel.rateSelectedSong(it) }
+												onRemoveFromPlaylist = null,
+												download = download
 											)
 										}
 									}
@@ -369,36 +343,15 @@ fun CollectionDetailScreen(
 												player.togglePlay()
 											}
 										},
-										onLongClick = {
-											viewModel.selectSong(song)
-										},
 										onPlayNext = {
 											player.playNextSingle(song)
 										},
 										onAddToQueue = {
 											player.addToQueueSingle(song)
 										},
-										isStarred = if (selection == song) selectedSongIsStarred else song.starredAt != null,
-										download = download
-									)
-									CollectionDetailScreenSongRowDropdown(
-										expanded = selection == song,
-										onDismissRequest = { viewModel.clearSelection() },
-										onRemoveStar = { viewModel.unstarSelectedSong() },
-										onAddStar = { viewModel.starSelectedSong() },
-										onShare = { shareId = song.id },
 										collection = collection,
-										song = song,
-										onRemoveFromPlaylist = { viewModel.removeFromPlaylist() },
-										starred = selectedSongIsStarred,
-										downloadStatus = download?.status,
-										onDownload = { viewModel.downloadSong(song) },
-										onCancelDownload = { viewModel.cancelDownload(song.id) },
-										onDeleteDownload = { viewModel.deleteDownload(song.id) },
-										onPlayNext = { player.playNextSingle(song) },
-										onAddToQueue = { player.addToQueueSingle(song) },
-										rating = selectedSongRating,
-										onSetRating = { viewModel.rateSelectedSong(it) }
+										onRemoveFromPlaylist = { viewModel.removeFromPlaylist(song) },
+										download = download
 									)
 								}
 							}

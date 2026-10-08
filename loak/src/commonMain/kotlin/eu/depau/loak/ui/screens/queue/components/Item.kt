@@ -55,6 +55,12 @@ import eu.depau.loak.ui.util.dragHandle
 import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.playOrExplain
 import eu.depau.loak.ui.components.common.unavailable
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import eu.depau.loak.ui.components.sheets.SongActionsSheet
 
 @Composable
 fun QueueScreenItem(
@@ -68,10 +74,27 @@ fun QueueScreenItem(
 	/** The row's key in the list, which the drag handle finds it by. */
 	dragKey: Any,
 	onClick: () -> Unit,
-	onLongClick: () -> Unit,
+	canPlayNext: Boolean,
+	canAddToQueue: Boolean,
+	onRemoveFromQueue: (() -> Unit)?,
 	onPlayNext: () -> Unit,
 	onRemove: () -> Unit
 ) {
+	val haptic = LocalHapticFeedback.current
+	var sheetOpen by rememberSaveable { mutableStateOf(false) }
+	val onLongClick = {
+		haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+		sheetOpen = true
+	}
+	SongActionsSheet(
+		song = song,
+		open = sheetOpen,
+		onDismissRequest = { sheetOpen = false },
+		canPlayNext = canPlayNext,
+		canAddToQueue = canAddToQueue,
+		onRemoveFromQueue = onRemoveFromQueue,
+		inPlayer = true
+	)
 	val preferenceManager = koinInject<PreferenceManager>()
 	val isExplicit = song.explicitStatus == DomainExplicitStatus.Explicit
 		&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed

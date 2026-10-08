@@ -16,10 +16,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import eu.depau.loak.domain.manager.ConnectivityManager
-import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.repositories.SearchRepository
-import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.screens.search.SearchCategory
 import kotlin.time.Duration.Companion.milliseconds
@@ -30,9 +28,7 @@ class SearchViewModel(
 	private val audioMuseRepository: AudioMuseRepository,
 	audioMuse: AudioMuseManager,
 	private val preferenceManager: PreferenceManager,
-	private val songRepository: SongRepository,
-	connectivityManager: ConnectivityManager,
-	downloadManager: DownloadManager
+	connectivityManager: ConnectivityManager
 ) : ViewModel() {
 	val searchState: StateFlow<UiState<List<Any>>>
 		field = MutableStateFlow<UiState<List<Any>>>(UiState.Success(emptyList()))
@@ -40,22 +36,12 @@ class SearchViewModel(
 	val searchHistory: StateFlow<List<String>>
 		field = MutableStateFlow<List<String>>(emptyList())
 
-	val selectedSong: StateFlow<DomainSong?>
-		field = MutableStateFlow(null)
-
-	val selectedSongIsStarred: StateFlow<Boolean>
-		field = MutableStateFlow(false)
-
-	val selectedSongRating: StateFlow<Int>
-		field = MutableStateFlow(0)
-
 	val searchQuery = TextFieldState()
 
 	/** Kept here so it survives opening a result and coming back. */
 	val selectedCategory = MutableStateFlow(SearchCategory.ALL)
 
 	val isOnline = connectivityManager.isOnline
-	val downloadedSongs = downloadManager.downloadedSongs
 
 	val gridState = LazyGridState()
 
@@ -128,41 +114,5 @@ class SearchViewModel(
 		val current = searchHistory.value.toMutableList()
 		current.remove(query)
 		searchHistory.value = current
-	}
-
-	fun selectSong(song: DomainSong) {
-		viewModelScope.launch {
-			selectedSong.value = song
-			selectedSongIsStarred.value = songRepository.isSongStarred(song)
-			selectedSongRating.value = songRepository.getSongRating(song)
-		}
-	}
-
-	fun starSelectedSong(starred: Boolean) {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				if (starred) {
-					songRepository.starSong(selection)
-				} else {
-					songRepository.unstarSong(selection)
-				}
-				selectedSongIsStarred.value = starred
-			}
-		}
-	}
-
-	fun rateSelectedSong(rating: Int) {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				songRepository.rateSong(selection, rating)
-				selectedSongRating.value = rating
-			}
-		}
-	}
-
-	fun clearSelectedSong() {
-		selectedSong.value = null
 	}
 }

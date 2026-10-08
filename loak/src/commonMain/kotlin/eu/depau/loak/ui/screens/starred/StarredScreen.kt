@@ -20,7 +20,6 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import eu.depau.loak.di.LocalBottomBarScrollManager
-import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainArtistListType
@@ -57,9 +56,6 @@ fun StarredScreen() {
 		viewModelStoreOwner = persistentViewModelStoreOwner
 	)
 	val songsState by songsViewModel.songsState.collectAsStateWithLifecycle()
-	val selectedSong by songsViewModel.selectedSong.collectAsStateWithLifecycle()
-	val selectedSongIsStarred by songsViewModel.starred.collectAsStateWithLifecycle()
-	val selectedSongRating by songsViewModel.selectedSongRating.collectAsStateWithLifecycle()
 	val allDownloads by songsViewModel.allDownloads.collectAsStateWithLifecycle()
 
 	val albumsViewModel = koinViewModel<AlbumListViewModel>(
@@ -129,33 +125,10 @@ fun StarredScreen() {
 				onSetShareId = { shareId = it },
 
 				songsState = songsState,
-				selectedSong = selectedSong,
 				allDownloads = allDownloads,
 				onPlaySong = { index ->
 					player.playNow(songsState.data.orEmpty(), index)
 				},
-				onSelectSong = {
-					songsViewModel.selectSong(it)
-				},
-				onClearSongSelection = { songsViewModel.clearSelection() },
-				selectedSongIsStarred = selectedSongIsStarred,
-				onAddSongStar = { songsViewModel.starSong(true) },
-				onRemoveSongStar = { songsViewModel.starSong(false) },
-				onDownloadSong = { songsViewModel.downloadSong(it) },
-				onCancelDownloadSong = { song ->
-					songsViewModel.cancelDownload(song.id)
-				},
-				onDeleteDownloadSong = { song ->
-					songsViewModel.deleteDownload(song.id)
-				},
-				onPlaySongNext = { song ->
-					player.playNextSingle(song)
-				},
-				onAddSongToQueue = { song ->
-					player.addToQueueSingle(song)
-				},
-				selectedSongRating = selectedSongRating,
-				onSetSongRating = { songsViewModel.rateSelectedSong(it) },
 
 				albumsState = albumsState,
 				selectedAlbum = selectedAlbum,

@@ -4,7 +4,6 @@ import eu.depau.loak.ui.util.escapeToDismiss
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -25,7 +24,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -35,7 +33,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_clear_queue
 import eu.depau.loak.generated.resources.count_remaining_songs
@@ -51,30 +48,19 @@ import androidx.compose.ui.semantics.Role
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.di.LocalSheetState
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.QueueInfoType
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.PlaylistRemove
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.ContentUnavailable
-import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.queue.components.QueueScreenItem
-import eu.depau.loak.ui.screens.queue.viewmodels.QueueViewModel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import kotlinx.collections.immutable.persistentListOf
-import eu.depau.loak.domain.models.DomainSong
-import eu.depau.loak.ui.components.sheets.SongSheet
 import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
-import eu.depau.loak.ui.screens.share.dialogs.ShareDialog
 import kotlin.time.Duration
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.SnackbarHost
-import eu.depau.loak.di.LocalSnackBarState
-import eu.depau.loak.ui.components.snackbars.LoakSnackBar
 import eu.depau.loak.ui.theme.defaultFont
 import eu.depau.loak.ui.util.draggableItemsIndexed
 import eu.depau.loak.ui.util.rememberDraggableListState
@@ -123,19 +109,11 @@ private fun songQueueKey(id: String, occurrence: Int): String = "$id\u0000$occur
 @Composable
 /** The queue: in the player's Up next sheet or pane, and the side pane on expanded windows. */
 fun QueueScreen() {
-	val viewModel = koinViewModel<QueueViewModel>()
 	val backStack = LocalNavStack.current
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 	val queue = playerState.queue
-	val selection by viewModel.selected.collectAsStateWithLifecycle()
-	val selectedSongIsStarred by viewModel.selectedSongIsStarred.collectAsStateWithLifecycle()
-	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
-	val allDownloads by viewModel.allDownloads.collectAsStateWithLifecycle(persistentListOf())
-	var playlistSong by remember { mutableStateOf<DomainSong?>(null) }
 	var savingQueue by remember { mutableStateOf(false) }
-	var shareId by remember { mutableStateOf<String?>(null) }
-	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 
 	val allAutoplay by player.autoplay.collectAsStateWithLifecycle()
 	// the queue can update a frame before Autoplay drops what joined it: rows share keys
@@ -354,10 +332,10 @@ fun QueueScreen() {
 								}
 							}
 						},
-						onLongClick = {
-							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-							viewModel.select(song, index.takeIf { inQueue })
-						},
+						// the playing song is already "next"; queued songs are in the queue
+						canPlayNext = !inQueue || index != playerState.currentIndex,
+						canAddToQueue = !inQueue,
+						onRemoveFromQueue = if (inQueue) ({ player.removeFromQueueWithUndo(index) }) else null,
 						onPlayNext = { player.playNextSingle(song) },
 						onRemove = {
 							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -378,69 +356,12 @@ fun QueueScreen() {
 		}
 	}
 
-	val index = selection?.index
-	// a queue song is the one at its index now; an Autoplay song is just itself
-	val selectedSong = if (index == null) selection?.song else queue.getOrNull(index)
-	if (selectedSong != null) {
-		val leaveQueue = {
-			backStack.remove(Screen.NowPlaying)
-		}
-		SongSheet(
-			onDismissRequest = { viewModel.clearSelection() },
-			song = selectedSong,
-			// the playing song is already "next"
-			onPlayNext = if (index == playerState.currentIndex) null
-			else ({ player.playNextSingle(selectedSong) }),
-			onAddToQueue = if (index != null) null
-			else ({ player.queueAutoplay(selectedSong, queue.size) }),
-			onRemoveFromQueue = index?.let { { player.removeFromQueueWithUndo(it) } },
-			onAddToPlaylist = { playlistSong = selectedSong },
-			downloadStatus = allDownloads.find { it.songId == selectedSong.id }?.status,
-			onDownload = { viewModel.downloadManager.downloadSong(selectedSong) },
-			onCancelDownload = { viewModel.downloadManager.cancelDownload(selectedSong.id) },
-			onDeleteDownload = { viewModel.downloadManager.deleteDownload(selectedSong.id) },
-			starred = selectedSongIsStarred,
-			onSetStarred = { viewModel.star(selectedSong, it) },
-			rating = selectedSongRating,
-			onSetRating = { viewModel.rate(selectedSong, it) },
-			onShare = { shareId = selectedSong.id },
-			onViewAlbum = selectedSong.albumId?.let { albumId ->
-				dropUnlessResumed {
-					leaveQueue()
-					backStack.add(Screen.CollectionDetail(albumId, ""))
-				}
-			},
-			onViewArtist = dropUnlessResumed {
-				leaveQueue()
-				backStack.add(Screen.ArtistDetail(selectedSong.artistId))
-			},
-			onTrackInfo = dropUnlessResumed {
-				viewModel.clearSelection()
-				backStack.add(Screen.SongDetailSheet(selectedSong.id, selectedSong.coverArtId))
-			}
-		)
-	}
-
-	playlistSong?.let { song ->
-		PlaylistUpdateDialog(
-			songs = persistentListOf(song),
-			onDismissRequest = { playlistSong = null }
-		)
-	}
-
 	if (savingQueue) {
 		PlaylistUpdateDialog(
 			songs = queue.toImmutableList(),
 			onDismissRequest = { savingQueue = false }
 		)
 	}
-
-	ShareDialog(
-		id = shareId,
-		onIdClear = { shareId = null },
-		expiry = shareExpiry,
-		onExpiryChange = { shareExpiry = it }
-	)
 }
 
 private const val AUTOPLAY_KEY = "autoplay"

@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,7 +32,6 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
@@ -46,7 +44,6 @@ import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -60,7 +57,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -126,9 +122,6 @@ fun ArtistDetailScreen(
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 
-	val selection by viewModel.selectedSong.collectAsStateWithLifecycle()
-	val selectedSongIsStarred by viewModel.selectedSongIsStarred.collectAsStateWithLifecycle()
-	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
 
 	val selectedAlbum by viewModel.selectedAlbum.collectAsStateWithLifecycle()
 	val selectedAlbumIsStarred by viewModel.selectedAlbumIsStarred.collectAsStateWithLifecycle()
@@ -340,7 +333,6 @@ fun ArtistDetailScreen(
 														SongRow(
 															modifier = Modifier.width(rowWidth),
 															song = song,
-															selected = selection == song,
 															onClick = {
 																if (playerState.currentSong?.id != song.id) {
 																	viewModel.playTopSongs(player, index)
@@ -348,30 +340,7 @@ fun ArtistDetailScreen(
 																	player.togglePlay()
 																}
 															},
-															onLongClick = {
-																viewModel.selectSong(song)
-															},
-															onDismissRequest = { viewModel.clearSelection() },
-															starredState = if (selection == song) selectedSongIsStarred else song.starredAt != null,
-															onAddStar = { viewModel.starSelectedSong() },
-															onRemoveStar = { viewModel.unstarSelectedSong() },
-															download = download,
-															onDownload = { viewModel.downloadSong(song) },
-															onCancelDownload = {
-																viewModel.cancelDownload(
-																	song.id
-																)
-															},
-															onDeleteDownload = {
-																viewModel.deleteDownload(
-																	song.id
-																)
-															},
-															onPlayNext = { player.playNextSingle(song) },
-															onAddToQueue = { player.addToQueueSingle(song) },
-															onShare = { shareId = song.id },
-															rating = selectedSongRating,
-															onSetRating = { viewModel.rateSelectedSong(it) }
+															download = download
 														)
 													}
 												}
@@ -466,7 +435,7 @@ fun ArtistDetailScreen(
 
 		ShareDialog(
 			id = shareId,
-			onIdClear = { shareId = null; viewModel.clearSelection() },
+			onIdClear = { shareId = null },
 			expiry = shareExpiry,
 			onExpiryChange = { shareExpiry = it }
 		)

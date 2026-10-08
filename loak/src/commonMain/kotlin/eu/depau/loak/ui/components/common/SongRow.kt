@@ -15,7 +15,9 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -25,8 +27,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
-import kotlinx.collections.immutable.persistentListOf
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.info_download_failed
 import eu.depau.loak.generated.resources.info_downloaded
@@ -40,6 +40,7 @@ import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Star
@@ -48,39 +49,29 @@ import eu.depau.loak.icons.outlined.DownloadOff
 import eu.depau.loak.icons.outlined.Lock
 import eu.depau.loak.icons.outlined.Offline
 import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.sheets.SongSheet
+import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.navigation.Screen
-import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
 import eu.depau.loak.ui.util.InlineExplicitIcon
 import eu.depau.loak.ui.util.buildSongInfoString
 
+/** A song in a list: tap plays it ([onClick]), long-press opens its [SongActionsSheet]. */
 @Composable
 fun SongRow(
-	modifier: Modifier = Modifier,
 	song: DomainSong,
-	selected: Boolean = false,
-	onClick: (() -> Unit),
-	onLongClick: (() -> Unit),
-	onDismissRequest: () -> Unit,
-	onRemoveStar: () -> Unit,
-	onAddStar: () -> Unit,
-	onShare: () -> Unit,
-	starredState: Boolean,
-	download: DownloadEntity? = null,
-	onDownload: () -> Unit,
-	onCancelDownload: () -> Unit,
-	onDeleteDownload: () -> Unit,
-	onPlayNext: () -> Unit,
-	onAddToQueue: () -> Unit,
-	rating: Int,
-	onSetRating: (Int) -> Unit
+	onClick: () -> Unit,
+	modifier: Modifier = Modifier,
+	download: DownloadEntity? = null
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 
 	val backStack = LocalNavStack.current
-	var playlistDialogShown by rememberSaveable { mutableStateOf(false) }
+	var sheetOpen by rememberSaveable { mutableStateOf(false) }
+	val onLongClick = { sheetOpen = true }
+	val songRepository = koinInject<SongRepository>()
+	val starredState by remember(song.id) { songRepository.observeSongStarred(song.id) }
+		.collectAsState(song.starredAt != null)
 
 	val isCurrentTrack = playerState.currentSong?.id == song.id
 	val isExplicit = song.explicitStatus == DomainExplicitStatus.Explicit
@@ -196,44 +187,5 @@ fun SongRow(
 		}
 	)
 
-	if (selected) {
-		SongSheet(
-			onDismissRequest = onDismissRequest,
-			song = song,
-			starred = starredState,
-			rating = rating,
-			onSetStarred = { starred ->
-				if (starred) onAddStar() else onRemoveStar()
-			},
-			onShare = onShare,
-			onPlayNext = onPlayNext,
-			onAddToQueue = onAddToQueue,
-			onTrackInfo = dropUnlessResumed {
-				backStack.add(Screen.SongDetailScreen(song.id, song.coverArtId))
-			},
-			onViewAlbum = dropUnlessResumed {
-				backStack.add(
-					Screen.CollectionDetail(
-						collectionId = song.albumId as String,
-						tab = "library"
-					)
-				)
-			},
-			onAddToPlaylist = {
-				playlistDialogShown = true
-			},
-			downloadStatus = download?.status,
-			onDownload = onDownload,
-			onCancelDownload = onCancelDownload,
-			onDeleteDownload = onDeleteDownload,
-			onSetRating = onSetRating
-		)
-	}
-
-	if (playlistDialogShown) {
-		PlaylistUpdateDialog(
-			songs = persistentListOf(song),
-			onDismissRequest = { playlistDialogShown = false }
-		)
-	}
+	SongActionsSheet(song = song, open = sheetOpen, onDismissRequest = { sheetOpen = false })
 }

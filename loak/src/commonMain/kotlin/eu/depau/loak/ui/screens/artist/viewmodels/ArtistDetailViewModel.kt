@@ -14,9 +14,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.notice_deleted_download
-import eu.depau.loak.generated.resources.notice_download_started
 import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.dao.ArtistDao
 import eu.depau.loak.data.database.entities.DownloadStatus
@@ -63,15 +60,6 @@ class ArtistDetailViewModel(
 
 	val starred: StateFlow<Boolean>
 		field = MutableStateFlow(false)
-
-	val selectedSong: StateFlow<DomainSong?>
-		field = MutableStateFlow(null)
-
-	val selectedSongIsStarred: StateFlow<Boolean>
-		field = MutableStateFlow(false)
-
-	val selectedSongRating: StateFlow<Int>
-		field = MutableStateFlow(0)
 
 	val selectedAlbum: StateFlow<DomainAlbum?>
 		field = MutableStateFlow(null)
@@ -172,18 +160,6 @@ class ArtistDetailViewModel(
 		}
 	}
 
-	fun selectSong(song: DomainSong) {
-		viewModelScope.launch {
-			selectedSong.value = song
-			selectedSongIsStarred.value = songRepository.isSongStarred(song)
-			selectedSongRating.value = songRepository.getSongRating(song)
-		}
-	}
-
-	fun clearSelection() {
-		selectedSong.value = null
-	}
-
 	fun selectAlbum(album: DomainAlbum) {
 		viewModelScope.launch {
 			selectedAlbum.value = album
@@ -204,38 +180,6 @@ class ArtistDetailViewModel(
 
 	fun clearAlbumSelection() {
 		selectedAlbum.value = null
-	}
-
-	fun starSelectedSong() {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				selectedSongIsStarred.value = true
-				songRepository.starSong(selection)
-				loadArtistData()
-			}
-		}
-	}
-
-	fun unstarSelectedSong() {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				selectedSongIsStarred.value = false
-				songRepository.unstarSong(selection)
-				loadArtistData()
-			}
-		}
-	}
-
-	fun rateSelectedSong(rating: Int) {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				selectedSongRating.value = rating
-				songRepository.rateSong(selection, rating)
-			}
-		}
 	}
 
 	fun starArtist(isStarred: Boolean) {
@@ -278,20 +222,6 @@ class ArtistDetailViewModel(
 
 	fun playTopSongs(player: MediaPlayerViewModel, index: Int = 0) {
 		(artistState.value as? UiState.Success)?.data?.let { player.playNow(it.topSongs, index) }
-	}
-
-	fun downloadSong(song: DomainSong) {
-		downloadManager.downloadSong(song)
-		snackBarManager.notify(Res.string.notice_download_started)
-	}
-
-	fun cancelDownload(songId: String) {
-		downloadManager.cancelDownload(songId)
-	}
-
-	fun deleteDownload(songId: String) {
-		downloadManager.deleteDownload(songId)
-		snackBarManager.notify(Res.string.notice_deleted_download)
 	}
 
 	@OptIn(ExperimentalCoroutinesApi::class)

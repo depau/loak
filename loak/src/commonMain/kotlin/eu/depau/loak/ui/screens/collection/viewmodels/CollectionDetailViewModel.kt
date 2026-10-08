@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.notice_deleted_download
 import eu.depau.loak.generated.resources.notice_download_started
 import eu.depau.loak.generated.resources.notice_removed_from_playlist
 import eu.depau.loak.data.database.entities.DownloadStatus
@@ -35,7 +34,6 @@ import eu.depau.loak.domain.repositories.PlaylistRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.core.inBackground
-import eu.depau.loak.util.Logger
 
 class CollectionDetailViewModel(
 	private val collectionId: String,
@@ -56,18 +54,8 @@ class CollectionDetailViewModel(
 	val starred: StateFlow<Boolean>
 		field = MutableStateFlow(false)
 
-	val selectedSong: StateFlow<DomainSong?>
-		field = MutableStateFlow(null)
-
 	val albumInfoState: StateFlow<UiState<DomainAlbumInfo>>
 		field = MutableStateFlow<UiState<DomainAlbumInfo>>(UiState.Loading())
-
-	val selectedSongIsStarred: StateFlow<Boolean>
-		field = MutableStateFlow(false)
-
-	private val _selectedSongRating = MutableStateFlow(0)
-	val selectedSongRating: StateFlow<Int>
-		field = MutableStateFlow(0)
 
 	val selectedAlbum: StateFlow<DomainAlbum?>
 		field = MutableStateFlow(null)
@@ -144,14 +132,6 @@ class CollectionDetailViewModel(
 		}
 	}
 
-	fun selectSong(song: DomainSong) {
-		viewModelScope.launch {
-			selectedSong.value = song
-			selectedSongIsStarred.value = songRepository.isSongStarred(song)
-			selectedSongRating.value = songRepository.getSongRating(song)
-		}
-	}
-
 	fun selectAlbum(album: DomainAlbum) {
 		viewModelScope.launch {
 			selectedAlbum.value = album
@@ -161,7 +141,6 @@ class CollectionDetailViewModel(
 	}
 
 	fun clearSelection() {
-		selectedSong.value = null
 		selectedAlbum.value = null
 	}
 
@@ -172,12 +151,10 @@ class CollectionDetailViewModel(
 	}
 
 	/** Hides the song at once; the server update waits until the Undo snackbar is gone. */
-	fun removeFromPlaylist() {
-		val song = selectedSong.value ?: return
+	fun removeFromPlaylist(song: DomainSong) {
 		val before = collectionState.value.data as? DomainPlaylist ?: return
 		val index = before.songs.indexOf(song)
 		if (index == -1) return
-		clearSelection()
 
 		collectionState.value = UiState.Success(
 			before.copy(
@@ -196,38 +173,6 @@ class CollectionDetailViewModel(
 				},
 				commit = { syncManager.release(actionId) }
 			)
-		}
-	}
-
-	fun starSelectedSong() {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				songRepository.starSong(selection)
-				selectedSongIsStarred.value = true
-				refreshCollection(false)
-			}
-		}
-	}
-
-	fun unstarSelectedSong() {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				songRepository.unstarSong(selection)
-				selectedSongIsStarred.value = false
-				refreshCollection(false)
-			}
-		}
-	}
-
-	fun rateSelectedSong(rating: Int) {
-		viewModelScope.launch {
-			val selection = selectedSong.value ?: return@launch
-			runCatching {
-				songRepository.rateSong(selection, rating)
-				_selectedSongRating.value = rating
-			}
 		}
 	}
 
@@ -276,20 +221,6 @@ class CollectionDetailViewModel(
 				selectedAlbumIsStarred.value = starred
 			}
 		}
-	}
-
-	fun downloadSong(song: DomainSong) {
-		downloadManager.downloadSong(song)
-		snackBarManager.notify(Res.string.notice_download_started)
-	}
-
-	fun cancelDownload(songId: String) {
-		downloadManager.cancelDownload(songId)
-	}
-
-	fun deleteDownload(songId: String) {
-		downloadManager.deleteDownload(songId)
-		snackBarManager.notify(Res.string.notice_deleted_download)
 	}
 
 	fun downloadAll() {
