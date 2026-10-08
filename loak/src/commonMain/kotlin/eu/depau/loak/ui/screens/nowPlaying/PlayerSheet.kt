@@ -52,6 +52,7 @@ import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.theme.LoakTheme
+import eu.depau.loak.ui.util.LocalWindowChrome
 import eu.depau.loak.ui.util.rememberColorSchemeForCurrentSong
 import eu.depau.loak.ui.util.rememberScreenCornerRadius
 import kotlinx.coroutines.CoroutineScope
@@ -347,6 +348,8 @@ fun PlayerLayer(state: PlayerSheetState) {
 	val screenCorner = rememberScreenCornerRadius()
 	val appSurface = MaterialTheme.colorScheme.surface
 	val drag = rememberDraggableState { state.dragPlayer(it) }
+	// The full-window dismiss gesture would compete with native title-bar dragging on desktop.
+	val playerDragEnabled = LocalWindowChrome.current == null
 
 	BoxWithConstraints(Modifier.fillMaxSize()) {
 		val fullW = constraints.maxWidth
@@ -387,6 +390,7 @@ fun PlayerLayer(state: PlayerSheetState) {
 					.draggable(
 						state = drag,
 						orientation = Orientation.Vertical,
+						enabled = playerDragEnabled,
 						onDragStopped = { velocity -> state.settlePlayer(velocity) }
 					)
 			) {
