@@ -167,7 +167,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-26, windows-latest ]
+        os: [ ubuntu-latest, macos-26, windows-latest, windows-11-arm ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -242,7 +242,7 @@ jobs:
               ;;
             Windows)
               powershell -NoProfile -Command \
-                "Compress-Archive -Path 'loakDesktop/build/compose/binaries/main/app/*' -DestinationPath 'loakDesktop/build/compose/binaries/main/Loak-Windows.zip' -Force"
+                "Compress-Archive -Path 'loakDesktop/build/compose/binaries/main/app/*' -DestinationPath 'loakDesktop/build/compose/binaries/main/Loak-${{ runner.arch }}-Windows.zip' -Force"
               ;;
           esac
 
@@ -260,13 +260,13 @@ jobs:
             case "$f" in
               *.deb|*.rpm|*.AppImage|*.msi|*.exe|*.dmg|*.pkg|*.zip|*.tar.gz|*.blockmap|latest-*.yml) cp "$f" dist/ ;;
             esac
-          done < <(find loakDesktop/build/compose/binaries/main -type f -print0)
+          done < <(find loakDesktop/build/compose/binaries/main -type f -not -path '*/app/*' -print0)
           ls -la dist/
 
       - name: Upload desktop artifact
         uses: actions/upload-artifact@v6
         with:
-          name: loak-desktop-${{ runner.os }}
+          name: loak-desktop-${{ matrix.os }}
           path: dist/
           compression-level: 0
           if-no-files-found: error
@@ -356,6 +356,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           pattern: loak-desktop-windows-latest
+          path: artifacts/release-assets-windows
+          merge-multiple: true
+
+      - name: Download Windows arm64 desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-windows-11-arm
           path: artifacts/release-assets-windows
           merge-multiple: true
 
