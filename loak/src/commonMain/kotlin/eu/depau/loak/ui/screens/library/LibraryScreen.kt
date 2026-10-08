@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +64,7 @@ import eu.depau.loak.icons.outlined.BarChart
 import eu.depau.loak.icons.outlined.Calendar
 import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.ChevronForward
+import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.Error
 import eu.depau.loak.icons.outlined.Explore
@@ -91,6 +93,7 @@ import eu.depau.loak.ui.components.sheets.ScheduleSheet
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.util.IoDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -216,7 +219,6 @@ fun DownloadsScreen(initial: DownloadsTab) {
 	val downloads by downloadManager.allDownloads.collectAsState(initial = emptyList())
 	val collections by downloadManager.collections.collectAsState()
 	val storedSongs by store.storedSongs.collectAsState()
-	val storedCollections by store.storedCollections.collectAsState()
 	var tab by rememberSaveable { mutableStateOf(initial) }
 	// <playlistId, rec> for the rows with a schedule; null otherwise
 	var scheduling by remember { mutableStateOf<DownloadCollectionEntity?>(null) }
@@ -247,10 +249,10 @@ fun DownloadsScreen(initial: DownloadsTab) {
 			}
 			when (tab) {
 				DownloadsTab.Songs -> DownloadsSongsTab(songDao, player, completeBySong, storedSongs, downloads)
-				DownloadsTab.Albums -> DownloadsAlbumsTab(albumDao, backStack, collections, storedCollections, downloadedIds)
-				DownloadsTab.Artists -> DownloadsArtistsTab(artistDao, songDao, backStack, collections, storedCollections, downloadedIds)
+				DownloadsTab.Albums -> DownloadsAlbumsTab(albumDao, backStack, collections, downloadedIds)
+				DownloadsTab.Artists -> DownloadsArtistsTab(artistDao, songDao, backStack, collections, downloadedIds)
 				DownloadsTab.Playlists -> DownloadsPlaylistsTab(
-					playlistDao, backStack, collections, storedCollections, downloadedIds,
+					playlistDao, backStack, collections, downloadedIds,
 					downloadManager, scheduling, { scheduling = it }
 				)
 			}
@@ -333,15 +335,14 @@ private fun DownloadsAlbumsTab(
 	albumDao: AlbumDao,
 	backStack: NavBackStack<NavKey>,
 	collections: List<DownloadCollectionEntity>,
-	storedCollections: Set<String>,
 	downloadedIds: Set<String>
 ) {
 	val subscribed = remember(collections) {
 		collections.filter { it.type == DownloadCollectionType.ALBUM }.map { it.collectionId }.toSet()
 	}
-	val ids by produceState(emptyList<String>(), subscribed, storedCollections) {
+	val ids by produceState(emptyList<String>(), subscribed) {
 		val all = albumDao.getAllAlbumIds().toSet()
-		value = (subscribed + (storedCollections intersect all)).toList()
+		value = (subscribed intersect all).toList()
 	}
 	val albums by produceState(emptyList<eu.depau.loak.data.database.relations.AlbumWithSongs>(), ids) {
 		if (ids.isEmpty()) value = emptyList()
@@ -375,15 +376,14 @@ private fun DownloadsArtistsTab(
 	songDao: SongDao,
 	backStack: NavBackStack<NavKey>,
 	collections: List<DownloadCollectionEntity>,
-	storedCollections: Set<String>,
 	downloadedIds: Set<String>
 ) {
 	val subscribed = remember(collections) {
 		collections.filter { it.type == DownloadCollectionType.ARTIST }.map { it.collectionId }.toSet()
 	}
-	val ids by produceState(emptyList<String>(), subscribed, storedCollections) {
+	val ids by produceState(emptyList<String>(), subscribed) {
 		val all = artistDao.getAllArtistIds().toSet()
-		value = (subscribed + (storedCollections intersect all)).toList()
+		value = (subscribed intersect all).toList()
 	}
 	data class Row(val name: String, val coverArtId: String?, val done: Int, val total: Int)
 	val rows by produceState(emptyList<Row>(), ids) {
@@ -424,16 +424,15 @@ private fun DownloadsPlaylistsTab(
 	playlistDao: PlaylistDao,
 	backStack: NavBackStack<NavKey>,
 	collections: List<DownloadCollectionEntity>,
-	storedCollections: Set<String>,
 	downloadedIds: Set<String>,
 	downloadManager: DownloadManager,
 	scheduling: DownloadCollectionEntity?,
 	onSchedule: (DownloadCollectionEntity) -> Unit
 ) {
 	val byId = remember(collections) { collections.associateBy { it.collectionId } }
-	val ids by produceState(emptyList<String>(), byId.keys, storedCollections) {
+	val ids by produceState(emptyList<String>(), byId.keys) {
 		val all = playlistDao.getAllPlaylistIds().toSet()
-		value = (byId.keys + (storedCollections intersect all)).toList()
+		value = (byId.keys intersect all).toList()
 	}
 	data class Row(val playlist: eu.depau.loak.data.database.relations.PlaylistWithSongs, val subscribed: DownloadCollectionEntity?)
 	val playlists by produceState(emptyList<Row>(), ids) {
@@ -459,6 +458,7 @@ private fun DownloadsPlaylistsTab(
 					add(CronSchedule.parse(it.scheduleCron!!)?.describe() ?: it.scheduleCron)
 				}
 			}
+			val scope = rememberCoroutineScope()
 			CollectionRow(
 				title = entity.name.orEmpty(),
 				subtitle = subtitle.joinToString(" · "),
@@ -471,11 +471,20 @@ private fun DownloadsPlaylistsTab(
 					onLongClick = { rec?.let(onSchedule) }
 				),
 				trailing = {
-					if (rec != null) Icon(
-						Icons.Outlined.Refresh,
-						stringResource(Res.string.action_download_now),
-						modifier = Modifier.clickable { downloadManager.kickDownload(entity.playlistId) }
-					)
+					if (rec != null) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+						Icon(
+							Icons.Outlined.Refresh,
+							stringResource(Res.string.action_download_now),
+							modifier = Modifier.clickable { downloadManager.kickDownload(entity.playlistId) }
+						)
+						Icon(
+							Icons.Outlined.Delete,
+							stringResource(Res.string.action_delete_download),
+							modifier = Modifier.clickable {
+								scope.launch { downloadManager.removeCollectionRow(entity.playlistId) }
+							}
+						)
+					}
 				}
 			)
 		}

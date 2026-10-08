@@ -301,9 +301,13 @@ class DownloadManager(
 		}
 	}
 
-	/** Forgets a subscribed collection row but keeps pins (e.g. schedule no longer wanted). */
+	/** Forgets a downloaded collection (and its schedule); songs not wanted elsewhere get unpinned. */
 	suspend fun removeCollectionRow(collectionId: String) {
+		val rec = collectionDao.getById(collectionId) ?: return
+		val ids = collectionMembers(rec)
 		collectionDao.delete(collectionId)
+		cancel(ids) { store.dropPending(ids) }
+		reconcileOrphans()
 	}
 
 	fun setCollectionSchedule(collectionId: String, cron: String?, enabled: Boolean) {
