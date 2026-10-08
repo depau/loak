@@ -62,7 +62,7 @@ Lo'ak repo root/
 ├── gradle/libs.versions.toml          # single source of dependency truth
 ├── fastlane/            # iOS resign + TestFlight upload (release tooling)
 ├── app-repo.json        # AltStore/sideloading source manifest (auto-updated by CI)
-└── .github/workflows/   # build, checks, publish, web
+└── .github/workflows/   # build, checks, web
 ```
 
 Four Gradle modules are included (`settings.gradle.kts`): `:loak`, `:loakApp`, `:loakDesktop` and `:webApp`.
@@ -179,7 +179,6 @@ For UI changes: **manually verify on different themes and form factors and inclu
 
 - **`build.yml`** — on push/PR/tags: builds Android (signed release on push/tags via `SIGNING_*` env vars, debug on PRs, plus a `.nightly` variant on `main`), desktop installers for Ubuntu/macOS/Windows, and (disabled) an iOS IPA. Publishes a `nightly` GitHub Release on every `main` push and a v-tag GitHub Release with desktop update manifests.
 - **`checks.yml`** — Gradle wrapper integrity validation.
-- **`publish.yml`** — on GitHub Release: TestFlight upload via `fastlane` (currently disabled) and the AltStore manifest (`app-repo.json`) update.
 - **`web.yml`** — builds the Kotlin/Wasm web bundle and deploys the web demo.
 
 Nothing in CI runs tests today.
@@ -203,7 +202,7 @@ Nothing in CI runs tests today.
 6. New managers/repositories that need platform impls follow the `expect`/`actual` pattern (see `PlatformModule`, `DataStoreModule`, `ConnectivityManager`, `ShareManager`). Remember to add the Koin registration in **both** platform `platformModule`s.
 7. Exported names/`-Xexpect-actual-classes` and `-Xexplicit-backing-fields` compiler flags are set globally; note the `field = ...` property syntax used in ViewModels/flows (backing-field feature).
 8. Building Android requires networked dependency resolution on first run (long). Use `--offline` only after a successful full build.
-9. **Fork placeholders:** a couple of spots still carry upstream-era placeholders (`.github/README.md` update links, `publish.yml` fastlane secrets). Point these at the fork's own hosting when they matter. This is a **self-maintained fork** — the upstream "no LLM-assisted contributions" rule does not apply here.
+9. **Fork placeholders:** a couple of spots still carry upstream-era placeholders (`.github/README.md` update links). Point these at the fork's own hosting when they matter. This is a **self-maintained fork** — the upstream "no LLM-assisted contributions" rule does not apply here.
 10. **App name: `Lo'ak` is official; `Loak` is only for search labels.** The official name is **Lo'ak** (with the apostrophe) everywhere in-app and in the repo. But labels used for *searching* the app — e.g. the Android launcher name — should be **`Loak`** (apostrophe-free) when the search engine doesn't handle fuzzy/quoted matching or when there's any concern a user typing "loak" wouldn't find the app. On **Android** the launcher/recents label is `@string/app_name` (`loakApp/src/main/res/values/strings.xml` → `Loak`, plus the debug `resValue` `"Loak (Dev)"`); on **iOS** it's `LOAK_DISPLAY_NAME=Loak` in `Config.xcconfig` → `INFOPLIST_KEY_CFBundleDisplayName` (the internal bundle filename stays `Lo'ak.app` via `LOAK_PRODUCT_NAME`). The in-app brand (shared Compose res `app_name` used in the UI) stays `Lo'ak` on both. Also note: an *unescaped* `'` in an aapt-compiled Android string makes build-tools 37 aapt2 fail with a baffling `Invalid unicode escape sequence in string "{str}"` on `app_name` — if you ever reintroduce `Lo'ak` in an Android res string, escape it as `Lo\'ak` (renders identical). Compose-resource strings (`composeResources/values/strings.xml`) don't go through aapt (they're assets), so they don't need escaping.
 
 ## Quick orientation questions
