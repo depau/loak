@@ -12,6 +12,13 @@ This file gives an agent (or any new contributor) everything needed to navigate 
   - Codex/GPT → `Co-authored-by: GPT-X.X Variant <noreply@openai.com>` (e.g. `GPT-6.1 Sol`)
   - Claude → `Co-authored-by: Claude Model Version <noreply@anthropic.com>` (e.g. `Claude Opus 5.5`)
   - any other model → `Co-authored-by: Model Name and Version Including Flash if Flash <ai@depau.eu>` (e.g. `Deepseek 4-flash`, `GLM-5.3`, ...)
+- **Do all code changes in your own git worktree** so concurrent agents never step on each other's working tree or uncommitted edits. Before starting, check `git worktree list` and claim a branch name no one else is using (existing convention: `feat/*`, `fix/*`):
+  ```bash
+  git fetch && git worktree add ../loak-<slug> -b feat/<slug>
+  cd ../loak-<slug>     # work, build and commit here
+  ```
+  A worktree is a full checkout sharing the main repo's `.git`, so commit/amend/rebase/push behave exactly as in the main checkout. Keep the main checkout clean; don't do change work there. When your changes land, prune it: `git worktree remove ../loak-<slug>`.
+- **Concurrency rules:** each agent owns exactly one worktree at a time; never edit another agent's worktree, and never work directly in the main checkout while other agents are active. Commits remain one-per-conceptual-change (co-co, co-author trailer, no fixups) — `git commit --amend` / `git rebase -i` still fold corrections. Coordinate merges with the human before pushing. Disk cost: each worktree carries its own Gradle `build/` output on top of the already-heavy build (~50 GB free disk needed), so keep worktrees few and remove them once merged.
 - Ask before creating branches. Never push unless explicitly authorized.
 
 ## What is this project?
