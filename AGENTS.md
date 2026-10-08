@@ -189,6 +189,7 @@ Nothing in CI runs tests today.
 - **Commits**: [Conventional Commits](https://conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `refactor:`, ...) — matches existing history.
 - Branch naming in use: `feat/*`, `fix/*`, `night`, `dev`.
 - **Strings**: user-facing text goes in `loak/src/commonMain/composeResources/values/strings.xml`; translations are managed on Weblate — don't hand-edit the `values-*` locale dirs.
+- **List items behave the same everywhere.** A row for the same kind of thing (song, album, artist, playlist…) responds to the same gestures in every list: if a song row opens the song sheet on long-press in one place, it does so in every list that shows songs (the queue, its Autoplay suggestions, search, collections…), and likewise for tap, swipe and drag. When adding a list, or a gesture to one, match the others; omit only actions that make no sense there (e.g. no "Remove from queue" for a song not in the queue).
 - **Keep PRs small and focused**; screenshots required for UI changes.
 - This is a **self-maintained fork**: upstream's old "no LLM-assisted contributions" rule does not apply.
 
