@@ -132,7 +132,7 @@ fun QueueScreen() {
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 
 	val haptic = LocalHapticFeedback.current
-	val draggableState = rememberDraggableListState(viewModel.listState) { from, to ->
+	val draggableState = rememberDraggableListState { from, to ->
 		player.moveQueueItem(from, to)
 		haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
 	}

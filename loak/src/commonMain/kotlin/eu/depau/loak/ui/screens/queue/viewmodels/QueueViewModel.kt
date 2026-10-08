@@ -1,6 +1,5 @@
 package eu.depau.loak.ui.screens.queue.viewmodels
 
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +13,6 @@ class QueueViewModel(
 	private val songRepository: SongRepository,
 	val downloadManager: DownloadManager
 ) : ViewModel() {
-	val listState = LazyListState()
 	val allDownloads = downloadManager.allDownloads
 
 	/** Queue index of the song whose options sheet is open. */
