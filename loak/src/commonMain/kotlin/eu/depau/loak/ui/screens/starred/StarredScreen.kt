@@ -129,6 +129,7 @@ fun StarredScreen() {
 				onPlaySong = { index ->
 					player.playNow(songsState.data.orEmpty(), index)
 				},
+				onSongStarredChange = { songsViewModel.refreshSongs(false) },
 
 				albumsState = albumsState,
 				selectedAlbum = selectedAlbum,

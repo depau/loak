@@ -20,7 +20,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 fun LazyListScope.songListScreenContent(
 	state: UiState<ImmutableList<DomainSong>>,
 	allDownloads: List<DownloadEntity>,
-	onPlaySong: (DomainSong) -> Unit
+	onPlaySong: (DomainSong) -> Unit,
+	onStarredChange: () -> Unit
 ) {
 	val data = state.data.orEmpty()
 	if (data.isNotEmpty()) {
@@ -30,7 +31,8 @@ fun LazyListScope.songListScreenContent(
 				modifier = loakAnimateItem().fillMaxWidth(),
 				song = song,
 				onClick = { onPlaySong(song) },
-				download = download
+				download = download,
+				onStarredChange = onStarredChange
 			)
 		}
 	} else {

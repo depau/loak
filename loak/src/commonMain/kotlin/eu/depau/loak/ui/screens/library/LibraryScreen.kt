@@ -62,11 +62,9 @@ import eu.depau.loak.icons.outlined.Album
 import eu.depau.loak.icons.outlined.Artist
 import eu.depau.loak.icons.outlined.BarChart
 import eu.depau.loak.icons.outlined.Calendar
-import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.ChevronForward
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.icons.outlined.Download
-import eu.depau.loak.icons.outlined.Error
 import eu.depau.loak.icons.outlined.Explore
 import eu.depau.loak.icons.outlined.Genre
 import eu.depau.loak.icons.outlined.History
@@ -88,7 +86,6 @@ import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
-import eu.depau.loak.ui.components.sheets.ModalBottomSheet
 import eu.depau.loak.ui.components.sheets.ScheduleSheet
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.ui.navigation.Screen
@@ -98,6 +95,8 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import eu.depau.loak.ui.components.common.SongRow
+import androidx.compose.foundation.lazy.itemsIndexed
 
 private data class LibraryCounts(
 	val songs: Int = 0, val albums: Int = 0, val artists: Int = 0, val genres: Int = 0,
@@ -273,7 +272,7 @@ fun DownloadsScreen(initial: DownloadsTab) {
 	}
 }
 
-/** Songs on disk plus pinned-any-status ones; a progress bar while a download runs. */
+/** Songs on disk plus pinned-any-status ones, with each one's download status. */
 @Composable
 private fun DownloadsSongsTab(
 	songDao: SongDao,
@@ -297,35 +296,13 @@ private fun DownloadsSongsTab(
 		return
 	}
 	LazyColumn(Modifier.fillMaxSize()) {
-		items(songs, key = { it.id }) { song ->
-			val download = completeBySong[song.id]
-			Column(Modifier.padding(horizontal = 4.dp)) {
-				ListItem(
-					modifier = Modifier.clickable {
-						player.playNow(songs, songs.indexOf(song))
-					},
-					leadingContent = { CoverArt(coverArtId = song.coverArtId, modifier = Modifier.size(48.dp)) },
-					headlineContent = { Text(song.title, maxLines = 1) },
-					supportingContent = {
-						Text(listOfNotNull(song.artistName, song.albumTitle).joinToString(" · "), maxLines = 1)
-					},
-					trailingContent = {
-						when (download?.status) {
-							DownloadStatus.DOWNLOADING ->
-								Text("${(download.progress * 100).toInt()}%", color = MaterialTheme.colorScheme.primary)
-							DownloadStatus.DOWNLOADED -> Icon(Icons.Outlined.Check, null)
-							DownloadStatus.FAILED -> Icon(Icons.Outlined.Error, null, tint = MaterialTheme.colorScheme.error)
-							else -> Unit
-						}
-					}
-				)
-				if (download?.status == DownloadStatus.DOWNLOADING) {
-					LinearProgressIndicator(
-						progress = { download.progress.coerceIn(0f, 1f) },
-						modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 4.dp)
-					)
-				}
-			}
+		itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+			SongRow(
+				song = song,
+				onClick = { player.playNow(songs, index) },
+				modifier = Modifier.fillMaxWidth(),
+				download = completeBySong[song.id]
+			)
 		}
 	}
 }

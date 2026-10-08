@@ -73,6 +73,7 @@ import eu.depau.loak.icons.outlined.QueuePlayNext
 /**
  * A song in a list: tap plays it ([onClick]), long-press opens its [SongActionsSheet], and
  * swiping it ([SongSwipeBox]) queues it, unless the list scrolls sideways ([swipeable] false).
+ * [onStarredChange]: see [SongActionsSheet].
  */
 @Composable
 fun SongRow(
@@ -80,7 +81,8 @@ fun SongRow(
 	onClick: () -> Unit,
 	modifier: Modifier = Modifier,
 	download: DownloadEntity? = null,
-	swipeable: Boolean = true
+	swipeable: Boolean = true,
+	onStarredChange: (() -> Unit)? = null
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
@@ -114,7 +116,12 @@ fun SongRow(
 		)
 	}
 
-	SongActionsSheet(song = song, open = sheetOpen, onDismissRequest = { sheetOpen = false })
+	SongActionsSheet(
+		song = song,
+		open = sheetOpen,
+		onDismissRequest = { sheetOpen = false },
+		onStarredChange = onStarredChange
+	)
 }
 
 @Composable

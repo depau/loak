@@ -72,6 +72,8 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
+import eu.depau.loak.ui.components.common.SongRow
+import androidx.compose.foundation.lazy.itemsIndexed
 
 /**
  * Song alchemy: songs, artists, playlists and moods to mix in or take away; AudioMuse-AI finds
@@ -190,11 +192,12 @@ fun AlchemyScreen(seed: AlchemyIngredient?) {
 					Text(stringResource(Res.string.info_alchemy_needs_add), Modifier.padding(4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
 				}
 				is UiState.Error -> item { Text("${r.error.message}", Modifier.padding(4.dp), color = MaterialTheme.colorScheme.error) }
-				else -> items(songs, key = { it.id }) { song ->
-					ListItem(
-						leadingContent = { CoverArt(coverArtId = song.coverArtId, modifier = Modifier.size(48.dp)) },
-						headlineContent = { Text(song.title, maxLines = 1) },
-						supportingContent = { Text(song.artistName.orEmpty(), maxLines = 1) }
+				else -> itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+					val player = koinInject<MediaPlayerViewModel>()
+					SongRow(
+						song = song,
+						onClick = { player.playNow(songs, index) },
+						modifier = Modifier.fillMaxWidth()
 					)
 				}
 			}

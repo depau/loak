@@ -1,11 +1,7 @@
 package eu.depau.loak.ui.screens.explore
 
-import eu.depau.loak.ui.components.common.LocalAvailability
-import eu.depau.loak.ui.components.common.playOrExplain
-import eu.depau.loak.ui.components.common.unavailable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,8 +27,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -55,7 +49,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
-import androidx.navigation3.runtime.NavKey
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
@@ -63,25 +56,15 @@ import eu.depau.loak.di.isExpanded
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbum
-import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.repositories.SoundMapPoint
 import eu.depau.loak.generated.resources.*
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Sparkle
-import eu.depau.loak.icons.outlined.Album
-import eu.depau.loak.icons.outlined.BarChart
-import eu.depau.loak.icons.outlined.Calendar
 import eu.depau.loak.icons.outlined.ChevronForward
 import eu.depau.loak.icons.outlined.Flask
-import eu.depau.loak.icons.outlined.Grid
-import eu.depau.loak.icons.outlined.RecentlyAdded
 import eu.depau.loak.icons.outlined.Search
-import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.icons.outlined.SonicPath
-import eu.depau.loak.icons.outlined.Star
-import eu.depau.loak.icons.outlined.Trophy
 import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.layouts.ArtGridItem
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
@@ -94,6 +77,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import eu.depau.loak.ui.components.common.SongRow
 
 private const val TAB = "explore"
 
@@ -236,15 +220,10 @@ fun ExploreScreen() {
 						}
 					}
 					itemsIndexed(state.deepCuts, key = { _, song -> "deep ${song.id}" }, span = { _, _ -> GridItemSpan(6) }) { i, song ->
-						ListItem(
-							modifier = Modifier
-								.unavailable(!LocalAvailability.current.song(song.id))
-								.clip(MaterialTheme.shapes.medium)
-								.clickable(onClick = playOrExplain(song.id) { player.playNow(state.deepCuts, i) }),
-							leadingContent = { CoverArt(coverArtId = song.coverArtId, modifier = Modifier.size(48.dp)) },
-							headlineContent = { Text(song.title, maxLines = 1) },
-							supportingContent = { Text(listOfNotNull(song.artistName, song.albumTitle).joinToString(" · "), maxLines = 1) },
-							colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+						SongRow(
+							song = song,
+							onClick = { player.playNow(state.deepCuts, i) },
+							modifier = Modifier.fillMaxWidth()
 						)
 					}
 				}

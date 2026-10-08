@@ -22,7 +22,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -52,7 +51,6 @@ import eu.depau.loak.icons.filled.Sparkle
 import eu.depau.loak.icons.outlined.ChevronForward
 import eu.depau.loak.icons.outlined.PlaylistAdd
 import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.theme.warning
 import kotlinx.coroutines.launch
@@ -64,6 +62,8 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import eu.depau.loak.ui.components.common.SongRow
+import androidx.compose.foundation.lazy.itemsIndexed
 
 private sealed interface AskMessage {
 	data class Mine(val text: String) : AskMessage
@@ -225,11 +225,12 @@ fun AskAiScreen(prompt: String) {
 					}
 				}
 			}
-			items(songs, key = { it.id }) { song ->
-				ListItem(
-					leadingContent = { CoverArt(coverArtId = song.coverArtId, modifier = Modifier.size(48.dp)) },
-					headlineContent = { Text(song.title, maxLines = 1) },
-					supportingContent = { Text(song.artistName.orEmpty(), maxLines = 1) }
+			itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+				val player = koinInject<MediaPlayerViewModel>()
+				SongRow(
+					song = song,
+					onClick = { player.playNow(songs, index) },
+					modifier = Modifier.fillMaxWidth()
 				)
 			}
 		}

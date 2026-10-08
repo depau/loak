@@ -138,7 +138,9 @@ fun SongListScreen(
 					allDownloads = allDownloads,
 					onPlaySong = { song ->
 						player.playNow(song)
-					}
+					},
+					// a list of starred songs drops the unstarred one
+					onStarredChange = { viewModel.refreshSongs(false) }
 				)
 			}
 		}

@@ -42,6 +42,7 @@ import kotlin.time.Duration
  * @param canAddToQueue false for songs already in the queue.
  * @param inPlayer the sheet is opened from the player: track info opens over it, and going to
  * the album or artist closes it first.
+ * @param onStarredChange after starring or unstarring, for lists that filter by it.
  */
 @Composable
 fun SongActionsSheet(
@@ -53,7 +54,8 @@ fun SongActionsSheet(
 	canAddToQueue: Boolean = true,
 	onRemoveFromPlaylist: (() -> Unit)? = null,
 	onRemoveFromQueue: (() -> Unit)? = null,
-	inPlayer: Boolean = false
+	inPlayer: Boolean = false,
+	onStarredChange: (() -> Unit)? = null
 ) {
 	var playlistDialogShown by rememberSaveable { mutableStateOf(false) }
 	var shareId by remember { mutableStateOf<String?>(null) }
@@ -69,6 +71,7 @@ fun SongActionsSheet(
 			onRemoveFromPlaylist = onRemoveFromPlaylist,
 			onRemoveFromQueue = onRemoveFromQueue,
 			inPlayer = inPlayer,
+			onStarredChange = onStarredChange,
 			onAddToPlaylist = { playlistDialogShown = true },
 			onShare = { shareId = song.id }
 		)
@@ -102,6 +105,7 @@ private fun Sheet(
 	onRemoveFromPlaylist: (() -> Unit)?,
 	onRemoveFromQueue: (() -> Unit)?,
 	inPlayer: Boolean,
+	onStarredChange: (() -> Unit)?,
 	onAddToPlaylist: () -> Unit,
 	onShare: () -> Unit
 ) {
@@ -128,7 +132,12 @@ private fun Sheet(
 		song = song,
 		collection = collection,
 		starred = starred,
-		onSetStarred = { scope.launch { songRepository.setSongStarred(song.id, it) } },
+		onSetStarred = {
+			scope.launch {
+				songRepository.setSongStarred(song.id, it)
+				onStarredChange?.invoke()
+			}
+		},
 		rating = rating,
 		onSetRating = {
 			rating = it

@@ -81,7 +81,6 @@ import eu.depau.loak.icons.outlined.History
 import eu.depau.loak.icons.outlined.NoSearchResults
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.ContentUnavailable
-import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.layouts.ArtGrid
 import eu.depau.loak.ui.components.layouts.RootBottomBar
@@ -381,11 +380,10 @@ fun SearchScreen(
 								val shown = if (showAll) soundSongs.take(5) else soundSongs
 								items(shown.size, span = { GridItemSpan(maxLineSpan) }) { index ->
 									val song = shown[index]
-									ListItem(
-										modifier = Modifier.clickable { player.playNow(soundSongs, soundSongs.indexOf(song)) },
-										leadingContent = { CoverArt(coverArtId = song.coverArtId, modifier = Modifier.size(50.dp)) },
-										headlineContent = { Text(song.title, maxLines = 1) },
-										supportingContent = { Text(song.artistName.orEmpty(), maxLines = 1) }
+									SongRow(
+										song = song,
+										onClick = { player.playNow(soundSongs, index) },
+										modifier = Modifier.fillMaxWidth()
 									)
 								}
 							}

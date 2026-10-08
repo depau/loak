@@ -76,6 +76,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
+import eu.depau.loak.ui.components.common.SongRow
+import androidx.compose.foundation.lazy.itemsIndexed
 
 /**
  * Describe a mix: songs that sound like (CLAP) or are about (lyrics) a description, both run
@@ -369,11 +371,13 @@ internal fun LazyListScope.resultItems(result: UiState<List<DomainSong>>?) {
 			if (result is UiState.Success && result.data.isEmpty()) item {
 				Text(stringResource(Res.string.info_no_results), color = MaterialTheme.colorScheme.onSurfaceVariant)
 			}
-			items(result.data.orEmpty(), key = { it.id }) { song ->
-				ListItem(
-					leadingContent = { CoverArt(coverArtId = song.coverArtId, modifier = Modifier.size(48.dp)) },
-					headlineContent = { Text(song.title, maxLines = 1) },
-					supportingContent = { Text(song.artistName.orEmpty(), maxLines = 1) }
+			itemsIndexed(result.data.orEmpty(), key = { _, song -> song.id }) { index, song ->
+				val songs = result.data.orEmpty()
+				val player = koinInject<MediaPlayerViewModel>()
+				SongRow(
+					song = song,
+					onClick = { player.playNow(songs, index) },
+					modifier = Modifier.fillMaxWidth()
 				)
 			}
 		}

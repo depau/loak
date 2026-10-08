@@ -79,6 +79,7 @@ fun StarredScreenContent(
 	songsState: UiState<ImmutableList<DomainSong>>,
 	allDownloads: ImmutableList<DownloadEntity>,
 	onPlaySong: (Int) -> Unit,
+	onSongStarredChange: () -> Unit,
 
 	// albums
 	albumsState: UiState<ImmutableList<DomainAlbum>>,
@@ -206,7 +207,8 @@ fun StarredScreenContent(
 							onClick = { onPlaySong(index) },
 							download = download,
 							// sideways-scrolling: a swipe scrolls the list
-							swipeable = false
+							swipeable = false,
+							onStarredChange = onSongStarredChange
 						)
 					}
 				}
