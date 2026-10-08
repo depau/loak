@@ -6,12 +6,17 @@ This file gives an agent (or any new contributor) everything needed to navigate 
 
 - Always load the ponytail skill in ultra mode.
 - For work spanning multiple conceptual changes, propose milestones with one conceptual change each. Once the user approves the plan, complete all approved milestones without stopping for confirmation between them.
-- When the user authorizes commits, commit each conceptual change separately without asking again. Credit Codex with `Co-authored-by: Codex <noreply@openai.com>` in each commit it contributes to.
+- When researching a requested change, look for larger refactoring opportunities rather than applying a surgical fix as duct tape. Don't force a refactor where the small change is genuinely right, but prefer addressing the underlying structure when the change touches shared code or the pattern is already half-broken.
+- Commit your own work with co-co (Conventional Commits), one commit per conceptual change, without asking for each one. Write no fixup commits: if you later find a bug or an incompleteness in one of your own earlier, still-unpushed commits, fold the correction into that original commit (e.g. `git commit --amend` or `git rebase -i`), never append a "fix what I just did" commit on top.
+- Credit yourself in each commit you contribute to with `Co-authored-by: <self>`, using your model's trailer:
+  - Codex/GPT → `Co-authored-by: GPT-X.X Variant <noreply@openai.com>` (e.g. `GPT-6.1 Sol`)
+  - Claude → `Co-authored-by: Claude Model Version <noreply@anthropic.com>` (e.g. `Claude Opus 5.5`)
+  - any other model → `Co-authored-by: Model Name <ai@depau.eu>`
 - Ask before creating branches. Never push unless explicitly authorized.
 
 ## What is this project?
 
-Lo'ak is a **fork of Navic** — a modern **(Open)Subsonic music streaming app for Android and iOS**: streaming, offline downloads/scrobbling, radio stations, lyrics (multiple providers + word-by-word), equaliser/ReplayGain/transcoding, home-screen widgets, sharing, and Android Auto support. The original upstream project was renamed to Lo'ak for this fork; upstream contribution policies (e.g. the old "no LLM-assisted contributions" rule) do **not** apply here.
+**Lo'ak** (official name, with the apostrophe) is a **fork of Navic** — a modern **(Open)Subsonic music streaming app for Android and iOS**: streaming, offline downloads/scrobbling, radio stations, lyrics (multiple providers + word-by-word), equaliser/ReplayGain/transcoding, home-screen widgets, sharing, and Android Auto support. The app was forked from Navic and released as Lo'ak; upstream contribution policies (e.g. the old "no LLM-assisted contributions" rule) do **not** apply here.
 
 - Kotlin Multiplatform (KMP) + **Compose Multiplatform** — one shared codebase for Android + iOS UI and logic.
 - Kotlin package / application id: **`eu.depau.loak`**; default branch: `master`.
@@ -37,7 +42,7 @@ Lo'ak is a **fork of Navic** — a modern **(Open)Subsonic music streaming app f
 ## Repo layout
 
 ```
-Navic repo root (renamed "Lo'ak")/
+Lo'ak repo root/
 ├── loak/                # KMP module: ALL shared business logic + shared Compose UI
 │   ├── build.gradle.kts
 │   ├── schemas/         # Room schema exports (eu.depau.loak.data.database.*)
@@ -49,16 +54,18 @@ Navic repo root (renamed "Lo'ak")/
 │       └── iosMain/     # iOS impls (AVFoundation player, UIKit managers)
 ├── loakApp/             # Pure Android application module (AGP), depends on :loak
 │   └── src/main/kotlin/eu/depau/loak/androidApp/  # MainActivity, Application, Glance widgets
+├── loakDesktop/         # Compose Desktop app module (JVM, packaged via Nucleus)
+├── webApp/              # Kotlin/Wasm web build of the shared UI
 ├── iosApp/              # Xcode project (SwiftUI wrapper around the shared Compose UI)
 │   ├── Configuration/Config.xcconfig
 │   └── iosApp/          # AppDelegate.swift, Info.plist, entitlements, assets
 ├── gradle/libs.versions.toml          # single source of dependency truth
 ├── fastlane/            # iOS resign + TestFlight upload (release tooling)
 ├── app-repo.json        # AltStore/sideloading source manifest (auto-updated by CI)
-└── .github/workflows/   # build, checks, mirror, publish
+└── .github/workflows/   # build, checks, publish, web
 ```
 
-Only two Gradle modules are included (`settings.gradle.kts`): `:loak` and `:loakApp`.
+Four Gradle modules are included (`settings.gradle.kts`): `:loak`, `:loakApp`, `:loakDesktop` and `:webApp`.
 
 ## Architecture
 
@@ -93,7 +100,7 @@ Classic layered single-module KMP app. Everything lives under `loak/src/commonMa
 ## Build environment
 
 - **JDK 21** (required — `jvmTarget = 21`). No other JDK version.
-- **Android SDK**: compileSdk 37, Build Tools 37.0.0. If `ANDROID_HOME` is unset, create `local.properties` with `sdk.dir=/path/to/Sdk` (on this dev machine: `/home/depau/Android/Sdk`).
+- **Android SDK**: compileSdk 37, Build Tools 37.0.0. If `ANDROID_HOME` is unset, create `local.properties` with `sdk.dir=/path/to/Sdk`.
 - **iOS (macOS only)**: Xcode + **Apple Silicon required** — JetBrains Compose Multiplatform no longer compiles on Intel (x86_64) hosts since 1.11.1, even though Kotlin Native still supports them.
 - **Resources**: the build is heavy — needs >16 GB RAM and ~50 GB free disk (`gradle.properties` sets `-Xmx8g`). Test mainly on Android; use iOS only for iOS-specific changes.
 
@@ -141,16 +148,11 @@ The debug variant gets applicationId suffix `.debug` and label *"Loak (Dev)"*; b
 
 Debug realm: the Android `debug` build has **no ABIs excluded** (`x86_64` is added) for emulator use; release builds `arm64-v8a` + `armeabi-v7a`.
 
-**Android emulator (this dev machine)** — verified working:
-```bash
-export ANDROID_HOME=/home/depau/Android/Sdk QT_QPA_PLATFORM=xcb
-/home/depau/Android/Sdk/emulator/emulator -avd Pixel_9_Pro -gpu swiftshader_indirect -no-snapshot-save -no-boot-anim
-```
-- Installed AVDs: `BRACCIOv7`, `Pixel_9_Pro`, `Pixel_Fold_API_35_Android_15_`, `Wear_OS_Small_Round` (there is **no** plain "Pixel 9"; the Pixel 9 Pro is the closest).
-- `-gpu swiftshader_indirect` is required: host GPU can't be used (Vulkan init fails), so the emulator falls back to software rendering. Without it you get a fatal `Qt platform plugin "wayland"` error → the visible window needs `QT_QPA_PLATFORM=xcb`; plain X11 (`:0`) is available via xcb.
-- Headless alternative: add `-no-window` (still use swiftshader) — usable via `adb` for CI-style runs.
-- Only **one** running instance per AVD: launching the same AVD twice fatals with "Running multiple emulators with the same AVD… use -read-only".
-- Boot check: `adb wait-for-device` then poll `adb shell getprop sys.boot_completed` for `1`. Stock window is 1280x2856 @480dpi.
+## Testing on devices and emulators
+
+- **Never experiment on a real device and never try to control a desktop without explicit user consent.** Use an Android emulator or a VM instead, and ask permission first.
+- When the user authorizes a real device, install the **development package-name variant** (the `debug` build gets the `.debug` applicationId suffix, so it installs alongside the release app).
+- Running an Android emulator: use `$ANDROID_HOME/emulator/emulator -avd <avd>` and wait for boot with `adb wait-for-device` + `adb shell getprop sys.boot_completed` == `1`. A headless run is fine for CI-style checks; keep only one instance per AVD running.
 
 ## Sentry (error reporting)
 
@@ -174,10 +176,10 @@ For UI changes: **manually verify on different themes and form factors and inclu
 
 ## CI/CD (`.github/workflows/`)
 
-- **`build.yml`** — on push/PR/tags: builds Android (debug on PR, signed release on push) and an iOS IPA (`macos-26`), posts APKs to a Discord webhook, and on `v*` tags creates a GitHub Release with APK+IPA.
+- **`build.yml`** — on push/PR/tags: builds Android (signed release on push/tags via `SIGNING_*` env vars, debug on PRs, plus a `.nightly` variant on `main`), desktop installers for Ubuntu/macOS/Windows, and (disabled) an iOS IPA. Publishes a `nightly` GitHub Release on every `main` push and a v-tag GitHub Release with desktop update manifests.
 - **`checks.yml`** — Gradle wrapper integrity validation.
-- **`mirror.yml`** — mirrors the repo to Codeberg.
-- **`publish.yml`** — on GitHub Release: TestFlight upload via `fastlane` and the AltStore manifest (`app-repo.json`) update.
+- **`publish.yml`** — on GitHub Release: TestFlight upload via `fastlane` (currently disabled) and the AltStore manifest (`app-repo.json`) update.
+- **`web.yml`** — builds the Kotlin/Wasm web bundle and deploys the web demo.
 
 Nothing in CI runs tests today.
 
@@ -200,8 +202,8 @@ Nothing in CI runs tests today.
 6. New managers/repositories that need platform impls follow the `expect`/`actual` pattern (see `PlatformModule`, `DataStoreModule`, `ConnectivityManager`, `ShareManager`). Remember to add the Koin registration in **both** platform `platformModule`s.
 7. Exported names/`-Xexpect-actual-classes` and `-Xexplicit-backing-fields` compiler flags are set globally; note the `field = ...` property syntax used in ViewModels/flows (backing-field feature).
 8. Building Android requires networked dependency resolution on first run (long). Use `--offline` only after a successful full build.
-9. **Fork-specific:** a handful of places still point at the upstream repo as placeholders (`.github/README.md`, `app-repo.json` URLs, `ChangelogSheet.kt`/`AboutScreen.kt` update-check URLs, `mirror.yml`, `publish.yml` secrets like `LOAK_GITHUB_TOKEN`). Point these at the fork's own repo/hosting when it's created.
-10. **Searchable app-launcher names are deliberately apostrophe-free — and apostrophes break aapt2.** The brand is `Lo'ak`, but Android launcher search and iOS Spotlight/App Library both do case-insensitive substring matching on the installed app's label, so `Lo'ak` would never match a search for `Loak`. On **Android** the launcher/recents label is `@string/app_name` (`loakApp/src/main/res/values/strings.xml` → `Loak`, plus the debug `resValue` `"Loak (Dev)"`); on **iOS** it's `LOAK_DISPLAY_NAME=Loak` in `Config.xcconfig` → `INFOPLIST_KEY_CFBundleDisplayName` (the internal bundle filename stays `Lo'ak.app` via `LOAK_PRODUCT_NAME`). The in-app brand (shared Compose res `app_name` used in the UI) stays `Lo'ak` on both. Also note: an *unescaped* `'` in an aapt-compiled Android string makes build-tools 37 aapt2 fail with a baffling `Invalid unicode escape sequence in string "{str}"` on `app_name` — if you ever reintroduce `Lo'ak` in an Android res string, escape it as `Lo\'ak` (renders identical). Compose-resource strings (`composeResources/values/strings.xml`) don't go through aapt (they're assets), so they don't need escaping.
+9. **Fork placeholders:** a couple of spots still carry upstream-era placeholders (`.github/README.md` update links, `publish.yml` fastlane secrets). Point these at the fork's own hosting when they matter. This is a **self-maintained fork** — the upstream "no LLM-assisted contributions" rule does not apply here.
+10. **App name: `Lo'ak` is official; `Loak` is only for search labels.** The official name is **Lo'ak** (with the apostrophe) everywhere in-app and in the repo. But labels used for *searching* the app — e.g. the Android launcher name — should be **`Loak`** (apostrophe-free) when the search engine doesn't handle fuzzy/quoted matching or when there's any concern a user typing "loak" wouldn't find the app. On **Android** the launcher/recents label is `@string/app_name` (`loakApp/src/main/res/values/strings.xml` → `Loak`, plus the debug `resValue` `"Loak (Dev)"`); on **iOS** it's `LOAK_DISPLAY_NAME=Loak` in `Config.xcconfig` → `INFOPLIST_KEY_CFBundleDisplayName` (the internal bundle filename stays `Lo'ak.app` via `LOAK_PRODUCT_NAME`). The in-app brand (shared Compose res `app_name` used in the UI) stays `Lo'ak` on both. Also note: an *unescaped* `'` in an aapt-compiled Android string makes build-tools 37 aapt2 fail with a baffling `Invalid unicode escape sequence in string "{str}"` on `app_name` — if you ever reintroduce `Lo'ak` in an Android res string, escape it as `Lo\'ak` (renders identical). Compose-resource strings (`composeResources/values/strings.xml`) don't go through aapt (they're assets), so they don't need escaping.
 
 ## Quick orientation questions
 
