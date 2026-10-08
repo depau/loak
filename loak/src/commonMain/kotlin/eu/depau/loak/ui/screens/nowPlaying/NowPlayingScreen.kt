@@ -289,7 +289,12 @@ private fun PlayerWithSheet(
 			modifier = Modifier
 				.layout { measurable, constraints ->
 					val y = sheetTop(sheet.queueFraction)
-					val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth.coerceAtLeast(0), (h - raisedTop).toInt().coerceAtLeast(0)))
+					val placeable = measurable.measure(
+						Constraints.fixed(
+							constraints.maxWidth.coerceAtLeast(0),
+							(h - y).toInt().coerceAtLeast(0)
+						)
+					)
 					layout(constraints.maxWidth.coerceAtLeast(0), constraints.maxHeight.coerceAtLeast(0)) { placeable.place(0, y.toInt()) }
 				}
 				.nestedScroll(sheet.sheetScroll),
