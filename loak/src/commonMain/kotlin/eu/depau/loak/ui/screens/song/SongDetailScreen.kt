@@ -1,12 +1,10 @@
 package eu.depau.loak.ui.screens.song
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -19,12 +17,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
-import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.layouts.NestedTopBar
-import eu.depau.loak.ui.screens.song.components.SongDetailScreenInfoRow
+import eu.depau.loak.ui.screens.song.components.SongDetailInfo
 import eu.depau.loak.ui.screens.song.viewmodels.SongDetailViewModel
 import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.ui.util.rememberColorSchemeFromCoverArt
@@ -59,21 +55,7 @@ fun SongDetailScreen(
 						end = 12.dp
 					)
 			) {
-				Column(
-					modifier = Modifier.fillMaxWidth(),
-					verticalArrangement = Arrangement.spacedBy(SegmentedListItemDefaults.SegmentedGap)
-				) {
-					info.forEachIndexed { index, (key, value) ->
-						SongDetailScreenInfoRow(
-							key = stringResource(key),
-							value = value,
-							shapes = SegmentedListItemDefaults.segmentedShapes(
-								index = index,
-								count = info.count()
-							)
-						)
-					}
-				}
+				SongDetailInfo(info, song)
 
 				Spacer(
 					Modifier.padding(
