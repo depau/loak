@@ -113,7 +113,8 @@ class PlayerSheetState(private val scope: CoroutineScope, private val backStack:
 	var sheetEnabled = false
 	var splitAvailable = false
 	var queueTravel = 1000f
-	private var backOnQueue = false
+	// state: [queueFraction] only reads [scrub] once this is set, so the layout must see it flip
+	private var backOnQueue by mutableStateOf(false)
 	private var dragOnQueue: Boolean? = null
 
 	/** How far up the sheet looks, a held back gesture included. */
