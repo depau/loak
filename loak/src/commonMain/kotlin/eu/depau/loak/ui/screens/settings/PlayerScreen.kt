@@ -29,7 +29,6 @@ import eu.depau.loak.generated.resources.option_animated_background
 import eu.depau.loak.generated.resources.option_cover_art_action
 import eu.depau.loak.generated.resources.option_hide_while_scrolling
 import eu.depau.loak.generated.resources.option_lyrics_autoscroll
-import eu.depau.loak.generated.resources.option_lyrics_beat_by_beat
 import eu.depau.loak.generated.resources.option_lyrics_blur
 import eu.depau.loak.generated.resources.option_lyrics_bright_inactive
 import eu.depau.loak.generated.resources.option_lyrics_keep_alive
@@ -42,7 +41,6 @@ import eu.depau.loak.generated.resources.subtitle_animated_background
 import eu.depau.loak.generated.resources.subtitle_configure_lyric_providers
 import eu.depau.loak.generated.resources.subtitle_hide_while_scrolling
 import eu.depau.loak.generated.resources.subtitle_lyrics_autoscroll
-import eu.depau.loak.generated.resources.subtitle_lyrics_beat_by_beat
 import eu.depau.loak.generated.resources.subtitle_lyrics_blur
 import eu.depau.loak.generated.resources.subtitle_lyrics_bright_inactive
 import eu.depau.loak.generated.resources.subtitle_lyrics_keep_alive
@@ -143,42 +141,35 @@ fun SettingsPlayerScreen() {
 						onClick = { lyricProvidersSheetOpen = true },
 						content = { Text(stringResource(Res.string.option_lyrics_sources)) },
 						supportingContent = { Text(stringResource(Res.string.subtitle_configure_lyric_providers)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 6)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 5)
 					)
 					SettingsToggleItem(
 						checked = preferenceManager.lyricsAutoscroll,
 						onCheckedChange = { preferenceManager.lyricsAutoscroll = it },
 						content = { Text(stringResource(Res.string.option_lyrics_autoscroll)) },
 						supportingContent = { Text(stringResource(Res.string.subtitle_lyrics_autoscroll)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 6)
-					)
-					SettingsToggleItem(
-						checked = preferenceManager.lyricsBeatByBeat,
-						onCheckedChange = { preferenceManager.lyricsBeatByBeat = it },
-						content = { Text(stringResource(Res.string.option_lyrics_beat_by_beat)) },
-						supportingContent = { Text(stringResource(Res.string.subtitle_lyrics_beat_by_beat)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 6)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 5)
 					)
 					SettingsToggleItem(
 						checked = preferenceManager.lyricsBlur,
 						onCheckedChange = { preferenceManager.lyricsBlur = it },
 						content = { Text(stringResource(Res.string.option_lyrics_blur)) },
 						supportingContent = { Text(stringResource(Res.string.subtitle_lyrics_blur)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 6)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 5)
 					)
 					SettingsToggleItem(
 						checked = preferenceManager.lyricsBrightInactive,
 						onCheckedChange = { preferenceManager.lyricsBrightInactive = it },
 						content = { Text(stringResource(Res.string.option_lyrics_bright_inactive)) },
 						supportingContent = { Text(stringResource(Res.string.subtitle_lyrics_bright_inactive)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 4, count = 6)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 5)
 					)
 					SettingsToggleItem(
 						checked = preferenceManager.lyricsKeepAlive,
 						onCheckedChange = { preferenceManager.lyricsKeepAlive = it },
 						content = { Text(stringResource(Res.string.option_lyrics_keep_alive)) },
 						supportingContent = { Text(stringResource(Res.string.subtitle_lyrics_keep_alive)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 5, count = 6)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 4, count = 5)
 					)
 				}
 

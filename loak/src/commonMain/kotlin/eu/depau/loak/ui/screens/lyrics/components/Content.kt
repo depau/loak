@@ -176,11 +176,7 @@ fun LyricsScreenContent(
 			)
 			val lineBlurRadius by animateDpAsState(
 				targetValue = when {
-					isSelecting -> 0.dp
-					!isSynced -> 0.dp
-					isActive -> 0.dp
-					distance == 1 -> 1.5.dp
-					distance == 2 -> 3.dp
+					isSelecting || !isSynced || distance < 3 -> 0.dp
 					else -> 4.5.dp
 				},
 				animationSpec = spring(stiffness = Spring.StiffnessLow)

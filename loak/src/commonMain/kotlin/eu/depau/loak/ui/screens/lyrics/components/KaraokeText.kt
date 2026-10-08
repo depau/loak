@@ -61,7 +61,6 @@ fun LyricsScreenKaraokeText(
 		animationSpec = spring(stiffness = Spring.StiffnessLow, visibilityThreshold = 0.001f)
 	)
 
-	val lyricsBeatByBeat = preferenceManager.lyricsBeatByBeat
 	val lyricsBrightInactive = preferenceManager.lyricsBrightInactive
 
 	val isRtl = textLayoutResult?.let { layout ->
@@ -112,77 +111,72 @@ fun LyricsScreenKaraokeText(
 				modifier = Modifier
 					.fillMaxWidth()
 					.alpha(alphaTransition)
-					.then(
-						if (lyricsBeatByBeat) {
-							Modifier
-								.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-								.drawWithCache {
-									onDrawWithContent {
-										val layout = textLayoutResult ?: return@onDrawWithContent
-										drawContent()
+					.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+					.drawWithCache {
+						onDrawWithContent {
+							val layout = textLayoutResult ?: return@onDrawWithContent
+							drawContent()
 
-										val totalWidth = (0 until layout.lineCount).sumOf {
-											(layout.getLineRight(it) - layout.getLineLeft(it)).toDouble()
-										}.toFloat()
+							val totalWidth = (0 until layout.lineCount).sumOf {
+								(layout.getLineRight(it) - layout.getLineLeft(it)).toDouble()
+							}.toFloat()
 
-										val feather = 50f
-										val adjustedTotalWidth = totalWidth + (feather * 2)
-										val currentPixelTarget =
-											(adjustedTotalWidth * smoothProgress) - feather
+							val feather = 50f
+							val adjustedTotalWidth = totalWidth + (feather * 2)
+							val currentPixelTarget =
+								(adjustedTotalWidth * smoothProgress) - feather
 
-										var accumulatedWidth = 0f
+							var accumulatedWidth = 0f
 
-										for (i in 0 until layout.lineCount) {
-											val lineLeft = layout.getLineLeft(i)
-											val lineRight = layout.getLineRight(i)
-											val lineWidth = lineRight - lineLeft
-											if (lineWidth <= 0f) continue
+							for (i in 0 until layout.lineCount) {
+								val lineLeft = layout.getLineLeft(i)
+								val lineRight = layout.getLineRight(i)
+								val lineWidth = lineRight - lineLeft
+								if (lineWidth <= 0f) continue
 
-											val lineTop = layout.getLineTop(i)
-											val lineBottom = layout.getLineBottom(i)
-											val isRtl =
-												layout.getBidiRunDirection(layout.getLineStart(i)) == ResolvedTextDirection.Rtl
+								val lineTop = layout.getLineTop(i)
+								val lineBottom = layout.getLineBottom(i)
+								val isRtl =
+									layout.getBidiRunDirection(layout.getLineStart(i)) == ResolvedTextDirection.Rtl
 
-											val startOffFadeIn =
-												currentPixelTarget - accumulatedWidth - feather
-											val endOfFadeIn =
-												currentPixelTarget - accumulatedWidth + feather
+								val startOffFadeIn =
+									currentPixelTarget - accumulatedWidth - feather
+								val endOfFadeIn =
+									currentPixelTarget - accumulatedWidth + feather
 
-											val startX = if (isRtl) lineRight else lineLeft
-											val endX = if (isRtl) lineLeft else lineRight
+								val startX = if (isRtl) lineRight else lineLeft
+								val endX = if (isRtl) lineLeft else lineRight
 
-											val brush = Brush.linearGradient(
-												0.0f to Color.White,
-												(startOffFadeIn / lineWidth).coerceIn(
-													0f,
-													1f
-												) to Color.White,
-												(endOfFadeIn / lineWidth).coerceIn(
-													0f,
-													1f
-												) to Color.Transparent,
-												1.0f to Color.Transparent,
-												start = Offset(startX, 0f),
-												end = Offset(endX, 0f)
-											)
+								val brush = Brush.linearGradient(
+									0.0f to Color.White,
+									(startOffFadeIn / lineWidth).coerceIn(
+										0f,
+										1f
+									) to Color.White,
+									(endOfFadeIn / lineWidth).coerceIn(
+										0f,
+										1f
+									) to Color.Transparent,
+									1.0f to Color.Transparent,
+									start = Offset(startX, 0f),
+									end = Offset(endX, 0f)
+								)
 
-											// the mask covers everything the line may draw, not just its box: at
-											// large sizes descenders and overhangs reach past it, and anything the
-											// mask misses would show fully lit ahead of time
-											val top = if (i == 0) 0f else lineTop
-											val bottom = if (i == layout.lineCount - 1) size.height else lineBottom
-											drawRect(
-												brush = brush,
-												topLeft = Offset(0f, top),
-												size = Size(size.width, bottom - top),
-												blendMode = BlendMode.SrcIn
-											)
-											accumulatedWidth += lineWidth
-										}
-									}
-								}
-						} else Modifier
-					)
+								// the mask covers everything the line may draw, not just its box: at
+								// large sizes descenders and overhangs reach past it, and anything the
+								// mask misses would show fully lit ahead of time
+								val top = if (i == 0) 0f else lineTop
+								val bottom = if (i == layout.lineCount - 1) size.height else lineBottom
+								drawRect(
+									brush = brush,
+									topLeft = Offset(0f, top),
+									size = Size(size.width, bottom - top),
+									blendMode = BlendMode.SrcIn
+								)
+								accumulatedWidth += lineWidth
+							}
+						}
+					}
 			)
 		}
 	}
