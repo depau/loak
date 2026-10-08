@@ -10,6 +10,14 @@ import android.media.audiofx.AudioEffect
 import android.media.audiofx.Equalizer
 import android.net.Uri
 import android.os.Bundle
+import android.media.AudioDeviceInfo
+import android.media.AudioFormat
+import android.media.AudioManager
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioSink
+import eu.depau.loak.domain.models.formatSampleRate
+import eu.depau.loak.util.effectiveGain
+import kotlin.math.roundToInt
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.lifecycle.viewModelScope
@@ -121,6 +129,47 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
+
+internal data class AndroidAudioSinkState(
+	val songId: String? = null,
+	val decoder: String? = null,
+	val pcmFormat: String? = null,
+	val outputFormat: String? = null,
+	val isOffloaded: Boolean = false
+)
+
+internal object AndroidAudioSinkTracker {
+	val state = MutableStateFlow(AndroidAudioSinkState())
+}
+
+internal fun currentAudioOutputDevice(context: Context): String? {
+	val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return null
+	val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+	val preferred = devices.firstOrNull {
+		it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+			it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+			(android.os.Build.VERSION.SDK_INT >= 31 && (it.type == 26 || it.type == 27))
+	} ?: devices.firstOrNull {
+		it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+			it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+			it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+			it.type == AudioDeviceInfo.TYPE_USB_DEVICE
+	} ?: devices.firstOrNull {
+		it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+	} ?: devices.firstOrNull()
+
+	return preferred?.productName?.toString()?.ifBlank { null }
+		?: when {
+			preferred == null -> null
+			preferred.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+				preferred.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+				(android.os.Build.VERSION.SDK_INT >= 31 && (preferred.type == 26 || preferred.type == 27)) -> "Bluetooth audio"
+			preferred.type == AudioDeviceInfo.TYPE_WIRED_HEADSET || preferred.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Headphones"
+			preferred.type == AudioDeviceInfo.TYPE_USB_HEADSET || preferred.type == AudioDeviceInfo.TYPE_USB_DEVICE -> "USB audio"
+			preferred.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Phone speaker"
+			else -> null
+		}
+}
 @OptIn(UnstableApi::class)
 @kotlin.OptIn(ExperimentalCoroutinesApi::class)
 class PlaybackService : MediaSessionService(), KoinComponent {
@@ -302,6 +351,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		player.addListener(object : Player.Listener {
 			override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 				currentSongId.value = mediaItem?.mediaId
+				AndroidAudioSinkTracker.state.value = AndroidAudioSinkState(songId = mediaItem?.mediaId)
 				schedulePrefetch(player)
 			}
 
@@ -319,6 +369,39 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 			override fun onAudioSessionIdChanged(audioSessionId: Int) {
 				currentAudioSessionId = audioSessionId
 				applyEqualiserMode(equaliserMode, audioSessionId)
+			}
+		})
+
+		player.addAnalyticsListener(object : AnalyticsListener {
+			override fun onAudioDecoderInitialized(
+				eventTime: AnalyticsListener.EventTime,
+				decoderName: String,
+				initializedTimestampMs: Long,
+				initializationDurationMs: Long
+			) {
+				AndroidAudioSinkTracker.state.update {
+					it.copy(songId = currentSongId.value, decoder = decoderName)
+				}
+			}
+
+			override fun onAudioTrackInitialized(
+				eventTime: AnalyticsListener.EventTime,
+				audioTrackConfig: AudioSink.AudioTrackConfig
+			) {
+				val pcm = when (audioTrackConfig.encoding) {
+					AudioFormat.ENCODING_PCM_FLOAT -> "32-bit float PCM"
+					else -> "16-bit PCM"
+				}
+				val channels = if (audioTrackConfig.channelConfig == AudioFormat.CHANNEL_OUT_MONO) "Mono" else "Stereo"
+				val outFmt = "${formatSampleRate(audioTrackConfig.sampleRate)} · $channels"
+				AndroidAudioSinkTracker.state.update {
+					it.copy(
+						songId = currentSongId.value,
+						pcmFormat = pcm,
+						outputFormat = outFmt,
+						isOffloaded = audioTrackConfig.offload
+					)
+				}
 			}
 		})
 
@@ -646,6 +729,7 @@ class AndroidMediaPlayerViewModel(
 ) {
 	private var controller: MediaController? = null
 	private var controllerFuture: ListenableFuture<MediaController>? = null
+	private val equaliserManager: EqualiserManager by inject()
 
 	private var loadingCollectionId: String? = null
 
@@ -661,6 +745,11 @@ class AndroidMediaPlayerViewModel(
 				if (!visible) return@collect
 				updateProgress()
 				if (controller?.isPlaying == true) startProgressLoop()
+			}
+		}
+		viewModelScope.launch {
+			AndroidAudioSinkTracker.state.collect { sink ->
+				enrichPlaybackDetails(sink)
 			}
 		}
 	}
@@ -877,6 +966,7 @@ class AndroidMediaPlayerViewModel(
 		} else {
 			audioGainManager.resetGain()
 		}
+		enrichPlaybackDetails()
 	}
 
 	override fun syncPlayerWithState(state: PlayerUiState) {
@@ -980,6 +1070,7 @@ class AndroidMediaPlayerViewModel(
 				}
 			}
 		}
+		enrichPlaybackDetails()
 	}
 
 	override fun requestedQuality(): AudioQuality {
@@ -995,6 +1086,48 @@ class AndroidMediaPlayerViewModel(
 			if (isCellular) preferenceManager.streamingQualityCellular.containerAndroid else preferenceManager.streamingQualityWifi.containerAndroid
 		}
 		return AudioQuality.of(container, bitrate)
+	}
+
+	private fun computeReplayGainDescription(): String? {
+		if (preferenceManager.replayGainMode == ReplayGainMode.Off) return null
+		val currentSong = _uiState.value.currentSong ?: return null
+		val rg = currentSong.replayGain ?: return null
+		val mode = if (preferenceManager.replayGainMode == ReplayGainMode.Dynamic) {
+			if (_uiState.value.queue.all { it.albumId == currentSong.albumId }) ReplayGainMode.Album else ReplayGainMode.Track
+		} else {
+			preferenceManager.replayGainMode
+		}
+		val gain = rg.effectiveGain(mode)
+		val sign = if (gain > 0) "+" else ""
+		val rounded = (gain * 10).roundToInt() / 10.0
+		return "${mode.name} $sign$rounded dB"
+	}
+
+	private fun enrichPlaybackDetails(sink: AndroidAudioSinkState = AndroidAudioSinkTracker.state.value) {
+		val song = _uiState.value.currentSong ?: return
+		val songId = song.id
+		if (sink.songId != null && sink.songId != songId) return
+		_uiState.update { state ->
+			val current = state.playbackDetails?.takeIf { it.songId == songId } ?: return@update state
+			val rgDesc = computeReplayGainDescription()
+			val eqDesc = when (equaliserManager.config.value.mode) {
+				EqualiserMode.BuiltIn -> "Built-in"
+				EqualiserMode.External -> "External session"
+				EqualiserMode.Disabled -> null
+			}
+			val outDevice = currentAudioOutputDevice(application)
+			state.copy(
+				playbackDetails = current.copy(
+					decoder = sink.decoder ?: current.decoder,
+					pcmFormat = sink.pcmFormat ?: current.pcmFormat,
+					outputFormat = sink.outputFormat ?: current.outputFormat,
+					isOffloaded = sink.isOffloaded,
+					outputDevice = outDevice ?: current.outputDevice,
+					replayGain = rgDesc,
+					equalizer = eqDesc
+				)
+			)
+		}
 	}
 
 
