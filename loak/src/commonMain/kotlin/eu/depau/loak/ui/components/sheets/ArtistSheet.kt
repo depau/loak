@@ -36,7 +36,6 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.icons.Icons
@@ -50,6 +49,7 @@ import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.dialogs.LinkConfirmationDialog
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +66,6 @@ fun ArtistSheet(
 	onCancelDownloadAll: (() -> Unit)? = null,
 	onDeleteDownloadAll: (() -> Unit)? = null,
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 	val contentPadding = PaddingValues(horizontal = 16.dp)
 	val colors = ListItemDefaults.colors(
@@ -98,7 +97,7 @@ fun ArtistSheet(
 				CoverArt(
 					coverArtId = artist.coverArtId,
 					modifier = Modifier.size(50.dp),
-					shape = preferenceManager.coverArtShape.decreasedShape
+					shape = SmallCoverArtShape
 				)
 			},
 			headlineContent = { MarqueeText(artist.name) },

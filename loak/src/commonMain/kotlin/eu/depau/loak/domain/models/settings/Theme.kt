@@ -6,22 +6,16 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.Color
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import dev.zt64.compose.pipette.HsvColor
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.theme_apple_music
 import eu.depau.loak.generated.resources.theme_dynamic
-import eu.depau.loak.generated.resources.theme_ios
 import eu.depau.loak.generated.resources.theme_seeded
-import eu.depau.loak.generated.resources.theme_spotify
 import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.ui.util.darkIosColorScheme
-import eu.depau.loak.ui.util.lightIosColorScheme
 
 /**
  * Theme choices that the user can choose from
@@ -37,27 +31,10 @@ enum class Theme(val title: StringResource) {
 	Seeded(Res.string.theme_seeded),
 
 	/**
-	 * The app will be themed based on whatever the user
-	 * chose in system settings. Android only.
+	 * The app follows the system's colors: Android's wallpaper, the desktop accent.
+	 * Where there are none, Lo'ak's default scheme.
 	 */
-	Dynamic(Res.string.theme_dynamic),
-
-	/**
-	 * The app will be themed according to Apple's HIG.
-	 * TODO: this should pull from UIColor
-	 */
-	@Suppress("EnumEntryName")
-	iOS(Res.string.theme_ios),
-
-	/**
-	 * The same as iOS, but with a pink-ish accent.
-	 */
-	AppleMusic(Res.string.theme_apple_music),
-
-	/**
-	 * The same as iOS, but with a green accent.
-	 */
-	Spotify(Res.string.theme_spotify);
+	Dynamic(Res.string.theme_dynamic);
 
 	@Composable
 	fun colorScheme(): ColorScheme {
@@ -88,25 +65,6 @@ enum class Theme(val title: StringResource) {
 				specVersion = ColorSpec.SpecVersion.SPEC_2025,
 				style = preferenceManager.paletteStyle
 			)
-
-			iOS -> if (isDark)
-				darkIosColorScheme(Color(0, 145, 255))
-			else lightIosColorScheme(Color(0, 136, 255))
-
-			AppleMusic -> if (isDark)
-				darkIosColorScheme(Color(255, 55, 95))
-			else lightIosColorScheme(Color(255, 45, 85))
-
-			Spotify -> if (isDark)
-				darkIosColorScheme(Color(30, 215, 96))
-			else lightIosColorScheme(Color(30, 215, 96))
 		}
-	}
-
-	fun isMaterialLike(): Boolean = when (this) {
-		Dynamic,
-		Seeded -> true
-
-		else -> false
 	}
 }

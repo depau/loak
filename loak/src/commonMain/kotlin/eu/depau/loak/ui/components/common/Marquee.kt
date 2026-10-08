@@ -23,15 +23,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.PersistentMap
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.delay
-import org.koin.compose.koinInject
-import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.models.settings.MarqueeSpeed
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
@@ -40,13 +36,8 @@ fun MarqueeText(
 	style: TextStyle = LocalTextStyle.current,
 	modifier: Modifier = Modifier
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
-	if (preferenceManager.marqueeSpeed != MarqueeSpeed.Disabled) {
-		Marquee(modifier) {
-			Text(text, maxLines = 1, style = style)
-		}
-	} else {
-		Text(text, maxLines = 1, style = style, overflow = TextOverflow.Ellipsis)
+	Marquee(modifier) {
+		Text(text, maxLines = 1, style = style)
 	}
 }
 
@@ -57,21 +48,12 @@ fun MarqueeText(
 	inlineContent: PersistentMap<String, InlineTextContent> = persistentMapOf(),
 	modifier: Modifier = Modifier
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
-	if (preferenceManager.marqueeSpeed != MarqueeSpeed.Disabled) {
-		Marquee(modifier) {
-			Text(text, maxLines = 1, style = style, inlineContent = inlineContent)
-		}
-	} else {
-		Text(
-			text,
-			maxLines = 1,
-			style = style,
-			overflow = TextOverflow.Ellipsis,
-			inlineContent = inlineContent
-		)
+	Marquee(modifier) {
+		Text(text, maxLines = 1, style = style, inlineContent = inlineContent)
 	}
 }
+
+private const val MARQUEE_SCROLL_MS = 6000
 
 @Composable
 private fun Marquee(
@@ -79,7 +61,6 @@ private fun Marquee(
 	edgeWidth: Dp = 16.dp,
 	content: @Composable () -> Unit
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
 	val scrollState = rememberScrollState()
 	val edgeWidthPx = with(LocalDensity.current) { edgeWidth.toPx() }
 
@@ -91,14 +72,14 @@ private fun Marquee(
 
 			scrollState.animateScrollTo(
 				value = scrollState.maxValue,
-				animationSpec = tween(preferenceManager.marqueeSpeed.value)
+				animationSpec = tween(MARQUEE_SCROLL_MS)
 			)
 
 			delay(1.seconds)
 
 			scrollState.animateScrollTo(
 				value = 0,
-				animationSpec = tween(preferenceManager.marqueeSpeed.value)
+				animationSpec = tween(MARQUEE_SCROLL_MS)
 			)
 		}
 	}

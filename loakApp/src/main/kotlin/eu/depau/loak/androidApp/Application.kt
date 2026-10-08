@@ -1,7 +1,9 @@
 package eu.depau.loak.androidApp
 
 import android.app.ActivityManager
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import org.koin.android.ext.koin.androidContext
@@ -58,6 +60,14 @@ class Application : android.app.Application() {
 			androidLogger()
 		}
 		scheduleDownloads(this)
+
+		// ponytail: the Inverted icon alias is gone; undo the disable it left on the
+		// default one. Drop once nobody updates from a build that had the setting.
+		packageManager.setComponentEnabledSetting(
+			ComponentName(this, "$packageName.MainActivityDefault"),
+			PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
+			PackageManager.DONT_KILL_APP
+		)
 	}
 
 	private fun isCrashProcess(): Boolean {

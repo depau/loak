@@ -220,10 +220,6 @@ sealed interface Screen : NavKey {
 
 		@Immutable
 		@Serializable
-		data object Fonts : Settings
-
-		@Immutable
-		@Serializable
 		data object Themes : Settings
 
 		@Immutable
@@ -244,10 +240,6 @@ sealed interface Screen : NavKey {
 		@Immutable
 		@Serializable
 		data object Logs : Settings
-
-		@Immutable
-		@Serializable
-		data object AppIcon : Settings
 
 		@Immutable
 		@Serializable

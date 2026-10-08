@@ -134,6 +134,7 @@ import eu.depau.loak.ui.util.InlineExplicitIcon
 import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.ui.util.label
 import eu.depau.loak.ui.util.rememberColorSchemeFromCoverArt
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -309,7 +310,7 @@ fun SongSheet(
 					CoverArt(
 						coverArtId = song.coverArtId,
 						modifier = Modifier.size(50.dp),
-						shape = preferenceManager.coverArtShape.decreasedShape
+						shape = SmallCoverArtShape
 					)
 				},
 				colors = colors

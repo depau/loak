@@ -82,6 +82,7 @@ import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.RatingRow
 import eu.depau.loak.ui.components.dialogs.LinkConfirmationDialog
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,7 +149,7 @@ fun CollectionSheet(
 				CoverArt(
 					coverArtId = collection?.coverArtId,
 					modifier = Modifier.size(50.dp),
-					shape = preferenceManager.coverArtShape.decreasedShape
+					shape = SmallCoverArtShape
 				)
 			},
 			headlineContent = { MarqueeText(playlistName?.display ?: collection?.name.orEmpty()) },

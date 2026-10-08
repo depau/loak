@@ -55,14 +55,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import com.materialkolor.PaletteStyle
-import com.materialkolor.dynamiccolor.ColorSpec
 import dev.zt64.compose.pipette.HsvColor
 import dev.zt64.compose.pipette.RingColorPicker
 import kotlinx.collections.immutable.toImmutableList
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.option_accent_colour
 import eu.depau.loak.generated.resources.option_choose_theme
-import eu.depau.loak.generated.resources.option_palette_specification
 import eu.depau.loak.generated.resources.option_palette_style
 import eu.depau.loak.generated.resources.title_palette
 import eu.depau.loak.generated.resources.title_theme_mode
@@ -115,7 +113,7 @@ fun SettingsThemesScreen() {
 
 				SettingsGroup(title = { Text(stringResource(Res.string.title_palette)) }) {
 					val isSeeded = preferenceManager.theme == Theme.Seeded
-					val count = if (isSeeded) 4 else 1
+					val count = if (isSeeded) 3 else 1
 
 					SegmentedListItem(
 						onClick = {},
@@ -167,22 +165,6 @@ fun SettingsThemesScreen() {
 						)
 					}
 
-					AnimatedVisibility(
-						modifier = Modifier.fillMaxWidth(),
-						visible = isSeeded
-					) {
-						SettingsChoiceItem(
-							choices = ColorSpec.SpecVersion.entries.toImmutableList(),
-							selectedChoice = preferenceManager.paletteSpec,
-							onChoiceSelected = { preferenceManager.paletteSpec = it },
-							label = { it.label() },
-							content = { Text(stringResource(Res.string.option_palette_specification)) },
-							shapes = SegmentedListItemDefaults.segmentedShapes(
-								index = 3,
-								count = count
-							)
-						)
-					}
 				}
 			}
 		}

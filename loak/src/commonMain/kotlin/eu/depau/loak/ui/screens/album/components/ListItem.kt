@@ -26,7 +26,6 @@ import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.DownloadManager
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.ui.components.common.CoverArt
@@ -35,6 +34,7 @@ import eu.depau.loak.ui.components.sheets.CollectionSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
 import eu.depau.loak.ui.util.appendBulletPoint
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 @Composable
 fun AlbumListScreenListItem(
@@ -52,7 +52,6 @@ fun AlbumListScreenListItem(
 	onSetRating: (Int) -> Unit
 ) {
 	val backStack = LocalNavStack.current
-	val preferenceManager = koinInject<PreferenceManager>()
 	val snackBarManager = koinInject<SnackBarManager>()
 	val scope = rememberCoroutineScope()
 
@@ -72,7 +71,7 @@ fun AlbumListScreenListItem(
 				CoverArt(
 					coverArtId = album.coverArtId,
 					modifier = Modifier.size(50.dp),
-					shape = preferenceManager.coverArtShape.decreasedShape
+					shape = SmallCoverArtShape
 				)
 			},
 			content = { MarqueeText(album.name ?: "[unknown album]") },

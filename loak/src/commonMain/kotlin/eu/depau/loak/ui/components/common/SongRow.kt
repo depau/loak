@@ -69,6 +69,7 @@ import eu.depau.loak.generated.resources.action_add_to_queue
 import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.icons.outlined.Queue
 import eu.depau.loak.icons.outlined.QueuePlayNext
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 /**
  * A song in a list: tap plays it ([onClick]), long-press opens its [SongActionsSheet], and
@@ -177,7 +178,7 @@ private fun SongRowContent(
 			CoverArt(
 				coverArtId = song.coverArtId,
 				modifier = Modifier.size(50.dp),
-				shape = preferenceManager.coverArtShape.decreasedShape
+				shape = SmallCoverArtShape
 			)
 		},
 		trailingContent = {

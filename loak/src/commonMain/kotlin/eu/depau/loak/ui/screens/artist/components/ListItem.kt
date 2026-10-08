@@ -21,9 +21,7 @@ import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.count_albums
 import org.jetbrains.compose.resources.pluralStringResource
-import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.ui.components.common.CoverArt
@@ -31,6 +29,7 @@ import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.sheets.ArtistSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 @Composable
 fun ArtistListScreenListItem(
@@ -45,7 +44,6 @@ fun ArtistListScreenListItem(
 	onAddToQueue: () -> Unit,
 	onSetStarred: (starred: Boolean) -> Unit
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
 
 	val scope = rememberCoroutineScope()
 
@@ -62,7 +60,7 @@ fun ArtistListScreenListItem(
 				CoverArt(
 					coverArtId = artist.coverArtId,
 					modifier = Modifier.size(50.dp),
-					shape = preferenceManager.coverArtShape.decreasedShape
+					shape = SmallCoverArtShape
 				)
 			},
 			content = { MarqueeText(artist.name) },

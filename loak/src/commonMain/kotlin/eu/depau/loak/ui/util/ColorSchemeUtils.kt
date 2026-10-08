@@ -9,7 +9,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.Color
 import coil3.ImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -75,72 +74,5 @@ fun rememberColorSchemeForCurrentSong(forceDark: Boolean = true): ColorScheme {
 		coverArtId = coverArtId,
 		forceDark = forceDark,
 		style = if (coverArtId != null) PaletteStyle.Content else PaletteStyle.Monochrome
-	)
-}
-
-private val IosRed = Color(255, 66, 69)
-
-@Composable
-fun lightIosColorScheme(
-	accent: Color
-): ColorScheme {
-	return rememberDynamicColorScheme(
-		primary = Color.White,
-		isDark = false,
-		isAmoled = true,
-		specVersion = ColorSpec.SpecVersion.SPEC_2021,
-		style = PaletteStyle.Content,
-		modifyColorScheme = { scheme ->
-			scheme.copy(
-				primary = accent,
-				onPrimary = Color.White,
-				primaryContainer = accent.copy(alpha = .3f),
-				onPrimaryContainer = accent,
-				secondaryContainer = accent.copy(alpha = .3f),
-				onSecondaryContainer = accent,
-				secondary = accent,
-				tertiaryContainer = accent.copy(alpha = .3f),
-				onTertiaryContainer = accent,
-				tertiary = accent,
-				error = IosRed,
-				onError = Color.White,
-				errorContainer = IosRed,
-				onErrorContainer = Color.White,
-				surfaceVariant = Color(224, 221, 220)
-			)
-		}
-	)
-}
-
-@Composable
-fun darkIosColorScheme(
-	accent: Color
-): ColorScheme {
-	return rememberDynamicColorScheme(
-		primary = Color.White,
-		isDark = true,
-		isAmoled = true,
-		specVersion = ColorSpec.SpecVersion.SPEC_2021,
-		style = PaletteStyle.Content,
-		modifyColorScheme = { scheme ->
-			scheme.copy(
-				primary = accent,
-				onPrimary = Color.White,
-				primaryContainer = accent.copy(alpha = .3f),
-				onPrimaryContainer = accent,
-				secondaryContainer = accent.copy(alpha = .3f),
-				onSecondaryContainer = accent,
-				secondary = accent,
-				tertiaryContainer = accent.copy(alpha = .3f),
-				onTertiaryContainer = accent,
-				tertiary = accent,
-				error = IosRed,
-				onError = Color.White,
-				errorContainer = IosRed,
-				onErrorContainer = Color.White,
-				surfaceVariant = Color(44, 44, 46),
-				onSurfaceVariant = Color(142, 142, 147)
-			)
-		}
 	)
 }

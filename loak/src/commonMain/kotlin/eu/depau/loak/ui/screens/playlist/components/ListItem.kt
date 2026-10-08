@@ -31,7 +31,6 @@ import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.DownloadManager
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.ui.components.common.CoverArt
@@ -40,6 +39,7 @@ import eu.depau.loak.ui.components.sheets.CollectionSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
 import eu.depau.loak.ui.util.appendBulletPoint
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 @Composable
 fun PlaylistListScreenListItem(
@@ -54,7 +54,6 @@ fun PlaylistListScreenListItem(
 	onSetDeletionId: (String) -> Unit
 ) {
 	val backStack = LocalNavStack.current
-	val preferenceManager = koinInject<PreferenceManager>()
 	val snackBarManager = koinInject<SnackBarManager>()
 	val scope = rememberCoroutineScope()
 
@@ -76,7 +75,7 @@ fun PlaylistListScreenListItem(
 					CoverArt(
 						coverArtId = playlist.coverArtId,
 						modifier = Modifier.size(50.dp),
-						shape = preferenceManager.coverArtShape.decreasedShape
+						shape = SmallCoverArtShape
 					)
 					SpecialPlaylistCover(name, Modifier.matchParentSize(), showTitle = false)
 				}

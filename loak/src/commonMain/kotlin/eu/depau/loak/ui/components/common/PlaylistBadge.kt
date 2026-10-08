@@ -38,6 +38,7 @@ import eu.depau.loak.icons.outlined.Soundwave
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import kotlin.time.Instant
+import eu.depau.loak.ui.theme.CoverArtShape
 
 /** The name to show for a playlist, and what kind it is (AudioMuse-AI, smart, …). */
 @Composable
@@ -117,7 +118,7 @@ fun SpecialPlaylistCover(name: PlaylistName, modifier: Modifier = Modifier, show
 	else listOf(Color(0xFFFFD36B), Color(0xFF2F6B5A), Color(0xFF1F3A6B))
 	Box(
 		modifier
-			.clip(koinInject<PreferenceManager>().coverArtShape.shape)
+			.clip(CoverArtShape)
 			.background(Brush.linearGradient(colors))
 			.padding(10.dp)
 	) {

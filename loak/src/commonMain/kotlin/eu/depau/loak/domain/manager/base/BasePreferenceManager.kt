@@ -147,7 +147,8 @@ internal inline fun <reified E : Enum<E>> Settings.getEnum(
 	key: String,
 	defaultValue: E
 ): E {
-	return enumEntries<E>()[(getInt(key, defaultValue.ordinal))]
+	// a value saved before its enum entry was removed falls back to the default
+	return enumEntries<E>().getOrElse(getInt(key, defaultValue.ordinal)) { defaultValue }
 }
 
 @PublishedApi

@@ -30,8 +30,6 @@ import eu.depau.loak.generated.resources.info_share_expired
 import eu.depau.loak.generated.resources.info_share_expires_in
 import eu.depau.loak.generated.resources.info_shared_by
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainShare
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Delete
@@ -39,6 +37,7 @@ import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.util.toHoursMinutesSeconds
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 @Composable
 fun ShareListScreenItem(
@@ -50,7 +49,6 @@ fun ShareListScreenItem(
 	var currentTime by remember { mutableStateOf(Clock.System.now()) }
 	val scope = rememberCoroutineScope()
 	val dismissState = rememberSwipeToDismissBoxState()
-	val preferenceManager = koinInject<PreferenceManager>()
 
 	LaunchedEffect(share.expiresAt) {
 		while (true) {
@@ -93,7 +91,7 @@ fun ShareListScreenItem(
 				CoverArt(
 					coverArtId = share.items.firstOrNull()?.coverArtId,
 					modifier = Modifier.size(60.dp),
-					shape = preferenceManager.coverArtShape.decreasedShape
+					shape = SmallCoverArtShape
 				)
 			},
 			content = { share.description?.let { Text(it) } },

@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -43,11 +42,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
-import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.LocalSharedTransitionScope
 import eu.depau.loak.di.PlatformType
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.ErrorBox
@@ -67,15 +64,11 @@ fun ArtGrid(
 	columns: GridCells? = null,
 	content: LazyGridScope.() -> Unit
 ) {
-	val platformContext = LocalPlatformContext.current
-	val preferenceManager = koinInject<PreferenceManager>()
-	val artGridItemSize = preferenceManager.artGridItemSize
+	// ~150dp tiles: two columns on a phone, more as the window widens
 	val gridColumns = columns ?: if (selectedViewMode == ListViewMode.List) {
 		GridCells.Fixed(1)
-	} else if (platformContext.sizeClass.widthSizeClass <= WindowWidthSizeClass.Compact) {
-		GridCells.Fixed(preferenceManager.gridSize.value)
 	} else {
-		GridCells.Adaptive(artGridItemSize.dp)
+		GridCells.Adaptive(150.dp)
 	}
 	LazyVerticalGrid(
 		modifier = modifier.fillMaxSize(),

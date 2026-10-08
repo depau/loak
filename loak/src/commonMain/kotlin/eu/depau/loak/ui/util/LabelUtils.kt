@@ -2,7 +2,6 @@ package eu.depau.loak.ui.util
 
 import androidx.compose.runtime.Composable
 import com.materialkolor.PaletteStyle
-import com.materialkolor.dynamiccolor.ColorSpec
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.count_days_ago
 import eu.depau.loak.generated.resources.count_hours
@@ -125,11 +124,6 @@ fun PaletteStyle.label(): String = when (this) {
 	PaletteStyle.Monochrome -> "Monochrome"
 	PaletteStyle.Fidelity -> "Fidelity"
 	PaletteStyle.Content -> "Content"
-}
-
-fun ColorSpec.SpecVersion.label() = when (this) {
-	ColorSpec.SpecVersion.SPEC_2021 -> "Material 3 (2021)"
-	ColorSpec.SpecVersion.SPEC_2025 -> "Expressive (2025)"
 }
 
 fun LyricsProvider.Id.label() = when (this) {

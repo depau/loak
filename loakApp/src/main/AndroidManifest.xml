@@ -50,7 +50,7 @@
 			android:exported="true"
 			android:theme="@style/Theme.Loak" />
 
-		<!-- app icon activities -->
+		<!-- the launcher entry -->
 		<activity-alias
 			android:name="${applicationId}.MainActivityDefault"
 			android:enabled="true"
@@ -58,20 +58,6 @@
 			android:icon="@mipmap/ic_launcher"
 			android:label="@string/app_name"
 			android:roundIcon="@mipmap/ic_launcher_round"
-			android:targetActivity=".MainActivity">
-			<intent-filter>
-				<action android:name="android.intent.action.MAIN" />
-				<category android:name="android.intent.category.LAUNCHER" />
-			</intent-filter>
-		</activity-alias>
-
-		<activity-alias
-			android:name="${applicationId}.MainActivityInverted"
-			android:enabled="false"
-			android:exported="true"
-			android:icon="@mipmap/ic_launcher_inverted"
-			android:label="@string/app_name"
-			android:roundIcon="@mipmap/ic_launcher_inverted_round"
 			android:targetActivity=".MainActivity">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />

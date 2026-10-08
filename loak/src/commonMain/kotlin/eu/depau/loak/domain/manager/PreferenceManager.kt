@@ -1,23 +1,16 @@
 package eu.depau.loak.domain.manager
 
 import com.materialkolor.PaletteStyle
-import com.materialkolor.dynamiccolor.ColorSpec
 import eu.depau.loak.domain.manager.base.BasePreferenceManager
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainPlaylistListType
-import eu.depau.loak.domain.models.settings.AnimationStyle
 import eu.depau.loak.domain.models.settings.AudioCacheLimit
-import eu.depau.loak.domain.models.settings.AppIconVariant
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
 import eu.depau.loak.domain.models.settings.BottomBarVisibilityMode
 import eu.depau.loak.domain.models.settings.CoverArtQuality
-import eu.depau.loak.domain.models.settings.CoverArtShape
 import eu.depau.loak.domain.models.settings.CoverArtTapAction
 import eu.depau.loak.domain.models.settings.ExplicitContentPlayback
-import eu.depau.loak.domain.models.settings.FontOption
-import eu.depau.loak.domain.models.settings.GridSize
 import eu.depau.loak.domain.models.settings.ListViewMode
-import eu.depau.loak.domain.models.settings.MarqueeSpeed
 import eu.depau.loak.domain.models.settings.MiniPlayerProgressStyle
 import eu.depau.loak.domain.models.settings.MiniPlayerStyle
 import eu.depau.loak.domain.models.settings.NavigationBarLabelVisibility
@@ -38,23 +31,12 @@ class PreferenceManager(
 	settings: KmpSettings
 ) : BasePreferenceManager(settings) {
     var queueInfoType by (preference(QueueInfoType.Full))
-    var appIconVariant by preference(AppIconVariant.Default)
-	var font by preference(FontOption.GoogleSans)
-	var fontPath by preference("")
-	var animationStyle by preference(AnimationStyle.Expressive)
 	var nowPlayingBackgroundStyle by preference(NowPlayingBackgroundStyle.Dynamic)
 	var swipeToSkip by preference(true)
 	/** The queue side pane on wide windows, kept across launches. */
 	var queuePaneOpen by preference(false)
 	var hideIfIdle by preference(false)
-	var enablePredictiveBackAnimations by preference(true)
-	var gridSize by preference(GridSize.ThreeByThree)
-	var coverArtShape by preference(CoverArtShape.Soft)
-	var artistImageShape by preference(CoverArtShape.Soft)
 	var coverArtQuality by preference(CoverArtQuality.High)
-	var artGridItemSize by preference(150f)
-	var marqueeSpeed by preference(MarqueeSpeed.Slow)
-	var alphabeticalScroll by preference(true)
 	var enableRatings by preference(true)
 	var lyricsAutoscroll by preference(true)
 	var lyricsBeatByBeat by preference(true)
@@ -168,7 +150,6 @@ class PreferenceManager(
 	var themeMode by preference(ThemeMode.System)
 	var dynamicTheming by preference(true)
 	var paletteStyle by preference(PaletteStyle.TonalSpot)
-	var paletteSpec by preference(ColorSpec.SpecVersion.SPEC_2025)
 	var paletteAccentH by preference(0f)
 
 	// sync related settings

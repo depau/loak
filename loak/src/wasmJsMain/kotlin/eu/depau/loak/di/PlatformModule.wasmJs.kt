@@ -9,7 +9,6 @@ import org.w3c.dom.Worker
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.data.database.DownloadDatabase
 import eu.depau.loak.data.database.migrationPolicy
-import eu.depau.loak.domain.manager.AppIconManager
 import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.ExportManager
@@ -52,7 +51,6 @@ actual val platformModule = module {
 	singleOf(::StorageManager)
 	singleOf(::ConnectivityManager)
 	singleOf(::LogManager)
-	singleOf(::AppIconManager)
 	singleOf(::PermissionManager)
 	singleOf(::LinkManager)
 	singleOf(::AudioGainManager)

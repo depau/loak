@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.models.settings.AnimationStyle
 
 @Composable
 fun LoakTheme(
@@ -19,12 +18,7 @@ fun LoakTheme(
 	val preferenceManager = koinInject<PreferenceManager>()
 	val chosenTheme = preferenceManager.theme
 	val chosenScheme = chosenTheme.colorScheme()
-	val motionScheme = remember(preferenceManager.animationStyle) {
-		when (preferenceManager.animationStyle) {
-			AnimationStyle.Expressive -> MotionScheme.expressive()
-			AnimationStyle.Standard -> MotionScheme.standard()
-		}
-	}
+	val motionScheme = remember { MotionScheme.expressive() }
 	val shapes = Shapes(
 		extraSmall = ContinuousRoundedRectangle(ShapeDefaults.ExtraSmall.topStart),
 		small = ContinuousRoundedRectangle(ShapeDefaults.Small.topStart),

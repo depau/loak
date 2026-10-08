@@ -163,10 +163,8 @@ import eu.depau.loak.generated.resources.subtitle_local_network_denied
 import eu.depau.loak.ui.screens.settings.AudioEffectsScreen
 import eu.depau.loak.ui.screens.settings.BottomBarScreen
 import eu.depau.loak.ui.screens.settings.TabsScreen
-import eu.depau.loak.ui.screens.settings.FontsScreen
 import eu.depau.loak.ui.screens.settings.SettingsAboutScreen
 import eu.depau.loak.ui.screens.settings.SettingsNetworkStatsScreen
-import eu.depau.loak.ui.screens.settings.SettingsAppIconScreen
 import eu.depau.loak.ui.screens.settings.SettingsAppearanceScreen
 import eu.depau.loak.ui.screens.settings.SettingsCustomHeadersScreen
 import eu.depau.loak.ui.screens.settings.SettingsAudioMuseCustomHeadersScreen
@@ -515,17 +513,13 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 									}
 								},
 								predictivePopTransitionSpec = {
-									if (preferenceManager.enablePredictiveBackAnimations) {
-										slideInHorizontally(
-											animationSpec = tween(300, easing = EaseOutQuart),
-											initialOffsetX = { -it }
-										) togetherWith slideOutHorizontally(
-											animationSpec = tween(300, easing = EaseOutQuart),
-											targetOffsetX = { it }
-										)
-									} else {
-										ContentTransform(EnterTransition.None, ExitTransition.None)
-									}
+									slideInHorizontally(
+										animationSpec = tween(300, easing = EaseOutQuart),
+										initialOffsetX = { -it }
+									) togetherWith slideOutHorizontally(
+										animationSpec = tween(300, easing = EaseOutQuart),
+										targetOffsetX = { it }
+									)
 								}
 							)
 							AnimatedVisibility(
@@ -758,9 +752,6 @@ private fun entryProvider(
 		entry<Screen.Settings.DataStorage>(metadata = detailPane("settings")) {
 			SettingsDataStorageScreen()
 		}
-		entry<Screen.Settings.Fonts> {
-			FontsScreen()
-		}
 		entry<Screen.Settings.Themes> {
 			SettingsThemesScreen()
 		}
@@ -778,9 +769,6 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.Logs> {
 			SettingsLogsScreen()
-		}
-		entry<Screen.Settings.AppIcon>(metadata = detailPane("settings")) {
-			SettingsAppIconScreen()
 		}
 		entry<Screen.Settings.Equaliser> {
 			SettingsEqualiserScreen()

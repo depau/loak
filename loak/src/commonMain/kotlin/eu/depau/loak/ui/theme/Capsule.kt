@@ -25,3 +25,9 @@ expect fun ContinuousRoundedRectangle(
 ): CornerBasedShape
 
 expect val ContinuousCapsule: Shape
+
+/** Album, song and artist artwork. */
+val CoverArtShape: Shape = ContinuousRoundedRectangle(10.dp)
+
+/** The smaller artwork in list rows and sheet headers. */
+val SmallCoverArtShape: Shape = ContinuousRoundedRectangle(8.dp)

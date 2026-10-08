@@ -33,15 +33,11 @@
 	<string name="title_similar_artists">Similar artists</string>
 	<string name="title_discord_server">Discord server</string>
 	<string name="title_shares">Shares</string>
-	<string name="title_choose_font">Application font</string>
-	<string name="title_fonts_inbuilt">Built-in</string>
-	<string name="title_fonts_external">External</string>
 	<string name="title_more_by_artist">More by %1$s</string>
 	<string name="title_disc_number">Disc %1$s</string>
 	<string name="title_genres">Genres</string>
 	<string name="title_navigation_bar">Navigation Bar</string>
 	<string name="title_mini_player">Mini Player</string>
-	<string name="title_miscellaneous">Miscellaneous</string>
 	<string name="title_layout">Layout</string>
 	<string name="title_sort_by">Sort by</string>
 	<string name="title_direction">Direction</string>
@@ -108,14 +104,8 @@
 	<string name="option_now_playing_slider_style_yoyo">Yoyo</string>
 	<string name="option_swipe_to_skip">Swipe to change songs</string>
 	<string name="option_hide_bottom_bar_if_idle">Hide if idle</string>
-	<string name="option_artwork_shape">Album/song artwork shapes</string>
-	<string name="option_artist_image_shape">Artist image shape</string>
 	<string name="option_auto_fill_queue">Autoplay</string>
 	<string name="subtitle_auto_fill_queue">Add similar songs when the queue ends</string>
-	<string name="option_cover_art_size">Cover art size</string>
-	<string name="option_use_marquee_text">Text auto-scroll speed</string>
-	<string name="option_alphabetical_scroll">Alphabetical scrolling</string>
-	<string name="option_grid_items_per_row">Grid size</string>
 	<string name="option_lyrics_keep_alive">Keep screen on in lyrics view</string>
 	<string name="option_lyrics_blur">Blur the edges</string>
 	<string name="option_lyrics_bright_inactive">Brighter inactive lines</string>
@@ -148,7 +138,6 @@
 	<string name="option_playlist_songs">Songs</string>
 	<string name="option_enable_scrobbling">Enable scrobbling</string>
 	<string name="option_choose_theme">Application theme</string>
-	<string name="option_choose_app_icon">Application icon</string>
 	<string name="option_replay_gain">ReplayGain</string>
 	<string name="option_replaygain_mode">ReplayGain mode</string>
 	<string name="option_title_preamp">Preamp options</string>
@@ -183,9 +172,6 @@
 	<string name="option_offline_mode_auto">Auto</string>
 	<string name="option_offline_mode_forced">Forced</string>
 	<string name="option_offline_mode_no_wifi">No Wi-Fi</string>
-	<string name="option_animation_style">Animation style</string>
-	<string name="option_animation_style_expressive">Expressive</string>
-	<string name="option_animation_style_standard">Standard</string>
 	<string name="option_quality_low">Low</string>
 	<string name="option_quality_medium">Medium</string>
 	<string name="option_quality_high">High</string>
@@ -201,7 +187,6 @@
 	<string name="option_download_over_cellular">Download over mobile data</string>
 	<string name="option_cover_art_quality">Cover art quality</string>
 	<string name="option_palette_style">Palette style</string>
-	<string name="option_palette_specification">Palette specification</string>
 	<string name="option_explicit_playback">Explicit content playback</string>
 	<string name="option_explicit_playback_allowed">Allowed</string>
 	<string name="option_explicit_playback_skip">Skip explicit songs</string>
@@ -220,7 +205,6 @@
 	<string name="option_list_view_mode_grid">Grid</string>
 	<string name="option_list_view_mode_list">List</string>
 	<string name="option_enable_ratings">Enable ratings</string>
-	<string name="option_enable_predictive_back_animations">Enable predictive back animations</string>
 
 	<string name="info_status_idle">Idle</string>
 	<string name="info_status_calculating">Calculating...</string>
@@ -272,9 +256,6 @@
 
 	<string name="theme_dynamic">Dynamic</string>
 	<string name="theme_seeded">Tinted</string>
-	<string name="theme_ios">Cupertino</string>
-	<string name="theme_apple_music">Music.app</string>
-	<string name="theme_spotify">Spotlight</string>
 
 	<string name="theme_mode_system">System</string>
 	<string name="theme_mode_dark">Dark</string>

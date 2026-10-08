@@ -48,6 +48,7 @@ import eu.depau.loak.icons.outlined.Error
 import eu.depau.loak.ui.theme.defaultFont
 import eu.depau.loak.util.Logger
 import coil3.compose.LocalPlatformContext as LocalCoilPlatformContext
+import eu.depau.loak.ui.theme.CoverArtShape
 
 @Composable
 fun CoverArt(
@@ -68,11 +69,7 @@ fun CoverArt(
 	val imageLoader = koinInject<ImageLoader>()
 	val preferenceManager = koinInject<PreferenceManager>()
 
-	val shape = shape ?: if (!coverArtId.orEmpty().startsWith("ar-")) {
-		preferenceManager.coverArtShape.shape
-	} else {
-		preferenceManager.artistImageShape.shape
-	}
+	val shape = shape ?: CoverArtShape
 
 	val model = remember(coverArtId, preferenceManager.customHeaders) {
 		val networkHeaders = NetworkHeaders.Builder().apply {

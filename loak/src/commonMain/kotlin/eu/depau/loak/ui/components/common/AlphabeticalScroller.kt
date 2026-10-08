@@ -34,9 +34,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalBottomBarScrollManager
-import eu.depau.loak.domain.manager.PreferenceManager
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -46,8 +44,6 @@ fun AlphabeticalScroller(
 	state: LazyGridState,
 	headers: ImmutableList<Pair<String, Int>>
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
-	if (!preferenceManager.alphabeticalScroll) return
 	val haptic = LocalHapticFeedback.current
 	val scope = rememberCoroutineScope()
 	val offsets = remember { mutableStateMapOf<Int, Float>() }

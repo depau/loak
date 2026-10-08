@@ -8,9 +8,6 @@ import androidx.compose.ui.text.font.FontVariation
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.google_sans
 import org.jetbrains.compose.resources.Font
-import org.koin.compose.koinInject
-import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.models.settings.FontOption
 
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.PlatformType
@@ -53,15 +50,7 @@ fun defaultFont(
 		// ponytail: Web has no local font files; use system SansSerif
 		return FontFamily.SansSerif
 	}
-	val preferenceManager = koinInject<PreferenceManager>()
-	val googleSans = googleSans(grade, width, round)
-	return remember(preferenceManager.font, preferenceManager.fontPath) {
-		when (preferenceManager.font) {
-			FontOption.System -> FontFamily.Default
-			FontOption.GoogleSans -> googleSans
-			FontOption.Custom -> FontFamily.Default
-		}
-	}
+	return googleSans(grade, width, round)
 }
 
 @Composable

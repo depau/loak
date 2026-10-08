@@ -59,7 +59,6 @@ import eu.depau.loak.icons.filled.BottomNavigation
 import eu.depau.loak.icons.filled.Info
 import eu.depau.loak.icons.filled.Palette
 import eu.depau.loak.icons.filled.Play
-import eu.depau.loak.icons.outlined.ChevronForward
 import eu.depau.loak.icons.outlined.Code
 import eu.depau.loak.icons.outlined.DataTable
 import eu.depau.loak.icons.outlined.Note
@@ -201,7 +200,6 @@ private fun PageRow(
 	shapes: ListItemShapes
 ) {
 	val backStack = LocalNavStack.current
-	val preferenceManager = koinInject<PreferenceManager>()
 	SegmentedListItem(
 		shapes = shapes,
 		onClick = dropUnlessResumed {
@@ -216,32 +214,23 @@ private fun PageRow(
 				}
 			}
 		},
-		contentPadding = PaddingValues(if (preferenceManager.theme.isMaterialLike()) 16.dp else 12.dp)
+		contentPadding = PaddingValues(16.dp)
 	) {
 		Row(
 			horizontalArrangement = Arrangement.spacedBy(12.dp)
 		) {
-			if (preferenceManager.theme.isMaterialLike()) {
-				Column(
-					modifier = Modifier
-						.size(40.dp)
-						.background(MaterialTheme.colorScheme.primary, CircleShape),
-					horizontalAlignment = Alignment.CenterHorizontally,
-					verticalArrangement = Arrangement.Center
-				) {
-					Icon(
-						imageVector = icon,
-						contentDescription = null,
-						modifier = Modifier.size(iconSize),
-						tint = MaterialTheme.colorScheme.onPrimary
-					)
-				}
-			} else {
+			Column(
+				modifier = Modifier
+					.size(40.dp)
+					.background(MaterialTheme.colorScheme.primary, CircleShape),
+				horizontalAlignment = Alignment.CenterHorizontally,
+				verticalArrangement = Arrangement.Center
+			) {
 				Icon(
-					icon,
+					imageVector = icon,
 					contentDescription = null,
-					modifier = Modifier.padding(start = 8.dp, end = 5.dp).size(22.dp),
-					tint = MaterialTheme.colorScheme.primary
+					modifier = Modifier.size(iconSize),
+					tint = MaterialTheme.colorScheme.onPrimary
 				)
 			}
 			Column(
@@ -263,13 +252,6 @@ private fun PageRow(
 						lineHeight = 14.sp
 					),
 					color = MaterialTheme.colorScheme.onSurfaceVariant
-				)
-			}
-			if (!preferenceManager.theme.isMaterialLike()) {
-				Icon(
-					Icons.Outlined.ChevronForward,
-					null,
-					tint = MaterialTheme.colorScheme.onSurfaceVariant
 				)
 			}
 		}

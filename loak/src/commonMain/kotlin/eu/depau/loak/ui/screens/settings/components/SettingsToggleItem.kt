@@ -13,8 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import org.koin.compose.koinInject
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.components.common.SegmentedListItem
 
 @Composable
@@ -28,7 +26,6 @@ fun SettingsToggleItem(
 	supportingContent: @Composable (() -> Unit)? = null,
 	content: @Composable () -> Unit
 ) {
-	val preferenceManager = koinInject<PreferenceManager>()
 	val interactionSource = remember { MutableInteractionSource() }
 
 	SegmentedListItem(
@@ -43,7 +40,7 @@ fun SettingsToggleItem(
 			Row(
 				verticalAlignment = Alignment.CenterVertically
 			) {
-				if (preferenceManager.theme.isMaterialLike() && isDividerShown) {
+				if (isDividerShown) {
 					VerticalDivider(Modifier.height(32.dp).padding(horizontal = 14.dp))
 				}
 				Switch(
