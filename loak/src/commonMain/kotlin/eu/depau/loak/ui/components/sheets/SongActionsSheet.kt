@@ -167,7 +167,6 @@ private fun Sheet(
 		},
 		onViewAlbum = song.albumId
 			?.takeIf { collection !is DomainAlbum }
-			?.let { dropUnlessResumed { navigate(Screen.CollectionDetail(it, "library")) } },
-		onViewArtist = dropUnlessResumed { navigate(Screen.ArtistDetail(song.artistId)) }
+			?.let { dropUnlessResumed { navigate(Screen.CollectionDetail(it, "library")) } }
 	)
 }

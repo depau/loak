@@ -91,10 +91,6 @@ fun NowPlayingMoreButton() {
 						backStack.add(Screen.CollectionDetail(albumId, ""))
 					}
 				},
-				onViewArtist = dropUnlessResumed {
-					backStack.remove(Screen.NowPlaying)
-					backStack.add(Screen.ArtistDetail(menuSong.artistId))
-				},
 				onShare = {
 					shareId = menuSong.id
 				},

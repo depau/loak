@@ -65,7 +65,8 @@ fun AnnotatedString.Builder.appendBulletPoint()
 
 fun AnnotatedString.Builder.appendArtists(
 	artists: List<DomainSongArtist>,
-	onClick: (artistId: String) -> Unit
+	onClick: (artistId: String) -> Unit,
+	linkStyles: TextLinkStyles = TextLinkStyles()
 ) {
 	val listener = LinkInteractionListener { annotation ->
 		val artistId = (annotation as LinkAnnotation.Clickable).tag
@@ -76,7 +77,7 @@ fun AnnotatedString.Builder.appendArtists(
 			link = LinkAnnotation.Clickable(
 				linkInteractionListener = listener,
 				tag = artist.id,
-				styles = TextLinkStyles()
+				styles = linkStyles
 			)
 		) {
 			append(artist.name)
@@ -93,7 +94,10 @@ fun buildSongInfoString(
 	onClickArtist: (artistId: String) -> Unit,
 	showExternal: Boolean = true,
 	showAlbum: Boolean = true,
-	showYear: Boolean = true
+	showYear: Boolean = true,
+	/** Makes the album a link too. */
+	onClickAlbum: (() -> Unit)? = null,
+	linkStyles: TextLinkStyles = TextLinkStyles()
 ): AnnotatedString {
 	val snackBarState = LocalSnackBarState.current
 	val extSnackBarText = stringResource(Res.string.info_external_song_description)
@@ -124,7 +128,17 @@ fun buildSongInfoString(
 		}
 
 		if (showAlbum) {
-			append("${song.albumTitle}")
+			if (onClickAlbum != null) {
+				withLink(
+					LinkAnnotation.Clickable(
+						tag = "album",
+						styles = linkStyles,
+						linkInteractionListener = { onClickAlbum() }
+					)
+				) { append("${song.albumTitle}") }
+			} else {
+				append("${song.albumTitle}")
+			}
 			appendBulletPoint()
 		}
 
@@ -135,7 +149,8 @@ fun buildSongInfoString(
 
 		appendArtists(
 			artists = song.artists,
-			onClick = onClickArtist
+			onClick = onClickArtist,
+			linkStyles = linkStyles
 		)
 	}
 }

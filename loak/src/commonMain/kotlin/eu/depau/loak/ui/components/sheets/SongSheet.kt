@@ -26,6 +26,7 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +38,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,8 +65,6 @@ import eu.depau.loak.generated.resources.action_sleep_timer_queue_enabled
 import eu.depau.loak.generated.resources.action_sleep_timer_songs_enabled
 import eu.depau.loak.generated.resources.action_star
 import eu.depau.loak.generated.resources.action_track_info
-import eu.depau.loak.generated.resources.action_view_album
-import eu.depau.loak.generated.resources.action_view_artist
 import eu.depau.loak.generated.resources.info_click_to_retry
 import eu.depau.loak.generated.resources.info_download_failed
 import eu.depau.loak.generated.resources.option_playback_speed
@@ -88,8 +89,6 @@ import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Star
-import eu.depau.loak.icons.outlined.Album
-import eu.depau.loak.icons.outlined.Artist
 import eu.depau.loak.icons.outlined.Bedtime
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Delete
@@ -119,6 +118,7 @@ import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.RatingRow
+import eu.depau.loak.ui.components.common.TooltipBox
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.theme.LoakTheme
 import eu.depau.loak.ui.theme.positive
@@ -139,8 +139,8 @@ fun SongSheet(
 	onPlayNext: (() -> Unit)? = null,
 	onAddToQueue: (() -> Unit)? = null,
 	onTrackInfo: (() -> Unit)? = null,
+	/** Makes the album in the header a link; its artists always are. */
 	onViewAlbum: (() -> Unit)? = null,
-	onViewArtist: (() -> Unit)? = null,
 	onAddToPlaylist: (() -> Unit)? = null,
 	onRemoveFromPlaylist: (() -> Unit)? = null,
 	onRemoveFromQueue: (() -> Unit)? = null,
@@ -227,9 +227,29 @@ fun SongSheet(
 								// leaving the sheet for a screen underneath closes the player, if it's up
 								backStack.remove(Screen.NowPlaying)
 								backStack.add(Screen.ArtistDetail(it))
-							}
+							},
+							onClickAlbum = onViewAlbum?.let { view ->
+								{
+									onDismissRequest()
+									view()
+								}
+							},
+							linkStyles = TextLinkStyles(SpanStyle(color = MaterialTheme.colorScheme.primary))
 						)
 					)
+				},
+				trailingContent = onTrackInfo?.let { trackInfo ->
+					{
+						val label = stringResource(Res.string.action_track_info)
+						TooltipBox(label) {
+							IconButton(onClick = {
+								onDismissRequest()
+								trackInfo()
+							}) {
+								Icon(Icons.Outlined.Info, label)
+							}
+						}
+					}
 				},
 				leadingContent = {
 					CoverArt(
@@ -485,34 +505,6 @@ fun SongSheet(
 					)
 				}
 
-				if (onViewAlbum != null) {
-					ListItem(
-						content = {
-							Text(stringResource(Res.string.action_view_album))
-						},
-						leadingContent = { Icon(Icons.Outlined.Album, null) },
-						onClick = {
-							onViewAlbum()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onViewArtist != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_view_artist)) },
-						leadingContent = { Icon(Icons.Outlined.Artist, null) },
-						onClick = {
-							onViewArtist()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
 				if (onShare != null && sessionManager.canUserShare()) {
 					ListItem(
 						content = { Text(stringResource(Res.string.action_share)) },
@@ -651,19 +643,6 @@ fun SongSheet(
 						},
 						onClick = dropUnlessResumed {
 							onPlaybackSpeed?.invoke()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onTrackInfo != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_track_info)) },
-						leadingContent = { Icon(Icons.Outlined.Info, null) },
-						onClick = {
-							onDismissRequest()
-							onTrackInfo()
 						},
 						colors = colors,
 						contentPadding = contentPadding
