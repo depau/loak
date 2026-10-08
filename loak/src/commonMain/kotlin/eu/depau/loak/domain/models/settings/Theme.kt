@@ -72,7 +72,7 @@ enum class Theme(val title: StringResource) {
 			}
 		}
 		return when (this) {
-			Dynamic -> platformContext.colorScheme ?: remember(isDark) {
+			Dynamic -> platformContext.systemColorScheme(isDark) ?: remember(isDark) {
 				if (isDark)
 					darkColorScheme()
 				else expressiveLightColorScheme()

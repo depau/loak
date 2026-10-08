@@ -2,6 +2,7 @@ package eu.depau.loak.di
 
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 
@@ -18,8 +19,10 @@ actual fun rememberPlatformContext(): PlatformContext {
 			override val platformType = PlatformType.Web
 			override val name = "Web"
 			override val appVersion = "web"
-			override val colorScheme = null
 			override val sizeClass = sizeClass
+
+			@Composable
+			override fun systemColorScheme(isDark: Boolean): ColorScheme? = null
 		}
 	}
 }

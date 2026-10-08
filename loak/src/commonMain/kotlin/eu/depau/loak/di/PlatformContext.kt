@@ -9,9 +9,12 @@ import androidx.compose.runtime.remember
 interface PlatformContext {
 	val name: String
 	val appVersion: String
-	val colorScheme: ColorScheme?
 	val sizeClass: WindowSizeClass
 	val platformType: PlatformType
+
+	/** The OS's own colors (Android's wallpaper, the desktop accent), or null where it has none. */
+	@Composable
+	fun systemColorScheme(isDark: Boolean): ColorScheme?
 }
 
 @Composable

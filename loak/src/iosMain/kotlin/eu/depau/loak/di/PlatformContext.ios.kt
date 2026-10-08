@@ -2,6 +2,7 @@ package eu.depau.loak.di
 
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import platform.Foundation.NSBundle
@@ -20,8 +21,10 @@ actual fun rememberPlatformContext(): PlatformContext {
 				(NSBundle.mainBundle.objectForInfoDictionaryKey(
 					"CFBundleShortVersionString"
 				) as? String).toString()
-			override val colorScheme = null
 			override val sizeClass = sizeClass
+
+			@Composable
+			override fun systemColorScheme(isDark: Boolean): ColorScheme? = null
 		}
 	}
 }
