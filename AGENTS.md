@@ -11,7 +11,7 @@ This file gives an agent (or any new contributor) everything needed to navigate 
 - Credit yourself in each commit you contribute to with `Co-authored-by: <self>`, using your model's trailer:
   - Codex/GPT → `Co-authored-by: GPT-X.X Variant <noreply@openai.com>` (e.g. `GPT-6.1 Sol`)
   - Claude → `Co-authored-by: Claude Model Version <noreply@anthropic.com>` (e.g. `Claude Opus 5.5`)
-  - any other model → `Co-authored-by: Model Name <ai@depau.eu>`
+  - any other model → `Co-authored-by: Model Name and Version <ai@depau.eu>` (e.g. `Deepseek 4-flash`, `GLM-5.3`, ...)
 - Ask before creating branches. Never push unless explicitly authorized.
 
 ## What is this project?
