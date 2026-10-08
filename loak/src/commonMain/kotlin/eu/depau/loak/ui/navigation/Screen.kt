@@ -106,7 +106,7 @@ sealed interface Screen : NavKey {
 
 	@Immutable
 	@Serializable
-	data class Downloads(val tab: DownloadsTab = DownloadsTab.Songs) : Screen
+	data class Downloads(val tab: DownloadsTab = DownloadsTab.Playlists) : Screen
 
 	@Immutable
 	@Serializable

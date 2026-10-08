@@ -146,7 +146,7 @@ fun LibraryScreen() {
 			LibraryRow(Icons.Outlined.Album, Res.string.title_albums, counts.albums, Screen.AlbumList(nested = true)),
 			LibraryRow(Icons.Outlined.Artist, Res.string.title_artists, counts.artists, Screen.ArtistList(nested = true)),
 			LibraryRow(Icons.Outlined.Genre, Res.string.title_genres, counts.genres, Screen.GenreList(nested = true)),
-			LibraryRow(Icons.Outlined.Download, Res.string.label_downloaded, downloaded.size, Screen.Downloads(DownloadsTab.Songs))
+			LibraryRow(Icons.Outlined.Download, Res.string.label_downloaded, downloaded.size, Screen.Downloads())
 		),
 		listOf(
 			LibraryRow(Icons.Outlined.RecentlyAdded, Res.string.lens_recently_added, null, Screen.AlbumList(true, DomainAlbumListType.Newest)),
@@ -203,9 +203,9 @@ fun LibraryScreen() {
 	}
 }
 
-enum class DownloadsTab { Songs, Albums, Artists, Playlists }
+enum class DownloadsTab { Playlists, Albums, Artists, Songs }
 
-/** Everything downloaded or on this device, by song, album, artist or playlist. */
+/** Everything downloaded or on this device, by playlist, album, artist or song. */
 @Composable
 fun DownloadsScreen(initial: DownloadsTab) {
 	val backStack = LocalNavStack.current
