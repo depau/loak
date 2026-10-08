@@ -111,7 +111,7 @@ class PreferenceManager(
 	var crashReportingEnabled by preference(true)
 	var checkForUpdates by preference(true)
 	var explicitContentPlayback by preference(ExplicitContentPlayback.Allowed)
-	var autoFillQueue by preference(false)
+	var autoFillQueue by preference(true)
 	/** Save the queue to the server as playback goes, for the user's other devices. */
 	var queueSyncEnabled by preference(true)
 	var startupQueue by preference(StartupQueue.Server)

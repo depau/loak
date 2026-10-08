@@ -12,12 +12,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.runtime.snapshotFlow
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
@@ -102,12 +107,30 @@ abstract class MediaPlayerViewModel(
 		uiVisible.value = visible
 	}
 
+	// declared before init, like syncedKey
+	private val autoplaySongs = MutableStateFlow<List<DomainSong>>(emptyList())
+
+	/**
+	 * Autoplay: songs similar to the queue, which join it one by one as it runs out. They are
+	 * never part of the queue, so they aren't saved or synced; queued songs are left out.
+	 */
+	val autoplay: StateFlow<List<DomainSong>> = combine(
+		autoplaySongs,
+		uiState.map { it.queue }.distinctUntilChanged { old, new -> old === new },
+		connectivityManager.isOnline
+	) { songs, queue, online ->
+		if (!online) return@combine emptyList()
+		val queued = queue.mapTo(HashSet()) { it.id }
+		songs.filter { it.id !in queued && !isExplicit(it) }
+	}.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
 	init {
 		observeVolumeMuted()
 		viewModelScope.launch {
 			restoreState()
 			observeAndSaveState()
 			observeAutoFill()
+			observeAutoplay()
 		}
 	}
 
@@ -291,6 +314,8 @@ abstract class MediaPlayerViewModel(
 		val start = all.take(startIndex).count(::canPlay).takeIf { it < songs.size } ?: 0
 		// before clearQueue: platforms clear by copying the state, which keeps the mix
 		_uiState.update { it.copy(instantMix = mix) }
+		// the old queue's: auto-fill would otherwise pick one before the new ones arrive
+		autoplaySongs.value = emptyList()
 		clearQueue()
 		addToQueue(songs, notify = false)
 		playAt(start)
@@ -318,14 +343,17 @@ abstract class MediaPlayerViewModel(
 	 */
 	fun playInstantMix(songs: List<DomainSong>, name: String) {
 		if (offline()) return
-		startInstantMix(name, null) {
-			// ponytail: 3 random seeds, one call each; more seeds would cost more calls
-			val lists = songs.shuffled().take(3)
-				.map { songRepository.getSimilarSongs(it.id, count = 20) }
-			(0 until (lists.maxOfOrNull { it.size } ?: 0))
-				.flatMap { i -> lists.mapNotNull { it.getOrNull(i) } }
-				.distinctBy { it.id }
-		}
+		startInstantMix(name, null) { similarTo(songs) }
+	}
+
+	/** Songs the server finds similar to a few of [songs], interleaved. */
+	private suspend fun similarTo(songs: List<DomainSong>): List<DomainSong> {
+		// ponytail: 3 random seeds, one call each; more seeds would cost more calls
+		val lists = songs.distinctBy { it.id }.shuffled().take(3)
+			.map { songRepository.getSimilarSongs(it.id, count = 20) }
+		return (0 until (lists.maxOfOrNull { it.size } ?: 0))
+			.flatMap { i -> lists.mapNotNull { it.getOrNull(i) } }
+			.distinctBy { it.id }
 	}
 
 	/** Plays [songs] as they are, as a mix called [name] (AudioMuse-AI results), with an undo. */
@@ -449,29 +477,79 @@ abstract class MediaPlayerViewModel(
 		}
 	}
 
-	/** When one song is left, queues songs similar to it, or a random one if there are none. */
+	/** When one song is left, queues the first [autoplay] song, or a random one without any. */
 	private fun checkAndAutoFillQueue() {
 		// the state can change while the server answers
 		if (!preferenceManager.autoFillQueue || autoFillJob?.isActive == true) return
 
 		val state = uiState.value
-		val last = state.queue.lastOrNull() ?: return
 		if (state.currentIndex !in state.queue.indices || state.queue.size - state.currentIndex > 1) return
 
 		autoFillJob = viewModelScope.launch {
-			val similar = if (!connectivityManager.isOnline.value) emptyList() else try {
-				songRepository.getSimilarSongs(last.id, count = 10)
-			} catch (e: Exception) {
-				if (e is CancellationException) throw e
-				Logger.w("MediaPlayerViewModel", "could not fetch similar songs to auto-fill", e)
-				emptyList()
-			}
-			val queued = state.queue.mapTo(HashSet()) { it.id }
-			val songs = similar.filter { it.id !in queued }
-				.ifEmpty { songRepository.getRandomSongs(1) }
-			addToQueue(songs, notify = false)
+			// a queue that just started may still be waiting for its suggestions
+			val song = withTimeoutOrNull(AUTOPLAY_WAIT) { autoplay.first { it.isNotEmpty() } }
+				?.first()
+				?: songRepository.getRandomSongs(1).firstOrNull()
+				?: return@launch
+			addToQueue(listOf(song), notify = false)
 		}
 	}
+
+	/** Fetches [autoplay] songs when the queue gains songs that didn't come from it. */
+	@OptIn(FlowPreview::class)
+	private fun observeAutoplay() {
+		var seeded = emptySet<String>()
+		viewModelScope.launch {
+			combine(
+				snapshotFlow { preferenceManager.autoFillQueue },
+				connectivityManager.isOnline,
+				uiState.map { it.queue }.distinctUntilChanged { old, new -> old === new }
+			) { enabled, online, queue -> queue.takeIf { enabled && online } }
+				.debounce(500.milliseconds)
+				.collectLatest { queue ->
+					if (queue == null) return@collectLatest
+					val ids = queue.mapTo(HashSet()) { it.id }
+					val added = ids - seeded
+					seeded = ids
+					// joining from Autoplay, removals and reorders keep the list until it runs low
+					val fromAutoplay = autoplaySongs.value.mapTo(HashSet()) { it.id }
+					if (autoplay.value.size >= AUTOPLAY_LOW && fromAutoplay.containsAll(added)) {
+						return@collectLatest
+					}
+					autoplaySongs.value = if (queue.isEmpty()) emptyList() else try {
+						similarTo(queue)
+					} catch (e: Exception) {
+						if (e is CancellationException) throw e
+						Logger.w("MediaPlayerViewModel", "could not fetch songs for autoplay", e)
+						return@collectLatest
+					}
+				}
+		}
+	}
+
+	/** Plays the [autoplay] [song], queuing it and the ones before it. */
+	fun playAutoplay(song: DomainSong) {
+		val all = autoplay.value
+		val songs = playable(all.take(all.indexOf(song) + 1)).ifEmpty { return }
+		val at = uiState.value.queue.size
+		insertIntoQueue(at, songs)
+		playAt(at + songs.lastIndex)
+	}
+
+	/** Moves the [autoplay] [song] into the queue at [index]. */
+	fun queueAutoplay(song: DomainSong, index: Int) = insertIntoQueue(index, listOf(song))
+
+	/** Moves the [autoplay] [song] to where [target] is. */
+	fun moveAutoplay(song: DomainSong, target: DomainSong) {
+		val songs = autoplay.value.toMutableList()
+		val to = songs.indexOf(target)
+		if (to == -1 || !songs.remove(song)) return
+		songs.add(to, song)
+		autoplaySongs.value = songs
+	}
+
+	fun removeFromAutoplay(song: DomainSong) =
+		autoplaySongs.update { songs -> songs.filter { it.id != song.id } }
 
 	private suspend fun restoreState() {
 		val savedState = queueSyncManager.startupState(stateRepository.state.value)
@@ -521,6 +599,7 @@ abstract class MediaPlayerViewModel(
 	private fun replaceQueue(state: PlayerUiState) {
 		val paused = state.copy(isPaused = true, isLoading = false)
 		clearQueue()
+		autoplaySongs.value = emptyList()
 		// a queue that came from the server, or was there before, isn't pushed back
 		syncedKey = paused.syncKey()
 		_uiState.value = paused
@@ -599,5 +678,9 @@ abstract class MediaPlayerViewModel(
 
 	private companion object {
 		val QUEUE_PUSH_DEBOUNCE = 5.seconds
+		val AUTOPLAY_WAIT = 10.seconds
+
+		/** Fewer [autoplay] songs than this and it fetches more. */
+		const val AUTOPLAY_LOW = 5
 	}
 }

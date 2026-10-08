@@ -65,6 +65,8 @@ fun QueueScreenItem(
 	isSelected: Boolean,
 	isDragging: Boolean,
 	draggableState: DraggableListState,
+	/** The row's key in the list, which the drag handle finds it by. */
+	dragKey: Any,
 	onClick: () -> Unit,
 	onLongClick: () -> Unit,
 	onPlayNext: () -> Unit,
@@ -191,9 +193,10 @@ fun QueueScreenItem(
 								Waveform(isPlaying = isPlaying)
 							}
 							IconButton(
+								// by key: the handle's gesture outlives index changes
 								modifier = Modifier.dragHandle(
 									state = draggableState,
-									index = index
+									key = dragKey
 								),
 								onClick = {}
 							) {

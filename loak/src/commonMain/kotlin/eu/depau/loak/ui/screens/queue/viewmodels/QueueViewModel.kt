@@ -15,8 +15,8 @@ class QueueViewModel(
 ) : ViewModel() {
 	val allDownloads = downloadManager.allDownloads
 
-	/** Queue index of the song whose options sheet is open. */
-	val selectedIndex: StateFlow<Int?>
+	/** The song whose options sheet is open. */
+	val selected: StateFlow<Selection?>
 		field = MutableStateFlow(null)
 
 	val selectedSongIsStarred: StateFlow<Boolean>
@@ -25,8 +25,8 @@ class QueueViewModel(
 	val selectedSongRating: StateFlow<Int>
 		field = MutableStateFlow(0)
 
-	fun select(index: Int, song: DomainSong) {
-		selectedIndex.value = index
+	fun select(song: DomainSong, index: Int?) {
+		selected.value = Selection(song, index)
 		viewModelScope.launch {
 			selectedSongIsStarred.value = songRepository.isSongStarred(song)
 			selectedSongRating.value = songRepository.getSongRating(song)
@@ -34,7 +34,7 @@ class QueueViewModel(
 	}
 
 	fun clearSelection() {
-		selectedIndex.value = null
+		selected.value = null
 	}
 
 	fun star(song: DomainSong, starred: Boolean) {
@@ -55,3 +55,6 @@ class QueueViewModel(
 		}
 	}
 }
+
+/** A [song] at [index] of the queue, or (null) an Autoplay song. */
+data class Selection(val song: DomainSong, val index: Int?)

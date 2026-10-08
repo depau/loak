@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +43,11 @@ import eu.depau.loak.generated.resources.count_songs
 import eu.depau.loak.generated.resources.info_duration_left
 import eu.depau.loak.generated.resources.info_instant_mix
 import eu.depau.loak.generated.resources.info_no_queue
+import eu.depau.loak.generated.resources.option_auto_fill_queue
+import eu.depau.loak.generated.resources.subtitle_auto_fill_queue
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Switch
+import androidx.compose.ui.semantics.Role
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -122,7 +128,7 @@ fun QueueScreen() {
 	val player = koinInject<MediaPlayerViewModel>()
 	val playerState by player.uiState.collectAsStateWithLifecycle()
 	val queue = playerState.queue
-	val selectedIndex by viewModel.selectedIndex.collectAsStateWithLifecycle()
+	val selection by viewModel.selected.collectAsStateWithLifecycle()
 	val selectedSongIsStarred by viewModel.selectedSongIsStarred.collectAsStateWithLifecycle()
 	val selectedSongRating by viewModel.selectedSongRating.collectAsStateWithLifecycle()
 	val allDownloads by viewModel.allDownloads.collectAsStateWithLifecycle(persistentListOf())
@@ -131,9 +137,35 @@ fun QueueScreen() {
 	var shareId by remember { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
 
+	val allAutoplay by player.autoplay.collectAsStateWithLifecycle()
+	// the queue can update a frame before Autoplay drops what joined it: rows share keys
+	val autoplay = remember(allAutoplay, queue) {
+		val queued = queue.mapTo(HashSet()) { it.id }
+		allAutoplay.filter { it.id !in queued }
+	}
+	val queueKey = { index: Int ->
+		// number of times the same id appears before this position,
+		// so duplicate-titled entries keep distinct but stable keys
+		val id = queue[index].id
+		songQueueKey(id, (0 until index).count { queue[it].id == id })
+	}
 	val haptic = LocalHapticFeedback.current
-	val draggableState = rememberDraggableListState { from, to ->
-		player.moveQueueItem(from, to)
+	// one list: the queue, the Autoplay row at the queue's size, then the Autoplay songs.
+	// Autoplay songs can move into the queue (onto the row: its end); queue songs stay in it.
+	// Read at each move: the state is remembered with the first lambdas
+	val currentQueue by rememberUpdatedState(queue)
+	val currentAutoplay by rememberUpdatedState(autoplay)
+	val draggableState = rememberDraggableListState(
+		canMove = { from, to -> from > currentQueue.size || to < currentQueue.size }
+	) { from, to ->
+		val size = currentQueue.size
+		val song = currentAutoplay.getOrNull(from - size - 1)
+		when {
+			from < size -> player.moveQueueItem(from, to)
+			song == null -> return@rememberDraggableListState
+			to <= size -> player.queueAutoplay(song, to)
+			else -> currentAutoplay.getOrNull(to - size - 1)?.let { player.moveAutoplay(song, it) }
+		}
 		haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
 	}
 
@@ -272,41 +304,65 @@ fun QueueScreen() {
 					Arrangement.spacedBy(ListItemDefaults.SegmentedGap)
 				else Arrangement.Center
 			) {
+				// one block for all rows: an Autoplay song dragged into the queue stays the same
+				// composition (same key, same call site), so its drag goes on
+				val autoplayShown = queue.isNotEmpty() && preferenceManager.autoFillQueue
+				val rows = queue.size + when {
+					queue.isEmpty() -> 0
+					autoplayShown -> 1 + autoplay.size
+					else -> 1
+				}
 				draggableItemsIndexed(
 					state = draggableState,
-					items = queue,
-					key = { index, song ->
-						// number of times the same id appears before this position,
-						// so duplicate-titled entries keep distinct but stable keys
-						val occurrence = (0 until index).count { queue[it].id == song.id }
-						songQueueKey(song.id, occurrence)
+					items = List(rows) { it },
+					key = { row, _ ->
+						when {
+							row < queue.size -> queueKey(row)
+							row == queue.size -> AUTOPLAY_KEY
+							// as a queue row's: Autoplay songs aren't in the queue
+							else -> songQueueKey(autoplay[row - queue.size - 1].id, 0)
+						}
 					}
-				) { index, song, isDragging ->
+				) { row, _, isDragging ->
+					if (row == queue.size) {
+						AutoplayRow(
+							checked = preferenceManager.autoFillQueue,
+							onCheckedChange = { preferenceManager.autoFillQueue = it }
+						)
+						return@draggableItemsIndexed
+					}
+					val inQueue = row < queue.size
+					val index = if (inQueue) row else row - queue.size - 1
+					val song = if (inQueue) queue[index] else autoplay[index]
 					QueueScreenItem(
 						index = index,
-						count = queue.count(),
+						count = if (inQueue) queue.size else autoplay.size,
 						song = song,
-						isPlaying = playerState.currentIndex == index
+						isPlaying = inQueue && playerState.currentIndex == index
 							&& !playerState.isPaused,
-						isSelected = playerState.currentIndex == index,
+						isSelected = inQueue && playerState.currentIndex == index,
 						isDragging = isDragging,
 						draggableState = draggableState,
+						dragKey = if (inQueue) queueKey(index) else songQueueKey(song.id, 0),
 						onClick = dropUnlessResumed {
-							if (playerState.currentIndex != index) {
-								player.playAt(index)
-							} else {
-								player.seek(0f)
-								player.resume()
+							when {
+								!inQueue -> player.playAutoplay(song)
+								playerState.currentIndex != index -> player.playAt(index)
+								else -> {
+									player.seek(0f)
+									player.resume()
+								}
 							}
 						},
 						onLongClick = {
 							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-							viewModel.select(index, song)
+							viewModel.select(song, index.takeIf { inQueue })
 						},
 						onPlayNext = { player.playNextSingle(song) },
 						onRemove = {
 							haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-							player.removeFromQueueWithUndo(index)
+							if (inQueue) player.removeFromQueueWithUndo(index)
+							else player.removeFromAutoplay(song)
 						}
 					)
 				}
@@ -322,9 +378,10 @@ fun QueueScreen() {
 		}
 	}
 
-	val selectedSong = selectedIndex?.let { queue.getOrNull(it) }
-	if (selectedIndex != null && selectedSong != null) {
-		val index = selectedIndex!!
+	val index = selection?.index
+	// a queue song is the one at its index now; an Autoplay song is just itself
+	val selectedSong = if (index == null) selection?.song else queue.getOrNull(index)
+	if (selectedSong != null) {
 		val leaveQueue = {
 			backStack.remove(Screen.NowPlaying)
 		}
@@ -334,7 +391,9 @@ fun QueueScreen() {
 			// the playing song is already "next"
 			onPlayNext = if (index == playerState.currentIndex) null
 			else ({ player.playNextSingle(selectedSong) }),
-			onRemoveFromQueue = { player.removeFromQueueWithUndo(index) },
+			onAddToQueue = if (index != null) null
+			else ({ player.queueAutoplay(selectedSong, queue.size) }),
+			onRemoveFromQueue = index?.let { { player.removeFromQueueWithUndo(it) } },
 			onAddToPlaylist = { playlistSong = selectedSong },
 			downloadStatus = allDownloads.find { it.songId == selectedSong.id }?.status,
 			onDownload = { viewModel.downloadManager.downloadSong(selectedSong) },
@@ -382,6 +441,33 @@ fun QueueScreen() {
 		expiry = shareExpiry,
 		onExpiryChange = { shareExpiry = it }
 	)
+}
+
+private const val AUTOPLAY_KEY = "autoplay"
+
+/** The Autoplay switch, after the queue. */
+@Composable
+private fun AutoplayRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+	Row(
+		modifier = Modifier
+			.fillMaxWidth()
+			.toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+			.padding(start = 12.dp, end = 4.dp, top = 20.dp, bottom = 8.dp),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Column(modifier = Modifier.weight(1f)) {
+			Text(
+				text = stringResource(Res.string.option_auto_fill_queue),
+				style = MaterialTheme.typography.titleMedium
+			)
+			Text(
+				text = stringResource(Res.string.subtitle_auto_fill_queue),
+				style = MaterialTheme.typography.bodyMedium,
+				color = MaterialTheme.colorScheme.onSurfaceVariant
+			)
+		}
+		Switch(checked = checked, onCheckedChange = null)
+	}
 }
 
 /**

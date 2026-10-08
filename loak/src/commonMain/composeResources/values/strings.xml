@@ -110,8 +110,8 @@
 	<string name="option_hide_bottom_bar_if_idle">Hide if idle</string>
 	<string name="option_artwork_shape">Album/song artwork shapes</string>
 	<string name="option_artist_image_shape">Artist image shape</string>
-	<string name="option_auto_fill_queue">Auto-fill queue</string>
-	<string name="subtitle_auto_fill_queue">When one song is left, add songs similar to it (a random song if the server has none)</string>
+	<string name="option_auto_fill_queue">Autoplay</string>
+	<string name="subtitle_auto_fill_queue">Add similar songs when the queue ends</string>
 	<string name="option_cover_art_size">Cover art size</string>
 	<string name="option_use_marquee_text">Text auto-scroll speed</string>
 	<string name="option_alphabetical_scroll">Alphabetical scrolling</string>

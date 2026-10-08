@@ -56,17 +56,20 @@ import kotlinx.coroutines.launch
  * Creates a [DraggableListState] that is remembered across compositions.
  *
  * @param lazyListState the [LazyListState] whose items are being dragged.
+ * @param canMove whether the item at the first index may move to the second one.
  * @param onMove the callback that is triggered when an item is moved.
  */
 @Composable
 fun rememberDraggableListState(
 	lazyListState: LazyListState = rememberLazyListState(),
+	canMove: (Int, Int) -> Boolean = { _, _ -> true },
 	onMove: (Int, Int) -> Unit
 ): DraggableListState {
 	val scope = rememberCoroutineScope()
 	val state = remember(lazyListState) {
 		DraggableListState(
 			listState = lazyListState,
+			canMove = canMove,
 			onMove = onMove,
 			scope = scope
 		)
@@ -87,6 +90,7 @@ fun rememberDraggableListState(
  *
  * @param listState the state of the list where the item is being dragged.
  * @param scope a coroutine scope for performing animations.
+ * @param canMove whether the item at the first index may move to the second one.
  * @param onMove the callback that is triggered when an item is moved. The callback is
  * invoked whenever the dragged item middle point passes another item top or bottom offset,
  * it does not depend on the drag to be completed.
@@ -94,6 +98,7 @@ fun rememberDraggableListState(
 class DraggableListState internal constructor(
 	val listState: LazyListState,
 	private val scope: CoroutineScope,
+	private val canMove: (Int, Int) -> Boolean,
 	private val onMove: (Int, Int) -> Unit
 ) {
 	var draggingItemIndex by mutableStateOf<Int?>(null)
@@ -166,7 +171,7 @@ class DraggableListState internal constructor(
 		val targetItem = listState.layoutInfo.visibleItemsInfo.find { item ->
 			middleOffset.toInt() in item.offset..item.offsetEnd &&
 				draggingItem.index != item.index
-		}
+		}?.takeIf { canMove(draggingItem.index, it.index) }
 
 		if (targetItem != null) {
 			if (
