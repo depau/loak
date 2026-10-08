@@ -17,12 +17,20 @@ All six requirements are **implemented**, compile green, verified on device + em
 
 ### Post-plan fixes 2026-10-08 (phantom downloads + invisible download state) — supersedes the note on line 43
 
-After two more desktop commits landed, a device review found: (a) "a bunch of playlists I never meant to download" **were** being downloaded, and (b) from a playlist/album detail there was no way to tell if it was set for download, or its progress. Root causes + fixes (commit `…`):
+After two more desktop commits landed, a device review found: (a) "a bunch of playlists I never meant to download" **were** being downloaded, and (b) from a playlist/album detail there was no way to tell if it was set for download, or its progress. Root causes + fixes (commits `4ef1ec96` + `619927f3`):
 
 1. **Global-default auto-schedule was a real bug.** `runScheduledCollections` applied `preferenceManager.downloadScheduleCron` as a fallback to *every* plain-downloaded collection (`!scheduleEnabled && scheduleCron == null -> defaultCron`). The moment a global cron was set, every previously-downloaded playlist re-pinned + queued at schedule time. **Fix:** per-collection opt-in only — `rec.scheduleCron.takeIf { non-blank } .takeIf { scheduleEnabled }`. The global setting is now only the *prefill* in the per-playlist schedule sheet (its label/description reworded to "Default playlist sync").
 2. **`setCollectionScheduleSuspend` created phantom subscription rows.** "Save Off" on a fresh playlist used to `upsert` a new PLAYLIST row. **Fix:** only upsert when `enabled`; otherwise no-op when there's no existing row.
 3. **Detail screen hid real state.** `HeadingRowButtons` derived one icon from `getCollectionDownloadStatus`, which collapses to NOT_DOWNLOADED for any partial state (3/10 done + nothing active → looked like "never downloaded"). **Fix:** derive per-song status from `downloadManager.allDownloads`; show a live `x/y` progress bar when in-progress/partial, a checkmark when done, and a per-collection schedule chip (`CronSchedule.describe()`) with a re-openable `ScheduleSheet` (Download now / set / cancel).
 4. Shared `CronSchedule.describe()` replaces `LibraryScreen.shortSchedule` (same output).
+
+### Residual phantom fix 2026-10-08 (commit `ec54d2e0`) — playback cache was masquerading as downloaded playlists
+
+The user still saw non-downloaded playlists in Downloads. The schedule fix stopped *new* phantom downloads, but the Downloads **collection tabs** unioned `store.storedCollections` into their id set — and that flow is *any collection with a complete file*, which includes **streamed playback cache**, not just deliberate downloads. Any playlist a song was merely played from showed as "downloaded" (on the debug phone: 34 streamed songs → **7** playlists listed, only **2** ever downloaded). It also kept those songs pinned via the row's `reconcileOrphans` membership.
+
+- **Fix A (display):** Albums/Artists/Playlists tabs now show **only subscribed rows** (`DownloadCollectionEntity`); the `storedCollections` union is dropped. Songs tab keeps the on-disk union (that's its job: "everything on device"). Deterministic check on the pulled phone DB: old logic listed 7 playlists, new logic lists 0 (no collection subscriptions there).
+- **Fix B (removal):** `removeCollectionRow` was dead code that forgot a row but kept pins. It now cancels/drops the collection's pending songs, deletes the row, and lets `reconcileOrphans` unpin songs not wanted elsewhere. Playlists-tab rows gain a **delete** icon (alongside refresh), so phantom/undesired rows can be removed from the Downloads screen itself (deletion previously existed only on album/artist sheets).
+- Verified on emulator (`loak_test`, logged in `loaktest`): Downloads → Playlists shows exactly the one deliberately-downloaded playlist (`AI Slow and Steady`, 49/49) with refresh + delete icons; no crash (`:loak:compileAndroidMain` + `compileKotlinDesktop` green).
 
 ### Post-plan follow-ups (2026-10-08) — two desktop fixes that shipped after the main commits
 
