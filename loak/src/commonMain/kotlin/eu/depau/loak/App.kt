@@ -159,8 +159,7 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_open_settings
 import eu.depau.loak.generated.resources.notice_local_network_denied
 import eu.depau.loak.generated.resources.subtitle_local_network_denied
-import eu.depau.loak.ui.screens.settings.AudioEffectsScreen
-import eu.depau.loak.ui.screens.settings.BottomBarScreen
+import eu.depau.loak.ui.screens.settings.SettingsSoundScreen
 import eu.depau.loak.ui.screens.settings.TabsScreen
 import eu.depau.loak.ui.screens.settings.SettingsAboutScreen
 import eu.depau.loak.ui.screens.settings.SettingsNetworkStatsScreen
@@ -168,16 +167,14 @@ import eu.depau.loak.ui.screens.settings.SettingsAppearanceScreen
 import eu.depau.loak.ui.screens.settings.SettingsCustomHeadersScreen
 import eu.depau.loak.ui.screens.settings.SettingsAudioMuseCustomHeadersScreen
 import eu.depau.loak.ui.screens.settings.SettingsDataStorageScreen
-import eu.depau.loak.ui.screens.settings.SettingsDeveloperScreen
-import eu.depau.loak.ui.screens.settings.SettingsDownloadQualityScreen
+import eu.depau.loak.ui.screens.settings.SettingsAdvancedScreen
 import eu.depau.loak.ui.screens.settings.SettingsEqualiserScreen
 import eu.depau.loak.ui.screens.settings.SettingsLogsScreen
-import eu.depau.loak.ui.screens.settings.SettingsNowPlayingScreen
+import eu.depau.loak.ui.screens.settings.SettingsPlayerScreen
 import eu.depau.loak.ui.screens.settings.SettingsPlaybackScreen
 import eu.depau.loak.ui.screens.settings.SettingsServerScreen
 import eu.depau.loak.ui.screens.settings.SettingsScreen
-import eu.depau.loak.ui.screens.settings.SettingsStreamingQualityScreen
-import eu.depau.loak.ui.screens.settings.SettingsThemesScreen
+import eu.depau.loak.ui.screens.settings.SettingsTranscodingScreen
 import eu.depau.loak.ui.screens.share.ShareListScreen
 import eu.depau.loak.ui.screens.song.SongDetailScreen
 import eu.depau.loak.ui.screens.song.SongDetailSheet
@@ -705,14 +702,11 @@ private fun entryProvider(
 		entry<Screen.Settings.Appearance>(metadata = detailPane("settings")) {
 			SettingsAppearanceScreen()
 		}
-		entry<Screen.Settings.BottomAppBar>(metadata = detailPane("settings")) {
-			BottomBarScreen()
-		}
 		entry<Screen.Settings.Tabs>(metadata = detailPane("settings")) {
 			TabsScreen()
 		}
-		entry<Screen.Settings.NowPlaying>(metadata = detailPane("settings")) {
-			SettingsNowPlayingScreen()
+		entry<Screen.Settings.Player>(metadata = detailPane("settings")) {
+			SettingsPlayerScreen()
 		}
 		entry<Screen.Settings.Playback>(metadata = detailPane("settings")) {
 			SettingsPlaybackScreen()
@@ -729,11 +723,11 @@ private fun entryProvider(
 		entry<Screen.Settings.AudioMuseCustomHeaders>(metadata = detailPane("settings")) {
 			SettingsAudioMuseCustomHeadersScreen()
 		}
-		entry<Screen.Settings.Effects>(metadata = detailPane("settings")) {
-			AudioEffectsScreen()
+		entry<Screen.Settings.Sound>(metadata = detailPane("settings")) {
+			SettingsSoundScreen()
 		}
-		entry<Screen.Settings.Developer>(metadata = detailPane("settings")) {
-			SettingsDeveloperScreen()
+		entry<Screen.Settings.Advanced>(metadata = detailPane("settings")) {
+			SettingsAdvancedScreen()
 		}
 		entry<Screen.Settings.About>(metadata = detailPane("settings")) {
 			SettingsAboutScreen()
@@ -741,17 +735,11 @@ private fun entryProvider(
 		entry<Screen.Settings.DataStorage>(metadata = detailPane("settings")) {
 			SettingsDataStorageScreen()
 		}
-		entry<Screen.Settings.Themes> {
-			SettingsThemesScreen()
-		}
 		entry<Screen.Settings.CustomHeaders> {
 			SettingsCustomHeadersScreen()
 		}
-		entry<Screen.Settings.StreamingQuality> {
-			SettingsStreamingQualityScreen()
-		}
-		entry<Screen.Settings.DownloadQuality> {
-			SettingsDownloadQualityScreen()
+		entry<Screen.Settings.Transcoding> {
+			SettingsTranscodingScreen()
 		}
 		entry<Screen.Settings.NetworkStats> {
 			SettingsNetworkStatsScreen()

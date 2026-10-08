@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -17,19 +16,19 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.info_in_use
+import eu.depau.loak.generated.resources.title_downloads_settings
+import eu.depau.loak.generated.resources.title_streaming
+import eu.depau.loak.generated.resources.option_custom_transcoding
 import eu.depau.loak.generated.resources.info_streaming_quality
-import eu.depau.loak.generated.resources.info_download_quality
 import eu.depau.loak.generated.resources.info_transcoding_defaults
 import eu.depau.loak.generated.resources.option_max_bitrate_cellular
 import eu.depau.loak.generated.resources.option_max_bitrate
@@ -39,46 +38,24 @@ import eu.depau.loak.generated.resources.option_stream_custom_quality
 import eu.depau.loak.generated.resources.option_download_custom_quality
 import eu.depau.loak.generated.resources.option_stream_format_cellular
 import eu.depau.loak.generated.resources.option_stream_format_wifi
-import eu.depau.loak.generated.resources.option_download_over_cellular
-import eu.depau.loak.generated.resources.title_advanced
-import eu.depau.loak.generated.resources.title_cellular
-import eu.depau.loak.generated.resources.title_streaming_quality
-import eu.depau.loak.generated.resources.title_download_quality
-import eu.depau.loak.generated.resources.title_wifi
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import eu.depau.loak.domain.manager.ConnectivityManager
-import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.models.settings.StreamingQuality
-import eu.depau.loak.domain.models.settings.description
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Info
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
-import eu.depau.loak.ui.screens.settings.components.SettingsRadioItem
 import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 
+/** Custom formats and bitrates, in place of the presets, for servers with their own transcoding. */
 @Composable
-internal fun QualityScreen(download: Boolean) {
+fun SettingsTranscodingScreen() {
 	val preferenceManager = koinInject<PreferenceManager>()
-	val advanced = if (download) preferenceManager.isAdvancedDownloadTranscodingActive
-		else preferenceManager.isAdvancedTranscodingActive
-	val connectivityManager = koinInject<ConnectivityManager>()
-	val isOnline by connectivityManager.isOnline.collectAsStateWithLifecycle()
-	val isCellular by connectivityManager.isCellular.collectAsStateWithLifecycle()
 
 	Scaffold(
-		topBar = {
-			NestedTopBar({
-				Text(stringResource(
-					if (download) Res.string.title_download_quality
-					else Res.string.title_streaming_quality
-				))
-			})
-		}
+		topBar = { NestedTopBar({ Text(stringResource(Res.string.option_custom_transcoding)) }) }
 	) { innerPadding ->
 		CompositionLocalProvider(
 			LocalMinimumInteractiveComponentSize provides 0.dp
@@ -87,102 +64,31 @@ internal fun QualityScreen(download: Boolean) {
 				modifier = Modifier
 					.padding(innerPadding)
 					.verticalScroll(rememberScrollState())
-					.padding(horizontal = 16.dp)
+					.padding(horizontal = 16.dp),
+				verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
 			) {
-				AnimatedVisibility(visible = !advanced && download) {
-					SettingsGroup(
-						modifier = Modifier
-							.selectableGroup()
-							.padding(bottom = SettingsGroupDefaults.GapBetweenGroups)
-					) {
-						RadioButtons(
-							value = preferenceManager.downloadQuality,
-							onChangeValue = { preferenceManager.downloadQuality = it }
-						)
-					}
-				}
-
-				AnimatedVisibility(visible = !advanced && !download) {
-					SettingsGroup(
-						modifier = Modifier
-							.selectableGroup()
-							.padding(bottom = SettingsGroupDefaults.GapBetweenGroups),
-						title = {
-							Text(buildString {
-								append(stringResource(Res.string.title_wifi))
-								if (isOnline && !isCellular) {
-									append(' ' + stringResource(Res.string.info_in_use))
-								}
-							})
-						}
-					) {
-						RadioButtons(
-							value = preferenceManager.streamingQualityWifi,
-							onChangeValue = { preferenceManager.streamingQualityWifi = it }
-						)
-					}
-				}
-
-				AnimatedVisibility(visible = !advanced && !download) {
-					SettingsGroup(
-						modifier = Modifier
-							.selectableGroup()
-							.padding(bottom = SettingsGroupDefaults.GapBetweenGroups),
-						title = {
-							Text(buildString {
-								append(stringResource(Res.string.title_cellular))
-								if (isOnline && isCellular) {
-									append(' ' + stringResource(Res.string.info_in_use))
-								}
-							})
-						}
-					) {
-						RadioButtons(
-							value = preferenceManager.streamingQualityCellular,
-							onChangeValue = { preferenceManager.streamingQualityCellular = it }
-						)
-					}
-				}
-
-				if (download) {
-					val downloadManager = koinInject<DownloadManager>()
-					val overCellular by downloadManager.overCellular.collectAsStateWithLifecycle()
-					SettingsGroup(
-						modifier = Modifier.padding(bottom = SettingsGroupDefaults.GapBetweenGroups)
-					) {
-						SettingsToggleItem(
-							checked = overCellular,
-							onCheckedChange = downloadManager::setOverCellular,
-							content = {
-								Text(stringResource(Res.string.option_download_over_cellular))
-							},
-							shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
-						)
-					}
-				}
-
-				SettingsGroup(
-					modifier = Modifier.padding(bottom = SettingsGroupDefaults.GapBetweenGroups),
-					title = { Text(stringResource(Res.string.title_advanced)) }
-				) {
+				SettingsGroup(title = { Text(stringResource(Res.string.title_streaming)) }) {
 					SettingsToggleItem(
-						checked = advanced,
-						onCheckedChange = {
-							if (download) preferenceManager.isAdvancedDownloadTranscodingActive = it
-							else preferenceManager.isAdvancedTranscodingActive = it
-						},
-						content = {
-							Text(stringResource(
-								if (download) Res.string.option_download_custom_quality
-								else Res.string.option_stream_custom_quality
-							))
-						},
+						checked = preferenceManager.isAdvancedTranscodingActive,
+						onCheckedChange = { preferenceManager.isAdvancedTranscodingActive = it },
+						content = { Text(stringResource(Res.string.option_stream_custom_quality)) },
 						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
 					)
 				}
+				AnimatedVisibility(visible = preferenceManager.isAdvancedTranscodingActive) {
+					CustomStreamingOptions()
+				}
 
-				AnimatedVisibility(visible = advanced) {
-					CustomOptions(download)
+				SettingsGroup(title = { Text(stringResource(Res.string.title_downloads_settings)) }) {
+					SettingsToggleItem(
+						checked = preferenceManager.isAdvancedDownloadTranscodingActive,
+						onCheckedChange = { preferenceManager.isAdvancedDownloadTranscodingActive = it },
+						content = { Text(stringResource(Res.string.option_download_custom_quality)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+					)
+				}
+				AnimatedVisibility(visible = preferenceManager.isAdvancedDownloadTranscodingActive) {
+					CustomDownloadOptions()
 				}
 
 				Row(
@@ -195,10 +101,7 @@ internal fun QualityScreen(download: Boolean) {
 						tint = MaterialTheme.colorScheme.onSurfaceVariant
 					)
 					Text(
-						stringResource(
-							if (download) Res.string.info_download_quality
-							else Res.string.info_streaming_quality
-						),
+						stringResource(Res.string.info_streaming_quality),
 						color = MaterialTheme.colorScheme.onSurfaceVariant,
 						style = MaterialTheme.typography.bodyMedium
 					)
@@ -206,38 +109,6 @@ internal fun QualityScreen(download: Boolean) {
 			}
 		}
 	}
-}
-
-@Composable
-private fun RadioButtons(
-	value: StreamingQuality,
-	onChangeValue: (StreamingQuality) -> Unit
-) {
-	StreamingQuality.entries.forEachIndexed { index, quality ->
-		val selected = value == quality
-
-		SettingsRadioItem(
-			selected = selected,
-			onClick = { onChangeValue(quality) },
-			content = { Text(stringResource(quality.displayName)) },
-			supportingContent = {
-				quality.description()?.let { description ->
-					AnimatedVisibility(visible = selected) {
-						Text(description)
-					}
-				}
-			},
-			shapes = SegmentedListItemDefaults.segmentedShapes(
-				index = index,
-				count = StreamingQuality.entries.count()
-			)
-		)
-	}
-}
-
-@Composable
-private fun CustomOptions(download: Boolean) {
-	if (download) CustomDownloadOptions() else CustomStreamingOptions()
 }
 
 @Composable

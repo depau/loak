@@ -1,6 +1,18 @@
 package eu.depau.loak.ui.screens.settings
 
 import eu.depau.loak.util.IoDispatcher
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ListItemShapes
+import androidx.compose.runtime.MutableState
+import eu.depau.loak.generated.resources.title_downloads_storage
+import eu.depau.loak.generated.resources.title_on_this_device
+import eu.depau.loak.generated.resources.subtitle_download_over_cellular
+import eu.depau.loak.generated.resources.option_check_new_songs
+import eu.depau.loak.generated.resources.action_check_now
+import eu.depau.loak.generated.resources.title_going_offline
+import eu.depau.loak.generated.resources.option_go_offline_auto
+import eu.depau.loak.generated.resources.info_offline_mode_on
+import eu.depau.loak.generated.resources.title_cache
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseOut
@@ -39,20 +51,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
 import coil3.ImageLoader
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel_download
-import eu.depau.loak.generated.resources.action_download_now
-import eu.depau.loak.generated.resources.action_clear_downloads
-import eu.depau.loak.generated.resources.action_clear_image_cache
-import eu.depau.loak.generated.resources.action_clear_pending_actions
-import eu.depau.loak.generated.resources.action_rebuild_database
-import eu.depau.loak.generated.resources.action_trigger_sync
 import eu.depau.loak.generated.resources.count_songs
 import eu.depau.loak.generated.resources.info_library_download
 import eu.depau.loak.generated.resources.info_library_download_warning
@@ -60,7 +64,6 @@ import eu.depau.loak.generated.resources.info_not_available_offline
 import eu.depau.loak.generated.resources.info_progress
 import eu.depau.loak.generated.resources.info_status_calculating
 import eu.depau.loak.generated.resources.info_status_downloading
-import eu.depau.loak.generated.resources.info_sync_never
 import eu.depau.loak.generated.resources.option_cover_art_quality
 import eu.depau.loak.generated.resources.option_downloaded_songs
 import eu.depau.loak.generated.resources.pref_download_over_cellular
@@ -69,43 +72,22 @@ import eu.depau.loak.generated.resources.pref_download_only_while_charging
 import eu.depau.loak.generated.resources.pref_download_only_while_charging_desc
 import eu.depau.loak.generated.resources.pref_download_refresh_now_desc
 import eu.depau.loak.generated.resources.option_image_cache_size
-import eu.depau.loak.generated.resources.option_last_sync
-import eu.depau.loak.generated.resources.option_live_status
-import eu.depau.loak.generated.resources.option_offline_mode
-import eu.depau.loak.generated.resources.option_pending_actions
-import eu.depau.loak.generated.resources.subtitle_download_quality
-import eu.depau.loak.generated.resources.subtitle_offline_mode
-import eu.depau.loak.generated.resources.subtitle_pending_actions
-import eu.depau.loak.generated.resources.subtitle_rebuild_database
-import eu.depau.loak.generated.resources.subtitle_trigger_sync
 import eu.depau.loak.generated.resources.title_downloads_settings
-import eu.depau.loak.generated.resources.title_cache_management
-import eu.depau.loak.generated.resources.title_danger_zone
-import eu.depau.loak.generated.resources.title_data_storage
-import eu.depau.loak.generated.resources.title_download_quality
 import eu.depau.loak.generated.resources.title_library_download
-import eu.depau.loak.generated.resources.title_network
-import eu.depau.loak.generated.resources.title_network_stats
-import eu.depau.loak.generated.resources.subtitle_network_stats
-import eu.depau.loak.generated.resources.title_sync_control
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.PreferenceManager
-import eu.depau.loak.domain.manager.AudioStoreUsage
 import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import eu.depau.loak.util.toFileSize
-import eu.depau.loak.generated.resources.action_clear_audio_cache
 import eu.depau.loak.generated.resources.info_audio_storage_usage
 import eu.depau.loak.generated.resources.option_audio_cache
 import eu.depau.loak.generated.resources.option_audio_cache_max_size
 import eu.depau.loak.generated.resources.option_audio_storage
 import eu.depau.loak.generated.resources.subtitle_audio_cache
-import eu.depau.loak.generated.resources.title_audio_cache
 import eu.depau.loak.domain.models.settings.CoverArtQuality
 import eu.depau.loak.domain.models.settings.OfflineMode
 import eu.depau.loak.icons.Icons
@@ -115,29 +97,23 @@ import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.dialogs.BulkDownloadDialog
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
-import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsChoiceItem
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
-import eu.depau.loak.ui.screens.settings.components.SettingsNavItem
 import eu.depau.loak.ui.screens.settings.viewmodels.SettingsDataStorageViewModel
-import kotlin.time.Instant
-import eu.depau.loak.ui.util.timeAgo
 
+/** What gets downloaded and when, going offline on its own, and the streaming cache. */
 @Composable
 fun SettingsDataStorageScreen() {
 	val viewModel = koinViewModel<SettingsDataStorageViewModel>()
 
 	val platformContext = LocalPlatformContext.current
 	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
-	val backStack = LocalNavStack.current
 	val preferenceManager = koinInject<PreferenceManager>()
 	val downloadManager = koinInject<DownloadManager>()
 	val scope = rememberCoroutineScope()
 	val imageLoader = koinInject<ImageLoader>()
 
-	val syncState by viewModel.syncState.collectAsStateWithLifecycle()
-	val pendingActionCount by viewModel.pendingActionCount.collectAsStateWithLifecycle()
 	val downloadCount by viewModel.downloadCount.collectAsStateWithLifecycle(0)
 	val downloadSize by viewModel.downloadSize.collectAsStateWithLifecycle(0L)
 
@@ -147,58 +123,12 @@ fun SettingsDataStorageScreen() {
 
 	val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
 	val audioStoreUsage by viewModel.audioStoreUsage.collectAsStateWithLifecycle()
-
-	val calculating = stringResource(Res.string.info_status_calculating)
-	var imageCacheSizeMb by remember { mutableStateOf(calculating) }
-
-	val downloadsSizeMb = remember(downloadSize) {
-		val mb = downloadSize.toDouble() / (1024 * 1024)
-		if (mb > 1024) {
-			val gb = mb / 1024
-			" // ${(gb * 100).toInt() / 100.0} GB"
-		} else {
-			" // ${mb.toInt()} MB"
-		}
-	}
-
-	val smoothSyncProgress by animateFloatAsState(
-		if (syncState.isSyncing) syncState.progress else 0f,
-		animationSpec = tween(
-			durationMillis = 250,
-			easing = EaseOut
-		)
-	)
+	var imageCacheSize by rememberImageCacheSize()
 
 	val smoothLibraryDownloadProgress by animateFloatAsState(
 		targetValue = libraryDownloadProgress.coerceIn(0f, 1f),
 		animationSpec = tween(durationMillis = 500, easing = EaseOut)
 	)
-
-	val offlineIcon = @Composable {
-		if (!isOnline) {
-			Icon(
-				Icons.Outlined.Offline,
-				stringResource(Res.string.info_not_available_offline),
-				modifier = Modifier.size(20.dp)
-			)
-		}
-	}
-
-	@Composable
-	fun timeSinceLastSync(): String {
-		val time = preferenceManager.lastFullSyncTime
-
-		if (time == 0L) return stringResource(Res.string.info_sync_never)
-
-		return Instant.fromEpochMilliseconds(time).timeAgo()
-	}
-
-	LaunchedEffect(Unit) {
-		withContext(IoDispatcher) {
-			val sizeBytes = imageLoader.diskCache?.size ?: 0L
-			imageCacheSizeMb = "${sizeBytes / (1024 * 1024)} MB"
-		}
-	}
 
 	BulkDownloadDialog(
 		title = stringResource(Res.string.title_library_download),
@@ -214,7 +144,7 @@ fun SettingsDataStorageScreen() {
 	Scaffold(
 		topBar = {
 			NestedTopBar(
-				title = { Text(stringResource(Res.string.title_data_storage)) },
+				title = { Text(stringResource(Res.string.title_downloads_storage)) },
 				navigationAction = {
 					if (!hideBack) {
 						NestedTopBarDefaults.NavigationAction()
@@ -231,24 +161,124 @@ fun SettingsDataStorageScreen() {
 					.padding(horizontal = 16.dp),
 				verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
 			) {
-				SettingsGroup(title = { Text(stringResource(Res.string.title_network)) }) {
-					SettingsNavItem(
-						onClick = dropUnlessResumed { backStack.add(Screen.Settings.DownloadQuality) },
-						content = { Text(stringResource(Res.string.title_download_quality)) },
-						supportingContent = { Text(stringResource(Res.string.subtitle_download_quality)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 4)
+				SettingsGroup(title = { Text(stringResource(Res.string.title_on_this_device)) }) {
+					// the song store counts downloads too; without it, just the downloads
+					if (viewModel.audioStoreAvailable) {
+						SegmentedListItem(
+							onClick = {},
+							content = { Text(stringResource(Res.string.option_audio_storage)) },
+							supportingContent = {
+								val cache = pluralStringResource(
+									Res.plurals.count_songs, audioStoreUsage.cacheCount, audioStoreUsage.cacheCount
+								) + " · " + audioStoreUsage.cacheBytes.toFileSize()
+								val pinned = pluralStringResource(
+									Res.plurals.count_songs, audioStoreUsage.pinnedCount, audioStoreUsage.pinnedCount
+								) + " · " + audioStoreUsage.pinnedBytes.toFileSize()
+								Text(stringResource(Res.string.info_audio_storage_usage, cache, pinned))
+							},
+							shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2)
+						)
+					} else {
+						SegmentedListItem(
+							onClick = {},
+							content = { Text(stringResource(Res.string.option_downloaded_songs)) },
+							supportingContent = {
+								Text(
+									pluralStringResource(Res.plurals.count_songs, downloadCount, downloadCount)
+										+ " · " + downloadSize.toFileSize()
+								)
+							},
+							shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2)
+						)
+					}
+					SegmentedListItem(
+						onClick = {},
+						content = { Text(stringResource(Res.string.option_image_cache_size)) },
+						supportingContent = { Text(imageCacheSize) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2)
 					)
+				}
 
+				SettingsGroup(title = { Text(stringResource(Res.string.title_downloads_settings)) }) {
+					val overCellular by downloadManager.overCellular.collectAsStateWithLifecycle()
+					val overRoaming by downloadManager.overRoaming.collectAsStateWithLifecycle()
+					val whileCharging by downloadManager.whileCharging.collectAsStateWithLifecycle()
+					DownloadQualityItem(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 6))
+					SettingsToggleItem(
+						checked = whileCharging,
+						onCheckedChange = downloadManager::setWhileCharging,
+						content = { Text(stringResource(Res.string.pref_download_only_while_charging)) },
+						supportingContent = { Text(stringResource(Res.string.pref_download_only_while_charging_desc)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 6)
+					)
+					SettingsToggleItem(
+						checked = overCellular,
+						onCheckedChange = downloadManager::setOverCellular,
+						content = { Text(stringResource(Res.string.pref_download_over_cellular)) },
+						supportingContent = { Text(stringResource(Res.string.subtitle_download_over_cellular)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 6)
+					)
+					SettingsToggleItem(
+						checked = overCellular && overRoaming,
+						enabled = overCellular,
+						onCheckedChange = downloadManager::setOverRoaming,
+						content = { Text(stringResource(Res.string.pref_download_over_roaming)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 6)
+					)
+					SegmentedListItem(
+						onClick = { downloadManager.kickAll() },
+						enabled = isOnline,
+						content = { Text(stringResource(Res.string.option_check_new_songs)) },
+						supportingContent = { Text(stringResource(Res.string.pref_download_refresh_now_desc)) },
+						trailingContent = {
+							if (isOnline) {
+								FilledTonalButton(onClick = { downloadManager.kickAll() }) {
+									Text(stringResource(Res.string.action_check_now))
+								}
+							} else {
+								OfflineIcon()
+							}
+						},
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 4, count = 6)
+					)
+					LibraryDownloadItem(
+						isOnline = isOnline,
+						isDownloading = isDownloadingLibrary,
+						progress = smoothLibraryDownloadProgress,
+						onClick = { if (!isDownloadingLibrary) showLibraryDownloadDialog = true },
+						onCancel = viewModel::cancelLibraryDownload,
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 5, count = 6)
+					)
+				}
+
+				SettingsGroup(title = { Text(stringResource(Res.string.title_going_offline)) }) {
+					val forced = preferenceManager.offlineMode == OfflineMode.Forced
 					SettingsChoiceItem(
-						choices = OfflineMode.entries.toImmutableList(),
+						// Forced is the toggle on the settings list
+						choices = listOf(OfflineMode.Auto, OfflineMode.NoWiFi).toImmutableList(),
 						selectedChoice = preferenceManager.offlineMode,
 						onChoiceSelected = { preferenceManager.offlineMode = it },
-						description = stringResource(Res.string.subtitle_offline_mode),
-						content = { Text(stringResource(Res.string.option_offline_mode)) },
-						label = { stringResource(it.displayName) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4)
+						content = { Text(stringResource(Res.string.option_go_offline_auto)) },
+						label = {
+							if (forced) stringResource(Res.string.info_offline_mode_on)
+							else stringResource(it.displayName)
+						},
+						enabled = !forced,
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
 					)
+				}
 
+				SettingsGroup(title = { Text(stringResource(Res.string.title_cache)) }) {
+					val cacheRows = if (viewModel.audioStoreAvailable) {
+						if (preferenceManager.audioCacheEnabled) 3 else 2
+					} else 1
+					if (viewModel.audioStoreAvailable) {
+						AudioCacheItems(
+							preferenceManager = preferenceManager,
+							count = cacheRows,
+							onLimitsChanged = viewModel::trimAudioCache
+						)
+					}
 					SettingsChoiceItem(
 						choices = CoverArtQuality.entries.toImmutableList(),
 						selectedChoice = preferenceManager.coverArtQuality,
@@ -257,282 +287,114 @@ fun SettingsDataStorageScreen() {
 							imageLoader.memoryCache?.clear()
 							scope.launch(IoDispatcher) {
 								imageLoader.diskCache?.clear()
-								imageCacheSizeMb = "0 MB"
+								imageCacheSize = "0 MB"
 							}
 						},
 						content = { Text(stringResource(Res.string.option_cover_art_quality)) },
 						label = { stringResource(it.displayName) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 4)
-					)
-
-					SettingsNavItem(
-						onClick = dropUnlessResumed { backStack.add(Screen.Settings.NetworkStats) },
-						content = { Text(stringResource(Res.string.title_network_stats)) },
-						supportingContent = {
-							Text(stringResource(Res.string.subtitle_network_stats))
-						},
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4)
-					)
-				}
-
-				if (viewModel.audioStoreAvailable) {
-					AudioCacheGroup(
-						preferenceManager = preferenceManager,
-						usage = audioStoreUsage,
-						onLimitsChanged = viewModel::trimAudioCache
-					)
-				}
-
-				SettingsGroup(title = { Text(stringResource(Res.string.title_sync_control)) }) {
-					SegmentedListItem(
-						onClick = {},
-						content = { Text(stringResource(Res.string.option_live_status)) },
-						supportingContent = {
-							Column(Modifier.fillMaxWidth()) {
-								Text(stringResource(syncState.message))
-								AnimatedVisibility(
-									syncState.isSyncing,
-									enter = fadeIn() + expandVertically(clip = false),
-									exit = fadeOut() + shrinkVertically(clip = false)
-								) {
-									LinearProgressIndicator(
-										progress = {
-											if (!syncState.isSyncing)
-												1f
-											else smoothSyncProgress.coerceIn(0f, 1f)
-										},
-										modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-									)
-								}
-							}
-						},
-						trailingContent = offlineIcon,
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3)
-					)
-
-					SegmentedListItem(
-						onClick = viewModel::triggerManualSync,
-						enabled = isOnline,
-						content = { Text(stringResource(Res.string.action_trigger_sync)) },
-						supportingContent = { Text(stringResource(Res.string.subtitle_trigger_sync)) },
-						trailingContent = offlineIcon,
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3)
-					)
-
-					SegmentedListItem(
-						onClick = {},
-						content = { Text(stringResource(Res.string.option_last_sync)) },
-						supportingContent = { Text(timeSinceLastSync()) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3)
-					)
-				}
-
-				SettingsGroup(title = { Text(stringResource(Res.string.title_cache_management)) }) {
-					SegmentedListItem(
-						onClick = {},
-						content = { Text(stringResource(Res.string.option_pending_actions)) },
-						supportingContent = {
-							Text(
-								text = stringResource(
-									Res.string.subtitle_pending_actions,
-									pendingActionCount
-								)
-							)
-						},
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 4)
-					)
-
-					SegmentedListItem(
-						onClick = {},
-						content = { Text(stringResource(Res.string.option_downloaded_songs)) },
-						supportingContent = {
-							Text(
-								text = pluralStringResource(
-									Res.plurals.count_songs,
-									downloadCount,
-									downloadCount
-								) + downloadsSizeMb
-							)
-						},
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4)
-					)
-
-					SegmentedListItem(
-						onClick = {},
-						content = { Text(stringResource(Res.string.option_image_cache_size)) },
-						supportingContent = { Text(imageCacheSizeMb) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 4)
-					)
-
-					SegmentedListItem(
-						onClick = {
-							if (!isDownloadingLibrary) {
-								showLibraryDownloadDialog = true
-							}
-						},
-						enabled = isOnline,
-						content = { Text(stringResource(Res.string.title_library_download)) },
-						supportingContent = {
-							Column(Modifier.fillMaxWidth()) {
-								Text(
-									text = stringResource(
-										if (isDownloadingLibrary)
-											Res.string.info_status_downloading
-										else Res.string.info_library_download
-									)
-								)
-								AnimatedVisibility(
-									visible = isDownloadingLibrary,
-									enter = fadeIn() + expandVertically(clip = false),
-									exit = fadeOut() + shrinkVertically(clip = false)
-								) {
-									Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-										Row(
-											modifier = Modifier.fillMaxWidth(),
-											horizontalArrangement = Arrangement.SpaceBetween,
-											verticalAlignment = Alignment.CenterVertically
-										) {
-											Text(
-												text = stringResource(Res.string.info_progress),
-												style = MaterialTheme.typography.labelMedium,
-												color = MaterialTheme.colorScheme.primary
-											)
-
-											Row(verticalAlignment = Alignment.CenterVertically) {
-												TextButton(
-													onClick = {
-														viewModel.cancelLibraryDownload()
-													},
-													contentPadding = PaddingValues(
-														horizontal = 8.dp,
-														vertical = 0.dp
-													),
-													modifier = Modifier.padding(end = 8.dp)
-												) {
-													Text(
-														stringResource(Res.string.action_cancel_download),
-														style = MaterialTheme.typography.labelLarge,
-														color = MaterialTheme.colorScheme.error
-													)
-												}
-
-												Text(
-													text = "${(smoothLibraryDownloadProgress * 100).toInt()}%",
-													style = MaterialTheme.typography.labelMedium,
-													color = MaterialTheme.colorScheme.primary
-												)
-											}
-										}
-
-										LinearProgressIndicator(
-											progress = { smoothLibraryDownloadProgress },
-											modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-										)
-									}
-								}
-							}
-						},
-						trailingContent = offlineIcon,
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4)
-					)
-				}
-
-				SettingsGroup(title = { Text(stringResource(Res.string.title_downloads_settings)) }) {
-					val overCellular by downloadManager.overCellular.collectAsStateWithLifecycle()
-					val overRoaming by downloadManager.overRoaming.collectAsStateWithLifecycle()
-					val whileCharging by downloadManager.whileCharging.collectAsStateWithLifecycle()
-					SettingsToggleItem(
-						checked = overCellular,
-						onCheckedChange = downloadManager::setOverCellular,
-						content = { Text(stringResource(Res.string.pref_download_over_cellular)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 4)
-					)
-					SettingsToggleItem(
-						checked = overRoaming,
-						onCheckedChange = downloadManager::setOverRoaming,
-						content = { Text(stringResource(Res.string.pref_download_over_roaming)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 4)
-					)
-					SettingsToggleItem(
-						checked = whileCharging,
-						onCheckedChange = downloadManager::setWhileCharging,
-						content = { Text(stringResource(Res.string.pref_download_only_while_charging)) },
-						supportingContent = { Text(stringResource(Res.string.pref_download_only_while_charging_desc)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 4)
-					)
-					SegmentedListItem(
-						onClick = { downloadManager.kickAll() },
-						enabled = isOnline,
-						content = { Text(stringResource(Res.string.action_download_now)) },
-						supportingContent = { Text(stringResource(Res.string.pref_download_refresh_now_desc)) },
-						trailingContent = offlineIcon,
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 4)
-					)
-				}
-
-				SettingsGroup(title = { Text(stringResource(Res.string.title_danger_zone)) }) {
-					val dangerFirst = if (viewModel.audioStoreAvailable) 2 else 1
-					val dangerCount = dangerFirst + 3
-					SegmentedListItem(
-						onClick = {
-							imageLoader.memoryCache?.clear()
-							scope.launch(IoDispatcher) {
-								imageLoader.diskCache?.clear()
-								imageCacheSizeMb = "0 MB"
-							}
-						},
-						content = { Text(stringResource(Res.string.action_clear_image_cache)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(
-							index = 0,
-							count = dangerCount
-						),
-						colors = SegmentedListItemDefaults.segmentedErrorColors()
-					)
-					if (viewModel.audioStoreAvailable) {
-						SegmentedListItem(
-							onClick = viewModel::clearAudioCache,
-							content = { Text(stringResource(Res.string.action_clear_audio_cache)) },
-							shapes = SegmentedListItemDefaults.segmentedShapes(
-								index = 1,
-								count = dangerCount
-							),
-							colors = SegmentedListItemDefaults.segmentedErrorColors()
-						)
-					}
-					SegmentedListItem(
-						onClick = viewModel::removeAllActions,
-						content = { Text(stringResource(Res.string.action_clear_pending_actions)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(
-							index = dangerFirst,
-							count = dangerCount
-						),
-						colors = SegmentedListItemDefaults.segmentedErrorColors()
-					)
-					SegmentedListItem(
-						onClick = viewModel::clearAllDownloads,
-						content = { Text(stringResource(Res.string.action_clear_downloads)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(
-							index = dangerFirst + 1,
-							count = dangerCount
-						),
-						colors = SegmentedListItemDefaults.segmentedErrorColors()
-					)
-					SegmentedListItem(
-						onClick = viewModel::rebuildDatabase,
-						enabled = isOnline,
-						content = { Text(stringResource(Res.string.action_rebuild_database)) },
-						supportingContent = { Text(stringResource(Res.string.subtitle_rebuild_database)) },
-						trailingContent = offlineIcon,
-						shapes = SegmentedListItemDefaults.segmentedShapes(
-							index = dangerFirst + 2,
-							count = dangerCount
-						),
-						colors = SegmentedListItemDefaults.segmentedErrorColors()
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = cacheRows - 1, count = cacheRows)
 					)
 				}
 			}
 		}
 	}
+}
+
+/** The image cache's size on disk, measured once; set it after clearing the cache. */
+@Composable
+internal fun rememberImageCacheSize(): MutableState<String> {
+	val imageLoader = koinInject<ImageLoader>()
+	val calculating = stringResource(Res.string.info_status_calculating)
+	val size = remember { mutableStateOf(calculating) }
+	LaunchedEffect(Unit) {
+		withContext(IoDispatcher) {
+			val sizeBytes = imageLoader.diskCache?.size ?: 0L
+			size.value = "${sizeBytes / (1024 * 1024)} MB"
+		}
+	}
+	return size
+}
+
+/** Shown on rows that need the network while there's none. */
+@Composable
+internal fun OfflineIcon() {
+	Icon(
+		Icons.Outlined.Offline,
+		stringResource(Res.string.info_not_available_offline),
+		modifier = Modifier.size(20.dp)
+	)
+}
+
+@Composable
+private fun LibraryDownloadItem(
+	isOnline: Boolean,
+	isDownloading: Boolean,
+	progress: Float,
+	onClick: () -> Unit,
+	onCancel: () -> Unit,
+	shapes: ListItemShapes
+) {
+	SegmentedListItem(
+		onClick = onClick,
+		enabled = isOnline,
+		content = { Text(stringResource(Res.string.title_library_download)) },
+		supportingContent = {
+			Column(Modifier.fillMaxWidth()) {
+				Text(
+					text = stringResource(
+						if (isDownloading) Res.string.info_status_downloading
+						else Res.string.info_library_download
+					)
+				)
+				AnimatedVisibility(
+					visible = isDownloading,
+					enter = fadeIn() + expandVertically(clip = false),
+					exit = fadeOut() + shrinkVertically(clip = false)
+				) {
+					Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+						Row(
+							modifier = Modifier.fillMaxWidth(),
+							horizontalArrangement = Arrangement.SpaceBetween,
+							verticalAlignment = Alignment.CenterVertically
+						) {
+							Text(
+								text = stringResource(Res.string.info_progress),
+								style = MaterialTheme.typography.labelMedium,
+								color = MaterialTheme.colorScheme.primary
+							)
+
+							Row(verticalAlignment = Alignment.CenterVertically) {
+								TextButton(
+									onClick = onCancel,
+									contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+									modifier = Modifier.padding(end = 8.dp)
+								) {
+									Text(
+										stringResource(Res.string.action_cancel_download),
+										style = MaterialTheme.typography.labelLarge,
+										color = MaterialTheme.colorScheme.error
+									)
+								}
+
+								Text(
+									text = "${(progress * 100).toInt()}%",
+									style = MaterialTheme.typography.labelMedium,
+									color = MaterialTheme.colorScheme.primary
+								)
+							}
+						}
+
+						LinearProgressIndicator(
+							progress = { progress },
+							modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+						)
+					}
+				}
+			}
+		},
+		trailingContent = { if (!isOnline) OfflineIcon() },
+		shapes = shapes
+	)
 }
 
 private const val MB = 1024L * 1024
@@ -542,51 +404,35 @@ private val cacheSizes = listOf(512 * MB, 1024 * MB, 2048 * MB, 5120 * MB, 10240
 private fun cacheSizeLabel(bytes: Long) =
 	if (bytes >= 1024 * MB) "${bytes / (1024 * MB)} GB" else "${bytes / MB} MB"
 
+/** The streaming cache's toggle and size, the first rows of a [count]-row group. */
 @Composable
-private fun AudioCacheGroup(
+private fun AudioCacheItems(
 	preferenceManager: PreferenceManager,
-	usage: AudioStoreUsage,
+	count: Int,
 	onLimitsChanged: () -> Unit
 ) {
 	val enabled = preferenceManager.audioCacheEnabled
-	val count = if (enabled) 3 else 2
-	SettingsGroup(title = { Text(stringResource(Res.string.title_audio_cache)) }) {
-		SettingsToggleItem(
-			checked = enabled,
-			onCheckedChange = {
-				preferenceManager.audioCacheEnabled = it
+	SettingsToggleItem(
+		checked = enabled,
+		onCheckedChange = {
+			preferenceManager.audioCacheEnabled = it
+			onLimitsChanged()
+		},
+		content = { Text(stringResource(Res.string.option_audio_cache)) },
+		supportingContent = { Text(stringResource(Res.string.subtitle_audio_cache)) },
+		shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count)
+	)
+	if (enabled) {
+		SettingsChoiceItem(
+			choices = cacheSizes,
+			selectedChoice = preferenceManager.audioCacheMaxBytes,
+			onChoiceSelected = {
+				preferenceManager.audioCacheMaxBytes = it
 				onLimitsChanged()
 			},
-			content = { Text(stringResource(Res.string.option_audio_cache)) },
-			supportingContent = { Text(stringResource(Res.string.subtitle_audio_cache)) },
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count)
-		)
-		if (enabled) {
-			SettingsChoiceItem(
-				choices = cacheSizes,
-				selectedChoice = preferenceManager.audioCacheMaxBytes,
-				onChoiceSelected = {
-					preferenceManager.audioCacheMaxBytes = it
-					onLimitsChanged()
-				},
-				content = { Text(stringResource(Res.string.option_audio_cache_max_size)) },
-				label = { cacheSizeLabel(it) },
-				shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
-			)
-		}
-		SegmentedListItem(
-			onClick = {},
-			content = { Text(stringResource(Res.string.option_audio_storage)) },
-			supportingContent = {
-				val cache = pluralStringResource(
-					Res.plurals.count_songs, usage.cacheCount, usage.cacheCount
-				) + " // " + usage.cacheBytes.toFileSize()
-				val pinned = pluralStringResource(
-					Res.plurals.count_songs, usage.pinnedCount, usage.pinnedCount
-				) + " // " + usage.pinnedBytes.toFileSize()
-				Text(stringResource(Res.string.info_audio_storage_usage, cache, pinned))
-			},
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 1, count = count)
+			content = { Text(stringResource(Res.string.option_audio_cache_max_size)) },
+			label = { cacheSizeLabel(it) },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = count)
 		)
 	}
 }

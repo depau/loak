@@ -11,6 +11,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Text
 import eu.depau.loak.ui.components.common.SegmentedListItem
 
 @Composable
@@ -23,6 +25,7 @@ fun SettingsSliderItem(
 	shapes: ListItemShapes,
 	contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
 	trailingContent: @Composable () -> Unit,
+	description: String? = null,
 	content: @Composable () -> Unit
 ) {
 	SegmentedListItem(
@@ -32,12 +35,15 @@ fun SettingsSliderItem(
 		contentPadding = contentPadding,
 		content = content,
 		supportingContent = {
-			Slider(
-				value = value,
-				valueRange = valueRange,
-				onValueChange = onValueChange,
-				steps = steps
-			)
+			Column {
+				Slider(
+					value = value,
+					valueRange = valueRange,
+					onValueChange = onValueChange,
+					steps = steps
+				)
+				description?.let { Text(it) }
+			}
 		},
 		trailingContent = {
 			CompositionLocalProvider(

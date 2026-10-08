@@ -192,11 +192,7 @@ sealed interface Screen : NavKey {
 
 		@Immutable
 		@Serializable
-		data object Developer : Settings
-
-		@Immutable
-		@Serializable
-		data object BottomAppBar : Settings
+		data object Advanced : Settings
 
 		@Immutable
 		@Serializable
@@ -204,7 +200,7 @@ sealed interface Screen : NavKey {
 
 		@Immutable
 		@Serializable
-		data object NowPlaying : Settings
+		data object Player : Settings
 
 		@Immutable
 		@Serializable
@@ -220,22 +216,15 @@ sealed interface Screen : NavKey {
 
 		@Immutable
 		@Serializable
-		data object Themes : Settings
+		data object Sound : Settings
 
 		@Immutable
 		@Serializable
-		data object Effects: Settings
+		data object Transcoding : Settings
+
 		@Immutable
 		@Serializable
 		data object CustomHeaders : Settings
-
-		@Immutable
-		@Serializable
-		data object StreamingQuality : Settings
-
-		@Immutable
-		@Serializable
-		data object DownloadQuality : Settings
 
 		@Immutable
 		@Serializable

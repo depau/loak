@@ -30,7 +30,7 @@ class PreferenceManager(
 	/** The queue side pane on wide windows, kept across launches. */
 	var queuePaneOpen by preference(false)
 	var coverArtQuality by preference(CoverArtQuality.High)
-	var enableRatings by preference(true)
+	var enableRatings by preference(false)
 	var lyricsAutoscroll by preference(true)
 	var lyricsBeatByBeat by preference(true)
 	var lyricsKeepAlive by preference(true)
@@ -133,7 +133,8 @@ class PreferenceManager(
 	var themeMode by preference(ThemeMode.System)
 	var dynamicTheming by preference(true)
 	var paletteStyle by preference(PaletteStyle.TonalSpot)
-	var paletteAccentH by preference(0f)
+	// Lo'ak's blue (#415F91)
+	var paletteAccentH by preference(218f)
 
 	// sync related settings
 	var lastFullSyncTime by preference(0L)

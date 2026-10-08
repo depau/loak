@@ -34,6 +34,7 @@ fun <Choice> SettingsChoiceItem(
 	onChoiceSelected: (Choice) -> Unit,
 	label: @Composable (Choice) -> String,
 	description: String? = null,
+	enabled: Boolean = true,
 	shapes: ListItemShapes,
 	content: @Composable () -> Unit
 ) {
@@ -41,6 +42,7 @@ fun <Choice> SettingsChoiceItem(
 
 	SegmentedListItem(
 		shapes = shapes,
+		enabled = enabled,
 		onClick = { choiceDialogOpen = true },
 		content = content,
 		supportingContent = {

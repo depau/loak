@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
@@ -70,7 +71,8 @@ import eu.depau.loak.generated.resources.option_custom_headers
 import eu.depau.loak.generated.resources.option_device_name
 import eu.depau.loak.generated.resources.subtitle_custom_headers
 import eu.depau.loak.generated.resources.title_connection
-import eu.depau.loak.generated.resources.title_server
+import eu.depau.loak.generated.resources.title_server_account
+import eu.depau.loak.generated.resources.title_advanced
 import eu.depau.loak.generated.resources.title_this_device
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
@@ -85,7 +87,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-/** Server address and account, plus how this device presents itself to the server. */
+/** Server address and account, what the server offers, and how to reach it. */
 @Composable
 fun SettingsServerScreen() {
 	val platformContext = LocalPlatformContext.current
@@ -111,7 +113,7 @@ fun SettingsServerScreen() {
 	Scaffold(
 		topBar = {
 			NestedTopBar(
-				title = { Text(stringResource(Res.string.title_server)) },
+				title = { Text(stringResource(Res.string.title_server_account)) },
 				navigationAction = {
 					if (!hideBack) NestedTopBarDefaults.NavigationAction()
 				}
@@ -183,12 +185,13 @@ fun SettingsServerScreen() {
 				) {
 					Text(stringResource(Res.string.action_save_and_reconnect))
 				}
-				CustomHeadersItem()
 			}
 
-			ThisDeviceGroup()
-
 			IntegrationsGroup()
+
+			SettingsGroup(title = { Text(stringResource(Res.string.title_advanced)) }) {
+				CustomHeadersItem()
+			}
 
 			OutlinedButton(
 				onClick = {
@@ -265,36 +268,47 @@ fun CustomHeadersItem() {
 /** Crash reporting opt-out toggle; shared with the login screen. */
 @Composable
 fun CrashReportingGroup() {
-	val preferenceManager = koinInject<PreferenceManager>()
-
 	SettingsGroup {
-		SettingsToggleItem(
-			checked = preferenceManager.crashReportingEnabled,
-			onCheckedChange = { preferenceManager.crashReportingEnabled = it },
-			content = { Text(stringResource(Res.string.option_crash_reporting)) },
-			supportingContent = { Text(stringResource(Res.string.subtitle_crash_reporting)) },
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
-		)
+		CrashReportingItem(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1))
 	}
+}
+
+/** The crash reporting toggle (About, the login screen). */
+@Composable
+fun CrashReportingItem(shapes: ListItemShapes) {
+	val preferenceManager = koinInject<PreferenceManager>()
+	SettingsToggleItem(
+		checked = preferenceManager.crashReportingEnabled,
+		onCheckedChange = { preferenceManager.crashReportingEnabled = it },
+		content = { Text(stringResource(Res.string.option_crash_reporting)) },
+		supportingContent = { Text(stringResource(Res.string.subtitle_crash_reporting)) },
+		shapes = shapes
+	)
 }
 
 /** The device name override; shared with the login screen. */
 @Composable
 fun ThisDeviceGroup() {
+	SettingsGroup(title = { Text(stringResource(Res.string.title_this_device)) }) {
+		DeviceNameItem(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1))
+	}
+}
+
+/** The device name override, as other devices see a queue shared from here (Playback, login). */
+@Composable
+fun DeviceNameItem(shapes: ListItemShapes) {
 	val sessionManager = koinInject<SessionManager>()
 	val preferenceManager = koinInject<PreferenceManager>()
 	var deviceNameDialogOpen by rememberSaveable { mutableStateOf(false) }
 	// read after the dialog writes it (deviceName isn't observable)
 	var deviceName by remember { mutableStateOf(sessionManager.deviceName) }
 
-	SettingsGroup(title = { Text(stringResource(Res.string.title_this_device)) }) {
-		SegmentedListItem(
-			onClick = { deviceNameDialogOpen = true },
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1),
-			supportingContent = { Text(deviceName) },
-			content = { Text(stringResource(Res.string.option_device_name)) }
-		)
-	}
+	SegmentedListItem(
+		onClick = { deviceNameDialogOpen = true },
+		shapes = shapes,
+		supportingContent = { Text(deviceName) },
+		content = { Text(stringResource(Res.string.option_device_name)) }
+	)
 
 	if (deviceNameDialogOpen) {
 		val name = rememberTextFieldState(preferenceManager.deviceName)

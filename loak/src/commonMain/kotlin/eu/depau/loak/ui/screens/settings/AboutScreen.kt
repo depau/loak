@@ -21,7 +21,9 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.info_app_version
 import eu.depau.loak.generated.resources.option_check_for_updates
 import eu.depau.loak.generated.resources.subtitle_check_for_updates
-import eu.depau.loak.generated.resources.title_about
+import eu.depau.loak.generated.resources.title_about_loak
+import eu.depau.loak.generated.resources.title_links
+import eu.depau.loak.generated.resources.title_updates_privacy
 import eu.depau.loak.generated.resources.title_github
 import eu.depau.loak.generated.resources.title_navic
 import org.jetbrains.compose.resources.stringResource
@@ -52,7 +54,7 @@ fun SettingsAboutScreen() {
 	Scaffold(
 		topBar = {
 			NestedTopBar(
-				title = { Text(stringResource(Res.string.title_about)) },
+				title = { Text(stringResource(Res.string.title_about_loak)) },
 				navigationAction = {
 					if (!hideBack) {
 						NestedTopBarDefaults.NavigationAction()
@@ -85,29 +87,35 @@ fun SettingsAboutScreen() {
 				)
 			}
 
-			SettingsGroup {
+			SettingsGroup(title = { Text(stringResource(Res.string.title_updates_privacy)) }) {
+				// the Android and desktop builds update themselves; elsewhere a store does
+				val updates = platformContext.platformType == PlatformType.Android
+					|| platformContext.platformType == PlatformType.Desktop
+				val count = if (updates) 2 else 1
+				if (updates) {
+					SettingsToggleItem(
+						content = { Text(stringResource(Res.string.option_check_for_updates)) },
+						supportingContent = { Text(stringResource(Res.string.subtitle_check_for_updates)) },
+						checked = preferenceManager.checkForUpdates,
+						onCheckedChange = { preferenceManager.checkForUpdates = it },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count)
+					)
+				}
+				CrashReportingItem(SegmentedListItemDefaults.segmentedShapes(index = count - 1, count = count))
+			}
+
+			SettingsGroup(title = { Text(stringResource(Res.string.title_links)) }) {
 				SettingsNavItem(
 					onClick = { linkToOpen = "https://github.com/depau/loak" },
 					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2),
-					content = { Text(stringResource(Res.string.title_github)) }
+					content = { Text(stringResource(Res.string.title_github)) },
+					supportingContent = { Text("github.com/depau/loak") }
 				)
 				SettingsNavItem(
 					onClick = { linkToOpen = "https://github.com/ssalggnikool/Navic" },
 					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2),
 					content = { Text(stringResource(Res.string.title_navic)) }
 				)
-			}
-
-			if (platformContext.platformType == PlatformType.Android) {
-				SettingsGroup {
-					SettingsToggleItem(
-						content = { Text(stringResource(Res.string.option_check_for_updates)) },
-						supportingContent = { Text(stringResource(Res.string.subtitle_check_for_updates)) },
-						checked = preferenceManager.checkForUpdates,
-						onCheckedChange = { preferenceManager.checkForUpdates = it },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
-					)
-				}
 			}
 		}
 	}

@@ -1,11 +1,8 @@
 package eu.depau.loak.ui.screens.settings
 
-import eu.depau.loak.domain.models.settings.OfflineMode
-import eu.depau.loak.generated.resources.option_offline_mode
-import eu.depau.loak.generated.resources.subtitle_offline_mode_toggle
-import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,48 +17,49 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.dropUnlessResumed
-import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.subtitle_about
-import eu.depau.loak.generated.resources.subtitle_appearance
-import eu.depau.loak.generated.resources.subtitle_bottom_app_bar
-import eu.depau.loak.generated.resources.subtitle_data_storage
-import eu.depau.loak.generated.resources.subtitle_developer
-import eu.depau.loak.generated.resources.subtitle_now_playing
-import eu.depau.loak.generated.resources.subtitle_playback
-import eu.depau.loak.generated.resources.subtitle_server
-import eu.depau.loak.generated.resources.title_about
-import eu.depau.loak.generated.resources.title_appearance
-import eu.depau.loak.generated.resources.title_bottom_app_bar
-import eu.depau.loak.generated.resources.title_tabs
-import eu.depau.loak.generated.resources.subtitle_tabs
-import eu.depau.loak.icons.filled.Explore
-import eu.depau.loak.generated.resources.title_data_storage
-import eu.depau.loak.generated.resources.title_developer
-import eu.depau.loak.generated.resources.title_now_playing
-import eu.depau.loak.generated.resources.title_playback
-import eu.depau.loak.generated.resources.title_server
-import eu.depau.loak.generated.resources.title_settings
-import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.domain.manager.NavidromeManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.SessionManager
+import eu.depau.loak.domain.models.settings.OfflineMode
+import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.option_offline_mode
+import eu.depau.loak.generated.resources.subtitle_offline_mode_toggle
+import eu.depau.loak.generated.resources.subtitle_settings_about
+import eu.depau.loak.generated.resources.subtitle_settings_advanced
+import eu.depau.loak.generated.resources.subtitle_settings_appearance
+import eu.depau.loak.generated.resources.subtitle_settings_downloads
+import eu.depau.loak.generated.resources.subtitle_settings_playback
+import eu.depau.loak.generated.resources.subtitle_settings_player
+import eu.depau.loak.generated.resources.subtitle_settings_sound
+import eu.depau.loak.generated.resources.subtitle_settings_tabs
+import eu.depau.loak.generated.resources.title_about_loak
+import eu.depau.loak.generated.resources.title_advanced
+import eu.depau.loak.generated.resources.title_appearance
+import eu.depau.loak.generated.resources.title_downloads_storage
+import eu.depau.loak.generated.resources.title_playback
+import eu.depau.loak.generated.resources.title_player
+import eu.depau.loak.generated.resources.title_settings
+import eu.depau.loak.generated.resources.title_sound_quality
+import eu.depau.loak.generated.resources.title_tabs
 import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.filled.Dns
 import eu.depau.loak.icons.filled.BottomNavigation
 import eu.depau.loak.icons.filled.Info
 import eu.depau.loak.icons.filled.Palette
 import eu.depau.loak.icons.filled.Play
+import eu.depau.loak.icons.outlined.ChevronForward
 import eu.depau.loak.icons.outlined.Code
-import eu.depau.loak.icons.outlined.DataTable
-import eu.depau.loak.icons.outlined.Note
+import eu.depau.loak.icons.outlined.Download
+import eu.depau.loak.icons.outlined.Queue
+import eu.depau.loak.icons.outlined.Soundwave
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.layouts.NestedTopBar
@@ -69,7 +67,12 @@ import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
+import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import eu.depau.loak.ui.theme.defaultFont
+import io.ktor.http.Url
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 
 @Composable
 fun SettingsScreen() {
@@ -94,7 +97,7 @@ fun SettingsScreen() {
 				.padding(horizontal = 16.dp),
 			verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
 		) {
-			// at hand; Data & storage has the automatic choices too
+			// at hand; Downloads & storage has the automatic choices
 			SettingsGroup {
 				val preferenceManager = koinInject<PreferenceManager>()
 				SettingsToggleItem(
@@ -110,110 +113,120 @@ fun SettingsScreen() {
 				)
 			}
 			SettingsGroup {
-				PageRow(
-					destination = Screen.Settings.Server,
-					icon = Icons.Filled.Dns,
-					iconSize = 24.dp,
-					title = Res.string.title_server,
-					subtitle = Res.string.subtitle_server,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
-				)
+				AccountRow(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1))
 			}
 			SettingsGroup {
-				PageRow(
-					destination = Screen.Settings.Appearance,
-					icon = Icons.Filled.Palette,
-					iconSize = 24.dp,
-					title = Res.string.title_appearance,
-					subtitle = Res.string.subtitle_appearance,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 7)
-				)
-				PageRow(
-					destination = Screen.Settings.NowPlaying,
-					icon = Icons.Filled.Play,
-					iconSize = 24.dp,
-					title = Res.string.title_now_playing,
-					subtitle = Res.string.subtitle_now_playing,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 7)
-				)
-				PageRow(
-					destination = Screen.Settings.BottomAppBar,
-					icon = Icons.Filled.BottomNavigation,
-					iconSize = 24.dp,
-					title = Res.string.title_bottom_app_bar,
-					subtitle = Res.string.subtitle_bottom_app_bar,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 7)
-				)
-				PageRow(
-					destination = Screen.Settings.Tabs,
-					icon = Icons.Filled.Explore,
-					iconSize = 24.dp,
-					title = Res.string.title_tabs,
-					subtitle = Res.string.subtitle_tabs,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 3, count = 7)
-				)
-				PageRow(
-					destination = Screen.Settings.Playback,
-					icon = Icons.Outlined.Note,
-					iconSize = 24.dp,
-					title = Res.string.title_playback,
-					subtitle = Res.string.subtitle_playback,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 4, count = 7)
-				)
-				PageRow(
-					destination = Screen.Settings.DataStorage,
-					icon = Icons.Outlined.DataTable,
-					iconSize = 24.dp,
-					title = Res.string.title_data_storage,
-					subtitle = Res.string.subtitle_data_storage,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 5, count = 7)
-				)
-				PageRow(
-					destination = Screen.Settings.Developer,
-					icon = Icons.Outlined.Code,
-					iconSize = 24.dp,
-					title = Res.string.title_developer,
-					subtitle = Res.string.subtitle_developer,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 6, count = 7)
-				)
+				PageRow(Screen.Settings.Appearance, Icons.Filled.Palette,
+					Res.string.title_appearance, Res.string.subtitle_settings_appearance, 0, 3)
+				PageRow(Screen.Settings.Player, Icons.Filled.Play,
+					Res.string.title_player, Res.string.subtitle_settings_player, 1, 3)
+				PageRow(Screen.Settings.Tabs, Icons.Filled.BottomNavigation,
+					Res.string.title_tabs, Res.string.subtitle_settings_tabs, 2, 3)
 			}
 			SettingsGroup {
-				PageRow(
-					destination = Screen.Settings.About,
-					icon = Icons.Filled.Info,
-					title = Res.string.title_about,
-					subtitle = Res.string.subtitle_about,
-					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+				PageRow(Screen.Settings.Playback, Icons.Outlined.Queue,
+					Res.string.title_playback, Res.string.subtitle_settings_playback, 0, 3)
+				PageRow(Screen.Settings.Sound, Icons.Outlined.Soundwave,
+					Res.string.title_sound_quality, Res.string.subtitle_settings_sound, 1, 3)
+				PageRow(Screen.Settings.DataStorage, Icons.Outlined.Download,
+					Res.string.title_downloads_storage, Res.string.subtitle_settings_downloads, 2, 3)
+			}
+			SettingsGroup {
+				PageRow(Screen.Settings.Advanced, Icons.Outlined.Code,
+					Res.string.title_advanced, Res.string.subtitle_settings_advanced, 0, 2)
+				PageRow(Screen.Settings.About, Icons.Filled.Info,
+					Res.string.title_about_loak, Res.string.subtitle_settings_about, 1, 2)
+			}
+		}
+	}
+}
+
+/** Opens a settings page, swapping out whichever page is open beside the list. */
+@Composable
+private fun rememberOpenPage(destination: Screen.Settings): () -> Unit {
+	val backStack = LocalNavStack.current
+	return dropUnlessResumed {
+		backStack.lastOrNull()?.let {
+			if (it is Screen.Settings) {
+				if (it !is Screen.Settings.Root) {
+					backStack.removeLastOrNull()
+				}
+				backStack.add(destination)
+			}
+		}
+	}
+}
+
+/** Highlights the row of the page open beside the list (two-pane windows). */
+@Composable
+private fun pageRowColors() = SegmentedListItemDefaults.segmentedColors(
+	selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+	selectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+	selectedSupportingContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+)
+
+@Composable
+private fun isOpen(destination: Screen.Settings) = LocalNavStack.current.lastOrNull() == destination
+
+/** Who's signed in where; opens Server & account. */
+@Composable
+private fun AccountRow(shapes: ListItemShapes) {
+	val sessionManager = koinInject<SessionManager>()
+	val navidrome = koinInject<NavidromeManager>()
+	val software by produceState<String?>(null) {
+		value = navidrome.serverInfo().let { info ->
+			listOfNotNull(info.type?.replaceFirstChar { it.uppercase() }, info.version)
+				.joinToString(" ").ifBlank { null }
+		}
+	}
+	val host = runCatching { Url(sessionManager.instanceUrl).host }.getOrNull()
+		?: sessionManager.instanceUrl
+	SegmentedListItem(
+		shapes = shapes,
+		onClick = rememberOpenPage(Screen.Settings.Server),
+		selected = isOpen(Screen.Settings.Server),
+		colors = pageRowColors(),
+		contentPadding = PaddingValues(16.dp)
+	) {
+		Row(
+			horizontalArrangement = Arrangement.spacedBy(12.dp),
+			verticalAlignment = Alignment.CenterVertically
+		) {
+			Box(
+				Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
+				contentAlignment = Alignment.Center
+			) {
+				Text(
+					sessionManager.username.take(1).uppercase(),
+					color = MaterialTheme.colorScheme.onPrimary,
+					style = MaterialTheme.typography.titleMedium
 				)
 			}
+			PageRowText(
+				title = sessionManager.username,
+				subtitle = listOfNotNull(host, software).joinToString(" · "),
+				modifier = Modifier.weight(1f),
+				selected = isOpen(Screen.Settings.Server)
+			)
+			Icon(Icons.Outlined.ChevronForward, null)
 		}
 	}
 }
 
 @Composable
 private fun PageRow(
-	destination: Screen? = null,
+	destination: Screen.Settings,
 	icon: ImageVector,
-	iconSize: Dp = 22.dp,
 	title: StringResource,
 	subtitle: StringResource,
-	shapes: ListItemShapes
+	index: Int,
+	count: Int
 ) {
-	val backStack = LocalNavStack.current
 	SegmentedListItem(
-		shapes = shapes,
-		onClick = dropUnlessResumed {
-			destination?.let { destination ->
-				backStack.lastOrNull()?.let {
-					if (it is Screen.Settings) {
-						if (it !is Screen.Settings.Root) {
-							backStack.removeLastOrNull()
-						}
-						backStack.add(destination)
-					}
-				}
-			}
-		},
+		shapes = SegmentedListItemDefaults.segmentedShapes(index = index, count = count),
+		onClick = rememberOpenPage(destination),
+		selected = isOpen(destination),
+		colors = pageRowColors(),
 		contentPadding = PaddingValues(16.dp)
 	) {
 		Row(
@@ -229,31 +242,47 @@ private fun PageRow(
 				Icon(
 					imageVector = icon,
 					contentDescription = null,
-					modifier = Modifier.size(iconSize),
+					modifier = Modifier.size(24.dp),
 					tint = MaterialTheme.colorScheme.onPrimary
 				)
 			}
-			Column(
+			PageRowText(
+				stringResource(title),
+				stringResource(subtitle),
 				Modifier.weight(1f),
-				verticalArrangement = Arrangement.spacedBy(1.dp)
-			) {
-				Text(
-					stringResource(title),
-					style = MaterialTheme.typography.titleSmall.copy(
-						fontFamily = defaultFont(100),
-						fontSize = 16.sp,
-						lineHeight = 16.sp
-					)
-				)
-				Text(
-					stringResource(subtitle),
-					style = MaterialTheme.typography.bodyMedium.copy(
-						fontFamily = defaultFont(grade = 10),
-						lineHeight = 14.sp
-					),
-					color = MaterialTheme.colorScheme.onSurfaceVariant
-				)
-			}
+				selected = isOpen(destination)
+			)
 		}
+	}
+}
+
+@Composable
+private fun PageRowText(
+	title: String,
+	subtitle: String,
+	modifier: Modifier = Modifier,
+	selected: Boolean = false
+) {
+	Column(
+		modifier,
+		verticalArrangement = Arrangement.spacedBy(1.dp)
+	) {
+		Text(
+			title,
+			style = MaterialTheme.typography.titleSmall.copy(
+				fontFamily = defaultFont(100),
+				fontSize = 16.sp,
+				lineHeight = 16.sp
+			)
+		)
+		Text(
+			subtitle,
+			style = MaterialTheme.typography.bodyMedium.copy(
+				fontFamily = defaultFont(grade = 10),
+				lineHeight = 14.sp
+			),
+			color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
+			else MaterialTheme.colorScheme.onSurfaceVariant
+		)
 	}
 }
