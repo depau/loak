@@ -23,6 +23,7 @@ Fork of [Navic](https://github.com/ssalggnikool/Navic).
 * **Home widgets**: a couple of home screen widgets are inbuilt
 * **Share music**: share links to music to your friends
 * **Android Auto**: control music playback through Android Auto
+* **Android backup**: system backup and device transfer restore app settings
 * **Pretty lightweight**: Lo'ak is fast and small (~10MB)
 * **Compatible**: supports older devices and most Subsonic
   servers ([LMS](https://github.com/epoupon/lms), [gonic](https://github.com/sentriz/gonic), [Navidrome](https://navidrome.org),
