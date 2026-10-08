@@ -434,6 +434,13 @@
 	<string name="info_mix_alchemy">Blend this song with others you pick</string>
 	<string name="info_mix_lyrics_sound">Matches the words as well as the music</string>
 	<string name="label_open_in">Open in</string>
+	<string name="info_left">%1$s left</string>
+	<plurals name="info_songs_left">
+		<item quantity="one">%1$d song left</item>
+		<item quantity="other">%1$d songs left</item>
+	</plurals>
+	<string name="info_end_of_queue">End of queue</string>
+	<string name="label_speed">Speed</string>
 	<string name="action_queue">Queue</string>
 	<string name="title_up_next">Up next</string>
 	<string name="action_show_queue">Show queue</string>

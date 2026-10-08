@@ -33,6 +33,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
+import eu.depau.loak.generated.resources.info_end_of_queue
+import eu.depau.loak.generated.resources.info_left
+import eu.depau.loak.generated.resources.info_songs_left
+import eu.depau.loak.generated.resources.title_playback
+import org.jetbrains.compose.resources.pluralStringResource
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -69,12 +82,9 @@ import eu.depau.loak.generated.resources.action_remove_from_queue
 import eu.depau.loak.generated.resources.action_remove_star
 import eu.depau.loak.generated.resources.action_share
 import eu.depau.loak.generated.resources.action_sleep_timer
-import eu.depau.loak.generated.resources.action_sleep_timer_enabled
-import eu.depau.loak.generated.resources.action_sleep_timer_queue_enabled
-import eu.depau.loak.generated.resources.action_sleep_timer_songs_enabled
 import eu.depau.loak.generated.resources.action_star
 import eu.depau.loak.generated.resources.action_track_info
-import eu.depau.loak.generated.resources.option_playback_speed
+import eu.depau.loak.generated.resources.label_speed
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.data.database.entities.DownloadStatus
@@ -120,7 +130,6 @@ import eu.depau.loak.ui.components.common.RatingRow
 import eu.depau.loak.ui.components.common.TooltipBox
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.theme.LoakTheme
-import eu.depau.loak.ui.theme.positive
 import eu.depau.loak.ui.util.InlineExplicitIcon
 import eu.depau.loak.ui.util.buildSongInfoString
 import eu.depau.loak.ui.util.label
@@ -419,70 +428,46 @@ fun SongSheet(
 
 				SpeedDialPinItem(HomeRepository.keyOf(song), colors, contentPadding, onDismissRequest)
 
-				if (showSleepTimer) {
-					val isEnabled = sleepTimerMode !is SleepTimerMode.Disabled
-					ListItem(
-						content = {
-							Text(
-								text = when (val mode = sleepTimerMode) {
-									is SleepTimerMode.Time -> stringResource(
-										Res.string.action_sleep_timer_enabled,
-										sleepTimerManager.timeLeft?.label() ?: ""
-									)
-
-									is SleepTimerMode.Songs -> stringResource(
-										Res.string.action_sleep_timer_songs_enabled,
-										mode.remaining
-									)
-
-									is SleepTimerMode.EndOfQueue -> stringResource(
-										Res.string.action_sleep_timer_queue_enabled
-									)
-
-									else -> stringResource(Res.string.action_sleep_timer)
-								},
-								color = if (isEnabled) MaterialTheme.colorScheme.positive else Color.Unspecified
-							)
-						},
-						leadingContent = {
-							Icon(
-								imageVector = Icons.Outlined.Bedtime,
-								contentDescription = null,
-								tint = if (isEnabled) MaterialTheme.colorScheme.positive else MaterialTheme.colorScheme.onSurfaceVariant
-							)
-						},
-						onClick = {
-							onSleepTimer?.invoke()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (showShuffleRepeat) {
+				if (showSleepTimer || showShuffleRepeat || showPlaybackSpeed) {
 					val shuffle = playerState.isShuffleEnabled
-					ListItem(
-						content = {
-							Text(
-								stringResource(Res.string.action_shuffle),
-								color = if (shuffle) MaterialTheme.colorScheme.positive else Color.Unspecified
-							)
-						},
-						leadingContent = {
-							Icon(
-								if (shuffle) Icons.Filled.ShuffleOn else Icons.Outlined.Shuffle,
-								null,
-								tint = if (shuffle) MaterialTheme.colorScheme.positive else MaterialTheme.colorScheme.onSurfaceVariant
-							)
-						},
-						onClick = { player.toggleShuffle() },
-						colors = colors,
-						contentPadding = contentPadding
-					)
 					val repeat = playerState.repeatMode
-					ListItem(
-						content = {
-							Text(
+					Text(
+						stringResource(Res.string.title_playback),
+						style = MaterialTheme.typography.labelLarge,
+						color = MaterialTheme.colorScheme.primary,
+						modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 8.dp)
+					)
+					PlaybackTiles(
+						listOfNotNull(
+							if (showSleepTimer) PlaybackTile(
+								stringResource(Res.string.action_sleep_timer),
+								when (val mode = sleepTimerMode) {
+									is SleepTimerMode.Time ->
+										stringResource(Res.string.info_left, sleepTimerManager.timeLeft?.label() ?: "")
+									is SleepTimerMode.Songs ->
+										pluralStringResource(Res.plurals.info_songs_left, mode.remaining, mode.remaining)
+									is SleepTimerMode.EndOfQueue -> stringResource(Res.string.info_end_of_queue)
+									else -> null
+								},
+								Icons.Outlined.Bedtime,
+								checked = sleepTimerMode !is SleepTimerMode.Disabled,
+								onClick = { onSleepTimer?.invoke() }
+							) else null,
+							if (showPlaybackSpeed) PlaybackTile(
+								stringResource(Res.string.label_speed),
+								"${playerState.playbackSpeed}x",
+								Icons.Outlined.Speed,
+								checked = playerState.playbackSpeed != 1f,
+								onClick = dropUnlessResumed { onPlaybackSpeed?.invoke() }
+							) else null,
+							if (showShuffleRepeat) PlaybackTile(
+								stringResource(Res.string.action_shuffle),
+								null,
+								if (shuffle) Icons.Filled.ShuffleOn else Icons.Outlined.Shuffle,
+								checked = shuffle,
+								onClick = { player.toggleShuffle() }
+							) else null,
+							if (showShuffleRepeat) PlaybackTile(
 								stringResource(
 									when (repeat) {
 										1 -> Res.string.info_repeat_one
@@ -490,44 +475,16 @@ fun SongSheet(
 										else -> Res.string.info_repeat_off
 									}
 								),
-								color = if (repeat != 0) MaterialTheme.colorScheme.positive else Color.Unspecified
-							)
-						},
-						leadingContent = {
-							Icon(
+								null,
 								when (repeat) {
 									1 -> Icons.Filled.RepeatOneOn
 									2 -> Icons.Filled.RepeatOn
 									else -> Icons.Outlined.Repeat
 								},
-								null,
-								tint = if (repeat != 0) MaterialTheme.colorScheme.positive else MaterialTheme.colorScheme.onSurfaceVariant
-							)
-						},
-						onClick = { player.toggleRepeat() },
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (showPlaybackSpeed) {
-					ListItem(
-						content = {
-							Text(
-								stringResource(Res.string.option_playback_speed)
-							)
-						},
-						leadingContent = {
-							Icon(
-								Icons.Outlined.Speed,
-								null
-							)
-						},
-						onClick = dropUnlessResumed {
-							onPlaybackSpeed?.invoke()
-						},
-						colors = colors,
-						contentPadding = contentPadding
+								checked = repeat != 0,
+								onClick = { player.toggleRepeat() }
+							) else null
+						)
 					)
 				}
 			}
@@ -580,6 +537,54 @@ private fun MixPage(
 				colors = colors,
 				contentPadding = contentPadding
 			)
+		}
+	}
+}
+
+private class PlaybackTile(
+	val name: String,
+	val value: String?,
+	val icon: ImageVector,
+	val checked: Boolean,
+	val onClick: () -> Unit
+)
+
+/** The player's settings as toggle tiles, two a row, each showing its current value. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PlaybackTiles(tiles: List<PlaybackTile>) {
+	val gap = ButtonGroupDefaults.ConnectedSpaceBetween
+	Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
+		tiles.chunked(2).forEach { row ->
+			Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+				row.forEachIndexed { index, tile ->
+					ToggleButton(
+						checked = tile.checked,
+						onCheckedChange = { tile.onClick() },
+						shapes = when {
+							row.size == 1 -> ToggleButtonDefaults.shapes()
+							index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+							else -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+						},
+						contentPadding = PaddingValues(horizontal = 16.dp),
+						modifier = Modifier.weight(1f).height(64.dp)
+					) {
+						Icon(tile.icon, null)
+						Spacer(Modifier.width(12.dp))
+						Column(Modifier.weight(1f)) {
+							Text(
+								tile.name,
+								style = MaterialTheme.typography.labelLarge,
+								maxLines = 1,
+								overflow = TextOverflow.Ellipsis
+							)
+							tile.value?.let {
+								Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }
