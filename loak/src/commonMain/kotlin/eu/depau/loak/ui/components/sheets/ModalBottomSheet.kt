@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.semantics.paneTitle
 import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.ui.semantics.semantics
@@ -183,10 +184,12 @@ internal class AtPointerPositionProvider(private val pointer: IntOffset) :
 
 /**
  * Back goes to the sheet's main page while it shows a sub-page. Composed inside the sheet, so it
- * registers with the back dispatcher of the sheet's own window, where back arrives.
+ * registers with the back dispatcher of the sheet's own window, where back arrives. Android's
+ * popups (the menus on wide windows) have no dispatcher: back dismisses them on its own there.
  */
 @Composable
 private fun SubPageBack(onBack: (() -> Unit)?) {
+	if (LocalNavigationEventDispatcherOwner.current == null) return
 	NavigationBackHandler(
 		state = rememberNavigationEventState(NavigationEventInfo.None),
 		isBackEnabled = onBack != null,
