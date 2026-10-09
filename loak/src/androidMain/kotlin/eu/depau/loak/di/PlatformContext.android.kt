@@ -48,6 +48,11 @@ actual fun rememberPlatformContext(): PlatformContext {
 				context.packageManager
 					.getPackageInfo(context.packageName, 0)
 					.versionName.toString()
+			override val buildVariant: String = when {
+				context.packageName.endsWith(".debug") -> "debug"
+				context.packageName.endsWith(".nightly") -> "nightly"
+				else -> "release"
+			}
 			override val sizeClass = sizeClass
 
 			// Material You's wallpaper colors exist from Android 12
