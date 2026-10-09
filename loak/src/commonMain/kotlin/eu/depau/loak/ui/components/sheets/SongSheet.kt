@@ -84,6 +84,8 @@ import eu.depau.loak.generated.resources.action_share
 import eu.depau.loak.generated.resources.action_sleep_timer
 import eu.depau.loak.generated.resources.action_star
 import eu.depau.loak.generated.resources.action_track_info
+import eu.depau.loak.generated.resources.action_view_album
+import eu.depau.loak.generated.resources.action_view_artist
 import eu.depau.loak.generated.resources.label_speed
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -104,6 +106,8 @@ import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.Bedtime
+import eu.depau.loak.icons.outlined.Album
+import eu.depau.loak.icons.outlined.Artist
 import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.SonicPath
 import eu.depau.loak.icons.outlined.Info
@@ -185,6 +189,12 @@ fun SongSheet(
 	var mixPage by rememberSaveable { mutableStateOf(false) }
 
 	val backStack = LocalNavStack.current
+	val viewArtist: (String) -> Unit = {
+		onDismissRequest()
+		// leaving the sheet for a screen underneath closes the player, if it's up
+		backStack.remove(Screen.NowPlaying)
+		backStack.add(Screen.ArtistDetail(it))
+	}
 	// offline, what needs the server is greyed out; starring, rating, downloading and playlist
 	// edits are queued
 	val online = LocalAvailability.current.online
@@ -277,12 +287,7 @@ fun SongSheet(
 					MarqueeText(
 						buildSongInfoString(
 							song = song,
-							onClickArtist = {
-								onDismissRequest()
-								// leaving the sheet for a screen underneath closes the player, if it's up
-								backStack.remove(Screen.NowPlaying)
-								backStack.add(Screen.ArtistDetail(it))
-							},
+							onClickArtist = viewArtist,
 							onClickAlbum = onViewAlbum?.let { view ->
 								{
 									onDismissRequest()
@@ -389,6 +394,27 @@ fun SongSheet(
 						contentPadding = contentPadding
 					)
 				}
+
+				if (onViewAlbum != null) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_view_album)) },
+						leadingContent = { Icon(Icons.Outlined.Album, null) },
+						onClick = {
+							onDismissRequest()
+							onViewAlbum()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
+
+				ListItem(
+					content = { Text(stringResource(Res.string.action_view_artist)) },
+					leadingContent = { Icon(Icons.Outlined.Artist, null) },
+					onClick = { viewArtist(song.artistId) },
+					colors = colors,
+					contentPadding = contentPadding
+				)
 
 				if (onAddToPlaylist != null) {
 					ListItem(
