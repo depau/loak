@@ -160,6 +160,13 @@ class PreferenceManager(
 	var artistFilters by preference(0)
 	var playlistFilters by preference(0)
 
+	fun getPlaylistSongsReversed(playlistId: String): Boolean =
+		settings.getBoolean("playlist_reversed_$playlistId", defaultValue = true)
+
+	fun setPlaylistSongsReversed(playlistId: String, reversed: Boolean) {
+		settings.putBoolean("playlist_reversed_$playlistId", reversed)
+	}
+
 	fun customHeadersMap(): Map<String, String> = customHeadersMap(customHeaders)
 
 	/** Parses a newline-separated list of `Key:Value` lines into a headers map. */

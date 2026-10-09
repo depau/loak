@@ -1,5 +1,6 @@
 package eu.depau.loak.di
 
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.screens.explore.ExploreViewModel
 import eu.depau.loak.ui.screens.alchemy.AlchemyViewModel
 import org.koin.core.module.dsl.viewModel
@@ -147,6 +148,7 @@ val viewModelModule = module {
 			snackBarManager = get(),
 			syncManager = get(),
 			playlistRepository = get(),
+			preferenceManager = get<PreferenceManager>(),
 			connectivityManager = get()
 		)
 	}

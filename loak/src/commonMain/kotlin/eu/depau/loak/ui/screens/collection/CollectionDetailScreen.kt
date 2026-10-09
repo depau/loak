@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import eu.depau.loak.generated.resources.info_no_matching_tracks
+import eu.depau.loak.ui.screens.collection.components.PlaylistTrackFilterRow
 import androidx.compose.foundation.lazy.LazyColumn
 import eu.depau.loak.di.isExpanded
 import androidx.compose.foundation.verticalScroll
@@ -95,6 +98,20 @@ fun CollectionDetailScreen(
 	val collection = collectionState.data
 	val selectedAlbum by viewModel.selectedAlbum.collectAsState()
 	val starred by viewModel.starred.collectAsState()
+	val isReversed by viewModel.isReversed.collectAsState()
+	val searchQuery = rememberTextFieldState()
+	val visibleSongs by remember(collection?.songs, searchQuery.text, isReversed) {
+		derivedStateOf {
+			val songs = (collection as? DomainPlaylist)?.songs ?: return@derivedStateOf emptyList()
+			val query = searchQuery.text.toString().trim()
+			val filtered = if (query.isEmpty()) songs else songs.filter { song ->
+				song.title.contains(query, ignoreCase = true) ||
+					song.artistName?.contains(query, ignoreCase = true) == true ||
+					song.albumTitle?.contains(query, ignoreCase = true) == true
+			}
+			if (isReversed) filtered.reversed() else filtered
+		}
+	}
 
 	var shareId by remember { mutableStateOf<String?>(null) }
 	var editingRules by remember { mutableStateOf<SmartPlaylistDetails?>(null) }
@@ -324,31 +341,52 @@ fun CollectionDetailScreen(
 								}
 							}
 						} else {
-							itemsIndexed(collection.songs) { index, song ->
-								val download = allDownloads.find { it.songId == song.id }
-								Box {
-									CollectionDetailScreenSongRow(
-										song = song,
-										index = index,
-										count = collection.songs.count(),
-										isPlaylist = true,
-										onClick = {
-											if (playerState.currentSong?.id != song.id) {
-												player.playNow(collection, index)
-											} else {
-												player.togglePlay()
-											}
-										},
-										onPlayNext = {
-											player.playNextSingle(song)
-										},
-										onAddToQueue = {
-											player.addToQueueSingle(song)
-										},
-										collection = collection,
-										onRemoveFromPlaylist = { viewModel.removeFromPlaylist(song) },
-										download = download
+							val playlistSongs = collection.songs
+							if (playlistSongs.isNotEmpty()) {
+								item {
+									PlaylistTrackFilterRow(
+										query = searchQuery,
+										filteredCount = visibleSongs.size,
+										totalCount = playlistSongs.size,
+										isReversed = isReversed,
+										onToggleReversed = { viewModel.toggleReversed() }
 									)
+								}
+							}
+							if (visibleSongs.isEmpty() && playlistSongs.isNotEmpty()) {
+								item {
+									ContentUnavailable(
+										icon = Icons.Outlined.Note,
+										label = stringResource(Res.string.info_no_matching_tracks)
+									)
+								}
+							} else {
+								itemsIndexed(visibleSongs, key = { index, song -> "${song.id}_$index" }) { index, song ->
+									val download = allDownloads.find { it.songId == song.id }
+									Box {
+										CollectionDetailScreenSongRow(
+											song = song,
+											index = index,
+											count = visibleSongs.count(),
+											isPlaylist = true,
+											onClick = {
+												if (playerState.currentSong?.id != song.id) {
+													player.playNow((collection as DomainPlaylist).copy(songs = visibleSongs), index)
+												} else {
+													player.togglePlay()
+												}
+											},
+											onPlayNext = {
+												player.playNextSingle(song)
+											},
+											onAddToQueue = {
+												player.addToQueueSingle(song)
+											},
+											collection = collection,
+											onRemoveFromPlaylist = { viewModel.removeFromPlaylist(song) },
+											download = download
+										)
+									}
 								}
 							}
 						}
@@ -361,7 +399,6 @@ fun CollectionDetailScreen(
 								)
 							}
 						}
-
 						item { CollectionDetailScreenFooterRow(collection) }
 
 						(collection as? DomainAlbum)?.artistName?.let { artistName ->

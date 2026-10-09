@@ -19,6 +19,7 @@ import eu.depau.loak.generated.resources.notice_removed_from_playlist
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.manager.ConnectivityManager
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
@@ -45,6 +46,7 @@ class CollectionDetailViewModel(
 	private val snackBarManager: SnackBarManager,
 	private val syncManager: SyncManager,
 	private val playlistRepository: PlaylistRepository,
+	private val preferenceManager: PreferenceManager,
 	connectivityManager: ConnectivityManager
 ) : ViewModel() {
 
@@ -70,6 +72,19 @@ class CollectionDetailViewModel(
 		field = MutableStateFlow(0)
 
 	val listState = LazyListState()
+
+	val searchQuery: MutableStateFlow<String> = MutableStateFlow("")
+	val isReversed: MutableStateFlow<Boolean> = MutableStateFlow(preferenceManager.getPlaylistSongsReversed(collectionId))
+
+	fun setSearchQuery(query: String) {
+		searchQuery.value = query
+	}
+
+	fun toggleReversed() {
+		val next = !isReversed.value
+		isReversed.value = next
+		preferenceManager.setPlaylistSongsReversed(collectionId, next)
+	}
 
 	val isOnline = connectivityManager.isOnline
 

@@ -401,6 +401,12 @@
 	<string name="title_save_to_playlist">Save to playlist</string>
 	<string name="hint_filter_playlists">Filter playlists</string>
 	<string name="info_no_matching_playlists">No matching playlists</string>
+	<string name="hint_filter_tracks">Filter tracks</string>
+	<string name="info_no_matching_tracks">No matching tracks</string>
+	<string name="action_reorder_playlist">Reorder playlist</string>
+	<string name="title_reorder_playlist">Reorder playlist</string>
+	<string name="notice_playlist_reordered">Playlist order saved.</string>
+	<string name="action_sort_direction">Sort direction</string>
 	<string name="action_new_playlist">New playlist</string>
 	<string name="action_create">Create</string>
 	<string name="title_recent">Recent</string>
