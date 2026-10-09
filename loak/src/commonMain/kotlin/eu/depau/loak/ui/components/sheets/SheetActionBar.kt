@@ -2,6 +2,7 @@ package eu.depau.loak.ui.components.sheets
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +29,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalPlatformContext
@@ -43,9 +45,12 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.brand.Lastfm
 import eu.depau.loak.icons.brand.Musicbrainz
 import eu.depau.loak.icons.outlined.Check
+import eu.depau.loak.icons.outlined.ChevronForward
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.DownloadOff
+import eu.depau.loak.ui.components.common.SegmentedListItem
+import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.common.TooltipBox
 import org.jetbrains.compose.resources.stringResource
 
@@ -149,6 +154,49 @@ fun downloadAction(
 		)
 		null -> onDownload?.let { SheetAction(download, Icons.Outlined.Download, then(it), enabled = enabled) }
 		else -> SheetAction(download, Icons.Outlined.Download, then(onDownload), enabled = enabled)
+	}
+}
+
+/**
+ * One row of a [SheetRows] group. [supporting] is a second line; [opensPage] adds the chevron of
+ * rows that open a sub-page instead of acting.
+ */
+class SheetRow(
+	val label: String,
+	val icon: ImageVector,
+	val onClick: () -> Unit,
+	val enabled: Boolean = true,
+	val supporting: String? = null,
+	val opensPage: Boolean = false
+)
+
+/** The options sheets' other actions, as one group of connected rows; nothing when it's empty. */
+@Composable
+fun SheetRows(rows: List<SheetRow>) {
+	if (rows.isEmpty()) return
+	// lighter than the sheet and its buttons, in light and dark themes alike
+	val colors = SegmentedListItemDefaults.segmentedColors(
+		containerColor = MaterialTheme.colorScheme.surfaceBright,
+		disabledContainerColor = MaterialTheme.colorScheme.surfaceBright
+	)
+	Column(
+		Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+		verticalArrangement = Arrangement.spacedBy(SegmentedListItemDefaults.SegmentedGap)
+	) {
+		rows.forEachIndexed { index, row ->
+			SegmentedListItem(
+				onClick = row.onClick,
+				enabled = row.enabled,
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = index, count = rows.size),
+				colors = colors,
+				leadingContent = { Icon(row.icon, null) },
+				supportingContent = row.supporting?.let {
+					{ Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+				},
+				trailingContent = if (row.opensPage) ({ Icon(Icons.Outlined.ChevronForward, null) }) else null,
+				content = { Text(row.label) }
+			)
+		}
 	}
 }
 

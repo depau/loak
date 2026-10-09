@@ -1,7 +1,6 @@
 package eu.depau.loak.ui.components.sheets
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.add
@@ -11,7 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -67,7 +65,6 @@ fun ArtistSheet(
 	onDeleteDownloadAll: (() -> Unit)? = null,
 ) {
 	val player = koinInject<MediaPlayerViewModel>()
-	val contentPadding = PaddingValues(horizontal = 16.dp)
 	val colors = ListItemDefaults.colors(
 		containerColor = Color.Transparent,
 		trailingIconColor = MaterialTheme.colorScheme.onSurface,
@@ -146,30 +143,24 @@ fun ArtistSheet(
 		)
 
 		Column(Modifier.verticalScroll(rememberScrollState())) {
-			if (onAddAllToPlaylist != null) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_add_to_playlist)) },
-					leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
-					onClick = {
-						onAddAllToPlaylist()
+			SheetRows(listOfNotNull(
+				onAddAllToPlaylist?.let { addToPlaylist ->
+					SheetRow(
+						stringResource(Res.string.action_add_to_playlist),
+						Icons.Outlined.PlaylistAdd,
+						{ addToPlaylist(); onDismissRequest() }
+					)
+				},
+				SheetRow(
+					stringResource(Res.string.action_instant_mix),
+					Icons.Outlined.InstantMix,
+					{
+						player.playInstantMix(artist.id, artist.name)
 						onDismissRequest()
 					},
-					colors = colors,
-					contentPadding = contentPadding
+					enabled = online
 				)
-			}
-
-			ListItem(
-				content = { Text(stringResource(Res.string.action_instant_mix)) },
-				leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
-				onClick = {
-					player.playInstantMix(artist.id, artist.name)
-					onDismissRequest()
-				},
-				enabled = online,
-				colors = colors,
-				contentPadding = contentPadding
-			)
+			))
 
 			SheetLinks(
 				lastFmUrl = artist.lastFmUrl,

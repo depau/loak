@@ -15,7 +15,6 @@ import eu.depau.loak.ui.components.common.PlaylistBadgedText
 import eu.depau.loak.ui.components.common.displayName
 import eu.depau.loak.domain.repositories.HomeRepository
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.add
@@ -25,11 +24,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -112,7 +109,6 @@ fun CollectionSheet(
 	val sessionManager = koinInject<SessionManager>()
 	val player = koinInject<MediaPlayerViewModel>()
 
-	val contentPadding = PaddingValues(horizontal = 16.dp)
 	val colors = ListItemDefaults.colors(
 		containerColor = Color.Transparent,
 		trailingIconColor = MaterialTheme.colorScheme.onSurface,
@@ -234,98 +230,66 @@ fun CollectionSheet(
 		)
 
 		Column(Modifier.verticalScroll(rememberScrollState())) {
-			if (onAddAllToPlaylist != null) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_add_to_playlist)) },
-					leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
-					onClick = {
-						onAddAllToPlaylist()
-						onDismissRequest()
-					},
-					enabled = hasSongs,
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
-			// getSimilarSongs takes album ids, not playlist ones
-			if (collection is DomainAlbum) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_instant_mix)) },
-					leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
-					onClick = {
+			SheetRows(listOfNotNull(
+				onAddAllToPlaylist?.let { addToPlaylist ->
+					SheetRow(
+						stringResource(Res.string.action_add_to_playlist),
+						Icons.Outlined.PlaylistAdd,
+						{ addToPlaylist(); onDismissRequest() },
+						enabled = hasSongs
+					)
+				},
+				// getSimilarSongs takes album ids, not playlist ones
+				if (collection is DomainAlbum) SheetRow(
+					stringResource(Res.string.action_instant_mix),
+					Icons.Outlined.InstantMix,
+					{
 						player.playInstantMix(collection.id, collection.name ?: "")
 						onDismissRequest()
 					},
-					enabled = online,
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
-			if (collection is DomainPlaylist && audioMuseInfo != null) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_use_in_alchemy)) },
-					leadingContent = { Icon(Icons.Outlined.Flask, null) },
-					onClick = {
+					enabled = online
+				) else null,
+				if (collection is DomainPlaylist && audioMuseInfo != null) SheetRow(
+					stringResource(Res.string.action_use_in_alchemy),
+					Icons.Outlined.Flask,
+					{
 						backStack.add(Screen.Alchemy(AlchemyIngredient(collection.id, AlchemyIngredient.Type.Playlist, playlistName?.display ?: collection.name.orEmpty())))
 						onDismissRequest()
 					},
-					enabled = online,
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
+					enabled = online
+				) else null,
+				collection?.let { HomeRepository.keyOf(it) }?.let { speedDialPinRow(it, onDismissRequest) }
+			))
 
-			collection?.let { HomeRepository.keyOf(it) }?.let { key ->
-				SpeedDialPinItem(key, colors, contentPadding, onDismissRequest)
-			}
-
-			if (editablePlaylist != null) {
-				if (onReorderPlaylist != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_reorder_playlist)) },
-						leadingContent = { Icon(Icons.Outlined.DragHandle, null) },
-						onClick = {
-							onDismissRequest()
-							onReorderPlaylist()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-				ListItem(
-					content = { Text(stringResource(Res.string.action_edit_playlist)) },
-					leadingContent = { Icon(Icons.Outlined.Edit, null) },
-					onClick = { editing = true },
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
-			if (collection is DomainPlaylist) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_make_a_copy)) },
-					leadingContent = { Icon(Icons.Outlined.Copy, null) },
-					onClick = { copying = true },
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
-
-			// only the owner can delete it; the server refuses anyone else
-			if (onDelete != null && (collection !is DomainPlaylist || collection.owner == sessionManager.username)) {
-				ListItem(
-					content = { Text(stringResource(Res.string.action_delete)) },
-					leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
-					onClick = {
+			SheetRows(listOfNotNull(
+				if (editablePlaylist != null && onReorderPlaylist != null) SheetRow(
+					stringResource(Res.string.action_reorder_playlist),
+					Icons.Outlined.DragHandle,
+					{
+						onDismissRequest()
+						onReorderPlaylist()
+					}
+				) else null,
+				if (editablePlaylist != null) SheetRow(
+					stringResource(Res.string.action_edit_playlist),
+					Icons.Outlined.Edit,
+					{ editing = true }
+				) else null,
+				if (collection is DomainPlaylist) SheetRow(
+					stringResource(Res.string.action_make_a_copy),
+					Icons.Outlined.Copy,
+					{ copying = true }
+				) else null,
+				// only the owner can delete it; the server refuses anyone else
+				if (onDelete != null && (collection !is DomainPlaylist || collection.owner == sessionManager.username)) SheetRow(
+					stringResource(Res.string.action_delete),
+					Icons.Outlined.PlaylistRemove,
+					{
 						onDelete()
 						onDismissRequest()
-					},
-					colors = colors,
-					contentPadding = contentPadding
-				)
-			}
+					}
+				) else null
+			))
 
 			SheetLinks(
 				lastFmUrl = albumInfo?.lastFmUrl,

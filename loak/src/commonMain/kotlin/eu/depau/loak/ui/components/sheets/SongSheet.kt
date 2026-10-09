@@ -60,7 +60,6 @@ import eu.depau.loak.generated.resources.info_mix_lyrics_sound
 import eu.depau.loak.generated.resources.info_mix_to_here
 import eu.depau.loak.generated.resources.title_make_a_mix
 import eu.depau.loak.icons.outlined.ArrowBack
-import eu.depau.loak.icons.outlined.ChevronForward
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -183,7 +182,6 @@ fun SongSheet(
 
 	val sleepTimerManager = koinInject<SleepTimerManager>()
 	val sleepTimerMode by sleepTimerManager.mode.collectAsStateWithLifecycle()
-	val contentPadding = PaddingValues(horizontal = 16.dp)
 
 	val colorScheme = if (useSongTheme) rememberColorSchemeFromCoverArt(song.coverArtId) else null
 	var mixPage by rememberSaveable { mutableStateOf(false) }
@@ -250,7 +248,6 @@ fun SongSheet(
 			onDismissRequest = onDismissRequest,
 			menuOnWideWindows = true,
 			onBack = if (mixPage) ({ mixPage = false }) else null,
-			containerColor = MaterialTheme.colorScheme.surface,
 			sheetState = rememberBottomSheetState(
 				initialValue = SheetValue.Hidden,
 				enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
@@ -266,7 +263,7 @@ fun SongSheet(
 		) {
 			Spacer(Modifier.height(16.dp))
 			if (mixPage) {
-				MixPage(song, mixes, online, colors, contentPadding, onBack = { mixPage = false })
+				MixPage(song, mixes, online, colors, onBack = { mixPage = false })
 				return@ModalBottomSheet
 			}
 
@@ -369,101 +366,73 @@ fun SongSheet(
 			)
 
 			Column(Modifier.verticalScroll(rememberScrollState())) {
-				if (onRemoveFromPlaylist != null && (collection as? DomainPlaylist)?.songsEditableBy(sessionManager.username) == true) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_remove_from_playlist)) },
-						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
-						onClick = {
+				SheetRows(listOfNotNull(
+					if (onRemoveFromPlaylist != null && (collection as? DomainPlaylist)?.songsEditableBy(sessionManager.username) == true) SheetRow(
+						stringResource(Res.string.action_remove_from_playlist),
+						Icons.Outlined.PlaylistRemove,
+						{
 							onRemoveFromPlaylist()
 							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
+						}
+					) else null,
+					onRemoveFromQueue?.let { removeFromQueue ->
+						SheetRow(
+							stringResource(Res.string.action_remove_from_queue),
+							Icons.Outlined.PlaylistRemove,
+							{
+								removeFromQueue()
+								onDismissRequest()
+							}
+						)
+					}
+				))
+
+				SheetRows(listOfNotNull(
+					onViewAlbum?.let { viewAlbum ->
+						SheetRow(
+							stringResource(Res.string.action_view_album),
+							Icons.Outlined.Album,
+							{
+								onDismissRequest()
+								viewAlbum()
+							}
+						)
+					},
+					SheetRow(
+						stringResource(Res.string.action_view_artist),
+						Icons.Outlined.Artist,
+						{ viewArtist(song.artistId) }
 					)
-				}
+				))
 
-				if (onRemoveFromQueue != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_remove_from_queue)) },
-						leadingContent = { Icon(Icons.Outlined.PlaylistRemove, null) },
-						onClick = {
-							onRemoveFromQueue()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				if (onViewAlbum != null) {
-					ListItem(
-						content = { Text(stringResource(Res.string.action_view_album)) },
-						leadingContent = { Icon(Icons.Outlined.Album, null) },
-						onClick = {
-							onDismissRequest()
-							onViewAlbum()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				ListItem(
-					content = { Text(stringResource(Res.string.action_view_artist)) },
-					leadingContent = { Icon(Icons.Outlined.Artist, null) },
-					onClick = { viewArtist(song.artistId) },
-					colors = colors,
-					contentPadding = contentPadding
-				)
-
-				if (onAddToPlaylist != null) {
-					ListItem(
-						content = {
-							Text(
-								stringResource(
-									if (collection != null && collection !is DomainAlbum)
-										Res.string.action_add_to_another_playlist
-									else Res.string.action_add_to_playlist
-								)
-							)
-						},
-						leadingContent = { Icon(Icons.Outlined.PlaylistAdd, null) },
-						onClick = {
-							onAddToPlaylist()
-							onDismissRequest()
-						},
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				// one plain row while instant mix is the only kind, a sub-page once there are more
-				if (mixes.size == 1) {
-					val mix = mixes.single()
-					ListItem(
-						content = { Text(mix.label) },
-						leadingContent = { Icon(mix.icon, null) },
-						onClick = mix.onClick,
+				SheetRows(listOfNotNull(
+					onAddToPlaylist?.let { addToPlaylist ->
+						SheetRow(
+							stringResource(
+								if (collection != null && collection !is DomainAlbum)
+									Res.string.action_add_to_another_playlist
+								else Res.string.action_add_to_playlist
+							),
+							Icons.Outlined.PlaylistAdd,
+							{
+								addToPlaylist()
+								onDismissRequest()
+							}
+						)
+					},
+					// one plain row while instant mix is the only kind, a sub-page once there are more
+					if (mixes.size == 1) mixes.single().let { mix ->
+						SheetRow(mix.label, mix.icon, mix.onClick, enabled = online)
+					} else SheetRow(
+						stringResource(Res.string.title_make_a_mix),
+						Icons.Outlined.InstantMix,
+						{ mixPage = true },
 						enabled = online,
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				} else {
-					ListItem(
-						content = { Text(stringResource(Res.string.title_make_a_mix)) },
-						supportingContent = {
-							Text(mixes.joinToString { it.label }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-						},
-						leadingContent = { Icon(Icons.Outlined.InstantMix, null) },
-						trailingContent = { Icon(Icons.Outlined.ChevronForward, null) },
-						onClick = { mixPage = true },
-						enabled = online,
-						colors = colors,
-						contentPadding = contentPadding
-					)
-				}
-
-				SpeedDialPinItem(HomeRepository.keyOf(song), colors, contentPadding, onDismissRequest)
+						supporting = mixes.joinToString { it.label },
+						opensPage = true
+					),
+					speedDialPinRow(HomeRepository.keyOf(song), onDismissRequest)
+				))
 
 				if (showSleepTimer || showShuffleRepeat || showPlaybackSpeed) {
 					val shuffle = playerState.isShuffleEnabled
@@ -543,7 +512,6 @@ private fun MixPage(
 	mixes: List<MixOption>,
 	enabled: Boolean,
 	colors: ListItemColors,
-	contentPadding: PaddingValues,
 	onBack: () -> Unit
 ) {
 	ListItem(
@@ -564,17 +532,7 @@ private fun MixPage(
 		colors = colors
 	)
 	Column(Modifier.verticalScroll(rememberScrollState())) {
-		mixes.forEach { mix ->
-			ListItem(
-				content = { Text(mix.label) },
-				supportingContent = { Text(mix.description) },
-				leadingContent = { Icon(mix.icon, null) },
-				onClick = mix.onClick,
-				enabled = enabled,
-				colors = colors,
-				contentPadding = contentPadding
-			)
-		}
+		SheetRows(mixes.map { SheetRow(it.label, it.icon, it.onClick, enabled = enabled, supporting = it.description) })
 	}
 }
 
