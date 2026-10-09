@@ -17,16 +17,18 @@ This file gives an agent (or any new contributor) everything needed to navigate 
   git fetch && git worktree add ../loak-<slug> -b feat/<slug>
   cd ../loak-<slug>     # work, build and commit here
   ```
-  A worktree is a full checkout sharing the main repo's `.git`, so commit/amend/rebase/push behave exactly as in the main checkout. Keep the main checkout clean; don't do change work there. When your changes land, prune it: `git worktree remove ../loak-<slug>`.
-- **Concurrency rules:** each agent owns exactly one worktree at a time; never edit another agent's worktree, and never work directly in the main checkout while other agents are active. Commits remain one-per-conceptual-change (co-co, co-author trailer, no fixups) — `git commit --amend` / `git rebase -i` still fold corrections. Coordinate merges with the human before pushing. Disk cost: each worktree carries its own Gradle `build/` output on top of the already-heavy build (~50 GB free disk needed), so keep worktrees few and remove them once merged.
-- Ask before creating branches. Never push unless explicitly authorized.
+  A worktree is a full checkout sharing the main repo's `.git`, so commit/amend/rebase/push behave exactly as in the main checkout. Keep the main checkout clean; don't do change work there.
+  - While worktrees require a branch, **always merge changes into `main` as soon as possible** (unless the user explicitly requested to work on a branch), even multiple times mid-task whenever pausing or stopping to ask the user for feedback. This does **not** imply "commit as soon as possible": commit rules still strictly apply (one conceptual change per commit, no fixup commits — fold corrections into the relevant commit with `git commit --amend` or `git rebase -i` before merging).
+  - When your changes land, prune the worktree: `git worktree remove ../loak-<slug>`.
+- **Concurrency rules:** each agent owns exactly one worktree at a time; never edit another agent's worktree, and never work directly in the main checkout while other agents are active. Commits remain one-per-conceptual-change (co-co, co-author trailer, no fixups) — `git commit --amend` / `git rebase -i` still fold corrections. Disk cost: each worktree carries its own Gradle `build/` output on top of the already-heavy build (~50 GB free disk needed), so keep worktrees few and remove them once merged.
+- In general, the permission request rule for branches does not apply to ephemeral branches created to use worktrees. Ask before creating persistent or standalone branches. Never push unless explicitly authorized.
 
 ## What is this project?
 
 **Lo'ak** (official name, with the apostrophe) is a **fork of Navic** — a modern **(Open)Subsonic music streaming app for Android and iOS**: streaming, offline downloads/scrobbling, radio stations, lyrics (multiple providers + word-by-word), equaliser/ReplayGain/transcoding, home-screen widgets, sharing, and Android Auto support. The app was forked from Navic and released as Lo'ak; upstream contribution policies (e.g. the old "no LLM-assisted contributions" rule) do **not** apply here.
 
 - Kotlin Multiplatform (KMP) + **Compose Multiplatform** — one shared codebase for Android + iOS UI and logic.
-- Kotlin package / application id: **`eu.depau.loak`**; default branch: `master`.
+- Kotlin package / application id: **`eu.depau.loak`**; default branch: `main`.
 - The Gradle root project is `LoakMusic` (`settings.gradle.kts`) — "Lo'ak" can't be a Gradle project name (apostrophe breaks the type-safe accessors, and "Loak" would collide with the `:loak` module's accessor).
 - Current version: `v1.0.0-alpha58` (`versionCode 58`), GPL-3.0 licensed.
 
