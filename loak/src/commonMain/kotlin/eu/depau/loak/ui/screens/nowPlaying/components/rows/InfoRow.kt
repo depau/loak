@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.buildAnnotatedString
@@ -18,11 +16,9 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.info_not_playing
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainSong
-import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.nowPlaying.components.controls.NowPlayingMoreButton
@@ -37,8 +33,6 @@ fun NowPlayingInfoRow(
 	onSetSongIsStarred: (Boolean) -> Unit
 ) {
 	val backStack = LocalNavStack.current
-	val player = koinInject<MediaPlayerViewModel>()
-	val playerState by player.uiState.collectAsState()
 	Row(
 		modifier = Modifier
 			.padding(horizontal = 16.dp)
@@ -58,25 +52,12 @@ fun NowPlayingInfoRow(
 					},
 					inlineContent = InlineExplicitIconLarge,
 					modifier = Modifier.clickable(onClick = dropUnlessResumed {
-						song.albumId?.let {
-							backStack.removeLastOrNull()
-
-							val lastScreen = backStack.lastOrNull()
-
-							val isSameAlbum = if (lastScreen is Screen.CollectionDetail) {
-								lastScreen.collectionId == song.albumId
-							} else {
-								false
-							}
-
-							if (!isSameAlbum)
-								backStack.add(
-									Screen.CollectionDetail(
-										playerState.currentCollection?.id
-											?: return@dropUnlessResumed,
-										""
-									)
-								)
+						song.albumId?.let { albumId ->
+							backStack.remove(Screen.NowPlaying)
+							val albumIsAlreadyVisible =
+								(backStack.lastOrNull() as? Screen.CollectionDetail)?.collectionId == albumId
+							if (!albumIsAlreadyVisible)
+								backStack.add(Screen.CollectionDetail(albumId, ""))
 						}
 					}),
 					style = MaterialTheme.typography.bodyLarge

@@ -266,9 +266,9 @@
 	<string name="action_share">Share</string>
 	<string name="action_save">Save</string>
 	<string name="action_track_info">View track info</string>
-	<string name="action_view_album">View album</string>
+	<string name="action_view_album">Go to album</string>
 	<string name="action_view_playlist">View playlist</string>
-	<string name="action_view_artist">View artist</string>
+	<string name="action_view_artist">Go to artist</string>
 	<string name="action_star">Star</string>
 	<string name="action_remove_star">Unstar</string>
 	<string name="action_download">Download</string>
