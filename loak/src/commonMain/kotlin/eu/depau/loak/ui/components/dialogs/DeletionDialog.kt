@@ -25,6 +25,7 @@ import eu.depau.loak.generated.resources.action_delete
 import eu.depau.loak.generated.resources.info_action_is_permanent
 import eu.depau.loak.generated.resources.info_error
 import eu.depau.loak.generated.resources.notice_deleted_playlist
+import eu.depau.loak.domain.models.snackbarName
 import eu.depau.loak.generated.resources.notice_deleted_share
 import eu.depau.loak.generated.resources.title_delete_playlist
 import eu.depau.loak.generated.resources.title_delete_share
@@ -96,6 +97,7 @@ class DeletionViewModel(
 			onRefresh()
 			snackBarManager.notifyWithDeferredCommit(
 				Res.string.notice_deleted_playlist,
+				snackbarName(deleted?.playlist?.name),
 				onUndo = {
 					syncManager.cancel(actionId)
 					// put it back as it was (works offline too)

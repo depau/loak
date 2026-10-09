@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_download_started
 import eu.depau.loak.generated.resources.notice_removed_from_playlist
+import eu.depau.loak.domain.models.snackbarName
 import eu.depau.loak.generated.resources.notice_playlist_reordered
 import kotlin.time.Duration
 import eu.depau.loak.data.database.entities.DownloadStatus
@@ -184,6 +185,7 @@ class CollectionDetailViewModel(
 			val actionId = playlistRepository.removeSong(before.id, index) ?: return@launch
 			snackBarManager.notifyWithDeferredCommit(
 				Res.string.notice_removed_from_playlist,
+				snackbarName(before.name),
 				onUndo = {
 					playlistRepository.undoRemove(actionId, before.id, index, song.id)
 					collectionState.value = UiState.Success(before)

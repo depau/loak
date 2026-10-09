@@ -376,11 +376,11 @@
 	<string name="action_scroll_down">Scroll down</string>
 	<string name="subtitle_rebuild_database">Wipes the local copy of your library and syncs it again</string>
 
-	<string name="notice_deleted_playlist">Playlist deleted.</string>
+	<string name="notice_deleted_playlist">Playlist %1$s deleted.</string>
 	<string name="notice_deleted_share">Share deleted.</string>
 	<string name="notice_created_playlist">Playlist %1$s created.</string>
 	<string name="notice_deleted_download">Download deleted.</string>
-	<string name="notice_removed_from_playlist">Removed from playlist.</string>
+	<string name="notice_removed_from_playlist">Removed from %1$s.</string>
 	<string name="notice_playlist_changed_on_server">Playlist “%1$s” changed on the server; your offline edits were applied on top.</string>
 	<string name="notice_offline_change_dropped">An offline change couldn’t be applied on the server and was dropped.</string>
 	<string name="notice_created_radio">Internet radio %1$s added.</string>

@@ -60,3 +60,8 @@ fun parsePlaylistName(raw: String?, smart: Boolean, audioMuse: Boolean, radios: 
 	}
 	return PlaylistName(name, PlaylistKind.Regular)
 }
+
+/** A playlist's name for snackbars, without AudioMuse-AI's markers. */
+// ponytail: assumes AudioMuse-AI naming even when it's off, so a playlist literally named
+// "x_instant" shows as "x"; pass the user's setting if that ever matters
+fun snackbarName(raw: String?): String = parsePlaylistName(raw, smart = false, audioMuse = true).display
