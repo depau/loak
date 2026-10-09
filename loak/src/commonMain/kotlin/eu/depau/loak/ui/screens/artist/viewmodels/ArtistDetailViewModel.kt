@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.dao.ArtistDao
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.mappers.toDomainModel
@@ -50,7 +49,6 @@ class ArtistDetailViewModel(
 	private val songRepository: SongRepository,
 	private val albumRepository: AlbumRepository,
 	private val artistDao: ArtistDao,
-	private val albumDao: AlbumDao,
 	private val downloadManager: DownloadManager,
 	private val snackBarManager: SnackBarManager,
 	connectivityManager: ConnectivityManager
@@ -92,19 +90,9 @@ class ArtistDetailViewModel(
 					?: throw ArtistNotFoundException()
 				val domainArtist = artistEntity.toDomainModel()
 
-				var albumsWithSongs =
-					albumDao.getAlbumsByArtist(artistId).firstOrNull() ?: emptyList()
+				val domainAlbums = artistRepository.getAlbums(domainArtist)
 
-				if (albumsWithSongs.isEmpty()) {
-					albumsWithSongs =
-						albumDao.getAlbumsByArtistName(domainArtist.name).firstOrNull()
-							?: emptyList()
-				}
-
-				val domainAlbums = albumsWithSongs.map { it.toDomainModel() }
-
-				val domainSongs = albumsWithSongs.flatMap { it.songs }
-					.map { it.toDomainModel() }
+				val domainSongs = domainAlbums.flatMap { it.songs }
 					.sortedByDescending { it.playCount }
 					.take(12)
 

@@ -7,14 +7,17 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.dao.ArtistDao
 import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.data.database.mappers.toEntity
 import eu.depau.loak.domain.manager.SyncManager
+import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainFilter
@@ -23,6 +26,7 @@ import kotlin.time.Clock
 
 class ArtistRepository(
 	private val artistDao: ArtistDao,
+	private val albumDao: AlbumDao,
 	private val songDao: SongDao,
 	private val audioStore: AudioStore,
 	private val syncManager: SyncManager,
@@ -77,6 +81,12 @@ class ArtistRepository(
 			emit(UiState.Success(data = localData))
 		}
 	}.flowOn(IoDispatcher)
+
+	/** The artist's albums with their songs, newest first; by name where the ids don't match. */
+	suspend fun getAlbums(artist: DomainArtist): List<DomainAlbum> =
+		(albumDao.getAlbumsByArtist(artist.id).firstOrNull().orEmpty()
+			.ifEmpty { albumDao.getAlbumsByArtistName(artist.name).firstOrNull().orEmpty() })
+			.map { it.toDomainModel() }
 
 	suspend fun isArtistStarred(artist: DomainArtist) = artistDao.isArtistStarred(artist.id)
 

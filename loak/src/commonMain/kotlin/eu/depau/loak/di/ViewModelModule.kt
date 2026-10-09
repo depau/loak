@@ -62,7 +62,6 @@ val viewModelModule = module {
 			songRepository = get(),
 			albumRepository = get(),
 			artistDao = get(),
-			albumDao = get(),
 			downloadManager = get(),
 			snackBarManager = get(),
 			connectivityManager = get()

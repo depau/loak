@@ -33,7 +33,19 @@ import eu.depau.loak.generated.resources.count_albums
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import eu.depau.loak.data.database.entities.DownloadStatus
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import eu.depau.loak.domain.manager.DownloadManager
+import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.models.DomainAlbum
+import eu.depau.loak.domain.repositories.ArtistRepository
+import eu.depau.loak.generated.resources.info_bulk_download_warning
+import eu.depau.loak.generated.resources.notice_deleted_download
+import eu.depau.loak.generated.resources.notice_download_started
+import eu.depau.loak.generated.resources.title_bulk_download
+import eu.depau.loak.ui.components.dialogs.BulkDownloadDialog
+import kotlinx.coroutines.flow.flowOf
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.icons.Icons
@@ -59,12 +71,18 @@ fun ArtistSheet(
 	onAddAllToPlaylist: (() -> Unit)? = null,
 	starred: Boolean? = null,
 	onSetStarred: ((Boolean) -> Unit)? = null,
-	downloadStatus: DownloadStatus? = null,
-	onDownloadAll: (() -> Unit)? = null,
-	onCancelDownloadAll: (() -> Unit)? = null,
-	onDeleteDownloadAll: (() -> Unit)? = null,
 ) {
 	val player = koinInject<MediaPlayerViewModel>()
+	val downloadManager = koinInject<DownloadManager>()
+	val snackBarManager = koinInject<SnackBarManager>()
+	val artistRepository = koinInject<ArtistRepository>()
+	// downloading an artist is downloading each of their albums, like on the artist's page
+	val albums by produceState(emptyList<DomainAlbum>(), artist.id) { value = artistRepository.getAlbums(artist) }
+	val downloadStatus by remember(albums) {
+		val songIds = albums.flatMap { album -> album.songs.map { it.id } }
+		if (songIds.isEmpty()) flowOf(null) else downloadManager.getCollectionDownloadStatus(songIds)
+	}.collectAsState(null)
+	var confirmDownload by rememberSaveable { mutableStateOf(false) }
 	val colors = ListItemDefaults.colors(
 		containerColor = Color.Transparent,
 		trailingIconColor = MaterialTheme.colorScheme.onSurface,
@@ -75,7 +93,8 @@ fun ArtistSheet(
 	val online = LocalAvailability.current.online
 	val playable = LocalAvailability.current.collection(artist.id)
 
-	ModalBottomSheet(
+	// the download confirmation replaces the sheet rather than stacking on top
+	if (!confirmDownload) ModalBottomSheet(
 		onDismissRequest = onDismissRequest,
 		menuOnWideWindows = true,
 		contentWindowInsets = {
@@ -134,10 +153,19 @@ fun ArtistSheet(
 				) else null,
 				downloadAction(
 					downloadStatus,
-					onDownload = onDownloadAll,
-					onCancel = onCancelDownloadAll,
-					onDelete = onDeleteDownloadAll,
-					onDismissRequest = onDismissRequest
+					onDownload = { confirmDownload = true },
+					onCancel = {
+						albums.forEach { downloadManager.cancelCollectionDownload(it) }
+						onDismissRequest()
+					},
+					onDelete = {
+						albums.forEach { downloadManager.deleteDownloadedCollection(it) }
+						snackBarManager.notify(Res.string.notice_deleted_download)
+						onDismissRequest()
+					},
+					// the confirmation decides when to close
+					onDismissRequest = {},
+					enabled = albums.isNotEmpty()
 				)
 			)
 		)
@@ -169,6 +197,17 @@ fun ArtistSheet(
 			)
 		}
 	}
+
+	BulkDownloadDialog(
+		title = stringResource(Res.string.title_bulk_download),
+		message = stringResource(Res.string.info_bulk_download_warning, artist.name),
+		showDialog = confirmDownload,
+		onDismissRequest = onDismissRequest,
+		onConfirm = {
+			downloadManager.downloadCollections(albums)
+			snackBarManager.notify(Res.string.notice_download_started)
+		}
+	)
 
 	if (linkToOpen != null) {
 		LinkConfirmationDialog(

@@ -242,6 +242,11 @@ class DownloadManager(
 		downloadCollection(collection, collection.collectionType())
 	}
 
+	/** [downloadCollection] for each of [collections], carried on after the caller is gone. */
+	fun downloadCollections(collections: List<DomainSongCollection>) {
+		scope.launch { collections.forEach { downloadCollection(it) } }
+	}
+
 	/**
 	 * Pins every song of [collection] and records the collection itself as downloaded, so the
 	 * Downloads screen lists it and it keeps re-syncing on [onLibrarySynced].
