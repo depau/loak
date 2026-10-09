@@ -49,7 +49,7 @@ fun <Choice> SettingsChoiceItem(
 			Text(buildString {
 				append(label(selectedChoice))
 				description?.let { description ->
-					append(" // $description")
+					append(" · $description")
 				}
 			})
 		}
