@@ -181,6 +181,14 @@ class PlaylistRepository(
 		enqueue(SyncActionType.UPDATE_PLAYLIST, id, edit)
 	}
 
+	/** Updates the playlist's song order and queues a reorder sync action. */
+	suspend fun reorder(playlistId: String, newOrder: List<DomainSong>) {
+		val id = syncManager.playlistId(playlistId)
+		val songIds = newOrder.map { it.id }
+		setSongs(id, songIds)
+		enqueue(SyncActionType.REORDER_PLAYLIST, id, PlaylistEdit(songIds))
+	}
+
 	private suspend fun enqueue(type: SyncActionType, playlistId: String, edit: PlaylistEdit) =
 		syncManager.enqueue(
 			SyncActionEntity(

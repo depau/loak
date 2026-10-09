@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_download_started
 import eu.depau.loak.generated.resources.notice_removed_from_playlist
+import eu.depau.loak.generated.resources.notice_playlist_reordered
+import kotlin.time.Duration
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.manager.ConnectivityManager
@@ -188,6 +190,21 @@ class CollectionDetailViewModel(
 				},
 				commit = { syncManager.release(actionId) }
 			)
+		}
+	}
+
+	fun reorderPlaylist(newOrder: List<DomainSong>) {
+		val before = collectionState.value.data as? DomainPlaylist ?: return
+		collectionState.value = UiState.Success(
+			before.copy(
+				songs = newOrder,
+				songCount = newOrder.size,
+				duration = newOrder.fold(Duration.ZERO) { sum, it -> sum + it.duration }
+			)
+		)
+		viewModelScope.launch {
+			playlistRepository.reorder(before.id, newOrder)
+			snackBarManager.notify(Res.string.notice_playlist_reordered)
 		}
 	}
 

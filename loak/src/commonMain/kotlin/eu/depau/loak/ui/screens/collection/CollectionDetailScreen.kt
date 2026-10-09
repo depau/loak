@@ -13,6 +13,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.material3.Button
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import eu.depau.loak.icons.outlined.Close
+import eu.depau.loak.icons.outlined.DragHandle
+import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.layouts.NestedTopBar
+import eu.depau.loak.ui.components.layouts.TopBarButton
+import eu.depau.loak.ui.util.dragHandle
+import eu.depau.loak.ui.util.draggableItemsIndexed
+import eu.depau.loak.ui.util.rememberDraggableListState
+import eu.depau.loak.generated.resources.action_cancel
+import eu.depau.loak.generated.resources.action_save
+import eu.depau.loak.generated.resources.action_reorder
+import eu.depau.loak.generated.resources.title_reorder_playlist
+import eu.depau.loak.generated.resources.info_reorder_hint
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import eu.depau.loak.generated.resources.info_no_matching_tracks
@@ -112,6 +134,17 @@ fun CollectionDetailScreen(
 			if (isReversed) filtered.reversed() else filtered
 		}
 	}
+	var reordering by rememberSaveable { mutableStateOf(false) }
+	var reorderSongs by remember(reordering, collection?.songs) {
+		mutableStateOf((collection as? DomainPlaylist)?.songs.orEmpty())
+	}
+	val draggable = rememberDraggableListState(
+		onMove = { from, to ->
+			reorderSongs = reorderSongs.toMutableList().apply {
+				add(to, removeAt(from))
+			}
+		}
+	)
 
 	var shareId by remember { mutableStateOf<String?>(null) }
 	var editingRules by remember { mutableStateOf<SmartPlaylistDetails?>(null) }
@@ -156,26 +189,62 @@ fun CollectionDetailScreen(
 	LoakTheme(colorScheme) {
 		Scaffold(
 			topBar = {
-				CollectionDetailScreenTopBar(
-					albumInfoState = albumInfoState,
-					collection = collection,
-					titleAlpha = titleAlpha,
-					onSetShareId = { shareId = it },
-					onDownloadAll = { viewModel.downloadAll() },
-					onCancelDownloadAll = { viewModel.cancelDownloadAll() },
-					onPlayNext = { if (collection != null) player.playNext(collection) },
-					onAddToQueue = { if (collection != null) player.addToQueue(collection) },
-					downloadStatus = downloadStatus,
-					rating = if (collection !is DomainPlaylist) rating else null,
-					onSetRating = if (collection !is DomainPlaylist) {
-						{ viewModel.rateAlbum(it) }
-					} else null,
-					starred = if (collection !is DomainPlaylist) starred else null,
-					onSetStarred = if (collection !is DomainPlaylist) {
-						{ viewModel.starAlbum(it) }
-					} else null,
-					refreshCollection = { viewModel.refreshCollection(false) }
-				)
+				if (reordering && collection is DomainPlaylist) {
+					NestedTopBar(
+						navigationAction = {
+							TopBarButton(
+								modifier = Modifier.padding(start = 20.dp, end = 13.dp),
+								onClick = { reordering = false }
+							) {
+								Icon(
+									imageVector = Icons.Outlined.Close,
+									contentDescription = stringResource(Res.string.action_cancel)
+								)
+							}
+						},
+						title = {
+							Text(
+								text = stringResource(Res.string.title_reorder_playlist),
+								style = MaterialTheme.typography.titleMedium
+							)
+						},
+						actions = {
+							Button(
+								onClick = {
+									viewModel.reorderPlaylist(reorderSongs)
+									reordering = false
+								},
+								modifier = Modifier.padding(end = 8.dp)
+							) {
+								Text(stringResource(Res.string.action_save))
+							}
+						}
+					)
+				} else {
+					CollectionDetailScreenTopBar(
+						albumInfoState = albumInfoState,
+						collection = collection,
+						titleAlpha = titleAlpha,
+						onSetShareId = { shareId = it },
+						onDownloadAll = { viewModel.downloadAll() },
+						onCancelDownloadAll = { viewModel.cancelDownloadAll() },
+						onPlayNext = { if (collection != null) player.playNext(collection) },
+						onAddToQueue = { if (collection != null) player.addToQueue(collection) },
+						downloadStatus = downloadStatus,
+						rating = if (collection !is DomainPlaylist) rating else null,
+						onSetRating = if (collection !is DomainPlaylist) {
+							{ viewModel.rateAlbum(it) }
+						} else null,
+						starred = if (collection !is DomainPlaylist) starred else null,
+						onSetStarred = if (collection !is DomainPlaylist) {
+							{ viewModel.starAlbum(it) }
+						} else null,
+						refreshCollection = { viewModel.refreshCollection(false) },
+						onReorderPlaylist = if (collection is DomainPlaylist) {
+							{ reordering = true }
+						} else null
+					)
+				}
 			},
 			bottomBar = {
 				val scrollManager = LocalBottomBarScrollManager.current
@@ -186,8 +255,8 @@ fun CollectionDetailScreen(
 				modifier = Modifier
 					.padding(top = contentPadding.calculateTopPadding())
 					.background(MaterialTheme.colorScheme.surface),
-				finished = collectionState !is UiState.Loading,
-				onRefresh = { viewModel.refreshCollection(true) },
+				finished = reordering || collectionState !is UiState.Loading,
+				onRefresh = { if (!reordering) viewModel.refreshCollection(true) },
 				key = collectionState
 			) {
 				Row {
@@ -243,7 +312,7 @@ fun CollectionDetailScreen(
 							return@LazyColumn
 						}
 
-						if (!expanded) {
+						if (!expanded && !reordering) {
 							item {
 								CollectionDetailScreenHeadingRow(
 									collection = collection,
@@ -340,6 +409,69 @@ fun CollectionDetailScreen(
 									}
 								}
 							}
+						} else if (reordering && collection is DomainPlaylist) {
+							item {
+								Surface(
+									shape = MaterialTheme.shapes.medium,
+									color = MaterialTheme.colorScheme.surfaceContainer,
+									modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+								) {
+									Text(
+										text = stringResource(Res.string.info_reorder_hint),
+										modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+										style = MaterialTheme.typography.bodyMedium,
+										color = MaterialTheme.colorScheme.onSurfaceVariant
+									)
+								}
+							}
+							draggableItemsIndexed(
+								state = draggable,
+								items = reorderSongs,
+								key = { index, song -> "${song.id}_$index" }
+							) { index, song, isDragging ->
+								val elevation by animateDpAsState(if (isDragging) 6.dp else 0.dp)
+								Surface(
+									shape = MaterialTheme.shapes.medium,
+									shadowElevation = elevation,
+									color = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface,
+									modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp)
+								) {
+									ListItem(
+										colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+										leadingContent = {
+											CoverArt(
+												modifier = Modifier.size(44.dp),
+												coverArtId = song.coverArtId,
+												shape = MaterialTheme.shapes.small
+											)
+										},
+										headlineContent = {
+											Text(
+												text = song.title,
+												maxLines = 1,
+												overflow = TextOverflow.Ellipsis
+											)
+										},
+										supportingContent = song.artistName?.let {
+											{ Text(text = it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+										},
+										trailingContent = {
+											IconButton(
+												onClick = {},
+												modifier = Modifier.dragHandle(
+													state = draggable,
+													key = "${song.id}_$index"
+												)
+											) {
+												Icon(
+													imageVector = Icons.Outlined.DragHandle,
+													contentDescription = stringResource(Res.string.action_reorder)
+												)
+											}
+										}
+									)
+								}
+							}
 						} else {
 							val playlistSongs = collection.songs
 							if (playlistSongs.isNotEmpty()) {
@@ -399,7 +531,7 @@ fun CollectionDetailScreen(
 								)
 							}
 						}
-						item { CollectionDetailScreenFooterRow(collection) }
+						if (!reordering) item { CollectionDetailScreenFooterRow(collection) }
 
 						(collection as? DomainAlbum)?.artistName?.let { artistName ->
 							collectionDetailScreenMoreByArtistRow(

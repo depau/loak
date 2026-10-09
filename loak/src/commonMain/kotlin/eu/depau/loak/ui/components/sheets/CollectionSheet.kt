@@ -68,6 +68,8 @@ import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.ui.screens.playlist.dialogs.EditPlaylistSheet
 import eu.depau.loak.generated.resources.action_edit_playlist
+import eu.depau.loak.generated.resources.action_reorder_playlist
+import eu.depau.loak.icons.outlined.DragHandle
 import eu.depau.loak.icons.outlined.Edit
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.InstantMix
@@ -103,7 +105,8 @@ fun CollectionSheet(
 	onSetStarred: ((Boolean) -> Unit)? = null,
 	onDelete: (() -> Unit)? = null,
 	rating: Int? = null,
-	onSetRating: ((Int) -> Unit)? = null
+	onSetRating: ((Int) -> Unit)? = null,
+	onReorderPlaylist: (() -> Unit)? = null,
 ) {
 	val preferenceManager = koinInject<PreferenceManager>()
 	val sessionManager = koinInject<SessionManager>()
@@ -279,6 +282,18 @@ fun CollectionSheet(
 			}
 
 			if (editablePlaylist != null) {
+				if (onReorderPlaylist != null) {
+					ListItem(
+						content = { Text(stringResource(Res.string.action_reorder_playlist)) },
+						leadingContent = { Icon(Icons.Outlined.DragHandle, null) },
+						onClick = {
+							onDismissRequest()
+							onReorderPlaylist()
+						},
+						colors = colors,
+						contentPadding = contentPadding
+					)
+				}
 				ListItem(
 					content = { Text(stringResource(Res.string.action_edit_playlist)) },
 					leadingContent = { Icon(Icons.Outlined.Edit, null) },

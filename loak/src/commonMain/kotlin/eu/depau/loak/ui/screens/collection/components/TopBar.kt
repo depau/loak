@@ -47,7 +47,8 @@ fun CollectionDetailScreenTopBar(
 	onSetRating: ((Int) -> Unit)?,
 	starred: Boolean?,
 	onSetStarred: ((Boolean) -> Unit)? = null,
-	refreshCollection: () -> Unit
+	refreshCollection: () -> Unit,
+	onReorderPlaylist: (() -> Unit)? = null
 ) {
 	var playlistDialogShown by rememberSaveable { mutableStateOf(false) }
 	val backStack = LocalNavStack.current
@@ -94,7 +95,8 @@ fun CollectionDetailScreenTopBar(
 						starred = starred,
 						onSetStarred = if (onSetStarred != null && starred != null) {
 							{ onSetStarred(!starred) }
-						} else null
+						} else null,
+						onReorderPlaylist = onReorderPlaylist,
 					)
 				}
 			}

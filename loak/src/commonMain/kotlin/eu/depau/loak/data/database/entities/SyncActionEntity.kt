@@ -20,7 +20,7 @@ enum class SyncActionType {
 	STAR_0, STAR_1, STAR_2, STAR_3, STAR_4, STAR_5,
 
 	/** With a [PlaylistEdit] payload; itemId is the playlist id (`local:…` until created). */
-	ADD_TO_PLAYLIST, CREATE_PLAYLIST, UPDATE_PLAYLIST
+	ADD_TO_PLAYLIST, CREATE_PLAYLIST, UPDATE_PLAYLIST, REORDER_PLAYLIST
 }
 
 @Entity

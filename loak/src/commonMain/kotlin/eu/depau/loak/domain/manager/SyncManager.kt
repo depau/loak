@@ -260,7 +260,8 @@ class SyncManager(
 					SyncActionType.REMOVE_FROM_PLAYLIST,
 					SyncActionType.ADD_TO_PLAYLIST,
 					SyncActionType.CREATE_PLAYLIST,
-					SyncActionType.UPDATE_PLAYLIST -> replayPlaylistEdit(action, touched)
+					SyncActionType.UPDATE_PLAYLIST,
+					SyncActionType.REORDER_PLAYLIST -> replayPlaylistEdit(action, touched)
 					SyncActionType.SCROBBLE -> sessionManager.api.scrobble(
 						action.itemId,
 						submission = true,
@@ -332,6 +333,17 @@ class SyncManager(
 				serverIndexOf(serverSongs, edit.songIds.single(), edit.occurrence)?.let {
 					api.updatePlaylist(id, songIndicesToRemove = listOf(it))
 				}
+			SyncActionType.REORDER_PLAYLIST -> {
+				if (serverSongs.isNotEmpty()) {
+					api.updatePlaylist(
+						id,
+						songIndicesToRemove = serverSongs.indices.toList(),
+						songIdsToAdd = edit.songIds
+					)
+				} else if (edit.songIds.isNotEmpty()) {
+					api.updatePlaylist(id, songIdsToAdd = edit.songIds)
+				}
+			}
 			else -> api.updatePlaylist(
 				id, name = edit.name, comment = edit.comment, public = edit.public
 			)

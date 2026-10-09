@@ -405,6 +405,7 @@
 	<string name="info_no_matching_tracks">No matching tracks</string>
 	<string name="action_reorder_playlist">Reorder playlist</string>
 	<string name="title_reorder_playlist">Reorder playlist</string>
+	<string name="info_reorder_hint">Drag handles to reorder tracks. Tap Save to apply.</string>
 	<string name="notice_playlist_reordered">Playlist order saved.</string>
 	<string name="action_sort_direction">Sort direction</string>
 	<string name="action_new_playlist">New playlist</string>
