@@ -51,12 +51,12 @@ import eu.depau.loak.ui.theme.defaultFont
 fun SearchScreenTopBar(
 	query: TextFieldState,
 	nested: Boolean,
-	onSearch: (String) -> Unit
+	onSearch: (String) -> Unit,
+	focusRequester: FocusRequester = remember { FocusRequester() }
 ) {
 	val backStack = LocalNavStack.current
 
 	val focusManager = LocalFocusManager.current
-	val focusRequester = remember { FocusRequester() }
 
 	LaunchedEffect(Unit) {
 		focusRequester.requestFocus()
