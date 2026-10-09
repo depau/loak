@@ -413,6 +413,8 @@
 	<string name="title_recent">Recent</string>
 	<string name="title_edit_playlist">Edit playlist</string>
 	<string name="action_edit_playlist">Edit playlist</string>
+	<string name="info_edit_playlist">Name, description, visibility</string>
+	<string name="info_edit_playlist_delete">Name, description, visibility, delete</string>
 	<string name="label_name">Name</string>
 	<string name="label_description">Description</string>
 	<string name="option_playlist_public">Public</string>

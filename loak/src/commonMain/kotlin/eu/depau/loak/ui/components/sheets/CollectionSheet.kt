@@ -44,7 +44,6 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_playlist
 import eu.depau.loak.generated.resources.action_add_to_queue
 import eu.depau.loak.generated.resources.action_instant_mix
-import eu.depau.loak.generated.resources.action_delete
 import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_star
 import eu.depau.loak.generated.resources.action_share
@@ -65,13 +64,14 @@ import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.ui.screens.playlist.dialogs.EditPlaylistSheet
 import eu.depau.loak.generated.resources.action_edit_playlist
+import eu.depau.loak.generated.resources.info_edit_playlist
+import eu.depau.loak.generated.resources.info_edit_playlist_delete
 import eu.depau.loak.generated.resources.action_reorder_playlist
 import eu.depau.loak.icons.outlined.DragHandle
 import eu.depau.loak.icons.outlined.Edit
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.PlaylistAdd
-import eu.depau.loak.icons.outlined.PlaylistRemove
 import eu.depau.loak.icons.outlined.Queue
 import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.icons.outlined.Share
@@ -273,21 +273,16 @@ fun CollectionSheet(
 				if (editablePlaylist != null) SheetRow(
 					stringResource(Res.string.action_edit_playlist),
 					Icons.Outlined.Edit,
-					{ editing = true }
+					{ editing = true },
+					supporting = stringResource(
+						if (onDelete != null) Res.string.info_edit_playlist_delete else Res.string.info_edit_playlist
+					),
+					opensPage = true
 				) else null,
 				if (collection is DomainPlaylist) SheetRow(
 					stringResource(Res.string.action_make_a_copy),
 					Icons.Outlined.Copy,
 					{ copying = true }
-				) else null,
-				// only the owner can delete it; the server refuses anyone else
-				if (onDelete != null && (collection !is DomainPlaylist || collection.owner == sessionManager.username)) SheetRow(
-					stringResource(Res.string.action_delete),
-					Icons.Outlined.PlaylistRemove,
-					{
-						onDelete()
-						onDismissRequest()
-					}
 				) else null
 			))
 
@@ -302,6 +297,8 @@ fun CollectionSheet(
 	if (editing && editablePlaylist != null) {
 		EditPlaylistSheet(
 			playlist = editablePlaylist,
+			// only the owner can delete it, and only they can edit it
+			onDelete = onDelete,
 			onDismissRequest = {
 				editing = false
 				onDismissRequest()

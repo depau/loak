@@ -6,11 +6,13 @@ import eu.depau.loak.ui.components.common.displayName
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel
+import eu.depau.loak.generated.resources.action_delete
 import eu.depau.loak.generated.resources.action_save
 import eu.depau.loak.generated.resources.info_playlist_public
 import eu.depau.loak.generated.resources.label_description
@@ -45,13 +48,17 @@ import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.repositories.PlaylistRepository
 import eu.depau.loak.util.Logger
 
-/** Name, description and visibility of a playlist the user owns. [onSaved] runs after a save. */
+/**
+ * Name, description and visibility of a playlist the user owns. [onSaved] runs after a save;
+ * [onDelete], when given, adds a Delete button that hands the deletion (and its confirmation) back.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPlaylistSheet(
 	playlist: DomainPlaylist,
 	onDismissRequest: () -> Unit,
-	onSaved: () -> Unit = {}
+	onSaved: () -> Unit = {},
+	onDelete: (() -> Unit)? = null
 ) {
 	val playlistRepository = koinInject<PlaylistRepository>()
 	val snackBarManager = koinInject<SnackBarManager>()
@@ -104,6 +111,16 @@ fun EditPlaylistSheet(
 				modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
 				horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End)
 			) {
+				if (onDelete != null) {
+					TextButton(
+						onClick = {
+							onDismissRequest()
+							onDelete()
+						},
+						colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+					) { Text(stringResource(Res.string.action_delete)) }
+					Spacer(Modifier.weight(1f))
+				}
 				TextButton(onClick = onDismissRequest) { Text(stringResource(Res.string.action_cancel)) }
 				Button(
 					onClick = {
