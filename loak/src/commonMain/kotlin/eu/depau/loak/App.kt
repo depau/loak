@@ -40,6 +40,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusTarget
+import androidx.compose.ui.focus.onFocusChanged
 import eu.depau.loak.ui.screens.queue.QueuePane
 import eu.depau.loak.di.isExpanded
 import eu.depau.loak.di.LocalQueuePaneOpen
@@ -262,6 +263,7 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 		onStopOrDispose { mediaPlayer.onUiVisibilityChanged(false) }
 	}
 	val rootFocus = remember { FocusRequester() }
+	var rootHasFocus by remember { mutableStateOf(true) }
 	// keyboard and mouse back: the same path as Esc and the system back gesture
 	val backInput = remember { DirectNavigationEventInput() }
 	// the platform's dispatcher, or one of our own where there's none. Ours is provided only
@@ -343,16 +345,17 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 						// Ctrl+arrows skip tracks; space and the media keys control playback
 						// unless a text field or a focused button takes precedence. Media keys
 						// are consumed on key-down so a key held down doesn't repeat-toggle.
-						.focusRequester(rootFocus)
-						// Esc is back, before focus handling gets it: otherwise it only clears focus and
-						// nothing closes (the player, karaoke, the queue sheet). Popups (menus, sheets,
-						// dialogs) get their own key events and close themselves.
-						.onPreviewKeyEvent { event ->
-							if (event.key != Key.Escape) return@onPreviewKeyEvent false
-							if (event.type == KeyEventType.KeyDown) actions.back()
-							true
-						}
-						.focusTarget()
+					.focusRequester(rootFocus)
+					.onFocusChanged { rootHasFocus = it.isFocused }
+					// Esc is back, before focus handling gets it: otherwise it only clears focus and
+					// nothing closes (the player, karaoke, the queue sheet). Popups (menus, sheets,
+					// dialogs) get their own key events and close themselves.
+					.onPreviewKeyEvent { event ->
+						if (event.key != Key.Escape) return@onPreviewKeyEvent false
+						if (event.type == KeyEventType.KeyDown) actions.back()
+						true
+					}
+					.focusTarget()
 						.onKeyEvent { event ->
 							if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
 							val shortcut = event.isShortcutPressed
@@ -370,7 +373,8 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 									shortcut && key == Key.F -> actions::search
 								shortcut && key == Key.Comma -> actions::settings
 								mediaPlayer.uiState.value.currentSong == null -> null
-								key == Key.Spacebar || key == Key.MediaPlayPause -> actions::playPause
+							key == Key.Spacebar && rootHasFocus ||
+								key == Key.MediaPlayPause -> actions::playPause
 								key == Key.MediaPlay -> actions::play
 								key == Key.MediaPause || key == Key.MediaStop -> actions::pause
 								key == Key.MediaNext ||
