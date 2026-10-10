@@ -294,5 +294,9 @@ sealed interface Screen : NavKey {
 		@Immutable
 		@Serializable
 		data object LidarrCustomHeaders : Settings
+
+		@Immutable
+		@Serializable
+		data object ListenBrainz : Settings
 	}
 }

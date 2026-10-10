@@ -84,4 +84,64 @@ class ListenBrainzClientTest {
 	fun freshReleaseWithoutIdentityIsNull() {
 		assertNull(freshReleaseAlbumOf(json.parseToJsonElement("""{"release_name": "Only Title"}""".trimIndent()).jsonObject))
 	}
+
+	@Test
+	fun parsesCreatedForPlaylist() {
+		val playlist = createdForPlaylistOf(json.parseToJsonElement("""{
+			"playlist": {
+				"creator": "listenbrainz",
+				"identifier": "https://listenbrainz.org/playlist/43de9932-d640-4f9b-aca8-79d97e8d4995",
+				"title": "Weekly Exploration for tmsp, week of 2026-10-05 Mon",
+				"track": []
+			}
+		}""".trimIndent()).jsonObject)
+
+		assertNotNull(playlist)
+		assertEquals("43de9932-d640-4f9b-aca8-79d97e8d4995", playlist.mbid)
+		assertEquals("Weekly Exploration for tmsp, week of 2026-10-05 Mon", playlist.title)
+		assertEquals("listenbrainz", playlist.creator)
+		assertEquals(0, playlist.trackCount)
+	}
+
+	@Test
+	fun createdForWithoutMbidIdentifierIsNull() {
+		assertNull(createdForPlaylistOf(json.parseToJsonElement("""{
+			"playlist": {"identifier": "https://listenbrainz.org/playlist/not-a-mbid", "title": "X"}
+		}""".trimIndent()).jsonObject))
+	}
+
+	@Test
+	fun parsesJspfTrack() {
+		val track = listenBrainzTrackOf(json.parseToJsonElement("""{
+			"album": "The Way I Are",
+			"creator": "Timbaland",
+			"identifier": ["https://musicbrainz.org/recording/4ae8e623-7c3b-4c3e-aaaa-7fe6c763b058"],
+			"title": "The Way I Are"
+		}""".trimIndent()).jsonObject)
+
+		assertNotNull(track)
+		assertEquals("4ae8e623-7c3b-4c3e-aaaa-7fe6c763b058", track.id)
+		assertEquals("4ae8e623-7c3b-4c3e-aaaa-7fe6c763b058", track.mbid)
+		assertEquals("The Way I Are", track.title)
+		assertEquals("Timbaland", track.artist)
+		assertEquals("The Way I Are", track.album)
+		assertNull(track.previewUrl)
+	}
+
+	@Test
+	fun jspfTrackWithoutRecordingStillMaps() {
+		val track = listenBrainzTrackOf(json.parseToJsonElement("""{
+			"creator": "Kraftklub & Faber",
+			"title": "Sterben in Karl-Marx-Stadt"
+		}""".trimIndent()).jsonObject)
+
+		assertNotNull(track)
+		assertNull(track.mbid)
+		assertEquals("Sterben in Karl-Marx-Stadt Kraftklub & Faber", track.id)
+	}
+
+	@Test
+	fun jspfTrackWithoutTitleIsNull() {
+		assertNull(listenBrainzTrackOf(json.parseToJsonElement("""{"creator": "Nobody"}""".trimIndent()).jsonObject))
+	}
 }

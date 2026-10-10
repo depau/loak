@@ -16,6 +16,7 @@ import eu.depau.loak.generated.resources.info_discover_sources
 import eu.depau.loak.generated.resources.info_lidarr_connected
 import eu.depau.loak.generated.resources.info_lidarr_required
 import eu.depau.loak.generated.resources.info_listenbrainz_optional
+import eu.depau.loak.generated.resources.info_listenbrainz_connected
 import eu.depau.loak.generated.resources.title_discover_settings
 import eu.depau.loak.generated.resources.title_discover_sources
 import eu.depau.loak.generated.resources.title_lidarr
@@ -298,15 +299,25 @@ fun DiscoverGroup() {
 				else Button(onClick = openLidarr) { Text(stringResource(Res.string.action_set_up)) }
 			}
 		)
-		// ponytail: shown for the plan, inert until their settings screens land
+		val listenBrainzUser = preferenceManager.listenBrainzUsername
+		val openListenBrainz = dropUnlessResumed { backStack.add(Screen.Settings.ListenBrainz) }
 		SegmentedListItem(
-			onClick = {},
+			onClick = openListenBrainz,
 			enabled = connected,
 			shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3),
 			content = { Text(stringResource(Res.string.title_listenbrainz)) },
-			supportingContent = { Text(stringResource(Res.string.info_listenbrainz_optional)) },
+			supportingContent = {
+				Text(
+					if (listenBrainzUser.isNotBlank())
+						stringResource(Res.string.info_listenbrainz_connected, listenBrainzUser)
+					else stringResource(Res.string.info_listenbrainz_optional)
+				)
+			},
 			trailingContent = {
-				FilledTonalButton(onClick = {}, enabled = connected) { Text(stringResource(Res.string.action_set_up)) }
+				if (listenBrainzUser.isNotBlank()) Icon(Icons.Outlined.ChevronForward, null)
+				else FilledTonalButton(onClick = openListenBrainz, enabled = connected) {
+					Text(stringResource(Res.string.action_set_up))
+				}
 			}
 		)
 		SettingsNavItem(

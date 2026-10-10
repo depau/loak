@@ -27,7 +27,9 @@ data class DiscoverListPage(
 	val albums: List<DiscoverAlbum> = emptyList(),
 	val artists: List<DiscoverArtist> = emptyList(),
 	/** Which chart the songs come from, on the Top songs list. */
-	val chart: DeezerCountryChart? = null
+	val chart: DeezerCountryChart? = null,
+	/** Ids of the songs the library already has, for "Hide songs I have". */
+	val ownedIds: Set<String> = emptySet()
 )
 
 private const val SIMILAR_ARTISTS = 50
@@ -68,6 +70,7 @@ class DiscoverListViewModel(
 			is DiscoverListType.SimilarArtists -> loadSimilar(type.artistMbid)
 			is DiscoverListType.Genre ->
 				page.update { it.copy(loading = false, songs = deezer.getGenreTracks(type.genreId)) }
+			is DiscoverListType.MadeForYou -> loadPlaylist(type.playlistMbid)
 		}
 	}
 
@@ -82,6 +85,27 @@ class DiscoverListViewModel(
 		page.update { it.copy(chart = chart) }
 		val songs = deezer.getChartTracks(chart.playlistId)
 		page.update { it.copy(loading = false, songs = songs) }
+	}
+
+	/**
+	 * A "made for you" playlist: its tracks first, then which of them the library has (for the
+	 * "Hide songs I have" filter), then Deezer preview URLs — ListenBrainz tracks carry none,
+	 * so the preview buttons stay dead until these land.
+	 */
+	private suspend fun loadPlaylist(mbid: String) = coroutineScope {
+		val tracks = listenBrainz.getPlaylistTracks(mbid)
+		page.update { it.copy(loading = false, songs = tracks) }
+		val owned = tracks.filter { matcher.songInLibrary(it) != null }.mapTo(mutableSetOf()) { it.id }
+		page.update { it.copy(ownedIds = owned) }
+		if (!preferenceManager.deezerEnabled) return@coroutineScope
+		val withPreviews = tracks.map { song ->
+			async {
+				if (song.previewUrl != null) song
+				else deezer.resolveSongPreview(song.title, song.artist)
+					?.let { song.copy(previewUrl = it) } ?: song
+			}
+		}.awaitAll()
+		page.update { it.copy(songs = withPreviews) }
 	}
 
 	private suspend fun loadSimilar(mbid: String) = coroutineScope {

@@ -12,6 +12,7 @@ import eu.depau.loak.domain.discover.DiscoverGenre
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.discover.ListenBrainzClient
+import eu.depau.loak.domain.discover.ListenBrainzPlaylist
 import eu.depau.loak.domain.discover.activeChart
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbumListType
@@ -29,6 +30,8 @@ import kotlinx.coroutines.launch
  * part that stays empty hides its shelf, which is also how an unavailable source degrades.
  */
 data class DiscoverHome(
+	/** The ListenBrainz "made for you" playlists; empty without a username. */
+	val madeForYou: List<ListenBrainzPlaylist> = emptyList(),
 	val newReleases: List<DiscoverAlbum> = emptyList(),
 	val chart: DeezerCountryChart? = null,
 	val topSongs: List<DiscoverSong> = emptyList(),
@@ -75,6 +78,10 @@ class DiscoverHomeViewModel(
 
 	private suspend fun load() = coroutineScope {
 		launch { home.update { it.copy(newReleases = listenBrainz.getFreshReleases().take(NEW_RELEASES)) } }
+		launch {
+			val user = preferenceManager.listenBrainzUsername
+			if (user.isNotBlank()) home.update { it.copy(madeForYou = listenBrainz.getCreatedForPlaylists(user)) }
+		}
 		launch { loadSimilar() }
 		if (!preferenceManager.deezerEnabled) return@coroutineScope
 		launch { loadChart() }

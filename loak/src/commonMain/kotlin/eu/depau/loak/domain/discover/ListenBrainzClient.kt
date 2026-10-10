@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -54,6 +55,58 @@ fun freshReleaseAlbumOf(item: JsonObject): DiscoverAlbum? {
 	)
 }
 
+/** A ListenBrainz "made for you" playlist the user got on their creator. */
+data class ListenBrainzPlaylist(
+	val mbid: String,
+	val title: String,
+	val creator: String,
+	val trackCount: Int
+)
+
+/** The recording mbid in a JSPF track's `identifier`, read as a path segment. */
+private val RECORDING_MBID = Regex("""^https://musicbrainz\.org/recording/([0-9a-fA-F-]{36})$""")
+/** The playlist mbid in a JSPF playlist's `identifier`. */
+private val PLAYLIST_MBID = Regex("""^https://listenbrainz\.org/playlist/([0-9a-fA-F-]{36})$""")
+
+/**
+ * Maps one JSPF track (inside a `GET /playlist/<mbid>` payload) to a [DiscoverSong].
+ * Title and creator are required; the recording mbid is taken from the `identifier`
+ * field (an array) where present, and the album comes along when the API fills it.
+ * Pure, so it can be tested without the network.
+ */
+fun listenBrainzTrackOf(item: JsonObject): DiscoverSong? {
+	val title = item["title"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: return null
+	val artist = item["creator"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: return null
+	val recordingMbid = (item["identifier"] as? JsonArray).orEmpty()
+		.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+		.firstNotNullOfOrNull { RECORDING_MBID.matchEntire(it)?.groupValues?.get(1) }
+	return DiscoverSong(
+		id = recordingMbid ?: "$title $artist",
+		title = title,
+		artist = artist,
+		album = item["album"]?.jsonPrimitive?.contentOrNull,
+		mbid = recordingMbid
+	)
+}
+
+/**
+ * Maps one "made for you" playlist (one element of a `GET /user/<u>/playlists/createdfor`
+ * payload, where each entry wraps the actual playlist in a `playlist` key) to a
+ * [ListenBrainzPlaylist]. The mbid comes from the `identifier` URL, the count from the
+ * `track` array (persistently empty in createdfor responses). Null without an mbid; a
+ * blank title still maps (title is printed as-is). Pure, so it can be tested without
+ * the network.
+ */
+fun createdForPlaylistOf(item: JsonObject): ListenBrainzPlaylist? {
+	val playlist = item["playlist"] as? JsonObject ?: return null
+	val mbid = (playlist["identifier"] as? JsonPrimitive)?.contentOrNull
+		?.let { PLAYLIST_MBID.matchEntire(it)?.groupValues?.get(1) } ?: return null
+	val title = playlist["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
+	val creator = playlist["creator"]?.jsonPrimitive?.contentOrNull.orEmpty()
+	val trackCount = (playlist["track"] as? JsonArray)?.size ?: 0
+	return ListenBrainzPlaylist(mbid, title, creator, trackCount)
+}
+
 /**
  * ListenBrainz API client (no auth needed for what Discover uses): fresh releases off the
  * main API and similar artists off the Labs API, keyed on the "session based" algorithm.
@@ -87,6 +140,68 @@ class ListenBrainzClient {
 			emptyList()
 		}
 	}
+
+	/**
+	 * True when ListenBrainz knows [username] ("made for you" playlists are public, so just
+	 * a 200 from a one-item query). False on 404 (unknown user) and any other failure.
+	 */
+	suspend fun checkUser(username: String): Boolean = withContext(IoDispatcher) {
+		if (username.isBlank()) return@withContext false
+		try {
+			client.get("$baseUrl/user/$username/playlists/createdfor") {
+				parameter("count", 1)
+			}.status.isSuccess()
+		} catch (e: CancellationException) {
+			throw e
+		} catch (_: Exception) {
+			false
+		}
+	}
+
+	/**
+	 * The "made for you" playlists the creator built for [username] (Weekly Exploration,
+	 * Weekly Jams, Daily Jams…), newest first; the caller's `take()` keeps the newest.
+	 * Unknown user or failure → empty.
+	 */
+	suspend fun getCreatedForPlaylists(username: String): List<ListenBrainzPlaylist> =
+		withContext(IoDispatcher) {
+			try {
+				val root = client.get("$baseUrl/user/$username/playlists/createdfor") {
+					parameter("count", 10)
+				}.takeIf { it.status.isSuccess() }
+					?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
+					?: return@withContext emptyList()
+				(root["playlists"] as? JsonArray)
+					?.mapNotNull { (it as? JsonObject)?.let(::createdForPlaylistOf) }
+					.orEmpty()
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
+
+	/**
+	 * The tracks of one "made for you" playlist (JSPF). Songs carry no preview URL — the
+	 * caller resolves those lazily via Deezer so the ListenBrainz quota isn't spent here.
+	 * Unknown playlist or failure → empty.
+	 */
+	suspend fun getPlaylistTracks(playlistMbid: String): List<DiscoverSong> =
+		withContext(IoDispatcher) {
+			try {
+				val root = client.get("$baseUrl/playlist/$playlistMbid")
+					.takeIf { it.status.isSuccess() }
+					?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
+					?: return@withContext emptyList()
+				((root["playlist"] as? JsonObject)?.get("track") as? JsonArray)
+					?.mapNotNull { (it as? JsonObject)?.let(::listenBrainzTrackOf) }
+					.orEmpty()
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
 
 	/**
 	 * Artists similar to [artistMbid], highest score first (the API already sorts by

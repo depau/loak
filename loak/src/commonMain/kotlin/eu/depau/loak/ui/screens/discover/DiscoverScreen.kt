@@ -49,12 +49,15 @@ import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.discover.DiscoverGenre
 import eu.depau.loak.domain.discover.PreviewManager
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_search_discover
 import eu.depau.loak.generated.resources.action_see_all
 import eu.depau.loak.generated.resources.option_download_queue
 import eu.depau.loak.generated.resources.subtitle_similar_artists
+import eu.depau.loak.generated.resources.subtitle_made_for_you
+import eu.depau.loak.generated.resources.title_made_for_you
 import eu.depau.loak.generated.resources.title_because_you_listen
 import eu.depau.loak.generated.resources.title_browse_genres
 import eu.depau.loak.generated.resources.title_discover
@@ -73,6 +76,7 @@ import eu.depau.loak.ui.screens.discover.components.ChartCountryPickerSheet
 import eu.depau.loak.ui.screens.discover.components.ChartSongItem
 import eu.depau.loak.ui.screens.discover.components.DiscoverAlbumCard
 import eu.depau.loak.ui.screens.discover.components.DiscoverArtistCard
+import eu.depau.loak.ui.screens.discover.components.MadeForYouCard
 import eu.depau.loak.ui.screens.discover.components.rememberLidarrAddFlow
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverHomeViewModel
 import eu.depau.loak.ui.screens.discover.components.dotted
@@ -96,6 +100,7 @@ fun DiscoverScreen() {
 			Icon(Icons.Outlined.Download, stringResource(Res.string.option_download_queue))
 		}
 	}
+	val listenBrainzUser = koinInject<PreferenceManager>().listenBrainzUsername
 	val lidarr = koinInject<LidarrManager>()
 	// fresh Lidarr state for the status badges
 	LaunchedEffect(Unit) { lidarr.refreshCatalog() }
@@ -139,6 +144,19 @@ fun DiscoverScreen() {
 					modifier = Modifier.padding(horizontal = 16.dp),
 					onClick = dropUnlessResumed { backStack.add(Screen.DiscoverSearch) }
 				)
+			}
+			if (home.madeForYou.isNotEmpty()) item(key = "made-for-you") {
+				ShelfHeader(
+					stringResource(Res.string.title_made_for_you),
+					subtitle = stringResource(Res.string.subtitle_made_for_you, listenBrainzUser)
+				)
+				Rail {
+					items(home.madeForYou, key = { it.mbid }) { playlist ->
+						MadeForYouCard(playlist, dropUnlessResumed {
+							open(DiscoverListType.MadeForYou(playlist.mbid, playlist.title))
+						})
+					}
+				}
 			}
 			if (home.newReleases.isNotEmpty()) item(key = "new-releases") {
 				ShelfHeader(stringResource(Res.string.title_new_releases)) {

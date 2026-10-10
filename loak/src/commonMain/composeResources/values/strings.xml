@@ -986,6 +986,13 @@
 	<string name="info_lidarr_connected">Connected · %1$s</string>
 	<string name="title_listenbrainz">ListenBrainz</string>
 	<string name="info_listenbrainz_optional">Optional · Made for you, personal new releases</string>
+	<string name="info_listenbrainz_connected">Connected · %1$s</string>
+	<string name="title_connect_listenbrainz">Connect ListenBrainz</string>
+	<string name="info_connect_listenbrainz">Brings your Weekly Exploration, Weekly Jams and new releases from artists you listen to into Discover. Works best if your server already scrobbles to ListenBrainz.</string>
+	<string name="label_listenbrainz_username">Username</string>
+	<string name="info_listenbrainz_username">Your listenbrainz.org username. Lo'ak only reads your public playlists.</string>
+	<string name="error_no_listenbrainz_user">No such ListenBrainz user</string>
+	<string name="info_listenbrainz_saved">ListenBrainz connected as %1$s</string>
 	<string name="title_discover_sources">Search, previews &amp; charts</string>
 	<string name="info_discover_sources">Deezer · on · region: automatic</string>
 	<string name="info_connect_lidarr_first">Connect Lidarr first. ListenBrainz is optional; without it Discover still has search, charts and new releases.</string>
@@ -1120,6 +1127,9 @@
 	<string name="title_because_you_listen">Because you listen to %1$s</string>
 	<string name="subtitle_similar_artists">Similar artists you don't have</string>
 	<string name="action_preview_all">Preview all</string>
+	<string name="subtitle_made_for_you">From ListenBrainz · %1$s</string>
+	<string name="info_listenbrainz_playlist">ListenBrainz · for %1$s</string>
+	<string name="action_hide_songs_i_have">Hide songs I have</string>
 	<string name="info_top_songs_chart">Top 100 songs in %1$s on Deezer · updated today</string>
 	<string name="info_discover_list_unavailable">Nothing to show here</string>
 	<string name="title_chart_country">Chart country</string>

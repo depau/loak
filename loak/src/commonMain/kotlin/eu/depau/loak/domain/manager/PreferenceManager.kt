@@ -143,6 +143,9 @@ class PreferenceManager(
 	/** Chart country chosen in the Discover country picker; "" = automatic (Deezer `/infos`). */
 	var discoverChartCountry by preference("")
 
+	/** ListenBrainz username for "Made for you" playlists; "" = not set. */
+	var listenBrainzUsername by preference("")
+
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
 

@@ -1,5 +1,7 @@
 package eu.depau.loak.ui.screens.discover.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,10 +49,12 @@ import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.LibraryMatcher
+import eu.depau.loak.domain.discover.ListenBrainzPlaylist
 import eu.depau.loak.domain.discover.deezerImageUrl
 import eu.depau.loak.domain.manager.DiscoverBadgeState
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_more
+import eu.depau.loak.generated.resources.count_songs
 import eu.depau.loak.generated.resources.action_pause_preview
 import eu.depau.loak.generated.resources.action_preview
 import eu.depau.loak.generated.resources.label_kind_album
@@ -74,6 +79,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.koin.compose.koinInject
 
 /**
@@ -302,6 +308,53 @@ fun DiscoverPageState(loading: Boolean, unavailable: StringResource, icon: Image
 		ContainedLoadingIndicator(Modifier.size(80.dp))
 	}
 	else ContentUnavailable(Modifier.fillMaxSize().padding(padding), icon = icon, label = stringResource(unavailable))
+}
+
+/**
+ * A "made for you" playlist's stand-in cover: ListenBrainz ships no artwork, so each playlist
+ * gets a theme gradient picked by its id — recognisably its own, nothing to fetch.
+ */
+@Composable
+fun playlistGradient(seed: String): Brush {
+	val colors = MaterialTheme.colorScheme
+	val pairs = listOf(
+		colors.primaryContainer to colors.tertiaryContainer,
+		colors.tertiaryContainer to colors.secondaryContainer,
+		colors.secondaryContainer to colors.primaryContainer
+	)
+	val (start, end) = pairs[seed.hashCode().mod(pairs.size)]
+	return Brush.linearGradient(listOf(start, end))
+}
+
+/** One "made for you" playlist on a rail: gradient tile with its title, and its track count. */
+@Composable
+fun MadeForYouCard(playlist: ListenBrainzPlaylist, onClick: () -> Unit) {
+	Column(Modifier.width(168.dp)) {
+		Box(
+			Modifier.size(168.dp)
+				.clip(MaterialTheme.shapes.large)
+				.background(playlistGradient(playlist.mbid))
+				.clickable(onClick = onClick)
+				.padding(14.dp),
+			contentAlignment = Alignment.BottomStart
+		) {
+			Text(
+				playlist.title,
+				style = MaterialTheme.typography.titleMedium,
+				color = MaterialTheme.colorScheme.onPrimaryContainer,
+				maxLines = 3,
+				overflow = TextOverflow.Ellipsis
+			)
+		}
+		if (playlist.trackCount > 0) Text(
+			pluralStringResource(Res.plurals.count_songs, playlist.trackCount, playlist.trackCount),
+			Modifier.padding(top = 6.dp),
+			style = MaterialTheme.typography.bodyMedium,
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis
+		)
+	}
 }
 
 /** An album on a rail: cover with its status badge, title and [subtitle]. */

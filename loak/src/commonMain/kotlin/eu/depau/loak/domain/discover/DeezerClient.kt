@@ -222,6 +222,25 @@ class DeezerClient {
 		}
 	}
 
+	// ponytail: exact-title/day cache for preview lookups; a generic TTL cache only pays off with more hits
+	private val previewUrlCache = HashMap<String, String?>()
+
+	/**
+	 * The preview URL of [title] by [artist], found by a Deezer track search
+	 * (`track:"title" artist:"artist"`) and cached per exact title+artist for the session.
+	 * Null when Deezer has no match or the call fails. Used by the "made for you"
+	 * playlists, whose ListenBrainz tracks carry no preview.
+	 */
+	suspend fun resolveSongPreview(title: String, artist: String): String? {
+		previewUrlCache["$title\u0000$artist"]?.let { return it }
+		val url = orNull {
+			search("""track:"$title" artist:"$artist"""")
+				.firstOrNull { song -> song.previewUrl != null }?.previewUrl
+		}
+		previewUrlCache["$title\u0000$artist"] = url
+		return url
+	}
+
 	private suspend fun <T> orNull(block: suspend () -> T?): T? = try {
 		block()
 	} catch (e: CancellationException) {
