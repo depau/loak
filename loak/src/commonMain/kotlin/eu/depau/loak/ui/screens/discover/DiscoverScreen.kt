@@ -57,7 +57,8 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_search_discover
 import eu.depau.loak.generated.resources.action_see_all
 import eu.depau.loak.generated.resources.option_download_queue
-import eu.depau.loak.generated.resources.subtitle_similar_artists
+import eu.depau.loak.generated.resources.subtitle_from_deezer
+import eu.depau.loak.generated.resources.subtitle_from_listenbrainz
 import eu.depau.loak.generated.resources.subtitle_made_for_you
 import eu.depau.loak.generated.resources.title_made_for_you
 import eu.depau.loak.generated.resources.title_because_you_listen
@@ -167,7 +168,10 @@ fun DiscoverScreen() {
 				}
 			}
 			if (home.loadingNewReleases || home.newReleases.isNotEmpty()) item(key = "new-releases") {
-				ShelfHeader(stringResource(Res.string.title_new_releases)) {
+				ShelfHeader(
+					stringResource(Res.string.title_new_releases),
+					subtitle = stringResource(Res.string.subtitle_from_listenbrainz)
+				) {
 					SeeAll(dropUnlessResumed { open(DiscoverListType.NewReleases) })
 				}
 				Rail {
@@ -180,7 +184,10 @@ fun DiscoverScreen() {
 			if (home.loadingChart || (home.chart != null && home.topSongs.isNotEmpty())) {
 				if (home.loadingChart) {
 					item(key = "top-songs") {
-						ShelfHeader(stringResource(Res.string.title_top_songs)) {
+						ShelfHeader(
+							stringResource(Res.string.title_top_songs),
+							subtitle = stringResource(Res.string.subtitle_from_deezer)
+						) {
 							Box(Modifier.width(96.dp).height(32.dp).clip(CircleShape).shimmerLoading())
 							Box(Modifier.width(52.dp).height(20.dp).clip(CircleShape).shimmerLoading())
 						}
@@ -189,7 +196,10 @@ fun DiscoverScreen() {
 				} else {
 					val chart = home.chart!!
 					item(key = "top-songs") {
-						ShelfHeader(stringResource(Res.string.title_top_songs)) {
+						ShelfHeader(
+							stringResource(Res.string.title_top_songs),
+							subtitle = stringResource(Res.string.subtitle_from_deezer)
+						) {
 							ChartCountryChip(chart.countryName) { pickerOpen = true }
 							SeeAll(dropUnlessResumed { open(DiscoverListType.TopSongs) })
 						}
@@ -207,7 +217,7 @@ fun DiscoverScreen() {
 					val seed = home.seed!!
 					ShelfHeader(
 						stringResource(Res.string.title_because_you_listen, seed.name),
-						subtitle = stringResource(Res.string.subtitle_similar_artists)
+						subtitle = stringResource(Res.string.subtitle_from_listenbrainz)
 					) {
 						SeeAll(dropUnlessResumed {
 							open(DiscoverListType.SimilarArtists(seed.name, seed.mbid.orEmpty()))
@@ -220,7 +230,10 @@ fun DiscoverScreen() {
 				}
 			}
 			if (home.loadingGenres || home.genres.isNotEmpty()) item(key = "genres") {
-				ShelfHeader(stringResource(Res.string.title_browse_genres))
+				ShelfHeader(
+					stringResource(Res.string.title_browse_genres),
+					subtitle = stringResource(Res.string.subtitle_from_deezer)
+				)
 				Column(
 					Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
 					verticalArrangement = Arrangement.spacedBy(12.dp)

@@ -1132,9 +1132,10 @@
 	<string name="title_new_releases">New releases</string>
 	<string name="title_browse_genres">Browse genres</string>
 	<string name="title_because_you_listen">Because you listen to %1$s</string>
-	<string name="subtitle_similar_artists">Similar artists you don't have</string>
+	<string name="subtitle_from_deezer">From Deezer</string>
+	<string name="subtitle_from_listenbrainz">From ListenBrainz</string>
+	<string name="subtitle_made_for_you">From ListenBrainz, for %1$s</string>
 	<string name="action_preview_all">Preview all</string>
-	<string name="subtitle_made_for_you">From ListenBrainz · %1$s</string>
 	<string name="info_listenbrainz_playlist">ListenBrainz · for %1$s</string>
 	<string name="action_hide_songs_i_have">Hide songs I have</string>
 	<string name="info_top_songs_chart">Top 100 songs in %1$s on Deezer · updated today</string>
