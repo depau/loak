@@ -245,5 +245,17 @@ sealed interface Screen : NavKey {
 		@Immutable
 		@Serializable
 		data object AudioMuseCustomHeaders : Settings
+
+		@Immutable
+		@Serializable
+		data object Lidarr : Settings
+
+		@Immutable
+		@Serializable
+		data object LidarrConnect : Settings
+
+		@Immutable
+		@Serializable
+		data object LidarrCustomHeaders : Settings
 	}
 }

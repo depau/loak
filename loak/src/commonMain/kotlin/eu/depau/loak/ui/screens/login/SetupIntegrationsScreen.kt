@@ -30,12 +30,13 @@ import eu.depau.loak.generated.resources.info_a_few_more_things
 import eu.depau.loak.generated.resources.title_a_few_more_things
 import eu.depau.loak.ui.components.common.SyncingCard
 import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.screens.settings.DiscoverGroup
 import eu.depau.loak.ui.screens.settings.IntegrationsGroup
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /** Bump when an integration is added: users who saw an older list get the page again, once. */
-const val INTEGRATIONS_VERSION = 1
+const val INTEGRATIONS_VERSION = 2
 
 /**
  * The setup wizard's last page, after the server: optional extras, like the end of a phone's
@@ -65,6 +66,7 @@ fun SetupIntegrationsScreen() {
 				Text(stringResource(Res.string.info_a_few_more_things), style = MaterialTheme.typography.bodyLarge)
 				if (sync.isSyncing) SyncingCard(sync)
 				IntegrationsGroup()
+				DiscoverGroup()
 			}
 			Row(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(24.dp), horizontalArrangement = Arrangement.End) {
 				Button(onClick = {

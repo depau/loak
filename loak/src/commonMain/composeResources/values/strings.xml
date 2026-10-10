@@ -979,4 +979,40 @@
 	<string name="label_server_transcode">Server transcode</string>
 	<string name="label_cached_copy">Audio cache</string>
 	<string name="label_downloaded_copy">Downloaded</string>
+	<string name="title_discover_settings">Discover</string>
+	<string name="title_lidarr">Lidarr</string>
+	<string name="info_lidarr_required">Required · turns on the Discover tab and downloads what you pick</string>
+	<string name="info_lidarr_connected">Connected · %1$s</string>
+	<string name="title_listenbrainz">ListenBrainz</string>
+	<string name="info_listenbrainz_optional">Optional · Made for you, personal new releases</string>
+	<string name="title_discover_sources">Search, previews &amp; charts</string>
+	<string name="info_discover_sources">Deezer · on · region: automatic</string>
+	<string name="info_connect_lidarr_first">Connect Lidarr first. ListenBrainz is optional; without it Discover still has search, charts and new releases.</string>
+	<string name="title_connect_lidarr">Connect Lidarr</string>
+	<string name="info_connect_lidarr">Lidarr downloads the music you pick in Discover and puts it in your library.</string>
+	<string name="label_lidarr_address">Lidarr address</string>
+	<string name="label_api_key">API key</string>
+	<string name="info_lidarr_api_key">In Lidarr: Settings › General › Security › API Key. Anyone with this key can manage your Lidarr, so only connect devices you trust.</string>
+	<string name="info_local_network_needed_lidarr">Lo'ak needs access to your local network to reach Lidarr.</string>
+	<string name="option_lidarr_inherit_server_headers">Use the server's custom headers</string>
+	<string name="subtitle_lidarr_inherit_server_headers">Sent along with Lidarr's own, for a reverse proxy in front of both</string>
+	<string name="option_lidarr_headers">Custom headers</string>
+	<plurals name="count_headers">
+		<item quantity="one">%1$d header</item>
+		<item quantity="other">%1$d headers</item>
+	</plurals>
+	<string name="info_lidarr_unreachable">Can't reach Lidarr: %1$s</string>
+	<plurals name="count_root_folders">
+		<item quantity="one">%1$d root folder</item>
+		<item quantity="other">%1$d root folders</item>
+	</plurals>
+	<plurals name="count_downloading">
+		<item quantity="one">%1$d downloading</item>
+		<item quantity="other">%1$d downloading</item>
+	</plurals>
+	<string name="info_nothing_downloading">Nothing downloading</string>
+	<string name="option_discover_tab">Discover tab</string>
+	<string name="subtitle_discover_tab">Search, charts and recommendations for music you don't have</string>
+	<string name="option_download_queue">Download queue</string>
+	<string name="option_lidarr_address">Address</string>
 </resources>

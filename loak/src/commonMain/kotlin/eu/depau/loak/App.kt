@@ -13,6 +13,9 @@ import eu.depau.loak.ui.screens.library.LibraryScreen
 import eu.depau.loak.ui.screens.library.DownloadsScreen
 import eu.depau.loak.ui.screens.settings.AudioMuseSettingsScreen
 import eu.depau.loak.ui.screens.settings.AudioMuseConnectScreen
+import eu.depau.loak.ui.screens.settings.LidarrConnectScreen
+import eu.depau.loak.ui.screens.settings.LidarrSettingsScreen
+import eu.depau.loak.ui.screens.settings.SettingsLidarrCustomHeadersScreen
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -722,6 +725,15 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.AudioMuseCustomHeaders>(metadata = detailPane("settings")) {
 			SettingsAudioMuseCustomHeadersScreen()
+		}
+		entry<Screen.Settings.Lidarr>(metadata = detailPane("settings")) {
+			LidarrSettingsScreen()
+		}
+		entry<Screen.Settings.LidarrConnect>(metadata = detailPane("settings")) {
+			LidarrConnectScreen()
+		}
+		entry<Screen.Settings.LidarrCustomHeaders>(metadata = detailPane("settings")) {
+			SettingsLidarrCustomHeadersScreen()
 		}
 		entry<Screen.Settings.Sound>(metadata = detailPane("settings")) {
 			SettingsSoundScreen()

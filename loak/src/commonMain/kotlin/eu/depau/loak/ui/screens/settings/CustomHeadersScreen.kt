@@ -35,6 +35,8 @@ import eu.depau.loak.generated.resources.action_delete
 import eu.depau.loak.generated.resources.action_new
 import eu.depau.loak.generated.resources.option_custom_headers
 import eu.depau.loak.generated.resources.option_audiomuse_headers
+import eu.depau.loak.generated.resources.option_lidarr_headers
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -58,18 +60,9 @@ private data class Header(
 fun SettingsCustomHeadersScreen() {
 	val sessionManager = koinInject<SessionManager>()
 	val preferenceManager = koinInject<PreferenceManager>()
-
-	Scaffold(
-		topBar = { NestedTopBar({ Text(stringResource(Res.string.option_custom_headers)) }) }
-	) { innerPadding ->
-		CustomHeadersEditor(
-			modifier = Modifier.padding(innerPadding),
-			prefs = { preferenceManager.customHeaders },
-			onSet = {
-				preferenceManager.customHeaders = it
-				sessionManager.refreshClient()
-			}
-		)
+	CustomHeadersScaffold(Res.string.option_custom_headers, { preferenceManager.customHeaders }) {
+		preferenceManager.customHeaders = it
+		sessionManager.refreshClient()
 	}
 }
 
@@ -77,21 +70,30 @@ fun SettingsCustomHeadersScreen() {
 @Composable
 fun SettingsAudioMuseCustomHeadersScreen() {
 	val preferenceManager = koinInject<PreferenceManager>()
+	CustomHeadersScaffold(Res.string.option_audiomuse_headers, { preferenceManager.audioMuseCustomHeaders }) {
+		preferenceManager.audioMuseCustomHeaders = it
+	}
+}
 
-	Scaffold(
-		topBar = { NestedTopBar({ Text(stringResource(Res.string.option_audiomuse_headers)) }) }
-	) { innerPadding ->
-		CustomHeadersEditor(
-			modifier = Modifier.padding(innerPadding),
-			prefs = { preferenceManager.audioMuseCustomHeaders },
-			onSet = { preferenceManager.audioMuseCustomHeaders = it }
-		)
+/** Lidarr's own custom HTTP headers; reuses the server headers editor. */
+@Composable
+fun SettingsLidarrCustomHeadersScreen() {
+	val preferenceManager = koinInject<PreferenceManager>()
+	CustomHeadersScaffold(Res.string.option_lidarr_headers, { preferenceManager.lidarrCustomHeaders }) {
+		preferenceManager.lidarrCustomHeaders = it
+	}
+}
+
+@Composable
+private fun CustomHeadersScaffold(title: StringResource, prefs: () -> String, onSet: (String) -> Unit) {
+	Scaffold(topBar = { NestedTopBar({ Text(stringResource(title)) }) }) { innerPadding ->
+		CustomHeadersEditor(modifier = Modifier.padding(innerPadding), prefs = prefs, onSet = onSet)
 	}
 }
 
 /**
  * Edits a newline-separated list of custom HTTP headers stored in a string preference.
- * Shared by the server's and AudioMuse-AI's "Custom headers" screens. [onSet] fires
+ * Shared by the server's, AudioMuse-AI's and Lidarr's "Custom headers" screens. [onSet] fires
  * with the new value after every edit; a freshly-created row is kept until it has
  * both a key and a value.
  */

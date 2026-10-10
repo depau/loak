@@ -18,6 +18,7 @@ import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.NavidromeManager
 import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.AudioMuseManager
+import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.StorageManager
@@ -36,6 +37,9 @@ val managerModule = module {
 	singleOf(::NavidromeManager)
 	single(createdAtStart = true) {
 		AudioMuseManager(get()).also { manager -> CoroutineScope(IoDispatcher).launch { manager.start() } }
+	}
+	single(createdAtStart = true) {
+		LidarrManager(get()).also { manager -> CoroutineScope(IoDispatcher).launch { manager.start() } }
 	}
 	singleOf(::PreferenceManager)
 	singleOf(::SnackBarManager)

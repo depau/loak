@@ -10,6 +10,22 @@ import eu.depau.loak.generated.resources.option_crash_reporting
 import eu.depau.loak.generated.resources.subtitle_crash_reporting
 import eu.depau.loak.generated.resources.title_audiomuse
 import eu.depau.loak.generated.resources.title_integrations
+import eu.depau.loak.generated.resources.action_set_up
+import eu.depau.loak.generated.resources.info_connect_lidarr_first
+import eu.depau.loak.generated.resources.info_discover_sources
+import eu.depau.loak.generated.resources.info_lidarr_connected
+import eu.depau.loak.generated.resources.info_lidarr_required
+import eu.depau.loak.generated.resources.info_listenbrainz_optional
+import eu.depau.loak.generated.resources.title_discover_settings
+import eu.depau.loak.generated.resources.title_discover_sources
+import eu.depau.loak.generated.resources.title_lidarr
+import eu.depau.loak.generated.resources.title_listenbrainz
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import eu.depau.loak.di.PlatformType
+import eu.depau.loak.domain.manager.LidarrManager
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.outlined.ChevronForward
 import androidx.compose.runtime.collectAsState
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.NavidromeManager
@@ -188,6 +204,7 @@ fun SettingsServerScreen() {
 			}
 
 			IntegrationsGroup()
+			DiscoverGroup()
 
 			SettingsGroup(title = { Text(stringResource(Res.string.title_advanced)) }) {
 				CustomHeadersItem()
@@ -250,6 +267,63 @@ fun IntegrationsGroup() {
 				))
 			}
 		)
+	}
+}
+
+/** Lidarr, which gates the rest of Discover's sources. Also on the setup wizard; not on the web. */
+@Composable
+fun DiscoverGroup() {
+	if (LocalPlatformContext.current.platformType == PlatformType.Web) return
+	val lidarr = koinInject<LidarrManager>()
+	val preferenceManager = koinInject<PreferenceManager>()
+	val backStack = LocalNavStack.current
+	val connected = lidarr.isConfigured
+	val openLidarr = dropUnlessResumed { backStack.add(Screen.Settings.Lidarr) }
+	SettingsGroup(title = { Text(stringResource(Res.string.title_discover_settings)) }) {
+		SegmentedListItem(
+			onClick = openLidarr,
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3),
+			content = { Text(stringResource(Res.string.title_lidarr)) },
+			supportingContent = {
+				Text(
+					if (connected) stringResource(
+						Res.string.info_lidarr_connected,
+						preferenceManager.lidarrUrl.substringAfter("://")
+					)
+					else stringResource(Res.string.info_lidarr_required)
+				)
+			},
+			trailingContent = {
+				if (connected) Icon(Icons.Outlined.ChevronForward, null)
+				else Button(onClick = openLidarr) { Text(stringResource(Res.string.action_set_up)) }
+			}
+		)
+		// ponytail: shown for the plan, inert until their settings screens land
+		SegmentedListItem(
+			onClick = {},
+			enabled = connected,
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3),
+			content = { Text(stringResource(Res.string.title_listenbrainz)) },
+			supportingContent = { Text(stringResource(Res.string.info_listenbrainz_optional)) },
+			trailingContent = {
+				FilledTonalButton(onClick = {}, enabled = connected) { Text(stringResource(Res.string.action_set_up)) }
+			}
+		)
+		SettingsNavItem(
+			onClick = {},
+			enabled = connected,
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3),
+			content = { Text(stringResource(Res.string.title_discover_sources)) },
+			supportingContent = { Text(stringResource(Res.string.info_discover_sources)) }
+		)
+		if (!connected) {
+			Text(
+				stringResource(Res.string.info_connect_lidarr_first),
+				modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.onSurfaceVariant
+			)
+		}
 	}
 }
 

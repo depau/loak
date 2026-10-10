@@ -120,6 +120,20 @@ class PreferenceManager(
 	var audioMuseCustomHeaders by preference("")
 	/** Also send the server's customHeaders with AudioMuse-AI calls, on top of audioMuseCustomHeaders. */
 	var audioMuseInheritServerHeaders by preference(false)
+
+	// Lidarr's own API; an empty address means not connected
+	var lidarrUrl by preference("")
+	var lidarrApiKey by preference("")
+	/** Extra HTTP headers for Lidarr calls, one "Key:Value" per line. */
+	var lidarrCustomHeaders by preference("")
+	/** Also send the server's customHeaders with Lidarr calls, on top of lidarrCustomHeaders. */
+	var lidarrInheritServerHeaders by preference(false)
+	/** The Lidarr root folder and quality profile picked last time; ""/-1 = not chosen yet. */
+	var lidarrLastRootFolder by preference("")
+	var lidarrLastQualityProfileId by preference(-1)
+	/** Show the Discover tab (the whole Lidarr integration) in the navigation. */
+	var discoverTabEnabled by preference(true)
+
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
 

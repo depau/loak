@@ -72,8 +72,9 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
+/** A settings detail page: back arrow only where needed, scrolling grouped content. */
 @Composable
-private fun SettingsScaffold(title: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun SettingsScaffold(title: String, content: @Composable ColumnScope.() -> Unit) {
 	val backStack = LocalNavStack.current
 	// hidden in the settings list+detail layout, where the row to the left is the way back;
 	// during the setup wizard (no settings pane) the arrow is the only way back
