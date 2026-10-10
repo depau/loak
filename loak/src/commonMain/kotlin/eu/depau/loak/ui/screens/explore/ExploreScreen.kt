@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -56,7 +55,6 @@ import eu.depau.loak.di.isExpanded
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbum
-import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.domain.repositories.SoundMapPoint
 import eu.depau.loak.generated.resources.*
 import eu.depau.loak.icons.Icons
@@ -79,7 +77,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import eu.depau.loak.ui.components.common.SongRow
+import eu.depau.loak.ui.screens.home.components.SongColumns
+import eu.depau.loak.ui.screens.home.components.SongColumnsPlaceholder
 import eu.depau.loak.ui.util.shimmerLoading
 
 private const val TAB = "explore"
@@ -107,6 +106,7 @@ fun ExploreScreen() {
 	val backStack = LocalNavStack.current
 	val scrollBehavior = rootTopBarScrollBehavior()
 	val expanded = LocalPlatformContext.current.isExpanded()
+	val songColumnWidth = if (expanded) 520 else null
 	// 6 or 12 columns: 3 or 6 tiles a row, 2 or 4 tools
 	val columns = if (expanded) 12 else 6
 	val full: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
@@ -239,8 +239,8 @@ fun ExploreScreen() {
 					item(key = "deep cuts header", span = full) {
 						ShelfTitlePlaceholder()
 					}
-					items(5, key = { "deep-placeholder-$it" }, span = { GridItemSpan(6) }) {
-						ArtGridPlaceholder(Modifier.fillMaxWidth(), viewMode = ListViewMode.List)
+					item(key = "deep cuts", span = full) {
+						SongColumnsPlaceholder(songColumnWidth)
 					}
 				} else {
 					albumShelf(Res.string.title_forgotten_favourites, Res.string.info_forgotten_favourites, state.forgotten)
@@ -253,15 +253,11 @@ fun ExploreScreen() {
 								}
 							}
 						}
-						itemsIndexed(
-							state.deepCuts,
-							key = { _, song -> "deep ${song.id}" },
-							span = { _, _ -> GridItemSpan(6) }
-						) { i, song ->
-							SongRow(
-								song = song,
-								onClick = { player.playNow(state.deepCuts, i) },
-								modifier = Modifier.fillMaxWidth()
+						item(key = "deep cuts", span = full) {
+							SongColumns(
+								songs = state.deepCuts,
+								columnWidth = songColumnWidth,
+								onPlay = { player.playNow(state.deepCuts, it) }
 							)
 						}
 					}
