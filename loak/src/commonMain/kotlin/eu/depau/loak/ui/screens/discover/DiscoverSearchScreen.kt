@@ -2,13 +2,11 @@ package eu.depau.loak.ui.screens.discover
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,9 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -40,14 +36,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -58,22 +50,17 @@ import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSearchResults
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.PreviewManager
-import eu.depau.loak.domain.manager.DiscoverBadgeState
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_lidarr
 import eu.depau.loak.generated.resources.action_got_it
-import eu.depau.loak.generated.resources.action_more
 import eu.depau.loak.generated.resources.action_preview
 import eu.depau.loak.generated.resources.action_search_discover
 import eu.depau.loak.generated.resources.action_pause_preview
 import eu.depau.loak.generated.resources.info_deezer_search_notice
 import eu.depau.loak.generated.resources.info_no_search_results
-import eu.depau.loak.generated.resources.label_kind_album
 import eu.depau.loak.generated.resources.label_kind_artist
-import eu.depau.loak.generated.resources.label_kind_ep
-import eu.depau.loak.generated.resources.label_kind_single
 import eu.depau.loak.generated.resources.label_kind_song
 import eu.depau.loak.generated.resources.title_albums
 import eu.depau.loak.generated.resources.title_artists
@@ -88,10 +75,7 @@ import eu.depau.loak.icons.outlined.Add
 import eu.depau.loak.icons.outlined.ArrowOutward
 import eu.depau.loak.icons.filled.Pause
 import eu.depau.loak.icons.outlined.History
-import eu.depau.loak.icons.outlined.MoreVert
 import eu.depau.loak.icons.outlined.NoSearchResults
-import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
@@ -99,18 +83,23 @@ import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverSearchViewModel
 import eu.depau.loak.ui.screens.discover.components.DiscoverArt
-import eu.depau.loak.ui.screens.discover.components.DiscoverBadge
-import eu.depau.loak.ui.screens.discover.components.DiscoverSongSheet
+import eu.depau.loak.ui.screens.discover.components.AlbumGestures
+import eu.depau.loak.ui.screens.discover.components.AlbumItem
+import eu.depau.loak.ui.screens.discover.components.ArtistGestures
+import eu.depau.loak.ui.screens.discover.components.ArtistItem
 import eu.depau.loak.ui.screens.discover.components.LidarrAddFlow
+import eu.depau.loak.ui.screens.discover.components.SectionTitle
+import eu.depau.loak.ui.screens.discover.components.SongGestures
+import eu.depau.loak.ui.screens.discover.components.SongItem
+import eu.depau.loak.ui.screens.discover.components.WithBadge
+import eu.depau.loak.ui.screens.discover.components.albumKind
 import eu.depau.loak.ui.screens.discover.components.dotted
 import eu.depau.loak.ui.screens.discover.components.rememberDiscoverStatus
 import eu.depau.loak.ui.screens.discover.components.rememberLidarrAddFlow
 import eu.depau.loak.ui.screens.search.SearchCategory
 import eu.depau.loak.ui.screens.search.components.SearchScreenChips
 import eu.depau.loak.ui.screens.search.components.SearchScreenTopBar
-import eu.depau.loak.ui.theme.SmallCoverArtShape
 import eu.depau.loak.ui.util.windowControlsInsets
-import eu.depau.loak.ui.util.onSecondaryClick
 import eu.depau.loak.ui.util.windowDragArea
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -259,8 +248,8 @@ private fun Results(results: DiscoverSearchResults, category: SearchCategory, pa
 		section(Res.string.title_songs, songs) {
 			SongItem(it, it.id == previewing, addFlow) { previewManager.toggle(it) }
 		}
-		section(Res.string.title_artists, artists) { ArtistItem(it) { addFlow.addArtist(it) } }
-		section(Res.string.title_albums, albums) { AlbumItem(it) { addFlow.addAlbum(it) } }
+		section(Res.string.title_artists, artists) { ArtistItem(it, addFlow) }
+		section(Res.string.title_albums, albums) { AlbumItem(it, addFlow) }
 	}
 }
 
@@ -275,66 +264,6 @@ private fun <T> LazyListScope.section(
 }
 
 @Composable
-private fun SectionTitle(title: StringResource) {
-	Text(
-		stringResource(title),
-		style = MaterialTheme.typography.titleLarge,
-		modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 4.dp)
-	)
-}
-
-@Composable
-private fun albumKind(album: DiscoverAlbum) = stringResource(
-	when (album.recordType) {
-		"single" -> Res.string.label_kind_single
-		"ep" -> Res.string.label_kind_ep
-		else -> Res.string.label_kind_album
-	}
-)
-
-/** [text] (one weighted Text) followed by the item's status badge, when it has one. */
-@Composable
-private fun WithBadge(status: DiscoverBadgeState, text: @Composable RowScope.() -> Unit) {
-	Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-		text()
-		DiscoverBadge(status)
-	}
-}
-
-/**
- * A Discover song's gestures, handed to [content] as a modifier plus how to open its sheet: a
- * song already in the library plays with the normal player on tap and has the normal song sheet;
- * any other toggles its preview and has [DiscoverSongSheet]. Null [song] (an album or artist):
- * no gestures, no sheet.
- */
-@Composable
-private fun SongGestures(
-	song: DiscoverSong?,
-	status: DiscoverBadgeState,
-	onPreview: (DiscoverSong) -> Unit,
-	addFlow: LidarrAddFlow,
-	content: @Composable (gestures: Modifier, openSheet: (() -> Unit)?) -> Unit
-) {
-	if (song == null) return content(Modifier, null)
-	val librarySong = (status as? DiscoverBadgeState.InLibrary)?.song
-	val player = koinInject<MediaPlayerViewModel>()
-	var sheetOpen by rememberSaveable { mutableStateOf(false) }
-	if (librarySong != null) SongActionsSheet(librarySong, sheetOpen, onDismissRequest = { sheetOpen = false })
-	else if (sheetOpen) DiscoverSongSheet(
-		song,
-		onDismissRequest = { sheetOpen = false },
-		onAddToLidarr = { addFlow.addSong(song) }
-	)
-	val openSheet = { sheetOpen = true }
-	content(
-		Modifier.onSecondaryClick(openSheet).combinedClickable(onLongClick = openSheet) {
-			if (librarySong != null) player.playNow(librarySong) else onPreview(song)
-		},
-		openSheet
-	)
-}
-
-@Composable
 private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -> Unit, addFlow: LidarrAddFlow) {
 	val (art, title, subtitle) = when (top) {
 		is DiscoverSong -> Triple(top.coverUrl, top.title, dotted(stringResource(Res.string.label_kind_song), top.artist))
@@ -343,7 +272,7 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 		else -> return
 	}
 	val status = rememberDiscoverStatus(top)
-	SongGestures(top as? DiscoverSong, status, onPreview, addFlow) { gestures, _ ->
+	val card = @Composable { gestures: Modifier ->
 		Surface(
 			modifier = Modifier
 				.padding(start = 16.dp, end = 16.dp, top = 16.dp)
@@ -403,66 +332,9 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 			}
 		}
 	}
-}
-
-@Composable
-private fun ResultItem(
-	art: String?,
-	title: String,
-	subtitle: String,
-	status: DiscoverBadgeState,
-	modifier: Modifier = Modifier,
-	artShape: Shape = SmallCoverArtShape,
-	previewing: Boolean = false,
-	onPreview: (() -> Unit)? = null,
-	onMore: (() -> Unit)? = null
-) {
-	ListItem(
-		modifier = modifier,
-		leadingContent = { DiscoverArt(art, 48.dp, artShape) },
-		headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-		supportingContent = {
-			WithBadge(status) {
-				Text(subtitle, Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
-			}
-		},
-		trailingContent = {
-			Row(verticalAlignment = Alignment.CenterVertically) {
-				if (onPreview != null) FilledTonalIconButton(onClick = onPreview) {
-					Icon(
-						if (previewing) Icons.Filled.Pause else Icons.Filled.Play,
-						stringResource(if (previewing) Res.string.action_pause_preview else Res.string.action_preview),
-						Modifier.size(18.dp)
-					)
-				}
-				IconButton(onClick = { onMore?.invoke() }, enabled = onMore != null) {
-					Icon(Icons.Outlined.MoreVert, stringResource(Res.string.action_more))
-				}
-			}
-		}
-	)
-}
-
-@Composable
-private fun SongItem(song: DiscoverSong, previewing: Boolean, addFlow: LidarrAddFlow, onPreview: () -> Unit) {
-	val status = rememberDiscoverStatus(song)
-	SongGestures(song, status, { onPreview() }, addFlow) { gestures, openSheet ->
-		ResultItem(
-			song.coverUrl, song.title, dotted(song.artist, song.album), status, gestures,
-			previewing = previewing, onPreview = onPreview, onMore = openSheet
-		)
+	when (top) {
+		is DiscoverSong -> SongGestures(top, status, onPreview, addFlow) { gestures, _ -> card(gestures) }
+		is DiscoverAlbum -> AlbumGestures(top, addFlow) { gestures, _ -> card(gestures) }
+		is DiscoverArtist -> ArtistGestures(top, addFlow) { gestures, _ -> card(gestures) }
 	}
 }
-
-// ponytail: album/artist overflow opens their add sheet until they get options sheets (M7)
-@Composable
-private fun AlbumItem(album: DiscoverAlbum, onAdd: () -> Unit) = ResultItem(
-	album.coverUrl, album.title, dotted(albumKind(album), album.artist, album.year?.toString()),
-	rememberDiscoverStatus(album), onMore = onAdd
-)
-
-@Composable
-private fun ArtistItem(artist: DiscoverArtist, onAdd: () -> Unit) = ResultItem(
-	artist.pictureUrl, artist.name, stringResource(Res.string.label_kind_artist),
-	rememberDiscoverStatus(artist), artShape = CircleShape, onMore = onAdd
-)

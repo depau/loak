@@ -104,6 +104,25 @@ sealed interface Screen : NavKey {
 	@Serializable
 	data object DiscoverSearch : Screen
 
+	/** An album the library doesn't have, by Deezer id or else by [title] and [artist]. */
+	@Immutable
+	@Serializable
+	data class DiscoverAlbum(
+		val deezerId: Long? = null,
+		val mbid: String? = null,
+		val title: String? = null,
+		val artist: String? = null
+	) : Screen
+
+	/** An artist the library doesn't have, by Deezer id or else by [name]. */
+	@Immutable
+	@Serializable
+	data class DiscoverArtist(
+		val deezerId: Long? = null,
+		val mbid: String? = null,
+		val name: String? = null
+	) : Screen
+
 	@Immutable
 	@Serializable
 	data object LidarrQueue : Screen

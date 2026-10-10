@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSong
+import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.manager.DiscoverBadgeState
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.generated.resources.Res
@@ -34,12 +35,16 @@ import eu.depau.loak.icons.outlined.Check
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-/** Where a Discover song, album or artist stands; re-resolved whenever Lidarr's catalog changes. */
+/**
+ * Where a Discover song, album or artist stands; re-resolved whenever Lidarr's catalog or the
+ * library changes.
+ */
 @Composable
 fun rememberDiscoverStatus(item: Any): DiscoverBadgeState {
 	val lidarr = koinInject<LidarrManager>()
 	val catalog by lidarr.catalog.collectAsState()
-	val status by produceState<DiscoverBadgeState>(DiscoverBadgeState.None, item, catalog) {
+	val library by koinInject<LibraryMatcher>().generation.collectAsState()
+	val status by produceState<DiscoverBadgeState>(DiscoverBadgeState.None, item, catalog, library) {
 		value = when (item) {
 			is DiscoverSong -> lidarr.statusFor(item)
 			is DiscoverAlbum -> lidarr.statusFor(item)

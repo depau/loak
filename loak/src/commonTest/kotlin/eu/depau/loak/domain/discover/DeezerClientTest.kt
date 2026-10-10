@@ -124,4 +124,66 @@ class DeezerClientTest {
 		)
 		assertEquals("Imagine Dragons", artist.name)
 	}
+
+	@Test
+	fun parsesAlbumDetailWithTracks() {
+		val root = json.parseToJsonElement("""{
+			"id": 302127,
+			"title": "Discovery",
+			"upc": "724384960650",
+			"release_date": "2001-03-03",
+			"record_type": "album",
+			"cover_medium": "https://e-cdns-images.dzcdn.net/images/cover/ab/500x500.jpg",
+			"artist": {"id": 27, "name": "Daft Punk"},
+			"tracks": {
+				"data": [
+					{
+						"id": 3135553,
+						"title": "One More Time",
+						"duration": 320,
+						"preview": "https://cdnt-preview.dzcdn.net/preview.mp3",
+						"isrc": "GBDUW0000053",
+						"artist": {"id": 27, "name": "Daft Punk"}
+					},
+					{
+						"id": 3135554,
+						"title": "Aerodynamic",
+						"duration": 224,
+						"preview": null,
+						"artist": {"id": 27, "name": "Daft Punk"}
+					}
+				]
+			}
+		}""".trimIndent()).jsonObject
+
+		val (album, tracks) = discoverAlbumWithTracksOf(root)
+		assertEquals("302127", album.id)
+		assertEquals("Discovery", album.title)
+		assertEquals("Daft Punk", album.artist)
+		assertEquals(2001, album.year)
+		assertEquals("album", album.recordType)
+		assertEquals("724384960650", album.upc)
+		assertEquals(302127L, album.deezerId)
+		assertEquals(27L, album.artistDeezerId)
+
+		assertEquals(2, tracks.size)
+		assertEquals("One More Time", tracks[0].title)
+		assertEquals("Daft Punk", tracks[0].artist)
+		assertEquals(320, tracks[0].duration)
+		assertEquals("https://cdnt-preview.dzcdn.net/preview.mp3", tracks[0].previewUrl)
+		assertEquals("GBDUW0000053", tracks[0].isrc)
+		assertEquals(3135553L, tracks[0].deezerId)
+		assertNull(tracks[1].previewUrl)
+		// album tracks carry no album of their own: they get the page's
+		assertEquals("Discovery", tracks[1].album)
+		assertEquals(302127L, tracks[1].albumDeezerId)
+		assertEquals(album.coverUrl, tracks[1].coverUrl)
+
+		// an album payload without a tracks section yields an empty tracklist
+		val (bareAlbum, bareTracks) = discoverAlbumWithTracksOf(
+			json.parseToJsonElement("""{"id": 1, "title": "X", "artist": {"name": "A"}}""").jsonObject
+		)
+		assertEquals("X", bareAlbum.title)
+		assertTrue(bareTracks.isEmpty())
+	}
 }

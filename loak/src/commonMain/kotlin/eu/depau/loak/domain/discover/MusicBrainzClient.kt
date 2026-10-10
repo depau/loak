@@ -112,7 +112,7 @@ class MusicBrainzClient {
 		return result["artists"]?.jsonArray.orEmpty()
 			.firstOrNull { it.jsonObject["score"]?.jsonPrimitive?.intOrNull == 100 }
 			?.jsonObject
-			?.let { MusicBrainzArtist(it["id"]?.jsonPrimitive?.contentOrNull.orEmpty(), it["name"]?.jsonPrimitive?.contentOrNull.orEmpty()) }
+			?.let(::musicBrainzArtistOf)
 	}
 
 	/** An artist's discography: albums, EPs and singles, up to 100. */
@@ -277,8 +277,19 @@ data class MusicBrainzRelease(
 	val tracks: List<JsonObject>?
 )
 
-/** A MusicBrainz artist, identified by its MBID. */
-data class MusicBrainzArtist(val id: String, val name: String)
+/** A MusicBrainz artist, identified by its MBID; [area] and [genre] for the artist page's subtitle. */
+data class MusicBrainzArtist(val id: String, val name: String, val area: String? = null, val genre: String? = null)
+
+/** Maps one `/artist` search answer; the genre is its most-voted tag, capitalized. */
+fun musicBrainzArtistOf(obj: JsonObject) = MusicBrainzArtist(
+	id = obj["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+	name = obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+	area = obj["area"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull,
+	genre = obj["tags"]?.jsonArray.orEmpty()
+		.maxByOrNull { it.jsonObject["count"]?.jsonPrimitive?.intOrNull ?: 0 }
+		?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull
+		?.replaceFirstChar { it.uppercaseChar() }
+)
 
 /**
  * Picks the release group to add to Lidarr, per spec: the earliest studio Album

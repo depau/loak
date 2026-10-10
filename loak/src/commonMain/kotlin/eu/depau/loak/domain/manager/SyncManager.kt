@@ -30,6 +30,7 @@ import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.entities.PlaylistEdit
 import eu.depau.loak.data.database.mappers.toEntity
 import eu.depau.loak.di.traced
+import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.util.Logger
 import dev.zt64.subsonic.api.model.ScanStatus
@@ -60,7 +61,8 @@ class SyncManager(
 	private val preferenceManager: PreferenceManager,
 	private val playlistDao: PlaylistDao,
 	private val snackBarManager: SnackBarManager,
-	private val downloadManager: DownloadManager
+	private val downloadManager: DownloadManager,
+	private val libraryMatcher: LibraryMatcher
 ) {
 	private val scope = CoroutineScope(SupervisorJob() + IoDispatcher)
 	private var syncJob: Job? = null
@@ -217,6 +219,8 @@ class SyncManager(
 			// keep downloaded collections in step with the server (AI playlists included):
 			// refresh them right after the library pull, then the download queue picks them up
 			downloadManager.onLibrarySynced()
+			// Discover's "In library" answers come from the fresh cache from now on
+			libraryMatcher.invalidate()
 		}.onFailure {
 			Logger.e("SyncManager", "couldn't sync library", it)
 		}

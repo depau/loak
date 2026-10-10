@@ -1094,4 +1094,25 @@
 	<string name="notice_lidarr_searching">Added to Lidarr, searching…</string>
 	<string name="notice_lidarr_artist_added">Added %1$s to Lidarr</string>
 	<string name="notice_lidarr_add_failed">Couldn't add to Lidarr: %1$s</string>
+	<string name="label_kind_compilation">Compilation</string>
+	<string name="action_add_album">Add album</string>
+	<string name="action_preview_top_songs">Preview top songs</string>
+	<plurals name="info_own_album_songs">
+		<item quantity="one">You have %1$d of these songs. Lidarr downloads the whole album.</item>
+		<item quantity="other">You have %1$d of these songs. Lidarr downloads the whole album.</item>
+	</plurals>
+	<string name="title_lidarr_searching">Searching in Lidarr…</string>
+	<string name="info_lidarr_searching">Lidarr is looking for a release to download</string>
+	<string name="title_lidarr_downloading">Downloading in Lidarr</string>
+	<string name="label_size_of_total">%1$s of %2$s</string>
+	<string name="title_lidarr_downloaded">Downloaded by Lidarr</string>
+	<string name="info_lidarr_downloaded">It shows up in your library after the server's next scan</string>
+	<string name="title_in_your_library">In your library</string>
+	<string name="action_search_again">Search again</string>
+	<string name="action_open_in_lidarr">Open in Lidarr</string>
+	<string name="notice_lidarr_search_failed">Couldn't search in Lidarr: %1$s</string>
+	<string name="title_popular">Popular</string>
+	<string name="title_albums_eps">Albums &amp; EPs</string>
+	<string name="info_discover_album_unavailable">Couldn't load this album</string>
+	<string name="info_discover_artist_unavailable">Couldn't load this artist</string>
 </resources>

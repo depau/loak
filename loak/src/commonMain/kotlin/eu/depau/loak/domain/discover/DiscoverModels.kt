@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.discover
 
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -18,7 +19,9 @@ data class DiscoverSong(
 	val coverUrl: String? = null,
 	val isrc: String? = null,
 	val deezerId: Long? = null,
-	val mbid: String? = null
+	val mbid: String? = null,
+	val albumDeezerId: Long? = null,
+	val artistDeezerId: Long? = null
 )
 
 /** An album Deezer found that isn't in the library (yet). */
@@ -29,8 +32,10 @@ data class DiscoverAlbum(
 	val coverUrl: String? = null,
 	val year: Int? = null,
 	val recordType: String? = null,
+	val upc: String? = null,
 	val deezerId: Long? = null,
-	val mbid: String? = null
+	val mbid: String? = null,
+	val artistDeezerId: Long? = null
 )
 
 /** An artist Deezer found that isn't in the library (yet). */
@@ -53,6 +58,10 @@ private fun JsonObject.str(key: String) = this[key]?.jsonPrimitive?.contentOrNul
 private fun JsonObject.deezerId(key: String = "id"): Long? =
 	this[key]?.jsonPrimitive?.longOrNull?.takeIf { it != 0L }
 
+// ponytail: rewrites Deezer's CDN size segment; map cover_xl/picture_xl into the models if that ever changes
+/** [url] (a Deezer cover or picture, 250 px by default) at [px] pixels square; other URLs as they are. */
+fun deezerImageUrl(url: String?, px: Int): String? = url?.replace("/250x250-", "/${px}x$px-")
+
 /**
  * Maps one Deezer track search result. Cover art and preview urls are the raw Deezer
  * values ([DiscoverSong.coverUrl] prefilled from the 250 px square, sizable if needed).
@@ -69,7 +78,9 @@ fun discoverSongOf(item: JsonObject): DiscoverSong {
 		previewUrl = item.str("preview"),
 		coverUrl = album?.str("cover_medium") ?: album?.str("cover_big"),
 		isrc = item.str("isrc"),
-		deezerId = item.deezerId()
+		deezerId = item.deezerId(),
+		albumDeezerId = album?.deezerId(),
+		artistDeezerId = artist?.deezerId()
 	)
 }
 
@@ -83,7 +94,9 @@ fun discoverAlbumOf(item: JsonObject): DiscoverAlbum {
 		coverUrl = item.str("cover_medium") ?: item.str("cover_big"),
 		year = item.str("release_date")?.take(4)?.toIntOrNull(),
 		recordType = item.str("record_type"),
-		deezerId = item.deezerId()
+		upc = item.str("upc")?.takeIf { it.isNotBlank() },
+		deezerId = item.deezerId(),
+		artistDeezerId = artist?.deezerId()
 	)
 }
 
@@ -95,4 +108,22 @@ fun discoverArtistOf(item: JsonObject): DiscoverArtist {
 		pictureUrl = item.str("picture_medium") ?: item.str("picture_big"),
 		deezerId = item.deezerId()
 	)
+}
+
+/**
+ * Folds an album detail payload (album fields at the top level plus its `tracks.data`
+ * array) into the album page pair; its tracks, which carry no album, get this one's.
+ * Pure, so it can be tested without the network.
+ */
+fun discoverAlbumWithTracksOf(root: JsonObject): Pair<DiscoverAlbum, List<DiscoverSong>> {
+	val album = discoverAlbumOf(root)
+	val tracks = ((root["tracks"] as? JsonObject)?.get("data") as? JsonArray).orEmpty().map {
+		val song = discoverSongOf(it.jsonObject)
+		song.copy(
+			album = song.album ?: album.title,
+			coverUrl = song.coverUrl ?: album.coverUrl,
+			albumDeezerId = song.albumDeezerId ?: album.deezerId
+		)
+	}
+	return album to tracks
 }

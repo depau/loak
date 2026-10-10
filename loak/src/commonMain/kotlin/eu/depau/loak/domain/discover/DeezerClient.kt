@@ -97,9 +97,86 @@ class DeezerClient {
 		DiscoverSearchResults(songs.await(), albums.await(), artists.await())
 	}
 
+	/** The artist named [name] (once normalised); null when Deezer has none or the call fails. */
+	suspend fun findArtist(name: String): DiscoverArtist? = orNull {
+		searchArtists(name).firstOrNull { normalizeArtist(it.name) == normalizeArtist(name) }
+	}
+
+	/** The album [title] by [artist] (once normalised); null when Deezer has none or the call fails. */
+	suspend fun findAlbum(title: String, artist: String): DiscoverAlbum? = orNull {
+		searchAlbums("$artist $title").firstOrNull {
+			normalizeTitle(it.title) == normalizeTitle(title) && normalizeArtist(it.artist) == normalizeArtist(artist)
+		}
+	}
+
+	private suspend fun <T> orNull(block: suspend () -> T?): T? = try {
+		block()
+	} catch (e: CancellationException) {
+		throw e
+	} catch (_: Exception) {
+		null
+	}
+
+	/** An album's full page: its details and complete tracklist (with preview URLs). Null when the call fails. */
+	suspend fun getAlbum(albumId: Long): Pair<DiscoverAlbum, List<DiscoverSong>>? =
+		withContext(IoDispatcher) {
+			try {
+				discoverAlbumWithTracksOf(fetchRaw("album/$albumId"))
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				null
+			}
+		}
+
+	/** An artist's full page. Null when the call fails. */
+	suspend fun getArtist(artistId: Long): DiscoverArtist? = withContext(IoDispatcher) {
+		try {
+			discoverArtistOf(fetchRaw("artist/$artistId"))
+		} catch (e: CancellationException) {
+			throw e
+		} catch (_: Exception) {
+			null
+		}
+	}
+
+	/** An artist's most popular songs. Empty when the call fails. */
+	suspend fun getArtistTopTracks(artistId: Long, limit: Int = 10): List<DiscoverSong> =
+		withContext(IoDispatcher) {
+			try {
+				topKind("artist/$artistId/top", limit) { discoverSongOf(it) }
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
+
+	/** An artist's discography (albums, EPs, singles). Empty when the call fails. */
+	suspend fun getArtistAlbums(artistId: Long): List<DiscoverAlbum> =
+		withContext(IoDispatcher) {
+			try {
+				topKind("artist/$artistId/albums", null) { discoverAlbumOf(it) }
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
+
 	private suspend fun <T> searchKind(path: String, query: String, map: (JsonObject) -> T): List<T> =
 		withContext(IoDispatcher) {
 			val root = fetch(path, query)
+			(root["data"] as? JsonArray)
+				?.map { map(it.jsonObject) }
+				.orEmpty()
+		}
+
+	/** List endpoints that take an optional `limit` query param instead of a `q`. */
+	private suspend fun <T> topKind(path: String, limit: Int?, map: (JsonObject) -> T): List<T> =
+		withContext(IoDispatcher) {
+			val root = if (limit == null) fetchRaw(path)
+			else fetchRaw(path) { parameter("limit", limit) }
 			(root["data"] as? JsonArray)
 				?.map { map(it.jsonObject) }
 				.orEmpty()

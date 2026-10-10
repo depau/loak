@@ -28,6 +28,9 @@ import eu.depau.loak.ui.screens.radio.viewmodels.RadioCreateDialogViewModel
 import eu.depau.loak.ui.screens.radio.viewmodels.RadioListViewModel
 import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverSearchViewModel
+import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverAlbumViewModel
+import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverArtistViewModel
+import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.viewmodels.LyricsPriorityViewModel
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
 import eu.depau.loak.ui.screens.settings.viewmodels.NetworkStatsViewModel
@@ -122,6 +125,8 @@ val viewModelModule = module {
 	}
 	viewModelOf(::SearchViewModel)
 	viewModelOf(::DiscoverSearchViewModel)
+	viewModel { (key: Screen.DiscoverAlbum) -> DiscoverAlbumViewModel(key, get()) }
+	viewModel { (key: Screen.DiscoverArtist) -> DiscoverArtistViewModel(key, get(), get(), get()) }
 	viewModelOf(::ExploreViewModel)
 	viewModelOf(::GenreListViewModel)
 	viewModelOf(::RadioListViewModel)

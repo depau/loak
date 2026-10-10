@@ -57,13 +57,16 @@ fun LidarrQueueScreen() {
 	}
 }
 
+/** "03:12 left" until [LidarrQueueItem.eta] (an absolute ISO instant); null when unknown or past. */
+@Composable
+internal fun timeLeftOf(item: LidarrQueueItem): String? = item.eta
+	?.let { runCatching { Instant.parse(it) - Clock.System.now() }.getOrNull() }
+	?.takeIf { it > Duration.ZERO }
+	?.let { stringResource(Res.string.info_left, it.toHoursMinutesSeconds()) }
+
 @Composable
 private fun QueueItem(item: LidarrQueueItem) {
-	// Lidarr's ETA is an absolute ISO instant; show what's left of it
-	val left = item.eta
-		?.let { runCatching { Instant.parse(it) - Clock.System.now() }.getOrNull() }
-		?.takeIf { it > Duration.ZERO }
-		?.let { stringResource(Res.string.info_left, it.toHoursMinutesSeconds()) }
+	val left = timeLeftOf(item)
 	ListItem(
 		headlineContent = { Text(item.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
 		supportingContent = {

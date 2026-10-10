@@ -10,6 +10,9 @@ import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.domain.models.DomainSong
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -76,7 +79,7 @@ private class LibraryIndex(
 /**
  * Whether a Discover track/album/artist already lives in the Subsonic library (the Room cache),
  * matching first by exact identifiers (ISRC, MusicBrainz ID) and then by normalised name.
- * The whole library is loaded and indexed once per session, so repeated lookups are O(1).
+ * The whole library is loaded and indexed once per library sync, so repeated lookups are O(1).
  */
 class LibraryMatcher(
 	private val songDao: SongDao,
@@ -85,6 +88,16 @@ class LibraryMatcher(
 ) {
 	private val gate = Mutex()
 	private var index: LibraryIndex? = null
+
+	/** Bumped by [invalidate], so statuses on screen re-resolve against the fresh library. */
+	val generation: StateFlow<Int>
+		field = MutableStateFlow(0)
+
+	/** Drops the index after a library sync; the next lookup rebuilds it. */
+	fun invalidate() {
+		index = null
+		generation.update { it + 1 }
+	}
 
 	private suspend fun ensureIndex(): LibraryIndex {
 		index?.let { return it }

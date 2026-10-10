@@ -6,6 +6,8 @@ import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.LibraryMatcher
+import eu.depau.loak.domain.discover.normalizeArtist
+import eu.depau.loak.domain.discover.normalizeTitle
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.domain.models.DomainSong
@@ -169,7 +171,9 @@ data class LidarrAlbumSnapshot(
 	val musicBrainzId: String?,
 	val title: String,
 	val artistId: Long,
-	val monitored: Boolean
+	val monitored: Boolean,
+	/** Lidarr has every track's file: the library gets it on its next scan. */
+	val downloaded: Boolean = false
 )
 
 /** A Lidarr root folder, with the quality/metadata profiles it defaults to. */
@@ -208,6 +212,17 @@ data class LidarrCatalog(
 	companion object {
 		val EMPTY = LidarrCatalog(emptyList(), emptyList(), emptyList())
 	}
+}
+
+/**
+ * The Lidarr album a Discover [album] is: by MusicBrainz release group when known, else by
+ * normalised title and artist name. Null when Lidarr doesn't have it.
+ */
+fun LidarrCatalog.albumFor(album: DiscoverAlbum): LidarrAlbumSnapshot? {
+	album.mbid?.let { mbid -> albums.firstOrNull { it.musicBrainzId == mbid }?.let { return it } }
+	val title = normalizeTitle(album.title)
+	val artistIds = artists.filter { normalizeArtist(it.name) == normalizeArtist(album.artist) }.map { it.id }
+	return albums.firstOrNull { it.artistId in artistIds && normalizeTitle(it.title) == title }
 }
 
 /**
@@ -369,7 +384,8 @@ class LidarrManager(
 				musicBrainzId = obj["foreignAlbumId"]?.jsonPrimitive?.contentOrNull,
 				title = obj["title"]?.jsonPrimitive?.contentOrNull ?: "",
 				artistId = obj["artistId"]?.jsonPrimitive?.longOrNull ?: 0L,
-				monitored = obj["monitored"]?.jsonPrimitive?.booleanOrNull ?: false
+				monitored = obj["monitored"]?.jsonPrimitive?.booleanOrNull ?: false,
+				downloaded = (obj["statistics"]?.jsonObject?.get("percentOfTracks")?.jsonPrimitive?.doubleOrNull ?: 0.0) >= 100.0
 			)
 		}
 
@@ -719,6 +735,12 @@ class LidarrManager(
 		}
 		Logger.w(TAG, "gave up waiting for Lidarr artist $artistId refresh")
 	}
+
+	/** Re-sends Lidarr's search for one of its albums ("Search again"). */
+	suspend fun searchAlbum(albumId: Long) = triggerAlbumSearch(listOf(albumId))
+
+	/** The album's page in Lidarr's web UI, by its MusicBrainz release group. */
+	fun albumPageUrl(foreignAlbumId: String) = "$baseUrl/album/$foreignAlbumId"
 
 	/** Sends the `AlbumSearch` command for the given album ids. */
 	private suspend fun triggerAlbumSearch(albumIds: List<Long>) {
