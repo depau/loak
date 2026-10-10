@@ -91,7 +91,7 @@ fun ChartCountryPickerSheet(
 		TextField(
 			value = filter,
 			onValueChange = { filter = it },
-			modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+			modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
 			placeholder = { Text(stringResource(Res.string.action_filter_countries)) },
 			leadingIcon = { Icon(Icons.Outlined.Search, null) },
 			singleLine = true,
