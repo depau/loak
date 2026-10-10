@@ -43,9 +43,14 @@ import eu.depau.loak.icons.outlined.ArrowDown
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Search
 import eu.depau.loak.ui.theme.defaultFont
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isExpanded
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
-
 @Composable
 fun PlaylistTrackFilterRow(
 	query: TextFieldState,
@@ -55,18 +60,46 @@ fun PlaylistTrackFilterRow(
 	onToggleReversed: () -> Unit,
 	modifier: Modifier = Modifier
 ) {
-	Column(
-		modifier = modifier
-			.fillMaxWidth()
-			.widthIn(max = 560.dp)
-			.padding(horizontal = 16.dp, vertical = 6.dp),
-		verticalArrangement = Arrangement.spacedBy(6.dp)
-	) {
+	val expanded = LocalPlatformContext.current.isExpanded()
+	val rotation by animateFloatAsState(if (isReversed) 0f else 180f)
+
+	val countText = if (query.text.isNotEmpty()) {
+		buildAnnotatedString {
+			withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)) {
+				append(filteredCount.toString())
+			}
+			append(" of ")
+			append(pluralStringResource(Res.plurals.count_songs, totalCount, totalCount))
+		}
+	} else {
+		buildAnnotatedString {
+			append(pluralStringResource(Res.plurals.count_songs, totalCount, totalCount))
+		}
+	}
+
+	val sortButton = @Composable {
+		IconButton(
+			onClick = onToggleReversed,
+			modifier = Modifier
+				.size(36.dp)
+				.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+		) {
+			Icon(
+				imageVector = Icons.Outlined.ArrowDown,
+				contentDescription = stringResource(
+					if (isReversed) Res.string.option_sort_descending else Res.string.option_sort_ascending
+				),
+				modifier = Modifier.size(18.dp).rotate(rotation),
+				tint = MaterialTheme.colorScheme.onSurfaceVariant
+			)
+		}
+	}
+
+	val searchField = @Composable { fieldModifier: Modifier ->
 		BasicTextField(
 			state = query,
-			modifier = Modifier
-				.fillMaxWidth()
-				.height(48.dp)
+			modifier = fieldModifier
+				.height(52.dp)
 				.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
 				.padding(horizontal = 16.dp)
 				.onKeyEvent { event ->
@@ -117,37 +150,45 @@ fun PlaylistTrackFilterRow(
 				}
 			}
 		)
+	}
+
+	if (expanded) {
 		Row(
-			modifier = Modifier
+			modifier = modifier
 				.fillMaxWidth()
-				.padding(horizontal = 4.dp),
+				.padding(horizontal = 16.dp, vertical = 8.dp),
 			verticalAlignment = Alignment.CenterVertically,
-			horizontalArrangement = Arrangement.SpaceBetween
+			horizontalArrangement = Arrangement.spacedBy(14.dp)
 		) {
+			searchField(Modifier.weight(1f, fill = false).widthIn(max = 560.dp))
 			Text(
-				text = if (query.text.isNotEmpty()) {
-					"$filteredCount of $totalCount"
-				} else {
-					pluralStringResource(Res.plurals.count_songs, totalCount, totalCount)
-				},
+				text = countText,
 				style = MaterialTheme.typography.labelMedium,
 				color = MaterialTheme.colorScheme.onSurfaceVariant
 			)
-			val rotation by animateFloatAsState(if (isReversed) 0f else 180f)
-			IconButton(
-				onClick = onToggleReversed,
+			sortButton()
+		}
+	} else {
+		Column(
+			modifier = modifier
+				.fillMaxWidth()
+				.padding(horizontal = 16.dp, vertical = 6.dp),
+			verticalArrangement = Arrangement.spacedBy(6.dp)
+		) {
+			searchField(Modifier.fillMaxWidth())
+			Row(
 				modifier = Modifier
-					.size(32.dp)
-					.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+					.fillMaxWidth()
+					.padding(horizontal = 4.dp),
+				verticalAlignment = Alignment.CenterVertically,
+				horizontalArrangement = Arrangement.SpaceBetween
 			) {
-				Icon(
-					imageVector = Icons.Outlined.ArrowDown,
-					contentDescription = stringResource(
-						if (isReversed) Res.string.option_sort_descending else Res.string.option_sort_ascending
-					),
-					modifier = Modifier.size(18.dp).rotate(rotation),
-					tint = MaterialTheme.colorScheme.onSurfaceVariant
+				Text(
+					text = countText,
+					style = MaterialTheme.typography.labelMedium,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
 				)
+				sortButton()
 			}
 		}
 	}
