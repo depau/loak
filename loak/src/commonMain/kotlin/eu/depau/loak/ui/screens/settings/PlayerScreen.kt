@@ -8,7 +8,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -17,7 +16,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
 import eu.depau.loak.domain.models.settings.CoverArtTapAction
@@ -67,8 +65,6 @@ import org.koin.compose.koinInject
 /** The now playing screen, lyrics, and the mini player with the tabs under it. */
 @Composable
 fun SettingsPlayerScreen() {
-	val platformContext = LocalPlatformContext.current
-	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	val preferenceManager = koinInject<PreferenceManager>()
 	var lyricProvidersSheetOpen by rememberSaveable { mutableStateOf(false) }
 	var sliderStyleDialogOpen by rememberSaveable { mutableStateOf(false) }
@@ -77,11 +73,7 @@ fun SettingsPlayerScreen() {
 		topBar = {
 			NestedTopBar(
 				title = { Text(stringResource(Res.string.title_player)) },
-				navigationAction = {
-					if (!hideBack) {
-						NestedTopBarDefaults.NavigationAction()
-					}
-				}
+				navigationAction = NestedTopBarDefaults::NavigationAction
 			)
 		}
 	) { innerPadding ->

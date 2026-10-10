@@ -19,7 +19,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -78,7 +77,6 @@ import kotlin.time.Instant
 fun SettingsAdvancedScreen() {
 	val viewModel = koinViewModel<SettingsDataStorageViewModel>()
 	val platformContext = LocalPlatformContext.current
-	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	val backStack = LocalNavStack.current
 	val preferenceManager = koinInject<PreferenceManager>()
 	val imageLoader = koinInject<ImageLoader>()
@@ -100,11 +98,7 @@ fun SettingsAdvancedScreen() {
 		topBar = {
 			NestedTopBar(
 				title = { Text(stringResource(Res.string.title_advanced)) },
-				navigationAction = {
-					if (!hideBack) {
-						NestedTopBarDefaults.NavigationAction()
-					}
-				}
+				navigationAction = NestedTopBarDefaults::NavigationAction
 			)
 		}
 	) { innerPadding ->

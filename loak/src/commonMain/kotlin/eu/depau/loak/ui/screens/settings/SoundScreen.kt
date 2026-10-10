@@ -9,7 +9,6 @@ import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
@@ -67,7 +66,6 @@ import kotlin.math.round
 @Composable
 fun SettingsSoundScreen() {
 	val platformContext = LocalPlatformContext.current
-	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	// ReplayGain, the equalizer, gapless and offload are Android's player only
 	val isAndroid = platformContext.platformType == PlatformType.Android
 	val preferenceManager = koinInject<PreferenceManager>()
@@ -77,11 +75,7 @@ fun SettingsSoundScreen() {
 		topBar = {
 			NestedTopBar(
 				title = { Text(stringResource(Res.string.title_sound_quality)) },
-				navigationAction = {
-					if (!hideBack) {
-						NestedTopBarDefaults.NavigationAction()
-					}
-				}
+				navigationAction = NestedTopBarDefaults::NavigationAction
 			)
 		}
 	) { innerPadding ->

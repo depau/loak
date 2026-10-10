@@ -19,7 +19,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,7 +54,6 @@ import org.koin.compose.viewmodel.koinViewModel
  */
 @Composable
 fun TabsScreen() {
-	val hideBack = LocalPlatformContext.current.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	val haptic = LocalHapticFeedback.current
 	val viewModel = koinViewModel<NavtabsViewModel>()
 	val state by viewModel.state.collectAsState()
@@ -72,7 +70,7 @@ fun TabsScreen() {
 		topBar = {
 			NestedTopBar(
 				title = { Text(stringResource(Res.string.title_tabs)) },
-				navigationAction = { if (!hideBack) NestedTopBarDefaults.NavigationAction() }
+				navigationAction = NestedTopBarDefaults::NavigationAction
 			)
 		}
 	) { innerPadding ->

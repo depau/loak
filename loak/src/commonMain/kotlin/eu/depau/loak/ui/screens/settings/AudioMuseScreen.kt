@@ -26,7 +26,6 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -43,7 +42,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.AudioMuseInfo
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -75,16 +73,11 @@ import org.koin.compose.koinInject
 /** A settings detail page: back arrow only where needed, scrolling grouped content. */
 @Composable
 internal fun SettingsScaffold(title: String, content: @Composable ColumnScope.() -> Unit) {
-	val backStack = LocalNavStack.current
-	// hidden in the settings list+detail layout, where the row to the left is the way back;
-	// during the setup wizard (no settings pane) the arrow is the only way back
-	val hideBack = LocalPlatformContext.current.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium &&
-		backStack.any { it is Screen.Settings.Root }
 	Scaffold(
 		topBar = {
 			NestedTopBar(
 				title = { Text(title) },
-				navigationAction = { if (!hideBack) NestedTopBarDefaults.NavigationAction() }
+				navigationAction = NestedTopBarDefaults::NavigationAction
 			)
 		}
 	) { innerPadding ->

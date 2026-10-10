@@ -55,7 +55,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -109,7 +108,6 @@ import org.koin.compose.koinInject
 @Composable
 fun SettingsServerScreen() {
 	val platformContext = LocalPlatformContext.current
-	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 	val sessionManager = koinInject<SessionManager>()
 	val loginManager = koinInject<LoginManager>()
 	val backStack = LocalNavStack.current
@@ -132,9 +130,7 @@ fun SettingsServerScreen() {
 		topBar = {
 			NestedTopBar(
 				title = { Text(stringResource(Res.string.title_server_account)) },
-				navigationAction = {
-					if (!hideBack) NestedTopBarDefaults.NavigationAction()
-				}
+				navigationAction = NestedTopBarDefaults::NavigationAction
 			)
 		}
 	) { innerPadding ->

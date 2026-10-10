@@ -10,7 +10,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -20,7 +19,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.depau.loak.data.database.entities.NetworkStatsEntity
 import eu.depau.loak.data.database.entities.SyncRunEntity
 import eu.depau.loak.data.database.entities.TransferCategory
-import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.info_no_data
 import eu.depau.loak.generated.resources.info_sync_failed
@@ -54,18 +52,12 @@ import kotlin.time.Instant
 fun SettingsNetworkStatsScreen() {
 	val viewModel = koinViewModel<NetworkStatsViewModel>()
 	val state by viewModel.state.collectAsStateWithLifecycle()
-	val platformContext = LocalPlatformContext.current
-	val hideBack = platformContext.sizeClass.widthSizeClass >= WindowWidthSizeClass.Medium
 
 	Scaffold(
 		topBar = {
 			NestedTopBar(
 				title = { Text(stringResource(Res.string.title_network_stats)) },
-				navigationAction = {
-					if (!hideBack) {
-						NestedTopBarDefaults.NavigationAction()
-					}
-				}
+				navigationAction = NestedTopBarDefaults::NavigationAction
 			)
 		}
 	) { innerPadding ->
