@@ -48,13 +48,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
-import coil3.ImageLoader
-import coil3.compose.AsyncImage
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.discover.DiscoverAlbum
@@ -102,8 +98,13 @@ import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverSearchViewModel
+import eu.depau.loak.ui.screens.discover.components.DiscoverArt
 import eu.depau.loak.ui.screens.discover.components.DiscoverBadge
+import eu.depau.loak.ui.screens.discover.components.DiscoverSongSheet
+import eu.depau.loak.ui.screens.discover.components.LidarrAddFlow
+import eu.depau.loak.ui.screens.discover.components.dotted
 import eu.depau.loak.ui.screens.discover.components.rememberDiscoverStatus
+import eu.depau.loak.ui.screens.discover.components.rememberLidarrAddFlow
 import eu.depau.loak.ui.screens.search.SearchCategory
 import eu.depau.loak.ui.screens.search.components.SearchScreenChips
 import eu.depau.loak.ui.screens.search.components.SearchScreenTopBar
@@ -251,14 +252,15 @@ private fun Results(results: DiscoverSearchResults, category: SearchCategory, pa
 	val active = previewManager.activePreview.collectAsState()
 	// just the audible song's id: progress ticks don't recompose the list
 	val previewing by remember { derivedStateOf { active.value?.takeIf { it.isPlaying }?.song?.id } }
+	val addFlow = rememberLidarrAddFlow()
 
 	LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-		if (top != null) item(key = "top") { TopResult(top, previewing, previewManager::toggle) }
+		if (top != null) item(key = "top") { TopResult(top, previewing, previewManager::toggle, addFlow) }
 		section(Res.string.title_songs, songs) {
-			SongItem(it, it.id == previewing) { previewManager.toggle(it) }
+			SongItem(it, it.id == previewing, addFlow) { previewManager.toggle(it) }
 		}
-		section(Res.string.title_artists, artists) { ArtistItem(it) }
-		section(Res.string.title_albums, albums) { AlbumItem(it) }
+		section(Res.string.title_artists, artists) { ArtistItem(it) { addFlow.addArtist(it) } }
+		section(Res.string.title_albums, albums) { AlbumItem(it) { addFlow.addAlbum(it) } }
 	}
 }
 
@@ -281,21 +283,6 @@ private fun SectionTitle(title: StringResource) {
 	)
 }
 
-/** Cover art or an artist picture from Deezer: a plain URL, not a Subsonic cover art id. */
-@Composable
-private fun Art(url: String?, size: Dp, shape: Shape = SmallCoverArtShape) {
-	AsyncImage(
-		model = url,
-		imageLoader = koinInject<ImageLoader>(),
-		contentDescription = null,
-		contentScale = ContentScale.Crop,
-		modifier = Modifier
-			.size(size)
-			.clip(shape)
-			.background(MaterialTheme.colorScheme.surfaceContainer)
-	)
-}
-
 @Composable
 private fun albumKind(album: DiscoverAlbum) = stringResource(
 	when (album.recordType) {
@@ -304,8 +291,6 @@ private fun albumKind(album: DiscoverAlbum) = stringResource(
 		else -> Res.string.label_kind_album
 	}
 )
-
-private fun dotted(vararg parts: String?) = parts.filterNot { it.isNullOrBlank() }.joinToString(" · ")
 
 /** [text] (one weighted Text) followed by the item's status badge, when it has one. */
 @Composable
@@ -317,34 +302,40 @@ private fun WithBadge(status: DiscoverBadgeState, text: @Composable RowScope.() 
 }
 
 /**
- * A Discover song's gestures, handed to [content] as a modifier: a song already in the library
- * plays with the normal player on tap and opens its song sheet on long-press; any other toggles
- * its preview. Null [song] (an album or artist): no gestures.
+ * A Discover song's gestures, handed to [content] as a modifier plus how to open its sheet: a
+ * song already in the library plays with the normal player on tap and has the normal song sheet;
+ * any other toggles its preview and has [DiscoverSongSheet]. Null [song] (an album or artist):
+ * no gestures, no sheet.
  */
-// ponytail: long-press on songs outside the library waits for Discover's own song sheet (M6)
 @Composable
 private fun SongGestures(
 	song: DiscoverSong?,
 	status: DiscoverBadgeState,
 	onPreview: (DiscoverSong) -> Unit,
-	content: @Composable (Modifier) -> Unit
+	addFlow: LidarrAddFlow,
+	content: @Composable (gestures: Modifier, openSheet: (() -> Unit)?) -> Unit
 ) {
-	if (song == null) return content(Modifier)
+	if (song == null) return content(Modifier, null)
 	val librarySong = (status as? DiscoverBadgeState.InLibrary)?.song
 	val player = koinInject<MediaPlayerViewModel>()
 	var sheetOpen by rememberSaveable { mutableStateOf(false) }
 	if (librarySong != null) SongActionsSheet(librarySong, sheetOpen, onDismissRequest = { sheetOpen = false })
-	val onLongClick: (() -> Unit)? = if (librarySong != null) ({ sheetOpen = true }) else null
+	else if (sheetOpen) DiscoverSongSheet(
+		song,
+		onDismissRequest = { sheetOpen = false },
+		onAddToLidarr = { addFlow.addSong(song) }
+	)
+	val openSheet = { sheetOpen = true }
 	content(
-		Modifier.onSecondaryClick(onLongClick).combinedClickable(onLongClick = onLongClick) {
+		Modifier.onSecondaryClick(openSheet).combinedClickable(onLongClick = openSheet) {
 			if (librarySong != null) player.playNow(librarySong) else onPreview(song)
-		}
+		},
+		openSheet
 	)
 }
 
-// ponytail: Add to Lidarr (M6) and the overflow menus are disabled until they exist
 @Composable
-private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -> Unit) {
+private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -> Unit, addFlow: LidarrAddFlow) {
 	val (art, title, subtitle) = when (top) {
 		is DiscoverSong -> Triple(top.coverUrl, top.title, dotted(stringResource(Res.string.label_kind_song), top.artist))
 		is DiscoverAlbum -> Triple(top.coverUrl, top.title, dotted(albumKind(top), top.artist, top.year?.toString()))
@@ -352,7 +343,7 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 		else -> return
 	}
 	val status = rememberDiscoverStatus(top)
-	SongGestures(top as? DiscoverSong, status, onPreview) { gestures ->
+	SongGestures(top as? DiscoverSong, status, onPreview, addFlow) { gestures, _ ->
 		Surface(
 			modifier = Modifier
 				.padding(start = 16.dp, end = 16.dp, top = 16.dp)
@@ -363,7 +354,7 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 		) {
 			Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
 				Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-					Art(art, 88.dp, if (top is DiscoverArtist) CircleShape else MaterialTheme.shapes.small)
+					DiscoverArt(art, 88.dp, if (top is DiscoverArtist) CircleShape else MaterialTheme.shapes.small)
 					Column(Modifier.weight(1f)) {
 						Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
 						WithBadge(status) {
@@ -398,7 +389,13 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 							Modifier.padding(start = ButtonDefaults.IconSpacing)
 						)
 					}
-					Button(onClick = {}, enabled = false) {
+					Button(onClick = {
+						when (top) {
+							is DiscoverSong -> addFlow.addSong(top)
+							is DiscoverAlbum -> addFlow.addAlbum(top)
+							is DiscoverArtist -> addFlow.addArtist(top)
+						}
+					}) {
 						Icon(Icons.Outlined.Add, null, Modifier.size(ButtonDefaults.IconSize))
 						Text(stringResource(Res.string.action_add_to_lidarr), Modifier.padding(start = ButtonDefaults.IconSpacing))
 					}
@@ -417,11 +414,12 @@ private fun ResultItem(
 	modifier: Modifier = Modifier,
 	artShape: Shape = SmallCoverArtShape,
 	previewing: Boolean = false,
-	onPreview: (() -> Unit)? = null
+	onPreview: (() -> Unit)? = null,
+	onMore: (() -> Unit)? = null
 ) {
 	ListItem(
 		modifier = modifier,
-		leadingContent = { Art(art, 48.dp, artShape) },
+		leadingContent = { DiscoverArt(art, 48.dp, artShape) },
 		headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
 		supportingContent = {
 			WithBadge(status) {
@@ -437,7 +435,7 @@ private fun ResultItem(
 						Modifier.size(18.dp)
 					)
 				}
-				IconButton(onClick = {}, enabled = false) {
+				IconButton(onClick = { onMore?.invoke() }, enabled = onMore != null) {
 					Icon(Icons.Outlined.MoreVert, stringResource(Res.string.action_more))
 				}
 			}
@@ -446,24 +444,25 @@ private fun ResultItem(
 }
 
 @Composable
-private fun SongItem(song: DiscoverSong, previewing: Boolean, onPreview: () -> Unit) {
+private fun SongItem(song: DiscoverSong, previewing: Boolean, addFlow: LidarrAddFlow, onPreview: () -> Unit) {
 	val status = rememberDiscoverStatus(song)
-	SongGestures(song, status, { onPreview() }) { gestures ->
+	SongGestures(song, status, { onPreview() }, addFlow) { gestures, openSheet ->
 		ResultItem(
 			song.coverUrl, song.title, dotted(song.artist, song.album), status, gestures,
-			previewing = previewing, onPreview = onPreview
+			previewing = previewing, onPreview = onPreview, onMore = openSheet
 		)
 	}
 }
 
+// ponytail: album/artist overflow opens their add sheet until they get options sheets (M7)
 @Composable
-private fun AlbumItem(album: DiscoverAlbum) = ResultItem(
+private fun AlbumItem(album: DiscoverAlbum, onAdd: () -> Unit) = ResultItem(
 	album.coverUrl, album.title, dotted(albumKind(album), album.artist, album.year?.toString()),
-	rememberDiscoverStatus(album)
+	rememberDiscoverStatus(album), onMore = onAdd
 )
 
 @Composable
-private fun ArtistItem(artist: DiscoverArtist) = ResultItem(
+private fun ArtistItem(artist: DiscoverArtist, onAdd: () -> Unit) = ResultItem(
 	artist.pictureUrl, artist.name, stringResource(Res.string.label_kind_artist),
-	rememberDiscoverStatus(artist), artShape = CircleShape
+	rememberDiscoverStatus(artist), artShape = CircleShape, onMore = onAdd
 )

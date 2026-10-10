@@ -1033,4 +1033,65 @@
 	<string name="badge_in_library">In library</string>
 	<string name="badge_in_lidarr">In Lidarr</string>
 	<string name="badge_downloading">Downloading %1$d%%</string>
+	<string name="action_add_to_lidarr_more">Add to Lidarr…</string>
+	<string name="subtitle_add_song_to_lidarr">Choose which release to download</string>
+	<string name="title_add_song_to_lidarr">Add “%1$s” to Lidarr</string>
+	<string name="info_add_song_to_lidarr">Lidarr downloads whole releases, not single songs. Pick the ones to get:</string>
+	<string name="badge_recommended">Recommended</string>
+	<plurals name="action_more_releases">
+		<item quantity="one">%1$d more (live, DJ mixes)</item>
+		<item quantity="other">%1$d more (live, DJ mixes)</item>
+	</plurals>
+	<string name="info_artist_in_lidarr">%1$s is already in Lidarr. Only the releases you pick get monitored and searched.</string>
+	<plurals name="action_add_and_search_count">
+		<item quantity="one">Add %1$d and search</item>
+		<item quantity="other">Add %1$d and search</item>
+	</plurals>
+	<plurals name="info_artist_new_in_lidarr">
+		<item quantity="one">%2$s isn't in Lidarr yet. Lidarr adds the artist just for this album and leaves the rest of the discography alone.</item>
+		<item quantity="other">%2$s isn't in Lidarr yet. Lidarr adds the artist just for these albums and leaves the rest of the discography alone.</item>
+	</plurals>
+	<string name="option_future_releases">Also get future releases</string>
+	<string name="subtitle_future_releases">Download new %1$s albums when they come out</string>
+	<string name="title_download_options">Download options</string>
+	<string name="action_add_and_search">Add and search</string>
+	<string name="title_root_folder">Root folder</string>
+	<string name="title_quality">Quality</string>
+	<string name="label_free_space">%1$s free</string>
+	<string name="label_default_for">Default for %1$s</string>
+	<string name="info_download_options">Picking a root folder resets quality to that folder's default in Lidarr. Lo'ak remembers your choice for next time.</string>
+	<string name="title_add_artist_named">Add %1$s</string>
+	<plurals name="count_albums_eps_on_musicbrainz">
+		<item quantity="one">%1$d album or EP on MusicBrainz</item>
+		<item quantity="other">%1$d albums &amp; EPs on MusicBrainz</item>
+	</plurals>
+	<string name="title_download">Download</string>
+	<string name="option_monitor_all">All albums</string>
+	<string name="option_monitor_future">Future albums only</string>
+	<string name="option_monitor_latest">Latest album</string>
+	<string name="option_monitor_first">First album</string>
+	<string name="option_monitor_none">Nothing for now</string>
+	<string name="subtitle_monitor_none">Adds the artist so you can pick albums later</string>
+	<string name="option_monitor_missing">Missing albums</string>
+	<string name="option_monitor_existing">Existing albums</string>
+	<string name="action_more_monitor_options">More (missing, existing)</string>
+	<string name="title_lidarr_options">Lidarr options</string>
+	<string name="label_metadata_profile">Metadata</string>
+	<string name="label_new_releases">New releases</string>
+	<string name="option_new_releases_all">Download all new albums</string>
+	<string name="option_new_releases_new">Only albums newer than the latest</string>
+	<string name="option_new_releases_none">Don't download new albums</string>
+	<string name="option_search_now">Search now</string>
+	<string name="subtitle_search_now">Look for the selected albums right away</string>
+	<string name="action_add_artist">Add artist</string>
+	<string name="title_not_in_lidarr">Not in Lidarr yet</string>
+	<string name="info_not_in_lidarr">Lidarr gets its catalog from its own metadata server, which lags behind MusicBrainz. New or recently edited releases can take a few hours to a few days to show up.</string>
+	<string name="info_not_in_lidarr_try_later">Try again later, or check the release on MusicBrainz.</string>
+	<string name="action_open_musicbrainz">Open MusicBrainz</string>
+	<string name="title_metadata_server_down">Lidarr's metadata server is down</string>
+	<string name="info_metadata_server_down">Lidarr can't look up music right now. Try again later.</string>
+	<string name="notice_lidarr_downloading">Lidarr found a release and started downloading</string>
+	<string name="notice_lidarr_searching">Added to Lidarr, searching…</string>
+	<string name="notice_lidarr_artist_added">Added %1$s to Lidarr</string>
+	<string name="notice_lidarr_add_failed">Couldn't add to Lidarr: %1$s</string>
 </resources>

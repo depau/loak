@@ -16,9 +16,14 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -31,13 +36,18 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.longOrNull
 import kotlin.concurrent.Volatile
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 
 /** What the connected Lidarr looks like, read once per connection. */
@@ -58,7 +68,79 @@ fun lidarrInfoOf(status: JsonElement?, rootFolders: JsonElement?, queue: JsonEle
 	return LidarrInfo(version = version, rootFolderCount = rootFolderCount, queueCount = queueCount)
 }
 
-class LidarrException(message: String, val status: HttpStatusCode? = null) : Exception(message)
+/**
+ * The "None" metadata profile: the one whose every `primaryAlbumTypes` entry has
+ * `allowed:false` (users can rename or delete Lidarr's built-in one, so it is found by
+ * shape, not by name). Null when no profile matches. Pure, so it is unit-testable.
+ */
+fun noneMetadataProfileOf(profiles: List<JsonObject>): LidarrMetadataProfile? {
+	val profile = profiles.firstOrNull { obj ->
+		val types = obj["primaryAlbumTypes"]?.jsonArray ?: return@firstOrNull false
+		types.isNotEmpty() && types.all { type ->
+			(type.jsonObject["allowed"]?.jsonPrimitive?.booleanOrNull ?: false) == false
+		}
+	} ?: return null
+	return LidarrMetadataProfile(
+		id = profile["id"]?.jsonPrimitive?.longOrNull ?: return null,
+		name = profile["name"]?.jsonPrimitive?.contentOrNull ?: ""
+	)
+}
+
+/** The artist part of a `POST /album` body, shared by every recipe. For a new artist
+ * [id] is null and the rest come from the sheet; for an existing artist the fields are
+ * the fresh artist's own (its id, profile, root folder and name). [monitor] is the
+ * artist `addOptions.monitor` value ("all" monitors the discography, "none" stops at
+ * the added album; the recipes' tails re-monitor the added album explicitly). */
+data class AlbumArtistFields(
+	val id: Long?,
+	val name: String,
+	val qualityProfileId: Long,
+	val rootFolderPath: String,
+	val metadataProfileId: Long,
+	val musicBrainzId: String,
+	val monitored: Boolean,
+	val monitorNewItems: String,
+	val monitor: String
+)
+
+/** Builds a `POST /album` body (album plus nested artist) per the recipes in §2. */
+fun albumAddBody(
+	artist: AlbumArtistFields,
+	albumTitle: String,
+	albumMbId: String
+): JsonObject {
+	val artistJson = buildJsonObject {
+		if (artist.id != null) put("id", JsonPrimitive(artist.id))
+		put("artistName", JsonPrimitive(artist.name))
+		put("foreignArtistId", JsonPrimitive(artist.musicBrainzId))
+		put("qualityProfileId", JsonPrimitive(artist.qualityProfileId))
+		put("rootFolderPath", JsonPrimitive(artist.rootFolderPath))
+		put("metadataProfileId", JsonPrimitive(artist.metadataProfileId))
+		put("monitored", JsonPrimitive(artist.monitored))
+		put("monitorNewItems", JsonPrimitive(artist.monitorNewItems))
+		put("addOptions", buildJsonObject {
+			put("monitor", JsonPrimitive(artist.monitor))
+			put("searchForMissingAlbums", JsonPrimitive(false))
+		})
+		put("tags", buildJsonArray { })
+	}
+	return buildJsonObject {
+		put("title", JsonPrimitive(albumTitle))
+		put("foreignAlbumId", JsonPrimitive(albumMbId))
+		put("monitored", JsonPrimitive(true))
+		// searchForNewAlbum never triggers a search; AlbumSearch is always sent ourselves
+		put("addOptions", buildJsonObject {
+			put("searchForNewAlbum", JsonPrimitive(false))
+		})
+		put("artist", artistJson)
+	}
+}
+
+class LidarrException(message: String, val status: HttpStatusCode? = null) : Exception(message) {
+	/** Lidarr's 400 for adding what it already has: the add's goal is met. */
+	val alreadyAdded get() = status == HttpStatusCode.BadRequest &&
+		message?.contains("already been added", ignoreCase = true) == true
+}
 
 /** Something Lidarr is currently downloading, as Discover reports it on the queue row. */
 data class LidarrQueueItem(
@@ -88,6 +170,30 @@ data class LidarrAlbumSnapshot(
 	val title: String,
 	val artistId: Long,
 	val monitored: Boolean
+)
+
+/** A Lidarr root folder, with the quality/metadata profiles it defaults to. */
+data class LidarrRootFolder(
+	val id: Long,
+	val name: String,
+	val path: String,
+	val freeSpace: Long,
+	val defaultQualityProfileId: Long,
+	val defaultMetadataProfileId: Long,
+	/** What new releases of an artist it adds get: "all", "new" or "none". */
+	val defaultNewItemMonitorOption: String = "all"
+)
+
+/** A Lidarr quality profile (shared by every root folder). */
+data class LidarrQualityProfile(
+	val id: Long,
+	val name: String
+)
+
+/** A Lidarr metadata profile (what album types a monitored album can be). */
+data class LidarrMetadataProfile(
+	val id: Long,
+	val name: String
 )
 
 /**
@@ -219,7 +325,7 @@ class LidarrManager(
 	}
 
 	/** Refreshes only the queue (the piece that changes while downloading). */
-	private suspend fun refreshQueue() {
+	suspend fun refreshQueue() {
 		if (!isConfigured) return
 		val queue = runCatching { parseQueue(getJson("api/v1/queue") { parameter("includeAlbum", true); parameter("pageSize", 200) }) }.getOrElse {
 			Logger.w(TAG, "Lidarr queue fetch failed", it)
@@ -348,6 +454,283 @@ class LidarrManager(
 	private fun DomainAlbum.toInLibrary() = DiscoverBadgeState.InLibrary(albumId = id)
 	private fun DomainArtist.toInLibrary() = DiscoverBadgeState.InLibrary(artistId = id)
 
+	// ---------------- M6: adding to Lidarr ----------------
+
+	/** Lidarr's root folders; empty when not configured. */
+	suspend fun getRootFolders(): List<LidarrRootFolder> {
+		if (!isConfigured) return emptyList()
+		val json = runCatching { getJson("api/v1/rootfolder") }.getOrNull() ?: return emptyList()
+		return foldAsJsonArray(json) { obj ->
+			LidarrRootFolder(
+				id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@foldAsJsonArray null,
+				name = obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
+				path = obj["path"]?.jsonPrimitive?.contentOrNull ?: return@foldAsJsonArray null,
+				freeSpace = obj["freeSpace"]?.jsonPrimitive?.longOrNull ?: 0L,
+				defaultQualityProfileId = obj["defaultQualityProfileId"]?.jsonPrimitive?.longOrNull ?: 0L,
+				defaultMetadataProfileId = obj["defaultMetadataProfileId"]?.jsonPrimitive?.longOrNull ?: 0L,
+				defaultNewItemMonitorOption = obj["defaultNewItemMonitorOption"]?.jsonPrimitive?.contentOrNull ?: "all"
+			)
+		}
+	}
+
+	/** Lidarr's quality profiles; empty when not configured. */
+	suspend fun getQualityProfiles(): List<LidarrQualityProfile> {
+		if (!isConfigured) return emptyList()
+		val json = runCatching { getJson("api/v1/qualityprofile") }.getOrNull() ?: return emptyList()
+		return foldAsJsonArray(json) { obj ->
+			LidarrQualityProfile(
+				id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@foldAsJsonArray null,
+				name = obj["name"]?.jsonPrimitive?.contentOrNull ?: ""
+			)
+		}
+	}
+
+	/** Lidarr's metadata profiles; empty when not configured. */
+	suspend fun getMetadataProfiles(): List<LidarrMetadataProfile> {
+		if (!isConfigured) return emptyList()
+		val json = runCatching { getJson("api/v1/metadataprofile") }.getOrNull() ?: return emptyList()
+		return foldAsJsonArray(json) { obj ->
+			LidarrMetadataProfile(
+				id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@foldAsJsonArray null,
+				name = obj["name"]?.jsonPrimitive?.contentOrNull ?: ""
+			)
+		}
+	}
+
+	/**
+	 * The "None" metadata profile Lidarr ships with; creates one when it's been renamed or
+	 * deleted (every primary/secondary/release-status disallowed except Official).
+	 */
+	suspend fun findOrCreateNoneProfile(): LidarrMetadataProfile {
+		val raw = runCatching { getJson("api/v1/metadataprofile") }
+			.getOrNull()?.jsonArray?.map { it.jsonObject } ?: emptyList()
+		noneMetadataProfileOf(raw)?.let { return it }
+		val created = postJson("api/v1/metadataprofile", buildJsonObject {
+			put("name", JsonPrimitive("None (Lo'ak)"))
+			put("primaryAlbumTypes", buildJsonArray {
+				listOf("Album", "Single", "EP", "Broadcast", "Other").forEach {
+					add(buildJsonObject { put("allowed", JsonPrimitive(false)) })
+				}
+			})
+			put("secondaryAlbumTypes", buildJsonArray { })
+			put("releaseStatuses", buildJsonArray {
+				add(buildJsonObject { put("releaseStatus", JsonPrimitive("Official")); put("allowed", JsonPrimitive(true)) })
+			})
+		}).jsonObject
+		val id = created["id"]?.jsonPrimitive?.longOrNull ?: throw LidarrException("Created metadata profile without an id")
+		return LidarrMetadataProfile(id = id, name = "None (Lo'ak)")
+	}
+
+	/**
+	 * The Lidarr artist for an [artistMbid]; null when the metadata server doesn't know it.
+	 * Throws [LidarrException] when the lookup fails (a 503: the metadata server is down).
+	 */
+	suspend fun lookupArtistByMbId(artistMbid: String): JsonObject? {
+		if (!isConfigured) return null
+		return getJson("api/v1/artist/lookup") { parameter("term", "lidarr:$artistMbid") }
+			.jsonArray.firstOrNull()?.jsonObject
+	}
+
+	/**
+	 * The Lidarr album for a [releaseGroupMbid]; null when the metadata server doesn't know it.
+	 * Throws [LidarrException] when the lookup fails (a 503: the metadata server is down).
+	 */
+	suspend fun lookupAlbumByMbId(releaseGroupMbid: String): JsonObject? {
+		if (!isConfigured) return null
+		return getJson("api/v1/album/lookup") { parameter("term", "lidarr:$releaseGroupMbid") }
+			.jsonArray.firstOrNull()?.jsonObject
+	}
+
+	/**
+	 * Adds an album (a MusicBrainz release group) to Lidarr, running one of the three §2
+	 * recipes depending on whether the artist already exists in Lidarr (the album lookup's
+	 * embedded artist has a real lidarr id) and [alsoGetFutureReleases]; returns the artist id.
+	 */
+	suspend fun addAlbum(
+		releaseGroupMbid: String,
+		albumTitle: String,
+		alsoGetFutureReleases: Boolean,
+		rootFolderPath: String,
+		qualityProfileId: Long,
+		metadataProfileId: Long
+	): Long {
+		val album = lookupAlbumByMbId(releaseGroupMbid) ?: throw LidarrException("Not in Lidarr yet")
+		val title = album["title"]?.jsonPrimitive?.contentOrNull ?: albumTitle
+		val embedded = album["artist"]?.jsonObject
+		val artistMbid = embedded?.get("foreignArtistId")?.jsonPrimitive?.contentOrNull
+			?: throw LidarrException("Metadata for $title has no artist")
+		val embeddedId = embedded?.get("id")?.jsonPrimitive?.longOrNull ?: 0L
+		val existing = embeddedId > 0
+
+		val artist = if (existing) {
+			// existing-artist recipe: reuse the artist's own settings, monitor just the added album
+			AlbumArtistFields(
+				id = embeddedId,
+				name = embedded?.get("artistName")?.jsonPrimitive?.contentOrNull ?: "",
+				qualityProfileId = embedded?.get("qualityProfileId")?.jsonPrimitive?.longOrNull ?: qualityProfileId,
+				rootFolderPath = embedded?.get("rootFolderPath")?.jsonPrimitive?.contentOrNull ?: rootFolderPath,
+				metadataProfileId = embedded?.get("metadataProfileId")?.jsonPrimitive?.longOrNull ?: metadataProfileId,
+				musicBrainzId = artistMbid,
+				monitored = embedded?.get("monitored")?.jsonPrimitive?.booleanOrNull ?: true,
+				monitorNewItems = embedded?.get("monitorNewItems")?.jsonPrimitive?.contentOrNull ?: "none",
+				monitor = "none"
+			)
+		} else {
+			// new-artist recipe: switch off -> None profile + monitor the discography (harmless,
+			// the None profile admits no album); switch on -> the root folder's default profile
+			// and just the added album
+			AlbumArtistFields(
+				id = null,
+				name = embedded?.get("artistName")?.jsonPrimitive?.contentOrNull ?: "",
+				qualityProfileId = qualityProfileId,
+				rootFolderPath = rootFolderPath,
+				metadataProfileId = metadataProfileId,
+				musicBrainzId = artistMbid,
+				monitored = true,
+				monitorNewItems = if (alsoGetFutureReleases) "new" else "none",
+				monitor = if (alsoGetFutureReleases) "none" else "all"
+			)
+		}
+
+		val body = albumAddBody(artist, title, releaseGroupMbid)
+		val created = try {
+			postJson("api/v1/album", body).jsonObject
+		} catch (e: LidarrException) {
+			if (!e.alreadyAdded) throw e
+			refreshCatalog()
+			return embeddedId
+		}
+		val createdArtistId = created["artist"]?.jsonObject?.get("id")?.jsonPrimitive?.longOrNull
+			?: created["artistId"]?.jsonPrimitive?.longOrNull
+			?: artist.id ?: throw LidarrException("Added album without an artist id")
+
+		// Lidarr refreshes the new artist asynchronously right after the add; wait for it
+		waitForArtistRefresh(createdArtistId)
+
+		// Recipe tails differ: switch-on and existing-artist re-monitor the added album (their
+		// add unmonitors it); the artist gets re-monitored when switch-on, or when an existing
+		// artist was unmonitored. Off + new artist (None profile) needs neither.
+		if (alsoGetFutureReleases || existing) {
+			created["id"]?.jsonPrimitive?.longOrNull?.let { albumId ->
+				putJson("api/v1/album/monitor", buildJsonObject {
+					put("albumIds", buildJsonArray { add(JsonPrimitive(albumId)) })
+					put("monitored", JsonPrimitive(true))
+				})
+			}
+		}
+		if (alsoGetFutureReleases || (existing && !artist.monitored)) {
+			// PUT /artist/{id} takes the whole artist
+			val full = getJson("api/v1/artist/$createdArtistId").jsonObject
+			putJson("api/v1/artist/$createdArtistId", JsonObject(full + ("monitored" to JsonPrimitive(true))))
+		}
+
+		triggerAlbumSearch(listOfNotNull(created["id"]?.jsonPrimitive?.longOrNull))
+		refreshCatalog()
+		return createdArtistId
+	}
+
+	/** Adds an artist (by MusicBrainz id) to Lidarr; returns the new artist id. */
+	suspend fun addArtist(
+		artistMbid: String,
+		artistName: String,
+		monitor: String,
+		searchForMissing: Boolean,
+		rootFolderPath: String,
+		qualityProfileId: Long,
+		metadataProfileId: Long,
+		monitorNewItems: String
+	): Long {
+		val found = lookupArtistByMbId(artistMbid) ?: throw LidarrException("Not in Lidarr yet")
+		val body = buildJsonObject {
+			put("artistName", JsonPrimitive(found["artistName"]?.jsonPrimitive?.contentOrNull ?: artistName))
+			put("foreignArtistId", JsonPrimitive(artistMbid))
+			put("qualityProfileId", JsonPrimitive(qualityProfileId))
+			put("metadataProfileId", JsonPrimitive(metadataProfileId))
+			put("rootFolderPath", JsonPrimitive(rootFolderPath))
+			put("monitored", JsonPrimitive(true))
+			put("monitorNewItems", JsonPrimitive(monitorNewItems))
+			put("addOptions", buildJsonObject {
+				put("monitor", JsonPrimitive(monitor))
+				put("searchForMissingAlbums", JsonPrimitive(searchForMissing))
+			})
+			put("tags", buildJsonArray { })
+		}
+		val created = try {
+			postJson("api/v1/artist", body).jsonObject
+		} catch (e: LidarrException) {
+			if (!e.alreadyAdded) throw e
+			refreshCatalog()
+			return catalog.value.artists.firstOrNull { it.musicBrainzId == artistMbid }?.id ?: 0L
+		}
+		val artistId = created["id"]?.jsonPrimitive?.longOrNull
+			?: throw LidarrException("Added artist without an id")
+		refreshCatalog()
+		return artistId
+	}
+
+	/** POSTs JSON with the Lidarr headers; throws [LidarrException] on a non-OK answer. */
+	private suspend fun postJson(path: String, body: JsonObject): JsonElement {
+		if (!isConfigured) throw LidarrException("Lidarr is not connected")
+		return withContext(IoDispatcher) {
+			val response = client.post("$baseUrl/${path.trimStart('/')}") {
+				lidarrHeaders()
+				contentType(ContentType.Application.Json)
+				setBody(body.toString())
+			}
+			parse(response)
+		}
+	}
+
+	/** PUTs JSON with the Lidarr headers; throws [LidarrException] on a non-OK answer. */
+	private suspend fun putJson(path: String, body: JsonObject): JsonElement {
+		if (!isConfigured) throw LidarrException("Lidarr is not connected")
+		return withContext(IoDispatcher) {
+			val response = client.put("$baseUrl/${path.trimStart('/')}") {
+				lidarrHeaders()
+				contentType(ContentType.Application.Json)
+				setBody(body.toString())
+			}
+			parse(response)
+		}
+	}
+
+	/**
+	 * Polls `GET /command` for the artist's asynchronous `RefreshArtist` command to finish
+	 * (up to ~2 min); Lidarr's post-add refresh can overwrite the monitor calls otherwise.
+	 */
+	private suspend fun waitForArtistRefresh(artistId: Long) {
+		val deadline = Clock.System.now().toEpochMilliseconds() + 2 * 60 * 1000
+		while (Clock.System.now().toEpochMilliseconds() < deadline) {
+			val commands = runCatching { getJson("api/v1/command") }.getOrNull()?.jsonArray ?: emptyList()
+			val refresh = commands.firstOrNull { cmd ->
+				val obj = cmd.jsonObject
+				val name = obj["name"]?.jsonPrimitive?.contentOrNull
+				if (name != "RefreshArtist") return@firstOrNull false
+				val body = obj["body"]?.jsonObject
+				val ids = body?.get("artistId")?.jsonPrimitive?.longOrNull?.let { listOf(it) }
+					?: body?.get("artistIds")?.jsonArray?.mapNotNull { it.jsonPrimitive.longOrNull }
+				ids?.contains(artistId) == true
+			}
+			if (refresh != null) {
+				val status = refresh.jsonObject["status"]?.jsonPrimitive?.contentOrNull
+				if (status == "completed" || status == "failed") return
+			}
+			delay(2_000)
+		}
+		Logger.w(TAG, "gave up waiting for Lidarr artist $artistId refresh")
+	}
+
+	/** Sends the `AlbumSearch` command for the given album ids. */
+	private suspend fun triggerAlbumSearch(albumIds: List<Long>) {
+		if (albumIds.isEmpty()) return
+		postJson("api/v1/command", buildJsonObject {
+			put("name", JsonPrimitive("AlbumSearch"))
+			put("albumIds", buildJsonArray {
+				albumIds.forEach { add(JsonPrimitive(it)) }
+			})
+		})
+	}
+
 	suspend fun getJson(path: String, block: HttpRequestBuilder.() -> Unit = {}): JsonElement =
 		parse(request(path, block = block))
 
@@ -383,10 +766,16 @@ class LidarrManager(
 		}
 	}
 
-	/** A human-readable reason for a non-OK status, using the API's JSON error when present. */
+	/**
+	 * A human-readable reason for a non-OK status, using the API's JSON error when present: an
+	 * object's `message`, or the first `errorMessage` of a validation failure's array.
+	 */
 	private fun statusMessage(status: HttpStatusCode, body: String): String =
 		runCatching {
-			json.parseToJsonElement(body).jsonObject["message"]?.jsonPrimitive?.contentOrNull
+			when (val error = json.parseToJsonElement(body)) {
+				is JsonArray -> error.firstOrNull()?.jsonObject?.get("errorMessage")
+				else -> error.jsonObject["message"]
+			}?.jsonPrimitive?.contentOrNull
 		}.getOrNull() ?: status.description
 
 	private companion object {

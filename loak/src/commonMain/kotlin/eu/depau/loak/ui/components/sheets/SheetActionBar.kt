@@ -42,6 +42,7 @@ import eu.depau.loak.generated.resources.info_click_to_retry
 import eu.depau.loak.generated.resources.info_download_failed
 import eu.depau.loak.generated.resources.label_open_in
 import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.brand.Deezer
 import eu.depau.loak.icons.brand.Lastfm
 import eu.depau.loak.icons.brand.Musicbrainz
 import eu.depau.loak.icons.outlined.Check
@@ -211,8 +212,13 @@ fun SheetRows(rows: List<SheetRow>) {
 
 /** An item's pages elsewhere, as chips after "Open in"; nothing when it has none. */
 @Composable
-fun SheetLinks(lastFmUrl: String?, musicBrainzUrl: String?, onOpen: (url: String) -> Unit) {
-	if (lastFmUrl == null && musicBrainzUrl == null) return
+fun SheetLinks(
+	lastFmUrl: String?,
+	musicBrainzUrl: String?,
+	onOpen: (url: String) -> Unit,
+	deezerUrl: String? = null
+) {
+	if (lastFmUrl == null && musicBrainzUrl == null && deezerUrl == null) return
 	Row(
 		Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
 		horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -226,6 +232,7 @@ fun SheetLinks(lastFmUrl: String?, musicBrainzUrl: String?, onOpen: (url: String
 		// brand names, not translated
 		lastFmUrl?.let { LinkChip("last.fm", Icons.Brand.Lastfm) { onOpen(it) } }
 		musicBrainzUrl?.let { LinkChip("MusicBrainz", Icons.Brand.Musicbrainz) { onOpen(it) } }
+		deezerUrl?.let { LinkChip("Deezer", Icons.Brand.Deezer) { onOpen(it) } }
 	}
 }
 

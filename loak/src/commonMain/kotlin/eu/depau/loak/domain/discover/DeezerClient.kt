@@ -78,6 +78,17 @@ class DeezerClient {
 		}
 	}
 
+	/** The album's UPC (barcode), for its MusicBrainz identity; null when unknown or the call fails. */
+	suspend fun getAlbumUpc(albumId: Long): String? = withContext(IoDispatcher) {
+		try {
+			fetchRaw("album/$albumId")["upc"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+		} catch (e: CancellationException) {
+			throw e
+		} catch (_: Exception) {
+			null
+		}
+	}
+
 	/** The three searches in parallel, in the order the search screen shows them. */
 	suspend fun searchAll(query: String): DiscoverSearchResults = coroutineScope {
 		val songs = async { search(query) }

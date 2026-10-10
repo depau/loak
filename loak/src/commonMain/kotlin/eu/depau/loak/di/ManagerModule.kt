@@ -22,6 +22,7 @@ import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.discover.DeezerClient
 import eu.depau.loak.domain.discover.LibraryMatcher
+import eu.depau.loak.domain.discover.MusicBrainzClient
 import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.StorageManager
@@ -48,6 +49,8 @@ val managerModule = module {
 	singleOf(::PreferenceManager)
 	// Deezer's search API, no auth: queries go straight to api.deezer.com
 	single { DeezerClient() }
+	// MusicBrainz's identity API: rate-limited, cached; also used for Lidarr adds
+	single { MusicBrainzClient() }
 	// previews: mediaPlayer resolves lazily to dodge the VM↔manager cycle
 	single { PreviewManager(get(), get(), { get() }) }
 	singleOf(::SnackBarManager)

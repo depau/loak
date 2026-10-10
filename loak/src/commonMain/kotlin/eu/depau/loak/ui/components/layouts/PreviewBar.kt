@@ -53,6 +53,7 @@ import eu.depau.loak.icons.filled.Pause
 import eu.depau.loak.icons.filled.Play
 import eu.depau.loak.icons.outlined.Add
 import eu.depau.loak.icons.outlined.Close
+import eu.depau.loak.ui.screens.discover.components.rememberLidarrAddFlow
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -80,6 +81,7 @@ fun PreviewBar(preview: ActivePreview, modifier: Modifier = Modifier, enabled: B
 	)
 	val progress by animateFloatAsState(preview.progress)
 	val song = preview.song
+	val addFlow = rememberLidarrAddFlow()
 
 	Box(
 		modifier = modifier
@@ -157,10 +159,9 @@ fun PreviewBar(preview: ActivePreview, modifier: Modifier = Modifier, enabled: B
 							)
 						}
 					}
-					// ponytail: disabled until adding to Lidarr exists (M6)
 					FilledIconButton(
-						onClick = {},
-						enabled = false,
+						onClick = { addFlow.addSong(song) },
+						enabled = enabled,
 						colors = IconButtonDefaults.filledIconButtonColors(
 							containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
 						)
