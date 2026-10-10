@@ -30,6 +30,9 @@ import eu.depau.loak.ui.screens.search.viewmodels.SearchViewModel
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverSearchViewModel
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverAlbumViewModel
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverArtistViewModel
+import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverHomeViewModel
+import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverListViewModel
+import eu.depau.loak.ui.screens.discover.DiscoverListType
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.viewmodels.LyricsPriorityViewModel
 import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
@@ -127,6 +130,8 @@ val viewModelModule = module {
 	viewModelOf(::DiscoverSearchViewModel)
 	viewModel { (key: Screen.DiscoverAlbum) -> DiscoverAlbumViewModel(key, get()) }
 	viewModel { (key: Screen.DiscoverArtist) -> DiscoverArtistViewModel(key, get(), get(), get()) }
+	viewModelOf(::DiscoverHomeViewModel)
+	viewModel { (type: DiscoverListType) -> DiscoverListViewModel(type, get(), get(), get(), get()) }
 	viewModelOf(::ExploreViewModel)
 	viewModelOf(::GenreListViewModel)
 	viewModelOf(::RadioListViewModel)

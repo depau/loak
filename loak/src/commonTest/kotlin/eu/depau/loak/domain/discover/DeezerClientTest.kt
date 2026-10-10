@@ -186,4 +186,67 @@ class DeezerClientTest {
 		assertEquals("X", bareAlbum.title)
 		assertTrue(bareTracks.isEmpty())
 	}
+
+	private fun chartsJson(entries: String) =
+		json.parseToJsonElement("""{"data": [$entries]}""".trimIndent()).jsonObject
+
+	@Test
+	fun parsesCountryChartsAndDropsVariants() {
+		val fake = """{"id": 777, "title": "Top Fake"}"""
+		val charts = parseCountryCharts(chartsJson("""
+			{"id": 1362508955, "title": "Top Japan"},
+			{"id": 1116190041, "title": "Top Spain"},
+			{"id": 1266971851, "title": "Top Netherlands"},
+			{"id": 1116187241, "title": "Top Italy"},
+			{"id": 3155776842, "title": "Top Worldwide"},
+			{"id": 11846226041, "title": "Top France 2023"},
+			{"id": 14591920041, "title": "Top Argentina 2025"},
+			{"id": 13578432561, "title": "Top Mujeres Argentina"},
+			{"id": 13578432881, "title": "Top Mulheres Brasil"},
+			{"id": 13568614081, "title": "Top Women Germany"},
+			{"id": 13562522521, "title": "Top Women Worldwide"},
+			{"id": 13560166481, "title": "Top Femmes France"},
+			{"id": 10496059222, "title": "Top SongCatcher"},
+			{"id": 12653857903, "title": "Top Songcatcher Brazil"},
+			{"id": 1314389855, "title": "Top Atlantis 2019"},
+			$fake
+		""".trimIndent()))
+
+		val expected = mapOf(
+			"Japan" to "JP",
+			"Spain" to "ES",
+			"Netherlands" to "NL",
+			"Italy" to "IT",
+			"Worldwide" to "XW"
+		)
+		assertEquals(expected.keys, charts.map { it.countryName }.toSet())
+		for (chart in charts) {
+			assertEquals(expected.getValue(chart.countryName), chart.countryCode)
+			assertTrue(chart.playlistId > 0)
+		}
+		// playlist ids still line up by country
+		assertEquals(1116187241L, charts.first { it.countryName == "Italy" }.playlistId)
+		assertEquals(3155776842L, charts.first { it.countryName == "Worldwide" }.playlistId)
+	}
+
+	@Test
+	fun countryNameMapsToIso() {
+		assertEquals("IT", countryNameToIso("Italy"))
+		assertEquals("US", countryNameToIso("USA"))
+		assertEquals("ZA", countryNameToIso("South Africa"))
+		assertEquals("AE", countryNameToIso("United Arab Emirates"))
+		assertEquals("KR", countryNameToIso("South Korea"))
+		assertEquals("GB", countryNameToIso("UK"))
+		assertEquals("XW", countryNameToIso("Worldwide"))
+		assertNull(countryNameToIso("Italy 2025"))
+		assertNull(countryNameToIso("Mujeres Argentina"))
+		assertNull(countryNameToIso("Atlantis"))
+	}
+
+	@Test
+	fun isoMapsBackToCountryName() {
+		assertEquals("Italy", isoCountryName("IT"))
+		assertEquals("Worldwide", isoCountryName("XW"))
+		assertNull(isoCountryName("ZZ"))
+	}
 }

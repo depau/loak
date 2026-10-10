@@ -19,6 +19,8 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlin.time.Clock
 
 /** A Deezer API error. [errorMsg] is the message part of the payload (commonly missing). */
 class DeezerException(
@@ -40,6 +42,117 @@ fun deezerErrorOf(root: JsonObject): DeezerException? {
 		code = obj["code"]?.jsonPrimitive?.intOrNull ?: -1,
 		errorMsg = obj["message"]?.jsonPrimitive?.contentOrNull.orEmpty()
 	)
+}
+
+/** The Deezer chart a country line of the picker maps to: its "Top <country>" playlist. */
+data class DeezerCountryChart(
+	val countryName: String,
+	val countryCode: String,
+	val playlistId: Long
+)
+
+/** English country names as Deezer spells them → ISO 3166-1 alpha-2, for the chart playlists. */
+private val COUNTRY_ISO: Map<String, String> = mapOf(
+	"Algeria" to "DZ",
+	"Argentina" to "AR",
+	"Australia" to "AU",
+	"Austria" to "AT",
+	"Belgium" to "BE",
+	"Bolivia" to "BO",
+	"Brazil" to "BR",
+	"Bulgaria" to "BG",
+	"Canada" to "CA",
+	"Chile" to "CL",
+	"Colombia" to "CO",
+	"Costa Rica" to "CR",
+	"Croatia" to "HR",
+	"Czech Republic" to "CZ",
+	"Denmark" to "DK",
+	"Ecuador" to "EC",
+	"Egypt" to "EG",
+	"El Salvador" to "SV",
+	"Estonia" to "EE",
+	"Finland" to "FI",
+	"France" to "FR",
+	"Germany" to "DE",
+	"Guatemala" to "GT",
+	"Honduras" to "HN",
+	"Hungary" to "HU",
+	"Indonesia" to "ID",
+	"Ireland" to "IE",
+	"Israel" to "IL",
+	"Italy" to "IT",
+	"Ivory Coast" to "CI",
+	"Jamaica" to "JM",
+	"Japan" to "JP",
+	"Jordan" to "JO",
+	"Kenya" to "KE",
+	"Latvia" to "LV",
+	"Lebanon" to "LB",
+	"Lithuania" to "LT",
+	"Malaysia" to "MY",
+	"Mexico" to "MX",
+	"Morocco" to "MA",
+	"Netherlands" to "NL",
+	"Nigeria" to "NG",
+	"Norway" to "NO",
+	"Paraguay" to "PY",
+	"Peru" to "PE",
+	"Philippines" to "PH",
+	"Poland" to "PL",
+	"Portugal" to "PT",
+	"Romania" to "RO",
+	"Russia" to "RU",
+	"Saudi Arabia" to "SA",
+	"Senegal" to "SN",
+	"Serbia" to "RS",
+	"Singapore" to "SG",
+	"Slovakia" to "SK",
+	"Slovenia" to "SI",
+	"South Africa" to "ZA",
+	"South Korea" to "KR",
+	"Spain" to "ES",
+	"Sweden" to "SE",
+	"Switzerland" to "CH",
+	"Thailand" to "TH",
+	"Tunisia" to "TN",
+	"Turkey" to "TR",
+	"UK" to "GB",
+	"USA" to "US",
+	"Ukraine" to "UA",
+	"United Arab Emirates" to "AE",
+	"Venezuela" to "VE",
+	"Worldwide" to "XW"
+)
+
+/** The English name of a country code in the chart table; null when unknown (e.g. a detected ISO not on it). */
+fun isoCountryName(iso: String): String? = COUNTRY_ISO.entries.firstOrNull { it.value == iso }?.key
+
+/** The ISO code of an English country name in the chart table; null when [name] isn't a chart country. */
+fun countryNameToIso(name: String): String? = COUNTRY_ISO[name]
+
+/**
+ * Deezer's "Deezer Charts" account (id 637006841) titles its charts "Top <country>" (and
+ * keeps yearly recaps plus a few editorial "Women/Mujeres/SongCatcher" variants). Maps each
+ * playlist whose title matches `Top (.+)` to its country, dropping the variants: titles
+ * with a year, "Mujeres"/"Mulheres"/"Women"/"Femmes", and "SongCatcher"/"Songcatcher"
+ * (case-folded here, they appear under both spellings). Titles the ISO table doesn't know
+ * are skipped. Pure, so it can be tested without the network.
+ */
+fun parseCountryCharts(root: JsonObject): List<DeezerCountryChart> {
+	val raw = root["data"] as? JsonArray ?: return emptyList()
+	return raw.mapNotNull { it.jsonObject }.mapNotNull { playlist ->
+		val playlistId = playlist["id"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null
+		val title = playlist["title"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+		val name = Regex("""^Top (.+)$""").matchEntire(title.trim())?.groupValues?.get(1) ?: return@mapNotNull null
+		val lower = name.lowercase()
+		if (Regex("""20\d\d""").containsMatchIn(name)) return@mapNotNull null
+		if (lower.contains("mujeres") || lower.contains("mulheres") || lower.contains("women") ||
+			lower.contains("femmes") || lower.contains("songcatcher")
+		) return@mapNotNull null
+		val iso = COUNTRY_ISO[name] ?: return@mapNotNull null
+		DeezerCountryChart(name, iso, playlistId)
+	}
 }
 
 /**
@@ -163,6 +276,117 @@ class DeezerClient {
 				emptyList()
 			}
 		}
+
+	// Deezer's "Deezer Charts" account, id 637006841; the list fits in two ~100-item pages
+	private companion object {
+		const val CHART_PLAYLIST_USER = "637006841"
+		const val CHART_PLAYLIST_LIMIT = 100
+		const val CHART_CACHE_TTL_MS = 24 * 60 * 60 * 1000L
+		const val TRACKS_CACHE_TTL_MS = 60 * 60 * 1000L
+
+		fun nowMs() = Clock.System.now().toEpochMilliseconds()
+	}
+
+	// ponytail: per-field TTL caches (charts one day, tracks one hour); a generic cache util only pays off with more entries.
+	private var chartsValue: List<DeezerCountryChart>? = null
+	private var chartsFetchedAtMs = 0L
+	private val chartTracksCache = HashMap<Long, Pair<List<DiscoverSong>, Long>>()
+	private val genreTracksCache = HashMap<Long, Pair<List<DiscoverSong>, Long>>()
+
+	/** The "Top <country>" charts of Deezer's Charts account, cached for a day. Empty when the call fails. */
+	suspend fun getCountryCharts(): List<DeezerCountryChart> {
+		chartsValue?.takeIf { nowMs() - chartsFetchedAtMs < CHART_CACHE_TTL_MS }?.let { return it }
+		val fresh = fetchChartPlaylists()
+		// don't cache an empty page (a failed call would look cached for a day)
+		if (fresh.isNotEmpty() || chartsValue == null) {
+			synchronized(this) {
+				chartsValue = fresh
+				chartsFetchedAtMs = nowMs()
+			}
+		}
+		return fresh
+	}
+
+	/** The tracks of one country chart, cached for an hour. Empty when the call fails. */
+	suspend fun getChartTracks(playlistId: Long): List<DiscoverSong> {
+		chartTracksCache[playlistId]?.takeIf { nowMs() - it.second < TRACKS_CACHE_TTL_MS }?.let { return it.first }
+		val tracks = withContext(IoDispatcher) {
+			try {
+				topKind("playlist/$playlistId/tracks", CHART_PLAYLIST_LIMIT) { discoverSongOf(it) }
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
+		synchronized(chartTracksCache) { chartTracksCache[playlistId] = tracks to nowMs() }
+		return tracks
+	}
+
+	/** The ISO code Deezer infers from the caller's IP (`/infos` → `country_iso`); "" when unknown or it fails. */
+	suspend fun getDetectedCountryIso(): String = withContext(IoDispatcher) {
+		try {
+			fetchRaw("infos")["country_iso"]?.jsonPrimitive?.contentOrNull.orEmpty()
+		} catch (e: CancellationException) {
+			throw e
+		} catch (_: Exception) {
+			""
+		}
+	}
+
+	/** Deezer's genres (`/genre`), for the "Browse genres" shelf (id 0, "Tutti", kept). Empty when the call fails. */
+	suspend fun getGenres(): List<DiscoverGenre> = withContext(IoDispatcher) {
+		try {
+			val root = fetchRaw("genre")
+			(root["data"] as? JsonArray)
+				?.map { discoverGenreOf(it.jsonObject) }
+				.orEmpty()
+		} catch (e: CancellationException) {
+			throw e
+		} catch (_: Exception) {
+			emptyList()
+		}
+	}
+
+	/** The tracks of one genre's chart (`/editorial/<id>/charts`), cached for an hour. */
+	suspend fun getGenreTracks(genreId: Long): List<DiscoverSong> {
+		genreTracksCache[genreId]?.takeIf { nowMs() - it.second < TRACKS_CACHE_TTL_MS }?.let { return it.first }
+		val tracks = withContext(IoDispatcher) {
+			try {
+				// editorial charts fold the genre's top songs under "tracks.data" (alongside albums/artists)
+				val root = fetchRaw("editorial/$genreId/charts") { parameter("limit", CHART_PLAYLIST_LIMIT) }
+				(root["tracks"] as? JsonObject)?.get("data")?.jsonArray
+					?.map { discoverSongOf(it.jsonObject) }
+					.orEmpty()
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
+		synchronized(genreTracksCache) { genreTracksCache[genreId] = tracks to nowMs() }
+		return tracks
+	}
+
+	/** The playlist pages of the Charts account, folded into one `data` array for [parseCountryCharts]. */
+	private suspend fun fetchChartPlaylists(): List<DeezerCountryChart> {
+		val all = mutableListOf<JsonObject>()
+		var index = 0
+		while (true) {
+			val root = withContext(IoDispatcher) {
+				fetchRaw("user/$CHART_PLAYLIST_USER/playlists") {
+					parameter("limit", CHART_PLAYLIST_LIMIT)
+					parameter("index", index)
+				}
+			}
+			val data = (root["data"] as? JsonArray).orEmpty().map { it.jsonObject }
+			all += data
+			val next = root["next"]?.jsonPrimitive?.contentOrNull
+			if (next == null || data.isEmpty()) break
+			index += data.size
+		}
+		return parseCountryCharts(JsonObject(mapOf("data" to JsonArray(all))))
+	}
 
 	private suspend fun <T> searchKind(path: String, query: String, map: (JsonObject) -> T): List<T> =
 		withContext(IoDispatcher) {

@@ -1,7 +1,6 @@
 package eu.depau.loak.ui.screens.discover
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,19 +10,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,13 +33,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.di.LocalBottomBarScrollManager
-import eu.depau.loak.domain.discover.DiscoverAlbum
-import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.discover.deezerImageUrl
 import eu.depau.loak.domain.manager.LidarrManager
@@ -64,18 +56,16 @@ import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.sheets.SheetLinks
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
-import eu.depau.loak.ui.screens.discover.components.AlbumGestures
-import eu.depau.loak.ui.screens.discover.components.ArtistGestures
+import eu.depau.loak.ui.screens.discover.components.DiscoverAlbumCard
 import eu.depau.loak.ui.screens.discover.components.DiscoverArt
+import eu.depau.loak.ui.screens.discover.components.DiscoverArtistCard
 import eu.depau.loak.ui.screens.discover.components.DiscoverArtistSheet
-import eu.depau.loak.ui.screens.discover.components.DiscoverBadge
 import eu.depau.loak.ui.screens.discover.components.DiscoverPageState
 import eu.depau.loak.ui.screens.discover.components.DiscoverPageTopBar
 import eu.depau.loak.ui.screens.discover.components.LidarrAddFlow
 import eu.depau.loak.ui.screens.discover.components.SectionTitle
 import eu.depau.loak.ui.screens.discover.components.SongItem
 import eu.depau.loak.ui.screens.discover.components.WithBadge
-import eu.depau.loak.ui.screens.discover.components.albumKind
 import eu.depau.loak.ui.screens.discover.components.dotted
 import eu.depau.loak.ui.screens.discover.components.hasPreview
 import eu.depau.loak.ui.screens.discover.components.lastFmUrlOf
@@ -174,7 +164,7 @@ private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow
 				contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
 				horizontalArrangement = Arrangement.spacedBy(12.dp)
 			) {
-				items(albums, key = { it.id }) { AlbumCard(it, addFlow) }
+				items(albums, key = { it.id }) { DiscoverAlbumCard(it, addFlow) }
 			}
 		}
 		if (page.similar.isNotEmpty()) item(key = "similar") {
@@ -183,7 +173,7 @@ private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow
 				contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
 				horizontalArrangement = Arrangement.spacedBy(12.dp)
 			) {
-				items(page.similar, key = { it.id }) { SimilarArtist(it, addFlow) }
+				items(page.similar, key = { it.id }) { DiscoverArtistCard(it, addFlow) }
 			}
 		}
 		item(key = "links") {
@@ -197,54 +187,4 @@ private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow
 	}
 
 	linkToOpen?.let { LinkConfirmationDialog(linkToOpen = it, onDismissRequest = { linkToOpen = null }) }
-}
-
-/** An album on the discography rail: cover with its status badge, title, kind and year. */
-@Composable
-private fun AlbumCard(album: DiscoverAlbum, addFlow: LidarrAddFlow) = AlbumGestures(album, addFlow) { gestures, _ ->
-	val status = rememberDiscoverStatus(album)
-	Column(Modifier.width(140.dp).clip(MaterialTheme.shapes.medium).then(gestures)) {
-		Box {
-			DiscoverArt(deezerImageUrl(album.coverUrl, 500), 140.dp, MaterialTheme.shapes.medium)
-			// the badge needs a ground of its own on top of the cover
-			Surface(
-				Modifier.align(Alignment.BottomStart).padding(8.dp),
-				shape = RoundedCornerShape(6.dp),
-				color = MaterialTheme.colorScheme.surface
-			) { DiscoverBadge(status) }
-		}
-		Text(
-			album.title,
-			Modifier.padding(top = 8.dp),
-			style = MaterialTheme.typography.bodyLarge,
-			maxLines = 1,
-			overflow = TextOverflow.Ellipsis
-		)
-		Text(
-			dotted(albumKind(album), album.year?.toString()),
-			style = MaterialTheme.typography.bodyMedium,
-			color = MaterialTheme.colorScheme.onSurfaceVariant,
-			maxLines = 1
-		)
-	}
-}
-
-/** A similar artist on its rail: round picture, name and status badge. */
-@Composable
-private fun SimilarArtist(artist: DiscoverArtist, addFlow: LidarrAddFlow) = ArtistGestures(artist, addFlow) { gestures, _ ->
-	Column(
-		Modifier.width(96.dp).clip(MaterialTheme.shapes.medium).then(gestures),
-		horizontalAlignment = Alignment.CenterHorizontally,
-		verticalArrangement = Arrangement.spacedBy(6.dp)
-	) {
-		DiscoverArt(artist.pictureUrl, 88.dp, CircleShape)
-		Text(
-			artist.name,
-			style = MaterialTheme.typography.bodyMedium,
-			maxLines = 1,
-			overflow = TextOverflow.Ellipsis,
-			textAlign = TextAlign.Center
-		)
-		DiscoverBadge(rememberDiscoverStatus(artist))
-	}
 }

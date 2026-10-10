@@ -1115,4 +1115,17 @@
 	<string name="title_albums_eps">Albums &amp; EPs</string>
 	<string name="info_discover_album_unavailable">Couldn't load this album</string>
 	<string name="info_discover_artist_unavailable">Couldn't load this artist</string>
+	<string name="title_new_releases">New releases</string>
+	<string name="title_browse_genres">Browse genres</string>
+	<string name="title_because_you_listen">Because you listen to %1$s</string>
+	<string name="subtitle_similar_artists">Similar artists you don't have</string>
+	<string name="action_preview_all">Preview all</string>
+	<string name="info_top_songs_chart">Top 100 songs in %1$s on Deezer · updated today</string>
+	<string name="info_discover_list_unavailable">Nothing to show here</string>
+	<string name="title_chart_country">Chart country</string>
+	<string name="action_filter_countries">Filter countries</string>
+	<string name="option_chart_country_automatic">Automatic</string>
+	<string name="subtitle_chart_country_automatic">%1$s, where Deezer sees you</string>
+	<string name="subtitle_chart_country_detecting">Where Deezer sees you</string>
+	<string name="option_chart_country_worldwide">Worldwide</string>
 </resources>

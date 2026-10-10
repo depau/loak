@@ -28,13 +28,65 @@ fun similarArtistOf(item: JsonObject): DiscoverArtist? {
 }
 
 /**
- * ListenBrainz Labs API client (no auth needed for what Discover uses): the
- * similar-artists endpoint, keyed on the "session based" algorithm.
+ * Maps one ListenBrainz fresh-release entry to a [DiscoverAlbum], keyed on the release
+ * group MBID; the cover points at Cover Art Archive. Null when any identity field is
+ * missing.
+ */
+fun freshReleaseAlbumOf(item: JsonObject): DiscoverAlbum? {
+	val releaseGroup = item["release_group_mbid"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+		?: return null
+	val title = item["release_name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: return null
+	val artist = item["artist_credit_name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+		?: return null
+	val coverUrl = buildString {
+		val caaReleaseMbid = item["caa_release_mbid"]?.jsonPrimitive?.contentOrNull
+		val caaId = item["caa_id"]?.jsonPrimitive?.contentOrNull
+		if (caaReleaseMbid != null && caaId != null) {
+			append("https://coverartarchive.org/release/$caaReleaseMbid/$caaId-250.jpg")
+		}
+	}.takeIf { it.isNotEmpty() }
+	return DiscoverAlbum(
+		id = releaseGroup,
+		title = title,
+		artist = artist,
+		coverUrl = coverUrl,
+		mbid = releaseGroup
+	)
+}
+
+/**
+ * ListenBrainz API client (no auth needed for what Discover uses): fresh releases off the
+ * main API and similar artists off the Labs API, keyed on the "session based" algorithm.
  */
 class ListenBrainzClient {
 	private val json = Json { ignoreUnknownKeys = true }
 	private val client = HttpClient()
-	private val baseUrl = "https://labs.api.listenbrainz.org"
+	private val baseUrl = "https://api.listenbrainz.org/1"
+	private val labsBaseUrl = "https://labs.api.listenbrainz.org"
+
+	/**
+	 * Albums released in the last two weeks, newest first. A failure (network, non-200,
+	 * unexpected payload) yields an empty list, so a broken shelf degrades to nothing.
+	 */
+	suspend fun getFreshReleases(): List<DiscoverAlbum> = withContext(IoDispatcher) {
+		try {
+			val root = client.get("$baseUrl/explore/fresh-releases/") {
+				parameter("days", 14)
+				parameter("sort", "release_date")
+				parameter("past", true)
+				parameter("future", false)
+			}.takeIf { it.status.isSuccess() }
+				?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
+				?: return@withContext emptyList()
+			(root["payload"] as? JsonObject)
+				?.get("releases")?.jsonArray?.mapNotNull { freshReleaseAlbumOf(it.jsonObject) }
+				.orEmpty()
+		} catch (e: CancellationException) {
+			throw e
+		} catch (_: Exception) {
+			emptyList()
+		}
+	}
 
 	/**
 	 * Artists similar to [artistMbid], highest score first (the API already sorts by
@@ -54,7 +106,7 @@ class ListenBrainzClient {
 		}
 
 	private suspend fun fetch(path: String, artistMbid: String): JsonArray {
-		val body = client.get("$baseUrl$path") {
+		val body = client.get("$labsBaseUrl$path") {
 			parameter("artist_mbids", artistMbid)
 			parameter("algorithm", SIMILAR_ARTIST_ALGORITHM)
 		}

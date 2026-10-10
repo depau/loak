@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainSongListType
+import eu.depau.loak.ui.screens.discover.DiscoverListType
 import eu.depau.loak.ui.screens.search.SearchCategory
 
 @Immutable
@@ -122,6 +123,11 @@ sealed interface Screen : NavKey {
 		val mbid: String? = null,
 		val name: String? = null
 	) : Screen
+
+	/** One Discover shelf in full: its chart, fresh releases, similar artists or genre songs. */
+	@Immutable
+	@Serializable
+	data class DiscoverList(val type: DiscoverListType) : Screen
 
 	@Immutable
 	@Serializable

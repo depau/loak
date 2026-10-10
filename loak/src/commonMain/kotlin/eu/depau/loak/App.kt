@@ -9,6 +9,7 @@ import eu.depau.loak.ui.screens.discover.DiscoverScreen
 import eu.depau.loak.ui.screens.discover.DiscoverSearchScreen
 import eu.depau.loak.ui.screens.discover.DiscoverAlbumScreen
 import eu.depau.loak.ui.screens.discover.DiscoverArtistScreen
+import eu.depau.loak.ui.screens.discover.DiscoverListScreen
 import eu.depau.loak.ui.screens.discover.LidarrQueueScreen
 import eu.depau.loak.ui.screens.alchemy.DescribeMixScreen
 import eu.depau.loak.ui.screens.alchemy.SongPathScreen
@@ -711,6 +712,7 @@ private fun entryProvider(
 		}
 		entry<Screen.DiscoverAlbum> { DiscoverAlbumScreen(it) }
 		entry<Screen.DiscoverArtist> { DiscoverArtistScreen(it) }
+		entry<Screen.DiscoverList> { DiscoverListScreen(it) }
 		entry<Screen.LidarrQueue> {
 			LidarrQueueScreen()
 		}

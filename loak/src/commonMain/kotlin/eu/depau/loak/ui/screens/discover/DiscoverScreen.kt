@@ -1,13 +1,22 @@
 package eu.depau.loak.ui.screens.discover
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -15,20 +24,42 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.domain.discover.DiscoverGenre
+import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_search_discover
+import eu.depau.loak.generated.resources.action_see_all
 import eu.depau.loak.generated.resources.option_download_queue
+import eu.depau.loak.generated.resources.subtitle_similar_artists
+import eu.depau.loak.generated.resources.title_because_you_listen
+import eu.depau.loak.generated.resources.title_browse_genres
 import eu.depau.loak.generated.resources.title_discover
+import eu.depau.loak.generated.resources.title_new_releases
+import eu.depau.loak.generated.resources.title_top_songs
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Download
 import eu.depau.loak.icons.outlined.Search
@@ -37,12 +68,21 @@ import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.screens.discover.components.ChartCountryChip
+import eu.depau.loak.ui.screens.discover.components.ChartCountryPickerSheet
+import eu.depau.loak.ui.screens.discover.components.ChartSongItem
+import eu.depau.loak.ui.screens.discover.components.DiscoverAlbumCard
+import eu.depau.loak.ui.screens.discover.components.DiscoverArtistCard
+import eu.depau.loak.ui.screens.discover.components.rememberLidarrAddFlow
+import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverHomeViewModel
+import eu.depau.loak.ui.screens.discover.components.dotted
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Discover: search, charts and recommendations for music you don't have. The shelves fill the
- * list in later milestones; for now it holds the search pill only.
+ * Discover: search, charts and recommendations for music you don't have. One scrolling feed of
+ * shelves; a shelf whose source is off, empty or unreachable simply isn't there.
  */
 @Composable
 fun DiscoverScreen() {
@@ -60,6 +100,23 @@ fun DiscoverScreen() {
 	// fresh Lidarr state for the status badges
 	LaunchedEffect(Unit) { lidarr.refreshCatalog() }
 
+	val viewModel = koinViewModel<DiscoverHomeViewModel>()
+	val home by viewModel.home.collectAsState()
+	val charts by viewModel.charts.collectAsState()
+	val previewManager = koinInject<PreviewManager>()
+	val active = previewManager.activePreview.collectAsState()
+	// just the audible song's id: progress ticks don't recompose the list
+	val previewing by remember { derivedStateOf { active.value?.takeIf { it.isPlaying }?.song?.id } }
+	val addFlow = rememberLidarrAddFlow()
+	var pickerOpen by rememberSaveable { mutableStateOf(false) }
+	if (pickerOpen) ChartCountryPickerSheet(
+		charts = charts,
+		selected = viewModel.chartCountry,
+		onSelect = viewModel::setChartCountry,
+		onDismissRequest = { pickerOpen = false }
+	)
+	val open = { type: DiscoverListType -> backStack.add(Screen.DiscoverList(type)) }
+
 	Scaffold(
 		// only the root bar collapses: without it laid out, the behavior would swallow every scroll
 		modifier = if (nested) Modifier else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -73,23 +130,156 @@ fun DiscoverScreen() {
 		LazyColumn(
 			modifier = Modifier.fillMaxSize(),
 			contentPadding = PaddingValues(
-				start = 16.dp, end = 16.dp,
 				top = innerPadding.calculateTopPadding(),
 				bottom = innerPadding.calculateBottomPadding() + 24.dp
 			)
 		) {
 			item(key = "search") {
-				SearchPill(onClick = dropUnlessResumed { backStack.add(Screen.DiscoverSearch) })
+				SearchPill(
+					modifier = Modifier.padding(horizontal = 16.dp),
+					onClick = dropUnlessResumed { backStack.add(Screen.DiscoverSearch) }
+				)
+			}
+			if (home.newReleases.isNotEmpty()) item(key = "new-releases") {
+				ShelfHeader(stringResource(Res.string.title_new_releases)) {
+					SeeAll(dropUnlessResumed { open(DiscoverListType.NewReleases) })
+				}
+				Rail {
+					items(home.newReleases, key = { it.id }) {
+						DiscoverAlbumCard(it, addFlow, dotted(it.artist, it.year?.toString()))
+					}
+				}
+			}
+			home.chart?.let { chart ->
+				if (home.topSongs.isNotEmpty()) item(key = "top-songs") {
+					ShelfHeader(stringResource(Res.string.title_top_songs)) {
+						ChartCountryChip(chart.countryName) { pickerOpen = true }
+						SeeAll(dropUnlessResumed { open(DiscoverListType.TopSongs) })
+					}
+				}
+				itemsIndexed(home.topSongs, key = { _, song -> "chart-${song.id}" }) { index, song ->
+					ChartSongItem(index + 1, song, song.id == previewing, addFlow) { previewManager.toggle(song) }
+				}
+			}
+			home.seed?.let { seed ->
+				item(key = "similar") {
+					ShelfHeader(
+						stringResource(Res.string.title_because_you_listen, seed.name),
+						subtitle = stringResource(Res.string.subtitle_similar_artists)
+					) {
+						SeeAll(dropUnlessResumed {
+							open(DiscoverListType.SimilarArtists(seed.name, seed.mbid.orEmpty()))
+						})
+					}
+					Rail {
+						items(home.similar, key = { it.id }) { DiscoverArtistCard(it, addFlow) }
+					}
+				}
+			}
+			if (home.genres.isNotEmpty()) item(key = "genres") {
+				ShelfHeader(stringResource(Res.string.title_browse_genres))
+				Column(
+					Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+					verticalArrangement = Arrangement.spacedBy(12.dp)
+				) {
+					home.genres.chunked(2).forEach { pair ->
+						Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+							pair.forEach { genre ->
+								GenreTile(genre, Modifier.weight(1f), dropUnlessResumed {
+									open(DiscoverListType.Genre(genre.id, genre.name))
+								})
+							}
+							// an odd last tile keeps its column instead of stretching across
+							if (pair.size == 1) Spacer(Modifier.weight(1f))
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/** A shelf's header: its title and subtitle, with its chip and "See all" on the right. */
+@Composable
+private fun ShelfHeader(
+	title: String,
+	subtitle: String? = null,
+	trailing: @Composable RowScope.() -> Unit = {}
+) {
+	Row(
+		modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 18.dp, bottom = 4.dp),
+		verticalAlignment = Alignment.CenterVertically,
+		horizontalArrangement = Arrangement.spacedBy(8.dp)
+	) {
+		Column(Modifier.weight(1f)) {
+			Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+			if (subtitle != null) Text(
+				subtitle,
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.onSurfaceVariant,
+				maxLines = 1,
+				overflow = TextOverflow.Ellipsis
+			)
+		}
+		trailing()
+	}
+}
+
+@Composable
+private fun SeeAll(onClick: () -> Unit) = TextButton(onClick = onClick) {
+	Text(stringResource(Res.string.action_see_all))
+}
+
+/** A shelf's horizontal rail, bleeding to the screen edges. */
+@Composable
+private fun Rail(content: LazyListScope.() -> Unit) = LazyRow(
+	contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+	horizontalArrangement = Arrangement.spacedBy(12.dp),
+	content = content
+)
+
+/** One "Browse genres" tile: Deezer's picture for the genre, darkened under its name. */
+@Composable
+private fun GenreTile(genre: DiscoverGenre, modifier: Modifier, onClick: () -> Unit) {
+	Surface(
+		onClick = onClick,
+		modifier = modifier.height(64.dp),
+		shape = MaterialTheme.shapes.medium,
+		color = MaterialTheme.colorScheme.surfaceContainerHigh
+	) {
+		Box {
+			AsyncImage(
+				model = genre.pictureUrl,
+				imageLoader = koinInject<ImageLoader>(),
+				contentDescription = null,
+				contentScale = ContentScale.Crop,
+				modifier = Modifier.fillMaxSize()
+			)
+			Box(
+				Modifier
+					.fillMaxSize()
+					.background(Color.Black.copy(alpha = 0.45f))
+					.padding(horizontal = 14.dp),
+				contentAlignment = Alignment.CenterStart
+			) {
+				Text(
+					genre.name,
+					color = Color.White,
+					style = MaterialTheme.typography.titleMedium,
+					fontWeight = FontWeight.SemiBold,
+					maxLines = 2,
+					overflow = TextOverflow.Ellipsis
+				)
 			}
 		}
 	}
 }
 
 @Composable
-private fun SearchPill(onClick: () -> Unit) {
+private fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
 	Surface(
 		onClick = onClick,
-		modifier = Modifier.fillMaxWidth().height(56.dp),
+		modifier = modifier.fillMaxWidth().height(56.dp),
 		shape = CircleShape,
 		color = MaterialTheme.colorScheme.surfaceContainerHigh,
 		contentColor = MaterialTheme.colorScheme.onSurfaceVariant

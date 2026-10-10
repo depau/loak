@@ -3,13 +3,17 @@ package eu.depau.loak.ui.screens.discover.components
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -17,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -28,8 +33,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
@@ -39,6 +46,7 @@ import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.LibraryMatcher
+import eu.depau.loak.domain.discover.deezerImageUrl
 import eu.depau.loak.domain.manager.DiscoverBadgeState
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_more
@@ -294,4 +302,99 @@ fun DiscoverPageState(loading: Boolean, unavailable: StringResource, icon: Image
 		ContainedLoadingIndicator(Modifier.size(80.dp))
 	}
 	else ContentUnavailable(Modifier.fillMaxSize().padding(padding), icon = icon, label = stringResource(unavailable))
+}
+
+/** An album on a rail: cover with its status badge, title and [subtitle]. */
+@Composable
+fun DiscoverAlbumCard(
+	album: DiscoverAlbum,
+	addFlow: LidarrAddFlow,
+	subtitle: String = dotted(albumKind(album), album.year?.toString())
+) = AlbumGestures(album, addFlow) { gestures, _ ->
+	val status = rememberDiscoverStatus(album)
+	Column(Modifier.width(140.dp).clip(MaterialTheme.shapes.medium).then(gestures)) {
+		Box {
+			DiscoverArt(deezerImageUrl(album.coverUrl, 500), 140.dp, MaterialTheme.shapes.medium)
+			// the badge needs a ground of its own on top of the cover
+			Surface(
+				Modifier.align(Alignment.BottomStart).padding(8.dp),
+				shape = RoundedCornerShape(6.dp),
+				color = MaterialTheme.colorScheme.surface
+			) { DiscoverBadge(status) }
+		}
+		Text(
+			album.title,
+			Modifier.padding(top = 8.dp),
+			style = MaterialTheme.typography.bodyLarge,
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis
+		)
+		Text(
+			subtitle,
+			style = MaterialTheme.typography.bodyMedium,
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis
+		)
+	}
+}
+
+/** An artist on a rail: round picture, name and status badge. */
+@Composable
+fun DiscoverArtistCard(artist: DiscoverArtist, addFlow: LidarrAddFlow) = ArtistGestures(artist, addFlow) { gestures, _ ->
+	Column(
+		Modifier.width(96.dp).clip(MaterialTheme.shapes.medium).then(gestures),
+		horizontalAlignment = Alignment.CenterHorizontally,
+		verticalArrangement = Arrangement.spacedBy(6.dp)
+	) {
+		DiscoverArt(artist.pictureUrl, 88.dp, CircleShape)
+		Text(
+			artist.name,
+			style = MaterialTheme.typography.bodyMedium,
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis,
+			textAlign = TextAlign.Center
+		)
+		DiscoverBadge(rememberDiscoverStatus(artist))
+	}
+}
+
+/** One chart row: its [rank], art, title, artist with the status badge, and the preview button. */
+@Composable
+fun ChartSongItem(
+	rank: Int,
+	song: DiscoverSong,
+	previewing: Boolean,
+	addFlow: LidarrAddFlow,
+	onPreview: () -> Unit
+) {
+	val status = rememberDiscoverStatus(song)
+	SongGestures(song, status, { onPreview() }, addFlow) { gestures, _ ->
+		ListItem(
+			modifier = gestures,
+			leadingContent = {
+				Row(
+					verticalAlignment = Alignment.CenterVertically,
+					horizontalArrangement = Arrangement.spacedBy(12.dp)
+				) {
+					Text(
+						rank.toString(),
+						Modifier.widthIn(min = 24.dp),
+						style = MaterialTheme.typography.titleMedium,
+						color = MaterialTheme.colorScheme.onSurfaceVariant,
+						textAlign = TextAlign.End,
+						maxLines = 1
+					)
+					DiscoverArt(song.coverUrl, 48.dp)
+				}
+			},
+			headlineContent = { Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+			supportingContent = {
+				WithBadge(status) {
+					Text(song.artist, Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
+				}
+			},
+			trailingContent = { PreviewButton(previewing, onPreview, enabled = song.hasPreview) }
+		)
+	}
 }

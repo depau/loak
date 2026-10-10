@@ -47,6 +47,13 @@ data class DiscoverArtist(
 	val mbid: String? = null
 )
 
+/** A Deezer genre, for the "Browse genres" shelf and its chart list. Id 0 is "Tutti" (all). */
+data class DiscoverGenre(
+	val id: Long,
+	val name: String,
+	val pictureUrl: String? = null
+)
+
 /** The three kinds of Deezer search results, as the search screen shows them. */
 data class DiscoverSearchResults(
 	val songs: List<DiscoverSong>,
@@ -107,6 +114,15 @@ fun discoverArtistOf(item: JsonObject): DiscoverArtist {
 		name = item.str("name") ?: "",
 		pictureUrl = item.str("picture_medium") ?: item.str("picture_big"),
 		deezerId = item.deezerId()
+	)
+}
+
+/** Maps one Deezer genre search result (`/genre`'s `data`). */
+fun discoverGenreOf(item: JsonObject): DiscoverGenre {
+	return DiscoverGenre(
+		id = item.deezerId() ?: 0L,
+		name = item.str("name").orEmpty(),
+		pictureUrl = item.str("picture_medium") ?: item.str("picture_big")
 	)
 }
 

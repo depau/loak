@@ -140,6 +140,8 @@ class PreferenceManager(
 	var deezerSearchNoticeDismissed by preference(false)
 	/** Discover's recent searches, newest first, one per line. */
 	var discoverRecentSearches by preference("")
+	/** Chart country chosen in the Discover country picker; "" = automatic (Deezer `/infos`). */
+	var discoverChartCountry by preference("")
 
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
