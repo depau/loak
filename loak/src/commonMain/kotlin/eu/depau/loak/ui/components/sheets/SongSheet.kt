@@ -88,6 +88,9 @@ import eu.depau.loak.generated.resources.action_view_artist
 import eu.depau.loak.generated.resources.label_speed
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import eu.depau.loak.domain.manager.LidarrManager
+import eu.depau.loak.domain.manager.albumFor
+import eu.depau.loak.ui.components.dialogs.LinkConfirmationDialog
 import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -185,6 +188,12 @@ fun SongSheet(
 
 	val colorScheme = if (useSongTheme) rememberColorSchemeFromCoverArt(song.coverArtId) else null
 	var mixPage by rememberSaveable { mutableStateOf(false) }
+	var linkToOpen by rememberSaveable { mutableStateOf<String?>(null) }
+	val lidarr = koinInject<LidarrManager>()
+	val catalog by lidarr.catalog.collectAsState()
+	// Lidarr has no page per track: its album's
+	val lidarrUrl = catalog.albumFor(null, song.albumTitle, song.albumArtists.firstOrNull()?.name ?: song.artistName)
+		?.musicBrainzId?.let(lidarr::albumPageUrl)
 
 	val backStack = LocalNavStack.current
 	val viewArtist: (String) -> Unit = {
@@ -493,8 +502,17 @@ fun SongSheet(
 						)
 					)
 				}
+
+				SheetLinks(
+					lastFmUrl = null,
+					musicBrainzUrl = song.musicBrainzId?.let { "https://musicbrainz.org/recording/$it" },
+					lidarrUrl = lidarrUrl,
+					onOpen = { linkToOpen = it }
+				)
 			}
 		}
+
+		linkToOpen?.let { LinkConfirmationDialog(linkToOpen = it, onDismissRequest = { linkToOpen = null }) }
 	}
 }
 
