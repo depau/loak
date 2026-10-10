@@ -116,6 +116,11 @@ class MusicBrainzClient {
 			?: selectDefaultReleaseGroup(groups) ?: groups.firstOrNull())?.id
 	}
 
+	/** The release group release [releaseMbid] belongs to (what libraries tag, Lidarr's albums are groups). */
+	suspend fun releaseGroupOfRelease(releaseMbid: String): String? =
+		getJson("/release/$releaseMbid", mapOf("inc" to "release-groups"))
+			?.get("release-group")?.jsonObject?.str("id")?.takeIf { it.isNotEmpty() }
+
 	/** The exact artist by name (score == 100), per spec. */
 	suspend fun searchArtist(name: String): MusicBrainzArtist? {
 		val result = getJson("/artist", mapOf("query" to "artist:\"$name\"")) ?: return null

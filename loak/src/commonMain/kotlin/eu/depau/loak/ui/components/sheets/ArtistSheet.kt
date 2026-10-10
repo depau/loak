@@ -197,7 +197,7 @@ fun ArtistSheet(
 			SheetLinks(
 				lastFmUrl = artist.lastFmUrl,
 				musicBrainzUrl = artist.musicBrainzId?.let { "https://musicbrainz.org/artist/$it" },
-				lidarrUrl = catalog.artistFor(artist.musicBrainzId, artist.name)?.musicBrainzId?.let(lidarr::artistPageUrl),
+				lidarrUrl = lidarr.artistUrl(catalog.artistFor(artist.musicBrainzId, artist.name), artist.musicBrainzId),
 				onOpen = { linkToOpen = it }
 			)
 		}

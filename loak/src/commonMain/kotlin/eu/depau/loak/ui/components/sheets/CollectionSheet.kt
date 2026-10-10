@@ -57,6 +57,8 @@ import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.LidarrManager
+import androidx.compose.runtime.produceState
+import eu.depau.loak.domain.discover.MusicBrainzClient
 import eu.depau.loak.domain.manager.albumFor
 import eu.depau.loak.domain.manager.canUserShare
 import eu.depau.loak.domain.models.DomainAlbum
@@ -132,9 +134,15 @@ fun CollectionSheet(
 	// playlist edits are queued
 	val online = LocalAvailability.current.online
 	val playable = collection != null && LocalAvailability.current.collection(collection.id)
-	val lidarrUrl = (collection as? DomainAlbum)?.let { album ->
-		catalog.albumFor(albumInfo?.musicBrainzId ?: album.musicBrainzId, album.name, album.artistName)
-			?.musicBrainzId?.let(lidarr::albumPageUrl)
+	val album = collection as? DomainAlbum
+	val musicBrainz = koinInject<MusicBrainzClient>()
+	// libraries tag the release; Lidarr's albums are its group
+	val release = albumInfo?.musicBrainzId ?: album?.musicBrainzId
+	val releaseGroup by produceState<String?>(null, release) {
+		if (lidarr.isConfigured) value = release?.let { musicBrainz.releaseGroupOfRelease(it) }
+	}
+	val lidarrUrl = album?.let {
+		lidarr.albumUrl(catalog.albumFor(releaseGroup ?: release, it.name, it.artistName), releaseGroup)
 	}
 
 	// the edit sheet replaces this one rather than stacking on top

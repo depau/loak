@@ -89,6 +89,7 @@ import eu.depau.loak.generated.resources.label_speed
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.LidarrManager
+import eu.depau.loak.domain.discover.MusicBrainzClient
 import eu.depau.loak.domain.manager.albumFor
 import eu.depau.loak.ui.components.dialogs.LinkConfirmationDialog
 import eu.depau.loak.data.database.entities.DownloadStatus
@@ -190,10 +191,16 @@ fun SongSheet(
 	var mixPage by rememberSaveable { mutableStateOf(false) }
 	var linkToOpen by rememberSaveable { mutableStateOf<String?>(null) }
 	val lidarr = koinInject<LidarrManager>()
+	val musicBrainz = koinInject<MusicBrainzClient>()
 	val catalog by lidarr.catalog.collectAsState()
-	// Lidarr has no page per track: its album's
-	val lidarrUrl = catalog.albumFor(null, song.albumTitle, song.albumArtists.firstOrNull()?.name ?: song.artistName)
-		?.musicBrainzId?.let(lidarr::albumPageUrl)
+	// Lidarr has no page per track: its release group's
+	val albumArtist = song.albumArtists.firstOrNull()?.name ?: song.artistName
+	val releaseGroup by produceState<String?>(null, song.id) {
+		if (lidarr.isConfigured) value = musicBrainz.songReleaseGroup(
+			song.isrc.firstOrNull(), song.title, song.artistName.orEmpty(), song.albumTitle
+		)
+	}
+	val lidarrUrl = lidarr.albumUrl(catalog.albumFor(releaseGroup, song.albumTitle, albumArtist), releaseGroup)
 
 	val backStack = LocalNavStack.current
 	val viewArtist: (String) -> Unit = {
