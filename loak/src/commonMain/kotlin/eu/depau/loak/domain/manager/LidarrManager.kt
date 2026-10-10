@@ -159,6 +159,39 @@ data class LidarrQueueItem(
 	val eta: String?
 )
 
+/** Parses Lidarr's paginated queue response, or its legacy bare array. */
+internal fun lidarrQueueItemsOf(json: JsonElement): List<LidarrQueueItem> {
+	val records = ((json as? JsonObject)?.get("records") ?: json) as? JsonArray ?: return emptyList()
+	return records.mapNotNull { element ->
+		val item = element as? JsonObject ?: return@mapNotNull null
+		val album = item["album"] as? JsonObject
+		// with includeAlbum the record nests album/artist; fall back to top-level fields
+		val title = album?.get("title")?.jsonPrimitive?.contentOrNull
+			?: item["title"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+		val artistName = (album?.get("artist") as? JsonObject)?.get("artistName")
+			?.jsonPrimitive?.contentOrNull
+			?: (item["artist"] as? JsonObject)?.get("artistName")?.jsonPrimitive?.contentOrNull
+		val size = item["size"]?.jsonPrimitive?.doubleOrNull ?: 0.0
+		val sizeLeft = item["sizeleft"]?.jsonPrimitive?.doubleOrNull ?: 0.0
+		val progress = if (size > 0.0 && sizeLeft >= 0.0 && sizeLeft.isFinite()) {
+			(1.0f - (sizeLeft / size).toFloat()).coerceIn(0f, 1f)
+		} else 0f
+		LidarrQueueItem(
+			id = item["id"]?.jsonPrimitive?.longOrNull ?: return@mapNotNull null,
+			albumId = item["albumId"]?.jsonPrimitive?.longOrNull,
+			artistId = item["artistId"]?.jsonPrimitive?.longOrNull,
+			title = title,
+			artistName = artistName,
+			size = size,
+			sizeLeft = sizeLeft,
+			progress = progress,
+			quality = (item["quality"] as? JsonObject)?.get("quality")?.jsonObject
+				?.get("name")?.jsonPrimitive?.contentOrNull,
+			eta = item["estimatedCompletionTime"]?.jsonPrimitive?.contentOrNull
+		)
+	}
+}
+
 /** An artist Lidarr knows about, enough to recognise Discover items already in it. */
 data class LidarrArtistSnapshot(
 	val id: Long,
@@ -342,7 +375,7 @@ class LidarrManager(
 			emptyList()
 		}
 		val queue = try {
-			parseQueue(getJson("api/v1/queue") {
+			lidarrQueueItemsOf(getJson("api/v1/queue") {
 				parameter("includeAlbum", true)
 				parameter("pageSize", 200)
 			})
@@ -359,7 +392,7 @@ class LidarrManager(
 	suspend fun refreshQueue() {
 		if (!isConfigured) return
 		val queue = try {
-			parseQueue(getJson("api/v1/queue") {
+			lidarrQueueItemsOf(getJson("api/v1/queue") {
 				parameter("includeAlbum", true)
 				parameter("pageSize", 200)
 			})
@@ -412,32 +445,6 @@ class LidarrManager(
 			)
 		}
 
-	private fun parseQueue(json: JsonElement): List<LidarrQueueItem> =
-		foldAsJsonArray(json) { obj ->
-			val album = obj["album"]?.jsonObject
-			// with includeAlbum the record nests album/artist; fall back to top-level fields
-			val title = album?.get("title")?.jsonPrimitive?.contentOrNull
-				?: obj["title"]?.jsonPrimitive?.contentOrNull ?: return@foldAsJsonArray null
-			val artistName = album?.get("artist")?.jsonObject?.get("artistName")?.jsonPrimitive?.contentOrNull
-				?: obj["artist"]?.jsonObject?.get("artistName")?.jsonPrimitive?.contentOrNull
-			val size = obj["size"]?.jsonPrimitive?.doubleOrNull ?: 0.0
-			val sizeLeft = obj["sizeleft"]?.jsonPrimitive?.doubleOrNull ?: 0.0
-			val progress = if (size > 0.0 && sizeLeft >= 0.0 && sizeLeft.isFinite()) {
-				(1.0f - (sizeLeft / size).toFloat()).coerceIn(0f, 1f)
-			} else 0f
-			LidarrQueueItem(
-				id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@foldAsJsonArray null,
-				albumId = obj["albumId"]?.jsonPrimitive?.longOrNull,
-				artistId = obj["artistId"]?.jsonPrimitive?.longOrNull,
-				title = title,
-				artistName = artistName,
-				size = size,
-				sizeLeft = sizeLeft,
-				progress = progress,
-				quality = obj["quality"]?.jsonObject?.get("quality")?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull,
-				eta = obj["estimatedCompletionTime"]?.jsonPrimitive?.contentOrNull
-			)
-		}
 
 	private inline fun <T> foldAsJsonArray(
 		json: JsonElement,
