@@ -4,6 +4,7 @@ import eu.depau.loak.domain.manager.LidarrAlbumSnapshot
 import eu.depau.loak.domain.manager.LidarrArtistSnapshot
 import eu.depau.loak.domain.manager.LidarrCatalog
 import eu.depau.loak.domain.manager.albumFor
+import eu.depau.loak.domain.manager.artistFor
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
@@ -28,6 +29,15 @@ class DiscoverPagesTest {
 		assertEquals(10L, catalog.albumFor(DiscoverAlbum("", "for lack of a better name (Remastered)", "Deadmau5"))?.id)
 		// same title, other artist: not this album
 		assertNull(catalog.albumFor(DiscoverAlbum("", "Random Album Title", "deadmau5")))
+		// a library album's release id isn't a release group: it falls back to the name
+		assertEquals(10L, catalog.albumFor("release-id", "For Lack of a Better Name", "deadmau5")?.id)
+	}
+
+	@Test
+	fun findsTheLidarrArtistByMusicBrainzIdThenByName() {
+		assertEquals(1L, catalog.artistFor(DiscoverArtist("", "Anyone", mbid = "a-mbid"))?.id)
+		assertEquals(1L, catalog.artistFor(DiscoverArtist("", "DEADMAU5"))?.id)
+		assertNull(catalog.artistFor(DiscoverArtist("", "Missing")))
 	}
 
 	@Test

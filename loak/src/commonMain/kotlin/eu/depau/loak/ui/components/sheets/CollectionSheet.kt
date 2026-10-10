@@ -56,6 +56,8 @@ import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.manager.SessionManager
+import eu.depau.loak.domain.manager.LidarrManager
+import eu.depau.loak.domain.manager.albumFor
 import eu.depau.loak.domain.manager.canUserShare
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainAlbumInfo
@@ -110,7 +112,8 @@ fun CollectionSheet(
 	val preferenceManager = koinInject<PreferenceManager>()
 	val sessionManager = koinInject<SessionManager>()
 	val player = koinInject<MediaPlayerViewModel>()
-
+	val lidarr = koinInject<LidarrManager>()
+	val catalog by lidarr.catalog.collectAsState()
 	val colors = ListItemDefaults.colors(
 		containerColor = Color.Transparent,
 		trailingIconColor = MaterialTheme.colorScheme.onSurface,
@@ -129,6 +132,10 @@ fun CollectionSheet(
 	// playlist edits are queued
 	val online = LocalAvailability.current.online
 	val playable = collection != null && LocalAvailability.current.collection(collection.id)
+	val lidarrUrl = (collection as? DomainAlbum)?.let { album ->
+		catalog.albumFor(albumInfo?.musicBrainzId ?: album.musicBrainzId, album.name, album.artistName)
+			?.musicBrainzId?.let(lidarr::albumPageUrl)
+	}
 
 	// the edit sheet replaces this one rather than stacking on top
 	if (!editing && !copying) ModalBottomSheet(
@@ -300,6 +307,7 @@ fun CollectionSheet(
 			SheetLinks(
 				lastFmUrl = albumInfo?.lastFmUrl,
 				musicBrainzUrl = albumInfo?.musicBrainzId?.let { "https://musicbrainz.org/release/$it" },
+				lidarrUrl = lidarrUrl,
 				onOpen = { linkToOpen = it }
 			)
 		}

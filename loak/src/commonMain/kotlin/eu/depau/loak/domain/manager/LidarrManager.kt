@@ -248,16 +248,28 @@ data class LidarrCatalog(
 	}
 }
 
+/** The Lidarr artist with [musicBrainzId] when known, else named [name]. */
+fun LidarrCatalog.artistFor(musicBrainzId: String?, name: String?): LidarrArtistSnapshot? =
+	musicBrainzId?.let { id -> artists.firstOrNull { it.musicBrainzId == id } }
+		?: name?.let { n -> artists.firstOrNull { normalizeArtist(it.name) == normalizeArtist(n) } }
+
+/** The Lidarr artist a Discover [artist] is. */
+fun LidarrCatalog.artistFor(artist: DiscoverArtist) = artistFor(artist.mbid, artist.name)
+
 /**
- * The Lidarr album a Discover [album] is: by MusicBrainz release group when known, else by
- * normalised title and artist name. Null when Lidarr doesn't have it.
+ * The Lidarr album with MusicBrainz release group [musicBrainzId] when known, else by normalised
+ * [title] and [artist] name; library albums only carry a release id, so they match by name.
  */
-fun LidarrCatalog.albumFor(album: DiscoverAlbum): LidarrAlbumSnapshot? {
-	album.mbid?.let { mbid -> albums.firstOrNull { it.musicBrainzId == mbid }?.let { return it } }
-	val title = normalizeTitle(album.title)
-	val artistIds = artists.filter { normalizeArtist(it.name) == normalizeArtist(album.artist) }.map { it.id }
-	return albums.firstOrNull { it.artistId in artistIds && normalizeTitle(it.title) == title }
+fun LidarrCatalog.albumFor(musicBrainzId: String?, title: String?, artist: String?): LidarrAlbumSnapshot? {
+	musicBrainzId?.let { id -> albums.firstOrNull { it.musicBrainzId == id }?.let { return it } }
+	if (title == null || artist == null) return null
+	val normalized = normalizeTitle(title)
+	val artistIds = artists.filter { normalizeArtist(it.name) == normalizeArtist(artist) }.map { it.id }
+	return albums.firstOrNull { it.artistId in artistIds && normalizeTitle(it.title) == normalized }
 }
+
+/** The Lidarr album a Discover [album] is. Null when Lidarr doesn't have it. */
+fun LidarrCatalog.albumFor(album: DiscoverAlbum) = albumFor(album.mbid, album.title, album.artist)
 
 /**
  * Where a Discover item stands on its way to the user: already in the Subsonic library
@@ -775,6 +787,9 @@ class LidarrManager(
 
 	/** Re-sends Lidarr's search for one of its albums ("Search again"). */
 	suspend fun searchAlbum(albumId: Long) = triggerAlbumSearch(listOf(albumId))
+
+	/** The artist's page in Lidarr's web UI, by its MusicBrainz id. */
+	fun artistPageUrl(foreignArtistId: String) = "$baseUrl/artist/$foreignArtistId"
 
 	/** The album's page in Lidarr's web UI, by its MusicBrainz release group. */
 	fun albumPageUrl(foreignAlbumId: String) = "$baseUrl/album/$foreignAlbumId"

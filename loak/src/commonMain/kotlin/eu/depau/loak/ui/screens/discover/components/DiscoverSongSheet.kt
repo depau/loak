@@ -37,6 +37,9 @@ import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.manager.ShareManager
+import eu.depau.loak.domain.manager.LidarrManager
+import eu.depau.loak.domain.manager.albumFor
+import eu.depau.loak.domain.manager.artistFor
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_lidarr_more
 import eu.depau.loak.generated.resources.action_pause_preview
@@ -114,6 +117,7 @@ private fun DiscoverSheet(
 	musicBrainzUrl: String,
 	deezerUrl: String?,
 	lastFmUrl: String?,
+	lidarrUrl: String?,
 	onDismissRequest: () -> Unit,
 	artShape: Shape = SmallCoverArtShape
 ) {
@@ -138,6 +142,7 @@ private fun DiscoverSheet(
 				lastFmUrl = lastFmUrl,
 				musicBrainzUrl = musicBrainzUrl,
 				deezerUrl = deezerUrl,
+				lidarrUrl = lidarrUrl,
 				onOpen = { linkToOpen = it }
 			)
 		}
@@ -167,6 +172,10 @@ fun DiscoverSongSheet(song: DiscoverSong, onDismissRequest: () -> Unit, onAddToL
 	val active by previewManager.activePreview.collectAsState()
 	val previewing = active?.takeIf { it.isPlaying }?.song?.id == song.id
 	val deezerUrl = song.deezerId?.let { "https://www.deezer.com/track/$it" }
+	val lidarr = koinInject<LidarrManager>()
+	val catalog by lidarr.catalog.collectAsState()
+	// Lidarr has no page per track: its album's
+	val lidarrUrl = catalog.albumFor(null, song.album, song.artist)?.musicBrainzId?.let(lidarr::albumPageUrl)
 
 	DiscoverSheet(
 		art = song.coverUrl,
@@ -198,6 +207,7 @@ fun DiscoverSongSheet(song: DiscoverSong, onDismissRequest: () -> Unit, onAddToL
 		musicBrainzUrl = musicBrainzUrlOf(song),
 		deezerUrl = deezerUrl,
 		lastFmUrl = null,
+		lidarrUrl = lidarrUrl,
 		onDismissRequest = onDismissRequest
 	)
 }
@@ -207,6 +217,9 @@ fun DiscoverSongSheet(song: DiscoverSong, onDismissRequest: () -> Unit, onAddToL
 fun DiscoverAlbumSheet(album: DiscoverAlbum, onDismissRequest: () -> Unit, addFlow: LidarrAddFlow) {
 	val opener = rememberDiscoverOpener()
 	val deezerUrl = album.deezerId?.let { "https://www.deezer.com/album/$it" }
+	val lidarr = koinInject<LidarrManager>()
+	val catalog by lidarr.catalog.collectAsState()
+	val lidarrUrl = catalog.albumFor(album)?.musicBrainzId?.let(lidarr::albumPageUrl)
 	DiscoverSheet(
 		art = album.coverUrl,
 		title = album.title,
@@ -224,6 +237,7 @@ fun DiscoverAlbumSheet(album: DiscoverAlbum, onDismissRequest: () -> Unit, addFl
 		musicBrainzUrl = musicBrainzUrlOf(album),
 		deezerUrl = deezerUrl,
 		lastFmUrl = lastFmUrlOf(album.artist, album.title),
+		lidarrUrl = lidarrUrl,
 		onDismissRequest = onDismissRequest
 	)
 }
@@ -232,6 +246,9 @@ fun DiscoverAlbumSheet(album: DiscoverAlbum, onDismissRequest: () -> Unit, addFl
 @Composable
 fun DiscoverArtistSheet(artist: DiscoverArtist, onDismissRequest: () -> Unit, addFlow: LidarrAddFlow) {
 	val deezerUrl = artist.deezerId?.let { "https://www.deezer.com/artist/$it" }
+	val lidarr = koinInject<LidarrManager>()
+	val catalog by lidarr.catalog.collectAsState()
+	val lidarrUrl = catalog.artistFor(artist)?.musicBrainzId?.let(lidarr::artistPageUrl)
 	DiscoverSheet(
 		art = artist.pictureUrl,
 		title = artist.name,
@@ -246,6 +263,7 @@ fun DiscoverArtistSheet(artist: DiscoverArtist, onDismissRequest: () -> Unit, ad
 		musicBrainzUrl = musicBrainzUrlOf(artist),
 		deezerUrl = deezerUrl,
 		lastFmUrl = lastFmUrlOf(artist.name),
+		lidarrUrl = lidarrUrl,
 		onDismissRequest = onDismissRequest,
 		artShape = CircleShape
 	)

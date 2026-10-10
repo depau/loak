@@ -38,6 +38,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.manager.LidarrManager
+import eu.depau.loak.domain.manager.artistFor
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.repositories.ArtistRepository
 import eu.depau.loak.generated.resources.info_bulk_download_warning
@@ -76,6 +78,8 @@ fun ArtistSheet(
 	val downloadManager = koinInject<DownloadManager>()
 	val snackBarManager = koinInject<SnackBarManager>()
 	val artistRepository = koinInject<ArtistRepository>()
+	val lidarr = koinInject<LidarrManager>()
+	val catalog by lidarr.catalog.collectAsState()
 	// downloading an artist is downloading each of their albums, like on the artist's page
 	val albums by produceState(emptyList<DomainAlbum>(), artist.id) { value = artistRepository.getAlbums(artist) }
 	val downloadStatus by remember(albums) {
@@ -193,6 +197,7 @@ fun ArtistSheet(
 			SheetLinks(
 				lastFmUrl = artist.lastFmUrl,
 				musicBrainzUrl = artist.musicBrainzId?.let { "https://musicbrainz.org/artist/$it" },
+				lidarrUrl = catalog.artistFor(artist.musicBrainzId, artist.name)?.musicBrainzId?.let(lidarr::artistPageUrl),
 				onOpen = { linkToOpen = it }
 			)
 		}

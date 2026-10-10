@@ -44,6 +44,7 @@ import eu.depau.loak.generated.resources.label_open_in
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.brand.Deezer
 import eu.depau.loak.icons.brand.Lastfm
+import eu.depau.loak.icons.brand.Lidarr
 import eu.depau.loak.icons.brand.Musicbrainz
 import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.ChevronForward
@@ -216,9 +217,10 @@ fun SheetLinks(
 	lastFmUrl: String?,
 	musicBrainzUrl: String?,
 	onOpen: (url: String) -> Unit,
-	deezerUrl: String? = null
+	deezerUrl: String? = null,
+	lidarrUrl: String? = null
 ) {
-	if (lastFmUrl == null && musicBrainzUrl == null && deezerUrl == null) return
+	if (lastFmUrl == null && musicBrainzUrl == null && deezerUrl == null && lidarrUrl == null) return
 	// the heading on its own line, like the sheets' other section titles: inline, it sat
 	// misaligned beside the chips and left them wrapping under it
 	Text(
@@ -235,6 +237,7 @@ fun SheetLinks(
 		lastFmUrl?.let { LinkChip("last.fm", Icons.Brand.Lastfm) { onOpen(it) } }
 		musicBrainzUrl?.let { LinkChip("MusicBrainz", Icons.Brand.Musicbrainz) { onOpen(it) } }
 		deezerUrl?.let { LinkChip("Deezer", Icons.Brand.Deezer) { onOpen(it) } }
+		lidarrUrl?.let { LinkChip("Lidarr", Icons.Brand.Lidarr) { onOpen(it) } }
 	}
 }
 

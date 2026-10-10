@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,9 +39,12 @@ import androidx.compose.ui.unit.dp
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.discover.deezerImageUrl
+import eu.depau.loak.domain.manager.LinkManager
+import eu.depau.loak.domain.manager.artistFor
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_artist
+import eu.depau.loak.generated.resources.action_open_in_lidarr
 import eu.depau.loak.generated.resources.action_preview_top_songs
 import eu.depau.loak.generated.resources.action_see_all
 import eu.depau.loak.generated.resources.info_discover_artist_unavailable
@@ -104,7 +108,9 @@ fun DiscoverArtistScreen(key: Screen.DiscoverArtist) {
 private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow: LidarrAddFlow) {
 	val artist = page.artist
 	val lidarr = koinInject<LidarrManager>()
+	val linkManager = koinInject<LinkManager>()
 	val previewManager = koinInject<PreviewManager>()
+	val catalog by lidarr.catalog.collectAsState()
 	// fresh Lidarr state for the status badges
 	LaunchedEffect(Unit) { lidarr.refreshCatalog() }
 	val active = previewManager.activePreview.collectAsState()
@@ -144,6 +150,14 @@ private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow
 					) {
 						Icon(Icons.Filled.Play, null, Modifier.size(ButtonDefaults.IconSize))
 						Text(stringResource(Res.string.action_preview_top_songs), Modifier.padding(start = ButtonDefaults.IconSpacing))
+					}
+				}
+				catalog.artistFor(artist)?.musicBrainzId?.let { mbid ->
+					OutlinedButton(
+						onClick = { linkManager.openLink(lidarr.artistPageUrl(mbid)) },
+						modifier = Modifier.padding(top = 8.dp)
+					) {
+						Text(stringResource(Res.string.action_open_in_lidarr))
 					}
 				}
 			}
