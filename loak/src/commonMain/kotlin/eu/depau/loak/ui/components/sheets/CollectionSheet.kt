@@ -306,7 +306,9 @@ fun CollectionSheet(
 
 			SheetLinks(
 				lastFmUrl = albumInfo?.lastFmUrl,
-				musicBrainzUrl = albumInfo?.musicBrainzId?.let { "https://musicbrainz.org/release/$it" },
+				// album info is empty without the server's metadata agents; the album's own id still holds
+				musicBrainzUrl = (albumInfo?.musicBrainzId ?: (collection as? DomainAlbum)?.musicBrainzId)
+					?.let { "https://musicbrainz.org/release/$it" },
 				lidarrUrl = lidarrUrl,
 				onOpen = { linkToOpen = it }
 			)
