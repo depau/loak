@@ -38,7 +38,12 @@ data class DiscoverHome(
 	/** The library artist "Because you listen to…" is seeded from. */
 	val seed: DiscoverArtist? = null,
 	val similar: List<DiscoverArtist> = emptyList(),
-	val genres: List<DiscoverGenre> = emptyList()
+	val genres: List<DiscoverGenre> = emptyList(),
+	val loadingMadeForYou: Boolean = false,
+	val loadingNewReleases: Boolean = false,
+	val loadingChart: Boolean = false,
+	val loadingSimilar: Boolean = false,
+	val loadingGenres: Boolean = false
 )
 
 /** How much of each source a shelf holds; the drill-down lists show the rest. */
@@ -66,6 +71,14 @@ class DiscoverHomeViewModel(
 		field = MutableStateFlow(emptyList())
 
 	init {
+		val deezerEnabled = preferenceManager.deezerEnabled
+		home.value = DiscoverHome(
+			loadingMadeForYou = preferenceManager.listenBrainzUsername.isNotBlank(),
+			loadingNewReleases = true,
+			loadingChart = deezerEnabled,
+			loadingSimilar = true,
+			loadingGenres = deezerEnabled
+		)
 		viewModelScope.launch { load() }
 	}
 
@@ -77,26 +90,49 @@ class DiscoverHomeViewModel(
 	}
 
 	private suspend fun load() = coroutineScope {
-		launch { home.update { it.copy(newReleases = listenBrainz.getFreshReleases().take(NEW_RELEASES)) } }
+		launch {
+			home.update {
+				it.copy(
+					newReleases = listenBrainz.getFreshReleases().take(NEW_RELEASES),
+					loadingNewReleases = false
+				)
+			}
+		}
 		launch {
 			val user = preferenceManager.listenBrainzUsername
-			if (user.isNotBlank()) home.update { it.copy(madeForYou = listenBrainz.getCreatedForPlaylists(user)) }
+			if (user.isNotBlank()) {
+				home.update {
+					it.copy(
+						madeForYou = listenBrainz.getCreatedForPlaylists(user),
+						loadingMadeForYou = false
+					)
+				}
+			}
 		}
 		launch { loadSimilar() }
 		if (!preferenceManager.deezerEnabled) return@coroutineScope
 		launch { loadChart() }
 		launch {
 			// genre 0 is Deezer's "all genres" catch-all: nothing to browse
-			home.update { it.copy(genres = deezer.getGenres().filter { genre -> genre.id != 0L }.take(GENRES)) }
+			home.update {
+				it.copy(
+					genres = deezer.getGenres().filter { genre -> genre.id != 0L }.take(GENRES),
+					loadingGenres = false
+				)
+			}
 		}
 	}
 
 	private suspend fun loadChart() {
+		home.update { it.copy(loadingChart = true, chart = null, topSongs = emptyList()) }
 		charts.value = deezer.getCountryCharts()
-		val chart = deezer.activeChart(preferenceManager.discoverChartCountry) ?: return
-		home.update { it.copy(chart = chart, topSongs = emptyList()) }
+		val chart = deezer.activeChart(preferenceManager.discoverChartCountry)
+		if (chart == null) {
+			home.update { it.copy(loadingChart = false) }
+			return
+		}
 		val songs = deezer.getChartTracks(chart.playlistId).take(SHELF_SONGS)
-		home.update { it.copy(topSongs = songs) }
+		home.update { it.copy(loadingChart = false, chart = chart, topSongs = songs) }
 	}
 
 	/**
@@ -107,7 +143,11 @@ class DiscoverHomeViewModel(
 		val frequent = albumDao.getAlbumsByQuery(DomainAlbumListType.Frequent.toSqlQuery())
 		val seed = frequent.firstNotNullOfOrNull {
 			artistDao.getArtistById(it.album.artistId)?.takeIf { artist -> !artist.musicBrainzId.isNullOrBlank() }
-		} ?: return@coroutineScope
+		}
+		if (seed == null) {
+			home.update { it.copy(loadingSimilar = false) }
+			return@coroutineScope
+		}
 		val mbid = seed.musicBrainzId!!
 		val similar = listenBrainz.getSimilarArtists(mbid)
 			.filter { matcher.artistInLibrary(it) == null }
@@ -121,9 +161,12 @@ class DiscoverHomeViewModel(
 				}
 			}
 			.awaitAll()
-		if (similar.isEmpty()) return@coroutineScope
 		home.update {
-			it.copy(seed = DiscoverArtist(id = mbid, name = seed.name, mbid = mbid), similar = similar)
+			it.copy(
+				seed = if (similar.isNotEmpty()) DiscoverArtist(id = mbid, name = seed.name, mbid = mbid) else null,
+				similar = similar,
+				loadingSimilar = false
+			)
 		}
 	}
 }

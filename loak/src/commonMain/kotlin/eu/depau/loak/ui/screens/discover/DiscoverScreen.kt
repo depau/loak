@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -36,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
@@ -78,8 +80,13 @@ import eu.depau.loak.ui.screens.discover.components.DiscoverAlbumCard
 import eu.depau.loak.ui.screens.discover.components.DiscoverArtistCard
 import eu.depau.loak.ui.screens.discover.components.MadeForYouCard
 import eu.depau.loak.ui.screens.discover.components.rememberLidarrAddFlow
+import eu.depau.loak.ui.screens.discover.components.ChartSongPlaceholder
+import eu.depau.loak.ui.screens.discover.components.DiscoverAlbumCardPlaceholder
+import eu.depau.loak.ui.screens.discover.components.DiscoverArtistCardPlaceholder
+import eu.depau.loak.ui.screens.discover.components.MadeForYouPlaceholder
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverHomeViewModel
 import eu.depau.loak.ui.screens.discover.components.dotted
+import eu.depau.loak.ui.util.shimmerLoading
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -145,42 +152,59 @@ fun DiscoverScreen() {
 					onClick = dropUnlessResumed { backStack.add(Screen.DiscoverSearch) }
 				)
 			}
-			if (home.madeForYou.isNotEmpty()) item(key = "made-for-you") {
+			if (home.loadingMadeForYou || home.madeForYou.isNotEmpty()) item(key = "made-for-you") {
 				ShelfHeader(
 					stringResource(Res.string.title_made_for_you),
 					subtitle = stringResource(Res.string.subtitle_made_for_you, listenBrainzUser)
 				)
 				Rail {
-					items(home.madeForYou, key = { it.mbid }) { playlist ->
+					if (home.loadingMadeForYou) items(5) { MadeForYouPlaceholder() }
+					else items(home.madeForYou, key = { it.mbid }) { playlist ->
 						MadeForYouCard(playlist, dropUnlessResumed {
 							open(DiscoverListType.MadeForYou(playlist.mbid, playlist.title))
 						})
 					}
 				}
 			}
-			if (home.newReleases.isNotEmpty()) item(key = "new-releases") {
+			if (home.loadingNewReleases || home.newReleases.isNotEmpty()) item(key = "new-releases") {
 				ShelfHeader(stringResource(Res.string.title_new_releases)) {
 					SeeAll(dropUnlessResumed { open(DiscoverListType.NewReleases) })
 				}
 				Rail {
-					items(home.newReleases, key = { it.id }) {
+					if (home.loadingNewReleases) items(6) { DiscoverAlbumCardPlaceholder() }
+					else items(home.newReleases, key = { it.id }) {
 						DiscoverAlbumCard(it, addFlow, dotted(it.artist, it.year?.toString()))
 					}
 				}
 			}
-			home.chart?.let { chart ->
-				if (home.topSongs.isNotEmpty()) item(key = "top-songs") {
-					ShelfHeader(stringResource(Res.string.title_top_songs)) {
-						ChartCountryChip(chart.countryName) { pickerOpen = true }
-						SeeAll(dropUnlessResumed { open(DiscoverListType.TopSongs) })
+			if (home.loadingChart || (home.chart != null && home.topSongs.isNotEmpty())) {
+				if (home.loadingChart) {
+					item(key = "top-songs") {
+						ShelfHeader(stringResource(Res.string.title_top_songs)) {
+							Box(Modifier.width(96.dp).height(32.dp).clip(CircleShape).shimmerLoading())
+							Box(Modifier.width(52.dp).height(20.dp).clip(CircleShape).shimmerLoading())
+						}
+					}
+					items(5, key = { "chart-placeholder-$it" }) { ChartSongPlaceholder() }
+				} else {
+					val chart = home.chart!!
+					item(key = "top-songs") {
+						ShelfHeader(stringResource(Res.string.title_top_songs)) {
+							ChartCountryChip(chart.countryName) { pickerOpen = true }
+							SeeAll(dropUnlessResumed { open(DiscoverListType.TopSongs) })
+						}
+					}
+					itemsIndexed(home.topSongs, key = { _, song -> "chart-${song.id}" }) { index, song ->
+						ChartSongItem(index + 1, song, song.id == previewing, addFlow) {
+							previewManager.toggle(song)
+						}
 					}
 				}
-				itemsIndexed(home.topSongs, key = { _, song -> "chart-${song.id}" }) { index, song ->
-					ChartSongItem(index + 1, song, song.id == previewing, addFlow) { previewManager.toggle(song) }
-				}
 			}
-			home.seed?.let { seed ->
-				item(key = "similar") {
+			if (home.loadingSimilar || home.seed != null) item(key = "similar") {
+				if (home.loadingSimilar) ShelfHeaderPlaceholder()
+				else {
+					val seed = home.seed!!
 					ShelfHeader(
 						stringResource(Res.string.title_because_you_listen, seed.name),
 						subtitle = stringResource(Res.string.subtitle_similar_artists)
@@ -189,18 +213,28 @@ fun DiscoverScreen() {
 							open(DiscoverListType.SimilarArtists(seed.name, seed.mbid.orEmpty()))
 						})
 					}
-					Rail {
-						items(home.similar, key = { it.id }) { DiscoverArtistCard(it, addFlow) }
-					}
+				}
+				Rail {
+					if (home.loadingSimilar) items(8) { DiscoverArtistCardPlaceholder() }
+					else items(home.similar, key = { it.id }) { DiscoverArtistCard(it, addFlow) }
 				}
 			}
-			if (home.genres.isNotEmpty()) item(key = "genres") {
+			if (home.loadingGenres || home.genres.isNotEmpty()) item(key = "genres") {
 				ShelfHeader(stringResource(Res.string.title_browse_genres))
 				Column(
 					Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
 					verticalArrangement = Arrangement.spacedBy(12.dp)
 				) {
-					home.genres.chunked(2).forEach { pair ->
+					if (home.loadingGenres) repeat(6) {
+						Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+							repeat(2) {
+								Box(
+									Modifier.weight(1f).height(64.dp)
+										.clip(MaterialTheme.shapes.medium).shimmerLoading()
+								)
+							}
+						}
+					} else home.genres.chunked(2).forEach { pair ->
 						Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
 							pair.forEach { genre ->
 								GenreTile(genre, Modifier.weight(1f), dropUnlessResumed {
@@ -240,6 +274,20 @@ private fun ShelfHeader(
 			)
 		}
 		trailing()
+	}
+}
+
+@Composable
+private fun ShelfHeaderPlaceholder() {
+	Row(
+		Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 18.dp, bottom = 4.dp),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+			Box(Modifier.width(180.dp).height(22.dp).clip(CircleShape).shimmerLoading())
+			Box(Modifier.width(120.dp).height(14.dp).clip(CircleShape).shimmerLoading())
+		}
+		Box(Modifier.width(52.dp).height(20.dp).clip(CircleShape).shimmerLoading())
 	}
 }
 

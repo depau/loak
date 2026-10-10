@@ -348,6 +348,11 @@ fun playlistGradient(seed: String): Brush {
 	return Brush.linearGradient(listOf(start, end))
 }
 
+
+@Composable
+fun MadeForYouPlaceholder() {
+	Box(Modifier.size(168.dp).clip(MaterialTheme.shapes.large).shimmerLoading())
+}
 /** One "made for you" playlist on a rail: gradient tile with its title, and its track count. */
 @Composable
 fun MadeForYouCard(playlist: ListenBrainzPlaylist, onClick: () -> Unit) {
@@ -414,6 +419,13 @@ fun DiscoverAlbumCard(
 	}
 }
 
+@Composable
+fun DiscoverAlbumCardPlaceholder() = Column(Modifier.width(140.dp)) {
+	Box(Modifier.size(140.dp).clip(MaterialTheme.shapes.medium).shimmerLoading())
+	Box(Modifier.padding(top = 8.dp).width(112.dp).height(16.dp).clip(CircleShape).shimmerLoading())
+	Box(Modifier.padding(top = 4.dp).width(88.dp).height(14.dp).clip(CircleShape).shimmerLoading())
+}
+
 /** An artist on a rail: round picture, name and status badge. */
 @Composable
 fun DiscoverArtistCard(artist: DiscoverArtist, addFlow: LidarrAddFlow) = ArtistGestures(artist, addFlow) { gestures, _ ->
@@ -432,6 +444,16 @@ fun DiscoverArtistCard(artist: DiscoverArtist, addFlow: LidarrAddFlow) = ArtistG
 		)
 		DiscoverBadge(rememberDiscoverStatus(artist))
 	}
+}
+
+@Composable
+fun DiscoverArtistCardPlaceholder() = Column(
+	Modifier.width(96.dp),
+	horizontalAlignment = Alignment.CenterHorizontally,
+	verticalArrangement = Arrangement.spacedBy(6.dp)
+) {
+	Box(Modifier.size(88.dp).clip(CircleShape).shimmerLoading())
+	Box(Modifier.width(72.dp).height(16.dp).clip(CircleShape).shimmerLoading())
 }
 
 /** One chart row: its [rank], art, title, artist with the status badge, and the preview button. */
@@ -472,4 +494,22 @@ fun ChartSongItem(
 			trailingContent = { PreviewButton(previewing, onPreview, enabled = song.hasPreview) }
 		)
 	}
+}
+
+@Composable
+fun ChartSongPlaceholder() {
+	ListItem(
+		leadingContent = {
+			Row(
+				verticalAlignment = Alignment.CenterVertically,
+				horizontalArrangement = Arrangement.spacedBy(12.dp)
+			) {
+				Box(Modifier.width(24.dp).height(16.dp).clip(CircleShape).shimmerLoading())
+				Box(Modifier.size(48.dp).clip(SmallCoverArtShape).shimmerLoading())
+			}
+		},
+		headlineContent = { Box(Modifier.width(180.dp).height(16.dp).clip(CircleShape).shimmerLoading()) },
+		supportingContent = { Box(Modifier.width(132.dp).height(14.dp).clip(CircleShape).shimmerLoading()) },
+		trailingContent = { Box(Modifier.size(40.dp).clip(CircleShape).shimmerLoading()) }
+	)
 }
