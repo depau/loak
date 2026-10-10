@@ -2,6 +2,8 @@ package eu.depau.loak.ui.screens.collection.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -30,6 +33,10 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -78,20 +85,40 @@ fun PlaylistTrackFilterRow(
 	}
 
 	val sortButton = @Composable {
-		IconButton(
-			onClick = onToggleReversed,
+		val contentDescription = stringResource(
+			if (isReversed) Res.string.option_sort_descending else Res.string.option_sort_ascending
+		)
+		Box(
 			modifier = Modifier
-				.size(36.dp)
-				.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+				.size(48.dp)
+				.semantics(mergeDescendants = true) {
+					this.contentDescription = contentDescription
+					role = Role.Button
+				}
+				.clickable(onClick = onToggleReversed),
+			contentAlignment = Alignment.Center
 		) {
-			Icon(
-				imageVector = Icons.Outlined.ArrowDown,
-				contentDescription = stringResource(
-					if (isReversed) Res.string.option_sort_descending else Res.string.option_sort_ascending
-				),
-				modifier = Modifier.size(18.dp).rotate(rotation),
-				tint = MaterialTheme.colorScheme.onSurfaceVariant
-			)
+			Box(
+				modifier = Modifier
+					.size(width = 38.dp, height = 30.dp)
+					.border(
+						width = 1.dp,
+						color = MaterialTheme.colorScheme.outlineVariant,
+						shape = RoundedCornerShape(15.dp)
+					)
+					.background(
+						color = MaterialTheme.colorScheme.surfaceContainerLow,
+						shape = RoundedCornerShape(15.dp)
+					),
+				contentAlignment = Alignment.Center
+			) {
+				Icon(
+					imageVector = Icons.Outlined.ArrowDown,
+					contentDescription = null,
+					modifier = Modifier.size(16.dp).rotate(rotation),
+					tint = MaterialTheme.colorScheme.onSurface
+				)
+			}
 		}
 	}
 
