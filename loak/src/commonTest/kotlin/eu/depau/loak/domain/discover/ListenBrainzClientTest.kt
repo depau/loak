@@ -115,6 +115,14 @@ class ListenBrainzClientTest {
 		val track = listenBrainzTrackOf(json.parseToJsonElement("""{
 			"album": "The Way I Are",
 			"creator": "Timbaland",
+			"extension": {
+				"https://musicbrainz.org/doc/jspf#track": {
+					"additional_metadata": {
+						"caa_id": 46358373164,
+						"caa_release_mbid": "544589e6-22ed-4bf9-ad5d-d21117b75758"
+					}
+				}
+			},
 			"identifier": ["https://musicbrainz.org/recording/4ae8e623-7c3b-4c3e-aaaa-7fe6c763b058"],
 			"title": "The Way I Are"
 		}""".trimIndent()).jsonObject)
@@ -126,6 +134,10 @@ class ListenBrainzClientTest {
 		assertEquals("Timbaland", track.artist)
 		assertEquals("The Way I Are", track.album)
 		assertNull(track.previewUrl)
+		assertEquals(
+			"https://coverartarchive.org/release/544589e6-22ed-4bf9-ad5d-d21117b75758/46358373164-250.jpg",
+			track.coverUrl
+		)
 	}
 
 	@Test

@@ -28,6 +28,14 @@ fun similarArtistOf(item: JsonObject): DiscoverArtist? {
 	return DiscoverArtist(id = mbid, name = name, mbid = mbid)
 }
 
+/** The Cover Art Archive image attached to a ListenBrainz release or playlist track. */
+private fun coverArtUrlOf(item: JsonObject): String? {
+	val releaseMbid = item["caa_release_mbid"]?.jsonPrimitive?.contentOrNull
+	val id = item["caa_id"]?.jsonPrimitive?.contentOrNull
+	return if (releaseMbid.isNullOrBlank() || id.isNullOrBlank()) null
+	else "https://coverartarchive.org/release/$releaseMbid/$id-250.jpg"
+}
+
 /**
  * Maps one ListenBrainz fresh-release entry to a [DiscoverAlbum], keyed on the release
  * group MBID; the cover points at Cover Art Archive. Null when any identity field is
@@ -39,13 +47,7 @@ fun freshReleaseAlbumOf(item: JsonObject): DiscoverAlbum? {
 	val title = item["release_name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: return null
 	val artist = item["artist_credit_name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
 		?: return null
-	val coverUrl = buildString {
-		val caaReleaseMbid = item["caa_release_mbid"]?.jsonPrimitive?.contentOrNull
-		val caaId = item["caa_id"]?.jsonPrimitive?.contentOrNull
-		if (caaReleaseMbid != null && caaId != null) {
-			append("https://coverartarchive.org/release/$caaReleaseMbid/$caaId-250.jpg")
-		}
-	}.takeIf { it.isNotEmpty() }
+	val coverUrl = coverArtUrlOf(item)
 	return DiscoverAlbum(
 		id = releaseGroup,
 		title = title,
@@ -67,6 +69,7 @@ data class ListenBrainzPlaylist(
 private val RECORDING_MBID = Regex("""^https://musicbrainz\.org/recording/([0-9a-fA-F-]{36})$""")
 /** The playlist mbid in a JSPF playlist's `identifier`. */
 private val PLAYLIST_MBID = Regex("""^https://listenbrainz\.org/playlist/([0-9a-fA-F-]{36})$""")
+private const val JSPF_TRACK_EXTENSION = "https://musicbrainz.org/doc/jspf#track"
 
 /**
  * Maps one JSPF track (inside a `GET /playlist/<mbid>` payload) to a [DiscoverSong].
@@ -80,11 +83,14 @@ fun listenBrainzTrackOf(item: JsonObject): DiscoverSong? {
 	val recordingMbid = (item["identifier"] as? JsonArray).orEmpty()
 		.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
 		.firstNotNullOfOrNull { RECORDING_MBID.matchEntire(it)?.groupValues?.get(1) }
+	val metadata = ((item["extension"] as? JsonObject)?.get(JSPF_TRACK_EXTENSION) as? JsonObject)
+		?.get("additional_metadata") as? JsonObject
 	return DiscoverSong(
 		id = recordingMbid ?: "$title $artist",
 		title = title,
 		artist = artist,
 		album = item["album"]?.jsonPrimitive?.contentOrNull,
+		coverUrl = metadata?.let(::coverArtUrlOf),
 		mbid = recordingMbid
 	)
 }
