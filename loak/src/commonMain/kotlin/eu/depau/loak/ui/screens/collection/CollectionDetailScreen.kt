@@ -6,8 +6,10 @@ import eu.depau.loak.ui.screens.playlist.smart.SmartPlaylistEditor
 import eu.depau.loak.ui.screens.playlist.smart.SmartRulesCard
 import eu.depau.loak.ui.screens.collection.components.PlaylistRebuiltNotice
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -16,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import eu.depau.loak.icons.outlined.Check
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Surface
@@ -136,9 +140,14 @@ fun CollectionDetailScreen(
 	}
 	var reordering by rememberSaveable { mutableStateOf(false) }
 	var reorderSongs by remember(reordering, collection?.songs) {
-		mutableStateOf((collection as? DomainPlaylist)?.songs.orEmpty())
+		mutableStateOf(
+			(collection as? DomainPlaylist)?.songs.orEmpty().mapIndexed { index, song ->
+				"${song.id}_$index" to song
+			}
+		)
 	}
 	val draggable = rememberDraggableListState(
+		lazyListState = viewModel.listState,
 		onMove = { from, to ->
 			reorderSongs = reorderSongs.toMutableList().apply {
 				add(to, removeAt(from))
@@ -189,7 +198,7 @@ fun CollectionDetailScreen(
 	LoakTheme(colorScheme) {
 		Scaffold(
 			topBar = {
-				if (reordering && collection is DomainPlaylist) {
+				if (reordering && collection is DomainPlaylist && !expanded) {
 					NestedTopBar(
 						navigationAction = {
 							TopBarButton(
@@ -211,7 +220,7 @@ fun CollectionDetailScreen(
 						actions = {
 							Button(
 								onClick = {
-									viewModel.reorderPlaylist(reorderSongs)
+									viewModel.reorderPlaylist(reorderSongs.map { it.second })
 									reordering = false
 								},
 								modifier = Modifier.padding(end = 8.dp)
@@ -269,27 +278,100 @@ fun CollectionDetailScreen(
 							.padding(contentPadding.withoutTop()),
 						horizontalAlignment = Alignment.CenterHorizontally
 					) {
-						CollectionDetailScreenHeadingRow(
-							collection = collection,
-							tab = tab,
-							titleAlpha = 1f
-						)
-						CollectionDetailScreenHeadingRowButtons(collection = collection)
-						if (collection is DomainPlaylist) {
-							PlaylistRebuiltNotice(collection)
-							SmartRulesCard(collection, onEdit = { editingRules = it })
-							RadioCard(collection)
+						if (reordering && collection is DomainPlaylist) {
+							CollectionDetailScreenHeadingRow(
+								collection = collection,
+								tab = tab,
+								titleAlpha = 1f
+							)
+							Surface(
+								shape = MaterialTheme.shapes.small,
+								color = MaterialTheme.colorScheme.secondaryContainer,
+								modifier = Modifier.padding(top = 8.dp)
+							) {
+								Text(
+									text = stringResource(Res.string.title_reorder_playlist),
+									style = MaterialTheme.typography.labelMedium,
+									color = MaterialTheme.colorScheme.onSecondaryContainer,
+									modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+								)
+							}
+							Row(
+								modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+								horizontalArrangement = Arrangement.spacedBy(10.dp)
+							) {
+								OutlinedButton(
+									onClick = { reordering = false },
+									modifier = Modifier.weight(1f).height(44.dp)
+								) {
+									Text(stringResource(Res.string.action_cancel))
+								}
+								Button(
+									onClick = {
+										viewModel.reorderPlaylist(reorderSongs.map { it.second })
+										reordering = false
+									},
+									modifier = Modifier.weight(1.3f).height(44.dp)
+								) {
+									Icon(Icons.Outlined.Check, null, Modifier.size(18.dp))
+									Spacer(Modifier.size(6.dp))
+									Text(stringResource(Res.string.action_save))
+								}
+							}
+							Surface(
+								shape = MaterialTheme.shapes.medium,
+								color = MaterialTheme.colorScheme.surfaceContainer,
+								modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)
+							) {
+								Text(
+									text = stringResource(Res.string.info_reorder_hint),
+									modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+									style = MaterialTheme.typography.bodyMedium,
+									color = MaterialTheme.colorScheme.onSurfaceVariant
+								)
+							}
+						} else {
+							CollectionDetailScreenHeadingRow(
+								collection = collection,
+								tab = tab,
+								titleAlpha = 1f
+							)
+							CollectionDetailScreenHeadingRowButtons(collection = collection)
+							if (collection is DomainPlaylist) {
+								PlaylistRebuiltNotice(collection)
+								SmartRulesCard(collection, onEdit = { editingRules = it })
+								RadioCard(collection)
+							}
 						}
 					}
-					LazyColumn(
+					Column(
 						modifier = Modifier
 							.background(MaterialTheme.colorScheme.surface)
 							.weight(1f)
-							.fillMaxHeight(),
-						horizontalAlignment = Alignment.CenterHorizontally,
-						contentPadding = contentPadding.withoutTop(),
-						state = viewModel.listState
+							.fillMaxHeight()
 					) {
+						if (!expanded && reordering && collection is DomainPlaylist) {
+							Surface(
+								shape = MaterialTheme.shapes.medium,
+								color = MaterialTheme.colorScheme.surfaceContainer,
+								modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+							) {
+								Text(
+									text = stringResource(Res.string.info_reorder_hint),
+									modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+									style = MaterialTheme.typography.bodyMedium,
+									color = MaterialTheme.colorScheme.onSurfaceVariant
+								)
+							}
+						}
+						LazyColumn(
+							modifier = Modifier
+								.fillMaxWidth()
+								.weight(1f),
+							horizontalAlignment = Alignment.CenterHorizontally,
+							contentPadding = contentPadding.withoutTop(),
+							state = viewModel.listState
+						) {
 						if (collection == null) {
 							if (collectionState is UiState.Loading) {
 								item {
@@ -410,25 +492,11 @@ fun CollectionDetailScreen(
 								}
 							}
 						} else if (reordering && collection is DomainPlaylist) {
-							item {
-								Surface(
-									shape = MaterialTheme.shapes.medium,
-									color = MaterialTheme.colorScheme.surfaceContainer,
-									modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-								) {
-									Text(
-										text = stringResource(Res.string.info_reorder_hint),
-										modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-										style = MaterialTheme.typography.bodyMedium,
-										color = MaterialTheme.colorScheme.onSurfaceVariant
-									)
-								}
-							}
 							draggableItemsIndexed(
 								state = draggable,
 								items = reorderSongs,
-								key = { index, song -> "${song.id}_$index" }
-							) { index, song, isDragging ->
+								key = { _, (key, _) -> key }
+							) { index, (key, song), isDragging ->
 								val elevation by animateDpAsState(if (isDragging) 6.dp else 0.dp)
 								Surface(
 									shape = MaterialTheme.shapes.medium,
@@ -456,16 +524,19 @@ fun CollectionDetailScreen(
 											{ Text(text = it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 										},
 										trailingContent = {
-											IconButton(
-												onClick = {},
-												modifier = Modifier.dragHandle(
-													state = draggable,
-													key = "${song.id}_$index"
-												)
+											Box(
+												modifier = Modifier
+													.size(40.dp)
+													.dragHandle(
+														state = draggable,
+														key = key
+													),
+												contentAlignment = Alignment.Center
 											) {
 												Icon(
 													imageVector = Icons.Outlined.DragHandle,
-													contentDescription = stringResource(Res.string.action_reorder)
+													contentDescription = stringResource(Res.string.action_reorder),
+													tint = MaterialTheme.colorScheme.onSurfaceVariant
 												)
 											}
 										}
@@ -554,6 +625,7 @@ fun CollectionDetailScreen(
 								tab = tab
 							)
 						}
+					}
 					}
 				}
 			}
