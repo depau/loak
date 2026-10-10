@@ -82,7 +82,8 @@ fun RootTopBar(
 	scrollBehavior: TopAppBarScrollBehavior,
 	actions: @Composable RowScope.() -> Unit = {},
 	subtitle: (@Composable () -> Unit)? = null,
-	searchCategory: SearchCategory = SearchCategory.ALL,
+	/** The search button's preselected chip; null leaves the library search out. */
+	searchCategory: SearchCategory? = SearchCategory.ALL,
 ) {
 	val navViewModel = koinViewModel<NavtabsViewModel>()
 	val navState by navViewModel.state.collectAsState()
@@ -142,7 +143,7 @@ fun RootTopBar(
 @Composable
 private fun Actions(
 	navConfig: NavbarConfig?,
-	searchCategory: SearchCategory,
+	searchCategory: SearchCategory?,
 ) {
 	val backStack = LocalNavStack.current
 
@@ -159,7 +160,7 @@ private fun Actions(
 
 	// the search entry point: a wide field look-alike on expanded windows, an icon otherwise.
 	// Skip it when the Search tab itself sits on the bottom bar, to avoid duplication.
-	if (LocalPlatformContext.current.isExpanded() || !isSearchEnabled) {
+	if (searchCategory != null && (LocalPlatformContext.current.isExpanded() || !isSearchEnabled)) {
 		SearchTopBarAction(searchCategory)
 	}
 

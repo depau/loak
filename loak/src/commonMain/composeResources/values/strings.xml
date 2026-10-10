@@ -529,6 +529,7 @@
 	<string name="info_tabs_turn_off">Turn a tab off first</string>
 	<string name="info_library_fixed">Always on, always last</string>
 	<string name="title_explore">Explore</string>
+	<string name="title_discover">Discover</string>
 	<string name="subtitle_explore">In your library</string>
 	<string name="title_browse">Browse</string>
 	<string name="lens_recently_added">Recently added</string>
@@ -1013,6 +1014,7 @@
 	<string name="info_nothing_downloading">Nothing downloading</string>
 	<string name="option_discover_tab">Discover tab</string>
 	<string name="subtitle_discover_tab">Search, charts and recommendations for music you don't have</string>
+	<string name="action_search_discover">Find new songs, albums, artists</string>
 	<string name="option_download_queue">Download queue</string>
 	<string name="option_lidarr_address">Address</string>
 </resources>

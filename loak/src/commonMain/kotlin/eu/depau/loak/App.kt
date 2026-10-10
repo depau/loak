@@ -5,6 +5,7 @@ import eu.depau.loak.ui.screens.alchemy.AskAiScreen
 import eu.depau.loak.ui.screens.explore.ExploreScreen
 import eu.depau.loak.ui.screens.explore.MoodScreen
 import eu.depau.loak.ui.screens.explore.SoundMapScreen
+import eu.depau.loak.ui.screens.discover.DiscoverScreen
 import eu.depau.loak.ui.screens.alchemy.DescribeMixScreen
 import eu.depau.loak.ui.screens.alchemy.SongPathScreen
 import eu.depau.loak.ui.screens.login.INTEGRATIONS_VERSION
@@ -126,6 +127,7 @@ import eu.depau.loak.di.PlatformType
 import eu.depau.loak.di.isLandscape
 import eu.depau.loak.di.rememberPlatformContext
 import eu.depau.loak.domain.manager.BottomBarScrollManager
+import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
@@ -284,6 +286,16 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 		snapshotFlow { backStack.toList() }.collect {
 			forwardHistory.onChange(old, it)
 			old = it
+		}
+	}
+	// Discover's tab goes with Lidarr (or its setting): don't leave the user standing in it
+	val lidarr = koinInject<LidarrManager>()
+	LaunchedEffect(backStack) {
+		snapshotFlow { lidarr.discoverShown }.collect { shown ->
+			if (!shown && backStack.firstOrNull() == Screen.Discover) backStack.apply {
+				clear()
+				add(Screen.Home())
+			}
 		}
 	}
 	val actions = AppActions(backStack, backInput, forwardHistory, mediaPlayer, inApp)
@@ -686,6 +698,9 @@ private fun entryProvider(
 		}
 		entry<Screen.Explore>(metadata = navtabMetadata) {
 			ExploreScreen()
+		}
+		entry<Screen.Discover>(metadata = navtabMetadata) {
+			DiscoverScreen()
 		}
 		entry<Screen.Mood> {
 			MoodScreen(it.mood)

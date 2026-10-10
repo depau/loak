@@ -1,8 +1,11 @@
 package eu.depau.loak.ui.components.layouts
 
 import eu.depau.loak.icons.outlined.Explore
+import eu.depau.loak.icons.filled.TravelExplore
+import eu.depau.loak.icons.outlined.TravelExplore
 import eu.depau.loak.icons.filled.Explore
 import eu.depau.loak.generated.resources.title_explore
+import eu.depau.loak.generated.resources.title_discover
 import eu.depau.loak.icons.outlined.Settings
 import eu.depau.loak.generated.resources.title_settings
 import eu.depau.loak.generated.resources.title_library
@@ -99,6 +102,12 @@ private enum class NavItem(
 		icon = Icons.Filled.Explore,
 		iconUnselected = Icons.Outlined.Explore,
 		label = Res.string.title_explore
+	),
+	DISCOVER(
+		destination = Screen.Discover,
+		icon = Icons.Filled.TravelExplore,
+		iconUnselected = Icons.Outlined.TravelExplore,
+		label = Res.string.title_discover
 	),
 	PLAYLISTS(
 		destination = Screen.PlaylistList(),
@@ -221,6 +230,7 @@ private fun NavbarTab.Id.navItem() = when (this) {
 	NavbarTab.Id.SONGS -> NavItem.SONGS
 	NavbarTab.Id.RADIOS -> NavItem.RADIOS
 	NavbarTab.Id.EXPLORE -> NavItem.EXPLORE
+	NavbarTab.Id.DISCOVER -> NavItem.DISCOVER
 }
 
 @Composable

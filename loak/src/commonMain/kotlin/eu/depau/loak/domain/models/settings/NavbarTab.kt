@@ -17,6 +17,7 @@ data class NavbarTab(
 		GENRES,
 		SONGS,
 		RADIOS,
-		EXPLORE
+		EXPLORE,
+		DISCOVER
 	}
 }

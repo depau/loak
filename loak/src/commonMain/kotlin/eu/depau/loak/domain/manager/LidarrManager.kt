@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.di.PlatformType
 import eu.depau.loak.di.recordPii
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
@@ -45,7 +46,10 @@ class LidarrException(message: String, val status: HttpStatusCode? = null) : Exc
  * Lidarr's own REST API (/api/v1, the one its web UI uses), for what Subsonic can't do:
  * discovering music to grab. Talks to an extra Lidarr instance with its own API key.
  */
-class LidarrManager(private val preferenceManager: PreferenceManager) {
+class LidarrManager(
+	private val preferenceManager: PreferenceManager,
+	private val platformType: PlatformType
+) {
 	private val json = Json { ignoreUnknownKeys = true }
 	private val client = HttpClient()
 
@@ -53,6 +57,13 @@ class LidarrManager(private val preferenceManager: PreferenceManager) {
 		field = MutableStateFlow<LidarrInfo?>(null)
 
 	val isConfigured get() = preferenceManager.lidarrUrl.isNotBlank()
+
+	/**
+	 * Whether Discover shows anywhere (tab, rail, Library): Lidarr set up, the tab on, not the
+	 * web. Reads snapshot state, so composables reading it follow changes.
+	 */
+	val discoverShown
+		get() = platformType != PlatformType.Web && preferenceManager.discoverTabEnabled && isConfigured
 
 	private val baseUrl get() = preferenceManager.lidarrUrl.trimEnd('/')
 

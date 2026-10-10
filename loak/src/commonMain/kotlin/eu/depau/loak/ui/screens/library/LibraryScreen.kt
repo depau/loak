@@ -51,6 +51,7 @@ import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.DownloadManager
+import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.generated.resources.*
@@ -74,6 +75,7 @@ import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.icons.outlined.Shuffle
 import eu.depau.loak.icons.outlined.Star
 import eu.depau.loak.icons.outlined.Trophy
+import eu.depau.loak.icons.outlined.TravelExplore
 import eu.depau.loak.shared.MediaPlayerViewModel
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -115,6 +117,7 @@ fun LibraryScreen() {
 	val backStack = LocalNavStack.current
 	val songDao = koinInject<SongDao>()
 	val albumDao = koinInject<AlbumDao>()
+	val lidarr = koinInject<LidarrManager>()
 	val artistDao = koinInject<ArtistDao>()
 	val genreDao = koinInject<GenreDao>()
 	val playlistDao = koinInject<PlaylistDao>()
@@ -152,9 +155,10 @@ fun LibraryScreen() {
 			LibraryRow(Icons.Outlined.Calendar, Res.string.lens_by_year, null, Screen.AlbumList(true, DomainAlbumListType.Year)),
 			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, counts.starred, Screen.Starred(nested = true))
 		),
-		listOf(
+		listOfNotNull(
 			LibraryRow(Icons.Outlined.PlaylistPlay, Res.string.title_playlists, counts.playlists, Screen.PlaylistList(nested = true)),
 			LibraryRow(Icons.Outlined.Explore, Res.string.title_explore, null, Screen.Explore),
+			LibraryRow(Icons.Outlined.TravelExplore, Res.string.title_discover, null, Screen.Discover).takeIf { lidarr.discoverShown },
 			LibraryRow(Icons.Outlined.Radio, Res.string.title_internet_radio, null, Screen.RadioList(nested = true)),
 			LibraryRow(Icons.Outlined.Share, Res.string.title_shares, null, Screen.ShareList)
 		)

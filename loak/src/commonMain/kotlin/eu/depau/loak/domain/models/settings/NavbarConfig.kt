@@ -9,9 +9,17 @@ data class NavbarConfig(
 	val tabs: List<NavbarTab>,
 	val version: Int
 ) {
+	/** Puts tab [from] where tab [to] is; every other tab, shown or hidden, keeps its order. */
+	fun move(from: NavbarTab.Id, to: NavbarTab.Id) = copy(
+		tabs = tabs.toMutableList().apply {
+			val target = indexOfFirst { it.id == to }
+			add(target, removeAt(indexOfFirst { it.id == from }))
+		}
+	)
+
 	companion object {
 		const val KEY = "navbarConfig"
-		const val VERSION = 9
+		const val VERSION = 10
 
 		/** Tabs that can be on at once; Library always comes after them. */
 		const val MAX_VISIBLE = 4
@@ -26,7 +34,8 @@ data class NavbarConfig(
 				NavbarTab(NavbarTab.Id.SONGS, false),
 				NavbarTab(NavbarTab.Id.GENRES, false),
 				NavbarTab(NavbarTab.Id.SEARCH, false),
-				NavbarTab(NavbarTab.Id.RADIOS, false)
+				NavbarTab(NavbarTab.Id.RADIOS, false),
+				NavbarTab(NavbarTab.Id.DISCOVER, false)
 			),
 			version = VERSION
 		)
@@ -45,12 +54,14 @@ data class NavbarConfig(
 
 		/**
 		 * A saved config in today's shape: version 8 untouched gets the new default, a
-		 * customised one keeps its tabs and gets Explore, off. Older ones start over.
+		 * customised one keeps its tabs and gets Explore and Discover, off; version 9 gets
+		 * Discover, off. Older ones start over.
 		 */
 		fun migrate(config: NavbarConfig): NavbarConfig = when (config.version) {
 			VERSION -> config
+			9 -> NavbarConfig(config.tabs + NavbarTab(NavbarTab.Id.DISCOVER, false), VERSION)
 			8 -> if (config.tabs == defaultV8) default
-			else NavbarConfig(config.tabs + NavbarTab(NavbarTab.Id.EXPLORE, false), VERSION)
+			else NavbarConfig(config.tabs + NavbarTab(NavbarTab.Id.EXPLORE, false) + NavbarTab(NavbarTab.Id.DISCOVER, false), VERSION)
 			else -> default
 		}
 	}

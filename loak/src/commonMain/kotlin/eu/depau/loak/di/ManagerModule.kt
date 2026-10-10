@@ -39,7 +39,7 @@ val managerModule = module {
 		AudioMuseManager(get()).also { manager -> CoroutineScope(IoDispatcher).launch { manager.start() } }
 	}
 	single(createdAtStart = true) {
-		LidarrManager(get()).also { manager -> CoroutineScope(IoDispatcher).launch { manager.start() } }
+		LidarrManager(get(), get()).also { manager -> CoroutineScope(IoDispatcher).launch { manager.start() } }
 	}
 	singleOf(::PreferenceManager)
 	singleOf(::SnackBarManager)
