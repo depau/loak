@@ -296,7 +296,8 @@ private fun LidarrStatus(album: LidarrAlbumSnapshot) {
 		)
 	}
 	Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-		if (!album.downloaded) OutlinedButton(onClick = {
+		// downloaded or not, a new search can find a better release
+		OutlinedButton(onClick = {
 			snackBarManager.launch {
 				try {
 					lidarr.searchAlbum(album.id)

@@ -17,7 +17,11 @@ import kotlin.test.assertNull
 /** The pure parts behind the Discover album and artist pages. */
 class DiscoverPagesTest {
 	private val catalog = LidarrCatalog(
-		artists = listOf(LidarrArtistSnapshot(1, "a-mbid", "deadmau5"), LidarrArtistSnapshot(2, null, "Other")),
+		artists = listOf(
+			LidarrArtistSnapshot(1, "a-mbid", "deadmau5"),
+			LidarrArtistSnapshot(2, null, "Other"),
+			LidarrArtistSnapshot(3, null, "Mangoo", monitored = false)
+		),
 		albums = listOf(
 			LidarrAlbumSnapshot(10, "rg-1", "For Lack of a Better Name", artistId = 1, monitored = true),
 			LidarrAlbumSnapshot(11, "rg-2", "Random Album Title", artistId = 2, monitored = true),
@@ -94,5 +98,8 @@ class DiscoverPagesTest {
 		// nor is every song of an artist it has
 		assertFalse(catalog.monitors(DiscoverSong("", "Ghosts n Stuff", "deadmau5", album = "Ghosts n Stuff")))
 		assertTrue(catalog.monitors(DiscoverSong("", "Moar Ghosts", "deadmau5", album = "For Lack of a Better Name")))
+		// an artist it lists but doesn't monitor isn't in it either
+		assertTrue(catalog.monitors(DiscoverArtist("", "deadmau5")))
+		assertFalse(catalog.monitors(DiscoverArtist("", "Mangoo")))
 	}
 }

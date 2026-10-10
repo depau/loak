@@ -1056,7 +1056,8 @@
 		<item quantity="one">%1$d more (live, DJ mixes)</item>
 		<item quantity="other">%1$d more (live, DJ mixes)</item>
 	</plurals>
-	<string name="info_artist_in_lidarr">%1$s is already in Lidarr. Only the releases you pick get monitored and searched.</string>
+	<string name="info_artist_settings_kept">Uses the folder and quality Lidarr has for %1$s.</string>
+	<string name="info_artist_in_lidarr">Uses the folder and quality Lidarr has for %1$s. Only the releases you pick get monitored and searched.</string>
 	<plurals name="action_add_and_search_count">
 		<item quantity="one">Add %1$d and search</item>
 		<item quantity="other">Add %1$d and search</item>

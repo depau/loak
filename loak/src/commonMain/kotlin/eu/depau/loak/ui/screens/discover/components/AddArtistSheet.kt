@@ -69,6 +69,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import androidx.compose.runtime.collectAsState
+import eu.depau.loak.generated.resources.info_artist_settings_kept
 
 /** Lidarr's `addOptions.monitor` choices in plain words; the last two sit behind "More". */
 private val monitorOptions = listOf(
@@ -135,6 +137,9 @@ internal fun AddArtistSheet(flow: LidarrAddFlow, artist: DiscoverArtist) {
 		(roots.firstOrNull { it.path == preferences.lidarrLastRootFolder } ?: roots.firstOrNull())?.let(pickRoot)
 	}
 	val (roots, qualities, metadataProfiles) = options ?: Triple(emptyList(), emptyList(), emptyList())
+	// an artist Lidarr has keeps its folder and profiles: adding just sets what it monitors
+	val catalog by lidarr.catalog.collectAsState()
+	val existing = mbid != null && catalog.artists.any { it.musicBrainzId == mbid }
 
 	ModalBottomSheet(onDismissRequest = { flow.step = null }) {
 		Row(
@@ -170,12 +175,13 @@ internal fun AddArtistSheet(flow: LidarrAddFlow, artist: DiscoverArtist) {
 			}
 
 			SectionLabel(Res.string.title_lidarr_options)
+			if (existing) Notice(stringResource(Res.string.info_artist_settings_kept, artist.name))
 			Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-				OptionField(
+				if (!existing) OptionField(
 					Res.string.title_root_folder, root?.path.orEmpty(), roots, { it.path }, pickRoot,
 					suffix = root?.let { stringResource(Res.string.label_free_space, it.freeSpace.toFileSize()) }
 				)
-				Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+				if (!existing) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
 					OptionField(
 						Res.string.title_quality, qualities.firstOrNull { it.first == qualityId }?.second.orEmpty(),
 						qualities, { it.second }, { qualityId = it.first }, Modifier.weight(1f)
@@ -212,11 +218,16 @@ internal fun AddArtistSheet(flow: LidarrAddFlow, artist: DiscoverArtist) {
 		val metadata = metadataId
 		SheetButtons(
 			confirm = stringResource(Res.string.action_add_artist),
-			enabled = id != null && folder != null && quality != null && metadata != null,
+			enabled = id != null && (existing || (folder != null && quality != null && metadata != null)),
 			busy = false,
 			onCancel = { flow.step = null }
 		) {
-			if (id == null || folder == null || quality == null || metadata == null) return@SheetButtons
+			if (id == null) return@SheetButtons
+			if (existing) {
+				flow.startArtistAdd(id, artist.name, monitor, searchNow, "", 0L, 0L, newItems)
+				return@SheetButtons
+			}
+			if (folder == null || quality == null || metadata == null) return@SheetButtons
 			preferences.lidarrLastRootFolder = folder.path
 			flow.startArtistAdd(id, artist.name, monitor, searchNow, folder.path, quality, metadata, newItems)
 		}

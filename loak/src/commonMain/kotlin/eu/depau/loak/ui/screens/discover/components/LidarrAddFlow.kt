@@ -666,7 +666,7 @@ internal fun RadioRow(
 
 /** An info line in a tinted box, like the add sheets' "already in Lidarr" notice. */
 @Composable
-private fun Notice(text: String) {
+internal fun Notice(text: String) {
 	Surface(
 		modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
 		shape = MaterialTheme.shapes.medium,

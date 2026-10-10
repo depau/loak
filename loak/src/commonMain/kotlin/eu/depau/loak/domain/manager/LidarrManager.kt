@@ -197,7 +197,8 @@ internal fun lidarrQueueItemsOf(json: JsonElement): List<LidarrQueueItem> {
 data class LidarrArtistSnapshot(
 	val id: Long,
 	val musicBrainzId: String?,
-	val name: String
+	val name: String,
+	val monitored: Boolean = true
 )
 
 /** An album Lidarr knows about, enough to recognise Discover items already in it. */
@@ -277,6 +278,9 @@ fun LidarrCatalog.albumFor(album: DiscoverAlbum) = albumFor(album.mbid, album.ti
  * artists it has, and those still need adding.
  */
 fun LidarrCatalog.monitors(album: DiscoverAlbum) = albumFor(album)?.monitored == true
+
+/** Whether Lidarr gets [artist]'s releases: it monitors the artist. */
+fun LidarrCatalog.monitors(artist: DiscoverArtist) = artistFor(artist)?.monitored == true
 
 /** Whether Lidarr gets [song]: it monitors the song's album. */
 fun LidarrCatalog.monitors(song: DiscoverSong) = albumFor(null, song.album, song.artist)?.monitored == true
@@ -451,7 +455,8 @@ class LidarrManager(
 			LidarrArtistSnapshot(
 				id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@foldAsJsonArray null,
 				musicBrainzId = obj["foreignArtistId"]?.jsonPrimitive?.contentOrNull,
-				name = obj["artistName"]?.jsonPrimitive?.contentOrNull ?: ""
+				name = obj["artistName"]?.jsonPrimitive?.contentOrNull ?: "",
+				monitored = obj["monitored"]?.jsonPrimitive?.booleanOrNull ?: false
 			)
 		}
 
@@ -510,7 +515,7 @@ class LidarrManager(
 		libraryMatcher.artistInLibrary(artist)?.let { return it.toInLibrary() }
 		catalog.value.queue.firstOrNull { item -> item.artistName == artist.name }
 			?.let { return DiscoverBadgeState.Downloading(it.progress) }
-		if (catalog.value.artistFor(artist) != null) return DiscoverBadgeState.InLidarr
+		if (catalog.value.monitors(artist)) return DiscoverBadgeState.InLidarr
 		return DiscoverBadgeState.None
 	}
 
@@ -723,6 +728,28 @@ class LidarrManager(
 		refreshCatalog()
 	}
 
+	/**
+	 * Applies an add's monitoring choices to an artist Lidarr has (its own folder and profiles
+	 * stay), then searches its monitored releases when [search]. "none" unmonitors it, as on add.
+	 */
+	private suspend fun monitorExistingArtist(artistId: Long, monitor: String, search: Boolean, monitorNewItems: String) {
+		postJson("api/v1/albumstudio", buildJsonObject {
+			put("artist", buildJsonArray {
+				add(buildJsonObject {
+					put("id", JsonPrimitive(artistId))
+					put("monitored", JsonPrimitive(true))
+				})
+			})
+			put("monitoringOptions", buildJsonObject { put("monitor", JsonPrimitive(monitor)) })
+			put("monitorNewItems", JsonPrimitive(monitorNewItems))
+		})
+		if (search && monitor != "none") postJson("api/v1/command", buildJsonObject {
+			put("name", JsonPrimitive("ArtistSearch"))
+			put("artistId", JsonPrimitive(artistId))
+		})
+		refreshCatalog()
+	}
+
 	/** Adds an artist (by MusicBrainz id) to Lidarr; returns the new artist id. */
 	suspend fun addArtist(
 		artistMbid: String,
@@ -734,6 +761,12 @@ class LidarrManager(
 		metadataProfileId: Long,
 		monitorNewItems: String
 	): Long {
+		// one Lidarr already has (perhaps unmonitored) can't be added again: apply the choices to it
+		refreshCatalog()
+		catalog.value.artists.firstOrNull { it.musicBrainzId == artistMbid }?.let { known ->
+			monitorExistingArtist(known.id, monitor, searchForMissing, monitorNewItems)
+			return known.id
+		}
 		val found = lookupArtistByMbId(artistMbid) ?: throw LidarrException("Not in Lidarr yet")
 		val body = buildJsonObject {
 			put("artistName", JsonPrimitive(found["artistName"]?.jsonPrimitive?.contentOrNull ?: artistName))
@@ -754,7 +787,9 @@ class LidarrManager(
 		} catch (e: LidarrException) {
 			if (!e.alreadyAdded) throw e
 			refreshCatalog()
-			return catalog.value.artists.firstOrNull { it.musicBrainzId == artistMbid }?.id ?: 0L
+			val known = catalog.value.artists.firstOrNull { it.musicBrainzId == artistMbid } ?: return 0L
+			monitorExistingArtist(known.id, monitor, searchForMissing, monitorNewItems)
+			return known.id
 		}
 		val artistId = created["id"]?.jsonPrimitive?.longOrNull
 			?: throw LidarrException("Added artist without an id")
