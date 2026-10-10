@@ -37,7 +37,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -326,7 +325,7 @@ private fun ChooseReleaseSheet(flow: LidarrAddFlow, song: DiscoverSong) {
 	val catalog by lidarr.catalog.collectAsState()
 	val scope = rememberCoroutineScope()
 	var releases by remember { mutableStateOf<SongReleases?>(null) }
-	// what Lidarr gets; its other, unmonitored releases can still be picked
+	// what Lidarr already gets: badged and not preselected, but still pickable to search again
 	val inLidarr = remember(catalog) { catalog.albums.filter { it.monitored }.mapNotNullTo(HashSet()) { it.musicBrainzId } }
 	var selected by remember { mutableStateOf(emptySet<String>()) }
 	var showMore by remember { mutableStateOf(false) }
@@ -415,13 +414,12 @@ private fun ReleaseRow(
 		modifier = Modifier
 			.fillMaxWidth()
 			.background(if (checked) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-			.toggleable(checked, enabled = !inLidarr, role = Role.Checkbox) { onToggle() }
-			.padding(horizontal = 24.dp, vertical = 8.dp)
-			.alpha(if (inLidarr) 0.6f else 1f),
+			.toggleable(checked, role = Role.Checkbox) { onToggle() }
+			.padding(horizontal = 24.dp, vertical = 8.dp),
 		verticalAlignment = Alignment.CenterVertically,
 		horizontalArrangement = Arrangement.spacedBy(16.dp)
 	) {
-		Checkbox(checked = checked, onCheckedChange = null, enabled = !inLidarr)
+		Checkbox(checked = checked, onCheckedChange = null)
 		DiscoverArt(coverArtUrl(group.id), 48.dp)
 		Column(Modifier.weight(1f)) {
 			Text(group.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
