@@ -273,6 +273,15 @@ fun LidarrCatalog.albumFor(musicBrainzId: String?, title: String?, artist: Strin
 fun LidarrCatalog.albumFor(album: DiscoverAlbum) = albumFor(album.mbid, album.title, album.artist)
 
 /**
+ * Whether Lidarr gets [album]: it monitors it. Lidarr also lists the unmonitored releases of the
+ * artists it has, and those still need adding.
+ */
+fun LidarrCatalog.monitors(album: DiscoverAlbum) = albumFor(album)?.monitored == true
+
+/** Whether Lidarr gets [song]: it monitors the song's album. */
+fun LidarrCatalog.monitors(song: DiscoverSong) = albumFor(null, song.album, song.artist)?.monitored == true
+
+/**
  * Where a Discover item stands on its way to the user: already in the Subsonic library
  * ([InLibrary], carrying the song it plays as, or the album/artist id), in Lidarr's queue
  * ([Downloading]), or already in Lidarr ([InLidarr]). UI-independent so screens can render a badge.
@@ -477,9 +486,7 @@ class LidarrManager(
 		catalog.value.queue.firstOrNull { item ->
 			item.title == song.title && item.artistName == song.artist
 		}?.let { return DiscoverBadgeState.Downloading(it.progress) }
-		if (catalog.value.albums.any { it.title == song.title } ||
-			catalog.value.artists.any { it.name == song.artist }
-		) return DiscoverBadgeState.InLidarr
+		if (catalog.value.monitors(song)) return DiscoverBadgeState.InLidarr
 		return DiscoverBadgeState.None
 	}
 
@@ -491,9 +498,7 @@ class LidarrManager(
 		libraryMatcher.albumInLibrary(album)?.let { return it.toInLibrary() }
 		catalog.value.queue.firstOrNull { item -> item.title == album.title && item.artistName == album.artist }
 			?.let { return DiscoverBadgeState.Downloading(it.progress) }
-		if (catalog.value.albums.any { it.title == album.title } ||
-			catalog.value.artists.any { it.name == album.artist }
-		) return DiscoverBadgeState.InLidarr
+		if (catalog.value.monitors(album)) return DiscoverBadgeState.InLidarr
 		return DiscoverBadgeState.None
 	}
 
@@ -505,7 +510,7 @@ class LidarrManager(
 		libraryMatcher.artistInLibrary(artist)?.let { return it.toInLibrary() }
 		catalog.value.queue.firstOrNull { item -> item.artistName == artist.name }
 			?.let { return DiscoverBadgeState.Downloading(it.progress) }
-		if (catalog.value.artists.any { it.name == artist.name }) return DiscoverBadgeState.InLidarr
+		if (catalog.value.artistFor(artist) != null) return DiscoverBadgeState.InLidarr
 		return DiscoverBadgeState.None
 	}
 
@@ -613,6 +618,13 @@ class LidarrManager(
 		qualityProfileId: Long,
 		metadataProfileId: Long
 	): Long {
+		// Lidarr lists every release of the artists it has; one it doesn't monitor can't be added
+		// again (it's "already added"), only monitored
+		refreshCatalog()
+		catalog.value.albums.firstOrNull { it.musicBrainzId == releaseGroupMbid }?.let { known ->
+			monitorAndSearch(known)
+			return known.artistId
+		}
 		val album = lookupAlbumByMbId(releaseGroupMbid) ?: throw LidarrException("Not in Lidarr yet")
 		val title = album["title"]?.jsonPrimitive?.contentOrNull ?: albumTitle
 		val embedded = album["artist"]?.jsonObject
@@ -664,6 +676,7 @@ class LidarrManager(
 		} catch (e: LidarrException) {
 			if (!e.alreadyAdded) throw e
 			refreshCatalog()
+			catalog.value.albums.firstOrNull { it.musicBrainzId == releaseGroupMbid }?.let { monitorAndSearch(it) }
 			return embeddedId
 		}
 		val createdArtistId = created["artist"]?.jsonObject?.get("id")?.jsonPrimitive?.longOrNull
@@ -693,6 +706,21 @@ class LidarrManager(
 		triggerAlbumSearch(listOfNotNull(created["id"]?.jsonPrimitive?.longOrNull))
 		refreshCatalog()
 		return createdArtistId
+	}
+
+	/** Monitors an album Lidarr already lists (and its artist, if it isn't), then searches for it. */
+	private suspend fun monitorAndSearch(album: LidarrAlbumSnapshot) {
+		putJson("api/v1/album/monitor", buildJsonObject {
+			put("albumIds", buildJsonArray { add(JsonPrimitive(album.id)) })
+			put("monitored", JsonPrimitive(true))
+		})
+		// PUT /artist/{id} takes the whole artist
+		val artist = getJson("api/v1/artist/${album.artistId}").jsonObject
+		if (artist["monitored"]?.jsonPrimitive?.booleanOrNull == false) {
+			putJson("api/v1/artist/${album.artistId}", JsonObject(artist + ("monitored" to JsonPrimitive(true))))
+		}
+		triggerAlbumSearch(listOf(album.id))
+		refreshCatalog()
 	}
 
 	/** Adds an artist (by MusicBrainz id) to Lidarr; returns the new artist id. */

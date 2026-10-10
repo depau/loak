@@ -7,6 +7,9 @@ import eu.depau.loak.domain.manager.albumFor
 import eu.depau.loak.domain.manager.artistFor
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import eu.depau.loak.domain.manager.monitors
+import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -17,7 +20,8 @@ class DiscoverPagesTest {
 		artists = listOf(LidarrArtistSnapshot(1, "a-mbid", "deadmau5"), LidarrArtistSnapshot(2, null, "Other")),
 		albums = listOf(
 			LidarrAlbumSnapshot(10, "rg-1", "For Lack of a Better Name", artistId = 1, monitored = true),
-			LidarrAlbumSnapshot(11, "rg-2", "Random Album Title", artistId = 2, monitored = true)
+			LidarrAlbumSnapshot(11, "rg-2", "Random Album Title", artistId = 2, monitored = true),
+			LidarrAlbumSnapshot(12, "rg-3", "Strobe", artistId = 1, monitored = false)
 		),
 		queue = emptyList()
 	)
@@ -79,5 +83,16 @@ class DiscoverPagesTest {
 	fun mapsMusicBrainzArtistSearchToDiscoverArtist() {
 		val item = Json.parseToJsonElement("""{"id": "a-1", "name": "Glass Beams", "score": 100}""").jsonObject
 		assertEquals(DiscoverArtist("a-1", "Glass Beams", mbid = "a-1"), item.discoverArtistOfMusicBrainz())
+	}
+
+	@Test
+	fun onlyMonitoredReleasesCountAsInLidarr() {
+		assertTrue(catalog.monitors(DiscoverAlbum("", "For Lack of a Better Name", "deadmau5")))
+		// an artist Lidarr has lists its other releases unmonitored: those aren't in it yet
+		assertFalse(catalog.monitors(DiscoverAlbum("", "Strobe", "deadmau5")))
+		assertFalse(catalog.monitors(DiscoverSong("", "Strobe", "deadmau5", album = "Strobe")))
+		// nor is every song of an artist it has
+		assertFalse(catalog.monitors(DiscoverSong("", "Ghosts n Stuff", "deadmau5", album = "Ghosts n Stuff")))
+		assertTrue(catalog.monitors(DiscoverSong("", "Moar Ghosts", "deadmau5", album = "For Lack of a Better Name")))
 	}
 }

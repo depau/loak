@@ -326,7 +326,8 @@ private fun ChooseReleaseSheet(flow: LidarrAddFlow, song: DiscoverSong) {
 	val catalog by lidarr.catalog.collectAsState()
 	val scope = rememberCoroutineScope()
 	var releases by remember { mutableStateOf<SongReleases?>(null) }
-	val inLidarr = remember(catalog) { catalog.albums.mapNotNullTo(HashSet()) { it.musicBrainzId } }
+	// what Lidarr gets; its other, unmonitored releases can still be picked
+	val inLidarr = remember(catalog) { catalog.albums.filter { it.monitored }.mapNotNullTo(HashSet()) { it.musicBrainzId } }
 	var selected by remember { mutableStateOf(emptySet<String>()) }
 	var showMore by remember { mutableStateOf(false) }
 	var busy by remember { mutableStateOf(false) }
