@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -152,15 +153,24 @@ fun WithBadge(status: DiscoverBadgeState, text: @Composable RowScope.() -> Unit)
 	}
 }
 
-/** A Discover song's round play/pause preview button; disabled for songs without a preview. */
+/** A Discover song's round preview control, showing progress while its URL is resolving. */
 @Composable
-fun PreviewButton(previewing: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
-	FilledTonalIconButton(onClick = onClick, enabled = enabled) {
-		Icon(
-			if (previewing) Icons.Filled.Pause else Icons.Filled.Play,
-			stringResource(if (previewing) Res.string.action_pause_preview else Res.string.action_preview),
-			Modifier.size(18.dp)
-		)
+fun PreviewButton(
+	previewing: Boolean,
+	onClick: () -> Unit,
+	enabled: Boolean = true,
+	loading: Boolean = false
+) {
+	FilledTonalIconButton(onClick = onClick, enabled = enabled && !loading) {
+		if (loading) {
+			CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+		} else {
+			Icon(
+				if (previewing) Icons.Filled.Pause else Icons.Filled.Play,
+				stringResource(if (previewing) Res.string.action_pause_preview else Res.string.action_preview),
+				Modifier.size(18.dp)
+			)
+		}
 	}
 }
 
@@ -236,6 +246,7 @@ fun ResultItem(
 	modifier: Modifier = Modifier,
 	artShape: Shape = SmallCoverArtShape,
 	previewing: Boolean = false,
+	previewLoading: Boolean = false,
 	onPreview: (() -> Unit)? = null,
 	onMore: () -> Unit
 ) {
@@ -250,7 +261,7 @@ fun ResultItem(
 		},
 		trailingContent = {
 			Row(verticalAlignment = Alignment.CenterVertically) {
-				if (onPreview != null) PreviewButton(previewing, onPreview)
+				if (onPreview != null) PreviewButton(previewing, onPreview, loading = previewLoading)
 				IconButton(onClick = onMore) {
 					Icon(Icons.Outlined.MoreVert, stringResource(Res.string.action_more))
 				}
@@ -265,13 +276,17 @@ fun SongItem(
 	previewing: Boolean,
 	addFlow: LidarrAddFlow,
 	subtitle: String = dotted(song.artist, song.album),
+	previewLoading: Boolean = false,
 	onPreview: () -> Unit
 ) {
 	val status = rememberDiscoverStatus(song)
 	SongGestures(song, status, { onPreview() }, addFlow) { gestures, openSheet ->
 		ResultItem(
 			song.coverUrl, song.title, subtitle, status, gestures,
-			previewing = previewing, onPreview = onPreview, onMore = openSheet
+			previewing = previewing,
+			previewLoading = previewLoading,
+			onPreview = onPreview,
+			onMore = openSheet
 		)
 	}
 }

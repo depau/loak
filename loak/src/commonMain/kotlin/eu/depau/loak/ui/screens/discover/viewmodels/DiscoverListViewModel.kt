@@ -29,7 +29,9 @@ data class DiscoverListPage(
 	/** Which chart the songs come from, on the Top songs list. */
 	val chart: DeezerCountryChart? = null,
 	/** Ids of the songs the library already has, for "Hide songs I have". */
-	val ownedIds: Set<String> = emptySet()
+	val ownedIds: Set<String> = emptySet(),
+	/** Ids whose ListenBrainz preview lookup is still running. */
+	val previewLoadingIds: Set<String> = emptySet()
 )
 
 private const val SIMILAR_ARTISTS = 50
@@ -88,24 +90,36 @@ class DiscoverListViewModel(
 	}
 
 	/**
-	 * A "made for you" playlist: its tracks first, then which of them the library has (for the
-	 * "Hide songs I have" filter), then Deezer preview URLs — ListenBrainz tracks carry none,
-	 * so the preview buttons stay dead until these land.
+	 * A "made for you" playlist: render its tracks as soon as they arrive, then resolve each
+	 * preview independently so a slow Deezer lookup does not hold every preview button hostage.
 	 */
 	private suspend fun loadPlaylist(mbid: String) = coroutineScope {
 		val tracks = listenBrainz.getPlaylistTracks(mbid)
-		page.update { it.copy(loading = false, songs = tracks) }
+		val resolvePreviews = preferenceManager.deezerEnabled
+		page.update {
+			it.copy(
+				loading = false,
+				songs = tracks,
+				previewLoadingIds = if (resolvePreviews) tracks.mapTo(mutableSetOf()) { song -> song.id }
+				else emptySet()
+			)
+		}
 		val owned = tracks.filter { matcher.songInLibrary(it) != null }.mapTo(mutableSetOf()) { it.id }
 		page.update { it.copy(ownedIds = owned) }
-		if (!preferenceManager.deezerEnabled) return@coroutineScope
-		val withPreviews = tracks.map { song ->
+		if (!resolvePreviews) return@coroutineScope
+		tracks.map { song ->
 			async {
-				if (song.previewUrl != null) song
-				else deezer.resolveSongPreview(song.title, song.artist)
-					?.let { song.copy(previewUrl = it) } ?: song
+				val previewUrl = deezer.resolveSongPreview(song.title, song.artist)
+				page.update { current ->
+					current.copy(
+						songs = current.songs.map {
+							if (it.id == song.id) it.copy(previewUrl = previewUrl ?: it.previewUrl) else it
+						},
+						previewLoadingIds = current.previewLoadingIds - song.id
+					)
+				}
 			}
 		}.awaitAll()
-		page.update { it.copy(songs = withPreviews) }
 	}
 
 	private suspend fun loadSimilar(mbid: String) = coroutineScope {

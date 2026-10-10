@@ -142,7 +142,11 @@ fun DiscoverListScreen(key: Screen.DiscoverList) {
 			DiscoverPageState(page.loading, Res.string.info_discover_list_unavailable, listIcon(type), padding)
 			return@Scaffold
 		}
-		LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+		LazyColumn(
+			Modifier.fillMaxSize(),
+			contentPadding = padding,
+			verticalArrangement = Arrangement.spacedBy(4.dp)
+		) {
 			if (type == DiscoverListType.TopSongs) item(key = "chart-header") {
 				Row(
 					Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
@@ -181,7 +185,12 @@ fun DiscoverListScreen(key: Screen.DiscoverList) {
 			if (type == DiscoverListType.TopSongs) itemsIndexed(songs, key = { _, s -> s.id }) { index, song ->
 				ChartSongItem(index + 1, song, song.id == previewing, addFlow) { previewManager.toggle(song) }
 			} else items(songs, key = { it.id }) { song ->
-				SongItem(song, song.id == previewing, addFlow) { previewManager.toggle(song) }
+				SongItem(
+					song,
+					song.id == previewing,
+					addFlow,
+					previewLoading = song.id in page.previewLoadingIds
+				) { previewManager.toggle(song) }
 			}
 			items(page.albums, key = { it.id }) { AlbumItem(it, addFlow) }
 			items(page.artists, key = { it.id }) { ArtistItem(it, addFlow) }
