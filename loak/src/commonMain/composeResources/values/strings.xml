@@ -994,7 +994,14 @@
 	<string name="error_no_listenbrainz_user">No such ListenBrainz user</string>
 	<string name="info_listenbrainz_saved">ListenBrainz connected as %1$s</string>
 	<string name="title_discover_sources">Search, previews &amp; charts</string>
-	<string name="info_discover_sources">Deezer · on · region: automatic</string>
+	<string name="info_deezer_on">Deezer · on</string>
+	<string name="info_deezer_off">Deezer · off</string>
+	<string name="title_use_deezer">Use Deezer</string>
+	<string name="info_use_deezer">Search as you type, 30-second previews and charts. What you search for is sent to Deezer.</string>
+	<string name="info_deezer_off_fallback">With Deezer off, Discover searches MusicBrainz instead: artists and albums only, no fuzzy song search and no previews.</string>
+	<string name="title_always_on">Always on</string>
+	<string name="title_brainz">MusicBrainz &amp; ListenBrainz</string>
+	<string name="info_brainz">Open music databases. Used to identify what you add to Lidarr, for new releases and for similar artists. Only sees what you open or add.</string>
 	<string name="info_connect_lidarr_first">Connect Lidarr first. ListenBrainz is optional; without it Discover still has search, charts and new releases.</string>
 	<string name="title_connect_lidarr">Connect Lidarr</string>
 	<string name="info_connect_lidarr">Lidarr downloads the music you pick in Discover and puts it in your library.</string>

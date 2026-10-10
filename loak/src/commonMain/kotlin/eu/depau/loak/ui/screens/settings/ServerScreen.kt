@@ -12,7 +12,8 @@ import eu.depau.loak.generated.resources.title_audiomuse
 import eu.depau.loak.generated.resources.title_integrations
 import eu.depau.loak.generated.resources.action_set_up
 import eu.depau.loak.generated.resources.info_connect_lidarr_first
-import eu.depau.loak.generated.resources.info_discover_sources
+import eu.depau.loak.generated.resources.info_deezer_off
+import eu.depau.loak.generated.resources.info_deezer_on
 import eu.depau.loak.generated.resources.info_lidarr_connected
 import eu.depau.loak.generated.resources.info_lidarr_required
 import eu.depau.loak.generated.resources.info_listenbrainz_optional
@@ -321,11 +322,15 @@ fun DiscoverGroup() {
 			}
 		)
 		SettingsNavItem(
-			onClick = {},
+			onClick = dropUnlessResumed { backStack.add(Screen.Settings.DiscoverSearch) },
 			enabled = connected,
 			shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3),
 			content = { Text(stringResource(Res.string.title_discover_sources)) },
-			supportingContent = { Text(stringResource(Res.string.info_discover_sources)) }
+			supportingContent = {
+				Text(stringResource(
+					if (preferenceManager.deezerEnabled) Res.string.info_deezer_on else Res.string.info_deezer_off
+				))
+			}
 		)
 		if (!connected) {
 			Text(

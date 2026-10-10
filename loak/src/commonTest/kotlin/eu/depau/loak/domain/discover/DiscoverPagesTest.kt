@@ -53,4 +53,21 @@ class DiscoverPagesTest {
 			musicBrainzArtistOf(Json.parseToJsonElement("""{"id": "x", "name": "Bare"}""").jsonObject)
 		)
 	}
+
+	// ---------------- Deezer-off search answers (M10) ----------------
+
+	@Test
+	fun mapsMusicBrainzReleaseGroupSearchToDiscoverAlbum() {
+		val item = Json.parseToJsonElement("""{
+			"id": "rg-123", "title": "Mau5ville: Level 1", "score": 100, "primary-type": "Album",
+			"artist-credit": [{"name": "deadmau5", "artist": {"id": "a-1", "name": "deadmau5"}}]
+		}""").jsonObject
+		assertEquals(DiscoverAlbum("rg-123", "Mau5ville: Level 1", "deadmau5", recordType = "Album", mbid = "rg-123"), item.discoverAlbumOfMusicBrainz())
+	}
+
+	@Test
+	fun mapsMusicBrainzArtistSearchToDiscoverArtist() {
+		val item = Json.parseToJsonElement("""{"id": "a-1", "name": "Glass Beams", "score": 100}""").jsonObject
+		assertEquals(DiscoverArtist("a-1", "Glass Beams", mbid = "a-1"), item.discoverArtistOfMusicBrainz())
+	}
 }

@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.depau.loak.domain.discover.DeezerClient
 import eu.depau.loak.domain.discover.DiscoverSearchResults
+import eu.depau.loak.domain.discover.MusicBrainzClient
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.screens.search.SearchCategory
@@ -26,6 +27,7 @@ fun withRecentSearch(recent: List<String>, query: String): List<String> =
 @OptIn(FlowPreview::class)
 class DiscoverSearchViewModel(
 	private val deezer: DeezerClient,
+	private val musicBrainz: MusicBrainzClient,
 	private val preferenceManager: PreferenceManager
 ) : ViewModel() {
 	val query = TextFieldState()
@@ -42,7 +44,8 @@ class DiscoverSearchViewModel(
 	init {
 		viewModelScope.launch {
 			snapshotFlow { query.text.toString().trim() }
-				.debounce(300.milliseconds)
+				// MusicBrainz's policy is 1 request/s, so a lazy slower debounce when Deezer is off
+				.debounce { if (preferenceManager.deezerEnabled) 300.milliseconds else 1_000.milliseconds }
 				.collectLatest { search(it) }
 		}
 	}
@@ -55,7 +58,12 @@ class DiscoverSearchViewModel(
 		// the last results stay on screen while the new ones load
 		results.value = UiState.Loading(results.value?.data)
 		results.value = try {
-			UiState.Success(deezer.searchAll(query))
+			UiState.Success(
+				if (preferenceManager.deezerEnabled) deezer.searchAll(query)
+				else musicBrainz.searchMusicBrainz(query).let { (albums, artists) ->
+					DiscoverSearchResults(emptyList(), albums, artists)
+				}
+			)
 		} catch (e: Exception) {
 			if (e is CancellationException) throw e
 			UiState.Error(e)

@@ -130,9 +130,18 @@ class MusicBrainzClient {
 		return result["releases"]?.jsonArray.orEmpty().mapNotNull { it.jsonObject.toRelease() }
 	}
 
-	/** Deezer-disabled fallback search (M3); identity work lives in [MusicBrainzClient]. */
-	suspend fun searchMusicBrainz(query: String): Pair<List<DiscoverAlbum>, List<DiscoverArtist>> =
-		Pair(emptyList<DiscoverAlbum>(), emptyList<DiscoverArtist>())
+	/**
+	 * Deezer-off fallback search: release groups and artists by name, no songs, no previews.
+	 * Two rate-limited, cached queries (one per result kind); the caller debounces to >= 1 s
+	 * to respect MusicBrainz's 1 request/s policy.
+	 */
+	suspend fun searchMusicBrainz(query: String): Pair<List<DiscoverAlbum>, List<DiscoverArtist>> {
+		val albums = getJson("/release-group", mapOf("query" to "releasegroup:$query", "limit" to "20"))
+			?.get("release-groups")?.jsonArray.orEmpty().map { it.jsonObject.discoverAlbumOfMusicBrainz() }
+		val artists = getJson("/artist", mapOf("query" to "artist:$query", "limit" to "20"))
+			?.get("artists")?.jsonArray.orEmpty().map { it.jsonObject.discoverArtistOfMusicBrainz() }
+		return albums to artists
+	}
 
 	// ---------------- Internals ----------------
 
@@ -289,6 +298,23 @@ fun musicBrainzArtistOf(obj: JsonObject) = MusicBrainzArtist(
 		.maxByOrNull { it.jsonObject["count"]?.jsonPrimitive?.intOrNull ?: 0 }
 		?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull
 		?.replaceFirstChar { it.uppercaseChar() }
+)
+
+/** Maps one `/release-group` search answer to a Discover album. */
+internal fun JsonObject.discoverAlbumOfMusicBrainz() = DiscoverAlbum(
+	id = this["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+	mbid = this["id"]?.jsonPrimitive?.contentOrNull,
+	title = this["title"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+	artist = this["artist-credit"]?.jsonArray?.firstOrNull()?.jsonObject
+		?.get("artist")?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull.orEmpty(),
+	recordType = this["primary-type"]?.jsonPrimitive?.contentOrNull
+)
+
+/** Maps one `/artist` search answer to a Discover artist. */
+internal fun JsonObject.discoverArtistOfMusicBrainz() = DiscoverArtist(
+	id = this["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+	mbid = this["id"]?.jsonPrimitive?.contentOrNull,
+	name = this["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
 )
 
 /**

@@ -187,9 +187,9 @@ private fun RecentSearches(viewModel: DiscoverSearchViewModel, padding: PaddingV
 			DeezerNotice(
 				onDismiss = { preferenceManager.deezerSearchNoticeDismissed = true },
 				onSettings = dropUnlessResumed {
-					// the Discover group lives in Server settings; Root first, like AppActions.about
+					// a settings detail page: Root first, so the list+detail layout has its list
 					backStack.add(Screen.Settings.Root)
-					backStack.add(Screen.Settings.Server)
+					backStack.add(Screen.Settings.DiscoverSearch)
 				}
 			)
 		}

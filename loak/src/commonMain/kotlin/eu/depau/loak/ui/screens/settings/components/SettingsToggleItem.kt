@@ -23,6 +23,7 @@ fun SettingsToggleItem(
 	shapes: ListItemShapes,
 	contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
 	isDividerShown: Boolean = false,
+	leadingContent: @Composable (() -> Unit)? = null,
 	supportingContent: @Composable (() -> Unit)? = null,
 	content: @Composable () -> Unit
 ) {
@@ -35,6 +36,7 @@ fun SettingsToggleItem(
 		contentPadding = contentPadding,
 		interactionSource = interactionSource,
 		content = content,
+		leadingContent = leadingContent,
 		supportingContent = supportingContent,
 		trailingContent = {
 			Row(
