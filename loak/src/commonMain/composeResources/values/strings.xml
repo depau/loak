@@ -1030,4 +1030,7 @@
 	<string name="label_kind_single">Single</string>
 	<string name="label_kind_ep">EP</string>
 	<string name="label_kind_artist">Artist</string>
+	<string name="badge_in_library">In library</string>
+	<string name="badge_in_lidarr">In Lidarr</string>
+	<string name="badge_downloading">Downloading %1$d%%</string>
 </resources>

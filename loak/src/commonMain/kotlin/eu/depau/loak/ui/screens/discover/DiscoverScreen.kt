@@ -16,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_search_discover
 import eu.depau.loak.generated.resources.option_download_queue
@@ -36,6 +38,7 @@ import eu.depau.loak.ui.components.layouts.RootTopBar
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.navigation.Screen
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 
 /**
  * Discover: search, charts and recommendations for music you don't have. The shelves fill the
@@ -48,12 +51,14 @@ fun DiscoverScreen() {
 	// opened from Library rather than as a tab
 	val nested = backStack.firstOrNull() != Screen.Discover
 	val title = @Composable { Text(stringResource(Res.string.title_discover)) }
-	// ponytail: inert until Lidarr's queue screen lands with Discover's downloads
 	val queue = @Composable {
-		IconButton(onClick = {}, enabled = false) {
+		IconButton(onClick = dropUnlessResumed { backStack.add(Screen.LidarrQueue) }) {
 			Icon(Icons.Outlined.Download, stringResource(Res.string.option_download_queue))
 		}
 	}
+	val lidarr = koinInject<LidarrManager>()
+	// fresh Lidarr state for the status badges
+	LaunchedEffect(Unit) { lidarr.refreshCatalog() }
 
 	Scaffold(
 		// only the root bar collapses: without it laid out, the behavior would swallow every scroll

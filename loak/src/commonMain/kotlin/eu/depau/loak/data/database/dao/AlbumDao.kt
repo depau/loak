@@ -26,6 +26,9 @@ interface AlbumDao {
 	@Query("SELECT * FROM AlbumEntity ORDER BY name ASC")
 	suspend fun getAllAlbumsList(): List<AlbumWithSongs>
 
+	@Query("SELECT * FROM AlbumEntity")
+	suspend fun getAllAlbumEntities(): List<AlbumEntity>
+
 	@RawQuery
 	suspend fun getAlbumsByQuery(query: RoomRawQuery): List<AlbumWithSongs>
 

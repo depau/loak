@@ -7,6 +7,7 @@ import eu.depau.loak.ui.screens.explore.MoodScreen
 import eu.depau.loak.ui.screens.explore.SoundMapScreen
 import eu.depau.loak.ui.screens.discover.DiscoverScreen
 import eu.depau.loak.ui.screens.discover.DiscoverSearchScreen
+import eu.depau.loak.ui.screens.discover.LidarrQueueScreen
 import eu.depau.loak.ui.screens.alchemy.DescribeMixScreen
 import eu.depau.loak.ui.screens.alchemy.SongPathScreen
 import eu.depau.loak.ui.screens.login.INTEGRATIONS_VERSION
@@ -705,6 +706,9 @@ private fun entryProvider(
 		}
 		entry<Screen.DiscoverSearch> {
 			DiscoverSearchScreen()
+		}
+		entry<Screen.LidarrQueue> {
+			LidarrQueueScreen()
 		}
 		entry<Screen.Mood> {
 			MoodScreen(it.mood)

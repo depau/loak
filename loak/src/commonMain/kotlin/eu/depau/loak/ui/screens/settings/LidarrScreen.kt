@@ -35,7 +35,6 @@ import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.generated.resources.*
-import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
@@ -160,9 +159,8 @@ private fun LidarrConnected(manager: LidarrManager) {
 			onCheckedChange = { preferenceManager.discoverTabEnabled = it },
 			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2)
 		)
-		// ponytail: a count only; the queue screen behind it comes with Discover's downloads
-		SegmentedListItem(
-			onClick = {},
+		SettingsNavItem(
+			onClick = dropUnlessResumed { backStack.add(Screen.LidarrQueue) },
 			shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2),
 			content = { Text(stringResource(Res.string.option_download_queue)) },
 			supportingContent = info?.let {

@@ -2,11 +2,13 @@ package eu.depau.loak.ui.screens.discover
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,10 +36,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +62,8 @@ import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSearchResults
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.PreviewManager
+import eu.depau.loak.domain.manager.DiscoverBadgeState
+import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_lidarr
@@ -86,17 +94,22 @@ import eu.depau.loak.icons.filled.Pause
 import eu.depau.loak.icons.outlined.History
 import eu.depau.loak.icons.outlined.MoreVert
 import eu.depau.loak.icons.outlined.NoSearchResults
+import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverSearchViewModel
+import eu.depau.loak.ui.screens.discover.components.DiscoverBadge
+import eu.depau.loak.ui.screens.discover.components.rememberDiscoverStatus
 import eu.depau.loak.ui.screens.search.SearchCategory
 import eu.depau.loak.ui.screens.search.components.SearchScreenChips
 import eu.depau.loak.ui.screens.search.components.SearchScreenTopBar
 import eu.depau.loak.ui.theme.SmallCoverArtShape
 import eu.depau.loak.ui.util.windowControlsInsets
+import eu.depau.loak.ui.util.onSecondaryClick
 import eu.depau.loak.ui.util.windowDragArea
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -113,6 +126,9 @@ fun DiscoverSearchScreen() {
 	val viewModel = koinViewModel<DiscoverSearchViewModel>()
 	val state by viewModel.results.collectAsState()
 	val category by viewModel.category.collectAsState()
+	val lidarr = koinInject<LidarrManager>()
+	// fresh Lidarr state for the status badges
+	LaunchedEffect(Unit) { lidarr.refreshCatalog() }
 
 	Scaffold(
 		topBar = {
@@ -291,6 +307,41 @@ private fun albumKind(album: DiscoverAlbum) = stringResource(
 
 private fun dotted(vararg parts: String?) = parts.filterNot { it.isNullOrBlank() }.joinToString(" · ")
 
+/** [text] (one weighted Text) followed by the item's status badge, when it has one. */
+@Composable
+private fun WithBadge(status: DiscoverBadgeState, text: @Composable RowScope.() -> Unit) {
+	Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+		text()
+		DiscoverBadge(status)
+	}
+}
+
+/**
+ * A Discover song's gestures, handed to [content] as a modifier: a song already in the library
+ * plays with the normal player on tap and opens its song sheet on long-press; any other toggles
+ * its preview. Null [song] (an album or artist): no gestures.
+ */
+// ponytail: long-press on songs outside the library waits for Discover's own song sheet (M6)
+@Composable
+private fun SongGestures(
+	song: DiscoverSong?,
+	status: DiscoverBadgeState,
+	onPreview: (DiscoverSong) -> Unit,
+	content: @Composable (Modifier) -> Unit
+) {
+	if (song == null) return content(Modifier)
+	val librarySong = (status as? DiscoverBadgeState.InLibrary)?.song
+	val player = koinInject<MediaPlayerViewModel>()
+	var sheetOpen by rememberSaveable { mutableStateOf(false) }
+	if (librarySong != null) SongActionsSheet(librarySong, sheetOpen, onDismissRequest = { sheetOpen = false })
+	val onLongClick: (() -> Unit)? = if (librarySong != null) ({ sheetOpen = true }) else null
+	content(
+		Modifier.onSecondaryClick(onLongClick).combinedClickable(onLongClick = onLongClick) {
+			if (librarySong != null) player.playNow(librarySong) else onPreview(song)
+		}
+	)
+}
+
 // ponytail: Add to Lidarr (M6) and the overflow menus are disabled until they exist
 @Composable
 private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -> Unit) {
@@ -300,48 +351,57 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 		is DiscoverArtist -> Triple(top.pictureUrl, top.name, stringResource(Res.string.label_kind_artist))
 		else -> return
 	}
-	Surface(
-		modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
-		shape = MaterialTheme.shapes.large,
-		color = MaterialTheme.colorScheme.surfaceContainer
-	) {
-		Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-			Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-				Art(art, 88.dp, if (top is DiscoverArtist) CircleShape else MaterialTheme.shapes.small)
-				Column(Modifier.weight(1f)) {
-					Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-					Text(
-						subtitle,
-						style = MaterialTheme.typography.bodyMedium,
-						color = MaterialTheme.colorScheme.onSurfaceVariant
-					)
-					(top as? DiscoverSong)?.album?.let {
-						Text(
-							it,
-							style = MaterialTheme.typography.bodySmall,
-							color = MaterialTheme.colorScheme.onSurfaceVariant,
-							maxLines = 1,
-							overflow = TextOverflow.Ellipsis
-						)
+	val status = rememberDiscoverStatus(top)
+	SongGestures(top as? DiscoverSong, status, onPreview) { gestures ->
+		Surface(
+			modifier = Modifier
+				.padding(start = 16.dp, end = 16.dp, top = 16.dp)
+				.clip(MaterialTheme.shapes.large)
+				.then(gestures),
+			shape = MaterialTheme.shapes.large,
+			color = MaterialTheme.colorScheme.surfaceContainer
+		) {
+			Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+				Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+					Art(art, 88.dp, if (top is DiscoverArtist) CircleShape else MaterialTheme.shapes.small)
+					Column(Modifier.weight(1f)) {
+						Text(title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+						WithBadge(status) {
+							Text(
+								subtitle,
+								modifier = Modifier.weight(1f, fill = false),
+								style = MaterialTheme.typography.bodyMedium,
+								color = MaterialTheme.colorScheme.onSurfaceVariant
+							)
+						}
+						(top as? DiscoverSong)?.album?.let {
+							Text(
+								it,
+								style = MaterialTheme.typography.bodySmall,
+								color = MaterialTheme.colorScheme.onSurfaceVariant,
+								maxLines = 1,
+								overflow = TextOverflow.Ellipsis
+							)
+						}
 					}
 				}
-			}
-			Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-				if (top is DiscoverSong) FilledTonalButton(onClick = { onPreview(top) }) {
-					val playing = top.id == previewing
-					Icon(
-						if (playing) Icons.Filled.Pause else Icons.Filled.Play,
-						null,
-						Modifier.size(ButtonDefaults.IconSize)
-					)
-					Text(
-						stringResource(if (playing) Res.string.action_pause_preview else Res.string.action_preview),
-						Modifier.padding(start = ButtonDefaults.IconSpacing)
-					)
-				}
-				Button(onClick = {}, enabled = false) {
-					Icon(Icons.Outlined.Add, null, Modifier.size(ButtonDefaults.IconSize))
-					Text(stringResource(Res.string.action_add_to_lidarr), Modifier.padding(start = ButtonDefaults.IconSpacing))
+				Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+					if (top is DiscoverSong) FilledTonalButton(onClick = { onPreview(top) }) {
+						val playing = top.id == previewing
+						Icon(
+							if (playing) Icons.Filled.Pause else Icons.Filled.Play,
+							null,
+							Modifier.size(ButtonDefaults.IconSize)
+						)
+						Text(
+							stringResource(if (playing) Res.string.action_pause_preview else Res.string.action_preview),
+							Modifier.padding(start = ButtonDefaults.IconSpacing)
+						)
+					}
+					Button(onClick = {}, enabled = false) {
+						Icon(Icons.Outlined.Add, null, Modifier.size(ButtonDefaults.IconSize))
+						Text(stringResource(Res.string.action_add_to_lidarr), Modifier.padding(start = ButtonDefaults.IconSpacing))
+					}
 				}
 			}
 		}
@@ -353,14 +413,21 @@ private fun ResultItem(
 	art: String?,
 	title: String,
 	subtitle: String,
+	status: DiscoverBadgeState,
+	modifier: Modifier = Modifier,
 	artShape: Shape = SmallCoverArtShape,
 	previewing: Boolean = false,
 	onPreview: (() -> Unit)? = null
 ) {
 	ListItem(
+		modifier = modifier,
 		leadingContent = { Art(art, 48.dp, artShape) },
 		headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-		supportingContent = { Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+		supportingContent = {
+			WithBadge(status) {
+				Text(subtitle, Modifier.weight(1f, fill = false), maxLines = 1, overflow = TextOverflow.Ellipsis)
+			}
+		},
 		trailingContent = {
 			Row(verticalAlignment = Alignment.CenterVertically) {
 				if (onPreview != null) FilledTonalIconButton(onClick = onPreview) {
@@ -379,13 +446,24 @@ private fun ResultItem(
 }
 
 @Composable
-private fun SongItem(song: DiscoverSong, previewing: Boolean, onPreview: () -> Unit) =
-	ResultItem(song.coverUrl, song.title, dotted(song.artist, song.album), previewing = previewing, onPreview = onPreview)
+private fun SongItem(song: DiscoverSong, previewing: Boolean, onPreview: () -> Unit) {
+	val status = rememberDiscoverStatus(song)
+	SongGestures(song, status, { onPreview() }) { gestures ->
+		ResultItem(
+			song.coverUrl, song.title, dotted(song.artist, song.album), status, gestures,
+			previewing = previewing, onPreview = onPreview
+		)
+	}
+}
 
 @Composable
-private fun AlbumItem(album: DiscoverAlbum) =
-	ResultItem(album.coverUrl, album.title, dotted(albumKind(album), album.artist, album.year?.toString()))
+private fun AlbumItem(album: DiscoverAlbum) = ResultItem(
+	album.coverUrl, album.title, dotted(albumKind(album), album.artist, album.year?.toString()),
+	rememberDiscoverStatus(album)
+)
 
 @Composable
-private fun ArtistItem(artist: DiscoverArtist) =
-	ResultItem(artist.pictureUrl, artist.name, stringResource(Res.string.label_kind_artist), CircleShape)
+private fun ArtistItem(artist: DiscoverArtist) = ResultItem(
+	artist.pictureUrl, artist.name, stringResource(Res.string.label_kind_artist),
+	rememberDiscoverStatus(artist), artShape = CircleShape
+)
