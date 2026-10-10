@@ -41,6 +41,7 @@ import eu.depau.loak.generated.resources.action_clear_search
 import eu.depau.loak.generated.resources.action_navigate_back
 import eu.depau.loak.generated.resources.title_search
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.StringResource
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.ArrowBack
@@ -51,7 +52,9 @@ import eu.depau.loak.ui.theme.defaultFont
 fun SearchScreenTopBar(
 	query: TextFieldState,
 	nested: Boolean,
-	onSearch: (String) -> Unit
+	onSearch: (String) -> Unit,
+	/** Null: the library's ("Search your library" on wide windows). */
+	placeholder: StringResource? = null
 ) {
 	val backStack = LocalNavStack.current
 
@@ -131,7 +134,7 @@ fun SearchScreenTopBar(
 						if (query.text.isEmpty()) {
 							Text(
 								text = stringResource(
-									if (expanded) Res.string.action_search_library else Res.string.title_search
+									placeholder ?: if (expanded) Res.string.action_search_library else Res.string.title_search
 								),
 								color = MaterialTheme.colorScheme.onSurfaceVariant
 							)

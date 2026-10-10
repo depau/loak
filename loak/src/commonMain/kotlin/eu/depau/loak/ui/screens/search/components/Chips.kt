@@ -31,7 +31,8 @@ fun SearchScreenChips(
 	selectedCategory: SearchCategory,
 	onCategorySelect: (SearchCategory) -> Unit,
 	/** AudioMuse-AI's search by sound, after a divider. */
-	soundAvailable: Boolean = false
+	soundAvailable: Boolean = false,
+	categories: List<SearchCategory> = SearchCategory.entries
 ) {
 	Row(
 		modifier = Modifier
@@ -41,7 +42,7 @@ fun SearchScreenChips(
 			.selectableGroup(),
 		horizontalArrangement = Arrangement.spacedBy(8.dp)
 	) {
-		SearchCategory.entries.filter { it != SearchCategory.SOUND || soundAvailable }.forEach { category ->
+		categories.filter { it != SearchCategory.SOUND || soundAvailable }.forEach { category ->
 			if (category == SearchCategory.SOUND) VerticalDivider(Modifier.height(24.dp).align(Alignment.CenterVertically))
 			val isSelected = category == selectedCategory
 			FilterChip(

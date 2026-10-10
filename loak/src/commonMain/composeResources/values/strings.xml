@@ -1017,4 +1017,14 @@
 	<string name="action_search_discover">Find new songs, albums, artists</string>
 	<string name="option_download_queue">Download queue</string>
 	<string name="option_lidarr_address">Address</string>
+	<string name="title_deezer_search_notice">Search runs on Deezer</string>
+	<string name="info_deezer_search_notice">What you type is sent to Deezer to find matches and previews. Lo'ak then looks the result up on MusicBrainz before adding it to Lidarr.</string>
+	<string name="action_preview">Preview</string>
+	<string name="action_add_to_lidarr">Add to Lidarr</string>
+	<string name="action_edit_search">Edit search</string>
+	<string name="label_kind_song">Song</string>
+	<string name="label_kind_album">Album</string>
+	<string name="label_kind_single">Single</string>
+	<string name="label_kind_ep">EP</string>
+	<string name="label_kind_artist">Artist</string>
 </resources>

@@ -102,6 +102,10 @@ sealed interface Screen : NavKey {
 
 	@Immutable
 	@Serializable
+	data object DiscoverSearch : Screen
+
+	@Immutable
+	@Serializable
 	data class Mood(val mood: AlchemyIngredient) : Screen
 
 	@Immutable

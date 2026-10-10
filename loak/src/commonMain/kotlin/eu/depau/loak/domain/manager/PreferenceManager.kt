@@ -134,6 +134,13 @@ class PreferenceManager(
 	/** Show the Discover tab (the whole Lidarr integration) in the navigation. */
 	var discoverTabEnabled by preference(true)
 
+	/** Query Deezer for Discover search; off = MusicBrainz fallback (M6) with no previews. */
+	var deezerEnabled by preference(true)
+	/** Whether the one-time "queries go to Deezer" notice has been dismissed. */
+	var deezerSearchNoticeDismissed by preference(false)
+	/** Discover's recent searches, newest first, one per line. */
+	var discoverRecentSearches by preference("")
+
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
 

@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.generated.resources.Res
@@ -72,15 +73,17 @@ fun DiscoverScreen() {
 				bottom = innerPadding.calculateBottomPadding() + 24.dp
 			)
 		) {
-			item(key = "search") { SearchPill() }
+			item(key = "search") {
+				SearchPill(onClick = dropUnlessResumed { backStack.add(Screen.DiscoverSearch) })
+			}
 		}
 	}
 }
 
-// ponytail: looks only; Discover's search opens from here once it exists
 @Composable
-private fun SearchPill() {
+private fun SearchPill(onClick: () -> Unit) {
 	Surface(
+		onClick = onClick,
 		modifier = Modifier.fillMaxWidth().height(56.dp),
 		shape = CircleShape,
 		color = MaterialTheme.colorScheme.surfaceContainerHigh,
