@@ -6,6 +6,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -59,6 +60,24 @@ class DeezerClient {
 	suspend fun searchArtists(query: String): List<DiscoverArtist> =
 		searchKind("search/artist", query) { discoverArtistOf(it) }
 
+	/**
+	 * Refetches one track by its Deezer id, to get a fresh preview URL. Deezer's preview
+	 * links go stale after a while, so this is how a previously-seen song gets a new one.
+	 * Returns null when the id is bogus or the call fails (quota, network, deleted track).
+	 */
+	suspend fun getTrack(trackId: Long): DiscoverSong? {
+		if (trackId <= 0L) return null
+		return withContext(IoDispatcher) {
+			try {
+				discoverSongOf(fetchRaw("track/$trackId"))
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				null
+			}
+		}
+	}
+
 	/** The three searches in parallel, in the order the search screen shows them. */
 	suspend fun searchAll(query: String): DiscoverSearchResults = coroutineScope {
 		val songs = async { search(query) }
@@ -76,10 +95,13 @@ class DeezerClient {
 		}
 
 	/** One GET, throwing [DeezerException] on error and retrying once after a quota hit. */
-	private suspend fun fetch(path: String, query: String): JsonObject {
+	private suspend fun fetch(path: String, query: String): JsonObject =
+		fetchRaw(path) { parameter("q", query) }
+
+	private suspend fun fetchRaw(path: String, block: io.ktor.client.request.HttpRequestBuilder.() -> Unit = {}): JsonObject {
 		var attemptsLeft = 2 // first try + one quota retry
 		while (true) {
-			val response = client.get("$baseUrl/$path") { parameter("q", query) }
+			val response = client.get("$baseUrl/$path", block)
 			val text = response.bodyAsText()
 			if (!response.status.isSuccess()) {
 				throw DeezerException("Http", response.status.value, response.status.description)

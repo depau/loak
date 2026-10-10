@@ -8,6 +8,8 @@ import org.koin.dsl.module
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.data.database.DownloadDatabase
 import eu.depau.loak.data.database.migrationPolicy
+import eu.depau.loak.domain.discover.IosPreviewPlayer
+import eu.depau.loak.domain.discover.PreviewPlayer
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.ExportManager
 import eu.depau.loak.domain.manager.LinkManager
@@ -56,6 +58,8 @@ actual val platformModule = module {
 			snackBarManager = get()
 		)
 	}
+
+	single<PreviewPlayer> { IosPreviewPlayer() }
 
 	singleOf(::ShareManager)
 	singleOf(::ExportManager)

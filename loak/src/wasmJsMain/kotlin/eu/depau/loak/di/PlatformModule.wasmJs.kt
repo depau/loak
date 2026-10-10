@@ -9,6 +9,8 @@ import org.w3c.dom.Worker
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.data.database.DownloadDatabase
 import eu.depau.loak.data.database.migrationPolicy
+import eu.depau.loak.domain.discover.PreviewPlayer
+import eu.depau.loak.domain.discover.WasmPreviewPlayer
 import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.ExportManager
@@ -44,6 +46,8 @@ actual val platformModule = module {
 			snackBarManager = get()
 		)
 	}
+
+	single<PreviewPlayer> { WasmPreviewPlayer() }
 
 	singleOf(::ShareManager)
 	singleOf(::ExportManager)

@@ -18,6 +18,8 @@ import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.domain.manager.ShareManager
 import eu.depau.loak.domain.manager.StorageManager
 import eu.depau.loak.domain.manager.VolumeProvider
+import eu.depau.loak.domain.discover.AndroidPreviewPlayer
+import eu.depau.loak.domain.discover.PreviewPlayer
 import eu.depau.loak.exoplayer.AudioGainProcessor
 import eu.depau.loak.shared.AndroidMediaPlayerViewModel
 import eu.depau.loak.shared.MediaPlayerViewModel
@@ -62,6 +64,8 @@ actual val platformModule = module {
 			audioGainManager = get(),
 		)
 	}
+
+	single<PreviewPlayer> { AndroidPreviewPlayer(androidApplication()) }
 
 	singleOf(::ShareManager)
 	singleOf(::ExportManager)

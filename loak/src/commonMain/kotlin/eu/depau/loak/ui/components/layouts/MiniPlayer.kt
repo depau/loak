@@ -74,7 +74,6 @@ import org.koin.compose.koinInject
 import eu.depau.loak.ui.util.pickedUpFromLabel
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
-import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.MiniPlayerStyle
 import eu.depau.loak.domain.models.settings.NavbarConfig
@@ -92,6 +91,20 @@ import eu.depau.loak.ui.screens.settings.viewmodels.NavtabsViewModel
 import coil3.compose.LocalPlatformContext as LocalCoilPlatformContext
 import eu.depau.loak.ui.components.common.PlayPauseIcon
 
+/**
+ * Room the mini player keeps for the system navigation bar: none while the bottom bar pads it,
+ * all of it when the bottom bar hides (fewer than two tabs).
+ */
+@Composable
+internal fun miniPlayerNavBarPadding(): Dp {
+	val navtabsState by koinViewModel<NavtabsViewModel>().state.collectAsState()
+	val tabs = ((navtabsState as? UiState.Success)?.data ?: NavbarConfig.default)
+		.tabs.count { tab -> tab.visible }
+	return if (tabs < 2)
+		with(LocalDensity.current) { WindowInsets.navigationBars.getBottom(this).toDp() }
+	else 0.dp
+}
+
 @Composable
 fun MiniPlayer(
 	modifier: Modifier = Modifier,
@@ -100,15 +113,8 @@ fun MiniPlayer(
 ) {
 	val player = koinInject<MediaPlayerViewModel>()
 	val preferenceManager = koinInject<PreferenceManager>()
-	val navtabsViewModel = koinViewModel<NavtabsViewModel>()
-	val navtabsState by navtabsViewModel.state.collectAsState()
-	val tabs = ((navtabsState as? UiState.Success)?.data ?: NavbarConfig.default)
-		.tabs.filter { tab -> tab.visible }
-	val backStack = LocalNavStack.current
 	val haptics = LocalHapticFeedback.current
-	val navBarPadding = if (tabs.size < 2)
-		with(LocalDensity.current) { WindowInsets.navigationBars.getBottom(this).toDp() }
-	else 0.dp
+	val navBarPadding = miniPlayerNavBarPadding()
 
 	val playerState by player.uiState.collectAsState()
 	val song = playerState.currentSong

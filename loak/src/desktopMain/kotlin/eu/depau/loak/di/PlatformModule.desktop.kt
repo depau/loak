@@ -10,6 +10,8 @@ import eu.depau.loak.data.database.DownloadDatabase
 import eu.depau.loak.data.database.migrationPolicy
 import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.ConnectivityManager
+import eu.depau.loak.domain.discover.DesktopPreviewPlayer
+import eu.depau.loak.domain.discover.PreviewPlayer
 import eu.depau.loak.domain.manager.ExportManager
 import eu.depau.loak.domain.manager.LinkManager
 import eu.depau.loak.domain.manager.LogManager
@@ -93,6 +95,7 @@ actual val platformModule = module {
 	singleOf(::PermissionManager)
 	singleOf(::LinkManager)
 	singleOf(::AudioGainManager)
+	single<PreviewPlayer> { DesktopPreviewPlayer() }
 	singleOf(::VolumeProvider)
 }
 

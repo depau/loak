@@ -35,7 +35,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +55,7 @@ import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSearchResults
 import eu.depau.loak.domain.discover.DiscoverSong
+import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_lidarr
@@ -60,6 +63,7 @@ import eu.depau.loak.generated.resources.action_got_it
 import eu.depau.loak.generated.resources.action_more
 import eu.depau.loak.generated.resources.action_preview
 import eu.depau.loak.generated.resources.action_search_discover
+import eu.depau.loak.generated.resources.action_pause_preview
 import eu.depau.loak.generated.resources.info_deezer_search_notice
 import eu.depau.loak.generated.resources.info_no_search_results
 import eu.depau.loak.generated.resources.label_kind_album
@@ -78,6 +82,7 @@ import eu.depau.loak.icons.brand.Deezer
 import eu.depau.loak.icons.filled.Play
 import eu.depau.loak.icons.outlined.Add
 import eu.depau.loak.icons.outlined.ArrowOutward
+import eu.depau.loak.icons.filled.Pause
 import eu.depau.loak.icons.outlined.History
 import eu.depau.loak.icons.outlined.MoreVert
 import eu.depau.loak.icons.outlined.NoSearchResults
@@ -226,9 +231,16 @@ private fun Results(results: DiscoverSearchResults, category: SearchCategory, pa
 	val artists = if (all || category == SearchCategory.ARTISTS) results.artists.filter { it != top }.take(limit) else emptyList()
 	val albums = if (all || category == SearchCategory.ALBUMS) results.albums.filter { it != top }.take(limit) else emptyList()
 
+	val previewManager = koinInject<PreviewManager>()
+	val active = previewManager.activePreview.collectAsState()
+	// just the audible song's id: progress ticks don't recompose the list
+	val previewing by remember { derivedStateOf { active.value?.takeIf { it.isPlaying }?.song?.id } }
+
 	LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-		if (top != null) item(key = "top") { TopResult(top) }
-		section(Res.string.title_songs, songs) { SongItem(it) }
+		if (top != null) item(key = "top") { TopResult(top, previewing, previewManager::toggle) }
+		section(Res.string.title_songs, songs) {
+			SongItem(it, it.id == previewing) { previewManager.toggle(it) }
+		}
 		section(Res.string.title_artists, artists) { ArtistItem(it) }
 		section(Res.string.title_albums, albums) { AlbumItem(it) }
 	}
@@ -279,9 +291,9 @@ private fun albumKind(album: DiscoverAlbum) = stringResource(
 
 private fun dotted(vararg parts: String?) = parts.filterNot { it.isNullOrBlank() }.joinToString(" · ")
 
-// ponytail: Preview (M4), Add to Lidarr (M6) and the overflow menus are disabled until they exist
+// ponytail: Add to Lidarr (M6) and the overflow menus are disabled until they exist
 @Composable
-private fun TopResult(top: Any) {
+private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -> Unit) {
 	val (art, title, subtitle) = when (top) {
 		is DiscoverSong -> Triple(top.coverUrl, top.title, dotted(stringResource(Res.string.label_kind_song), top.artist))
 		is DiscoverAlbum -> Triple(top.coverUrl, top.title, dotted(albumKind(top), top.artist, top.year?.toString()))
@@ -315,9 +327,17 @@ private fun TopResult(top: Any) {
 				}
 			}
 			Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-				if (top is DiscoverSong) FilledTonalButton(onClick = {}, enabled = false) {
-					Icon(Icons.Filled.Play, null, Modifier.size(ButtonDefaults.IconSize))
-					Text(stringResource(Res.string.action_preview), Modifier.padding(start = ButtonDefaults.IconSpacing))
+				if (top is DiscoverSong) FilledTonalButton(onClick = { onPreview(top) }) {
+					val playing = top.id == previewing
+					Icon(
+						if (playing) Icons.Filled.Pause else Icons.Filled.Play,
+						null,
+						Modifier.size(ButtonDefaults.IconSize)
+					)
+					Text(
+						stringResource(if (playing) Res.string.action_pause_preview else Res.string.action_preview),
+						Modifier.padding(start = ButtonDefaults.IconSpacing)
+					)
 				}
 				Button(onClick = {}, enabled = false) {
 					Icon(Icons.Outlined.Add, null, Modifier.size(ButtonDefaults.IconSize))
@@ -334,7 +354,8 @@ private fun ResultItem(
 	title: String,
 	subtitle: String,
 	artShape: Shape = SmallCoverArtShape,
-	preview: Boolean = false
+	previewing: Boolean = false,
+	onPreview: (() -> Unit)? = null
 ) {
 	ListItem(
 		leadingContent = { Art(art, 48.dp, artShape) },
@@ -342,8 +363,12 @@ private fun ResultItem(
 		supportingContent = { Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
 		trailingContent = {
 			Row(verticalAlignment = Alignment.CenterVertically) {
-				if (preview) FilledTonalIconButton(onClick = {}, enabled = false) {
-					Icon(Icons.Filled.Play, stringResource(Res.string.action_preview), Modifier.size(18.dp))
+				if (onPreview != null) FilledTonalIconButton(onClick = onPreview) {
+					Icon(
+						if (previewing) Icons.Filled.Pause else Icons.Filled.Play,
+						stringResource(if (previewing) Res.string.action_pause_preview else Res.string.action_preview),
+						Modifier.size(18.dp)
+					)
 				}
 				IconButton(onClick = {}, enabled = false) {
 					Icon(Icons.Outlined.MoreVert, stringResource(Res.string.action_more))
@@ -354,8 +379,8 @@ private fun ResultItem(
 }
 
 @Composable
-private fun SongItem(song: DiscoverSong) =
-	ResultItem(song.coverUrl, song.title, dotted(song.artist, song.album), preview = true)
+private fun SongItem(song: DiscoverSong, previewing: Boolean, onPreview: () -> Unit) =
+	ResultItem(song.coverUrl, song.title, dotted(song.artist, song.album), previewing = previewing, onPreview = onPreview)
 
 @Composable
 private fun AlbumItem(album: DiscoverAlbum) =

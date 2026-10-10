@@ -11,6 +11,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import eu.depau.loak.domain.discover.PreviewManager
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +44,7 @@ fun RootBottomBar(
 	val preferenceManager = koinInject<PreferenceManager>()
 	val scrolled =
 		scrolled && preferenceManager.bottomBarCollapseMode == BottomBarCollapseMode.OnScroll
+	val detached = preferenceManager.miniPlayerStyle == MiniPlayerStyle.Detached
 	val progress by animateFloatAsState(
 		targetValue = if (scrolled) 0f else 1f,
 		animationSpec = spring(
@@ -66,7 +69,7 @@ fun RootBottomBar(
 		modifier = modifier.onSizeChanged {
 			measuredHeight = with(density) { it.height.toDp() }
 		}.then(
-			if (preferenceManager.miniPlayerStyle == MiniPlayerStyle.Detached)
+			if (detached)
 				Modifier.background(
 					Brush.verticalGradient(
 						0f to Color.Transparent,
@@ -76,30 +79,30 @@ fun RootBottomBar(
 			else Modifier
 		)
 	) {
-		if (!hideMiniPlayer && LocalPlatformContext.current.isExpanded()) PlayerBar(
-			modifier = Modifier.graphicsLayer {
-				alpha = progress.coerceIn(0f..1f)
-				translationY = (1f - progress) * size.height * 2
-			},
-			enabled = !scrolled
-		) else if (!hideMiniPlayer) MiniPlayer(
-			modifier = Modifier.graphicsLayer {
-				alpha = progress.coerceIn(0f..1f)
-				translationY = ((1f - progress) * (size.height * 2)).coerceAtLeast(
-					if (preferenceManager.miniPlayerStyle == MiniPlayerStyle.Detached) -2048f else 0f
-				)
-			},
-			enabled = !scrolled
-		)
+		val preview = koinInject<PreviewManager>().activePreview.collectAsState().value
+		val expanded = LocalPlatformContext.current.isExpanded()
+		val playerModifier = Modifier.graphicsLayer {
+			alpha = progress.coerceIn(0f..1f)
+			val y = (1f - progress) * size.height * 2
+			// the attached mini player doesn't bounce above the bottom bar
+			translationY = if (expanded || detached) y else y.coerceAtLeast(0f)
+		}
+		when {
+			hideMiniPlayer -> {}
+			// a preview takes the player's place until it ends or is closed
+			preview != null -> PreviewBar(preview, playerModifier, enabled = !scrolled)
+			expanded -> PlayerBar(playerModifier, enabled = !scrolled)
+			else -> MiniPlayer(playerModifier, enabled = !scrolled)
+		}
 		BottomBar(
-			containerColor = if (preferenceManager.miniPlayerStyle == MiniPlayerStyle.Detached)
+			containerColor = if (detached)
 				NavigationBarDefaults.containerColor.copy(alpha = 0f)
 			else NavigationBarDefaults.containerColor,
 			windowInsets = bottomBarWindowInsets,
 			modifier = Modifier.graphicsLayer {
 				alpha = progress.coerceIn(0f..1f)
 				translationY = ((1f - progress) * size.height).coerceAtLeast(
-					if (preferenceManager.miniPlayerStyle == MiniPlayerStyle.Detached) -2048f else 0f
+					if (detached) -2048f else 0f
 				)
 			},
 			enabled = !scrolled

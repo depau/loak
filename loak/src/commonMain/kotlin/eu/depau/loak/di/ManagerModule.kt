@@ -21,6 +21,7 @@ import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.domain.discover.DeezerClient
+import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.StorageManager
 import eu.depau.loak.domain.manager.SyncManager
@@ -45,6 +46,8 @@ val managerModule = module {
 	singleOf(::PreferenceManager)
 	// Deezer's search API, no auth: queries go straight to api.deezer.com
 	single { DeezerClient() }
+	// previews: mediaPlayer resolves lazily to dodge the VM↔manager cycle
+	single { PreviewManager(get(), get(), { get() }) }
 	singleOf(::SnackBarManager)
 	singleOf(::LoginManager)
 	singleOf(::EqualiserManager)
