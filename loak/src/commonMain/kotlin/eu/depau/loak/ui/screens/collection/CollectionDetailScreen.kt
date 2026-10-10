@@ -44,6 +44,9 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import eu.depau.loak.generated.resources.info_no_matching_tracks
 import eu.depau.loak.ui.screens.collection.components.PlaylistTrackFilterRow
 import androidx.compose.foundation.lazy.LazyColumn
+import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.ui.components.dialogs.DeletionDialog
+import eu.depau.loak.ui.components.dialogs.DeletionEndpoint
 import eu.depau.loak.di.isExpanded
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -154,7 +157,8 @@ fun CollectionDetailScreen(
 			}
 		}
 	)
-
+	val backStack = LocalNavStack.current
+	var playlistDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
 	var shareId by remember { mutableStateOf<String?>(null) }
 	var editingRules by remember { mutableStateOf<SmartPlaylistDetails?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
@@ -251,6 +255,9 @@ fun CollectionDetailScreen(
 						refreshCollection = { viewModel.refreshCollection(false) },
 						onReorderPlaylist = if (collection is DomainPlaylist) {
 							{ reordering = true }
+						} else null,
+						onDeletePlaylist = if (collection is DomainPlaylist) {
+							{ playlistDeletionId = collection.id }
 						} else null
 					)
 				}
@@ -652,6 +659,13 @@ fun CollectionDetailScreen(
 				editingRules = null
 				viewModel.refreshCollection(true)
 			}
+		)
+
+		DeletionDialog(
+			endpoint = DeletionEndpoint.PLAYLIST,
+			id = playlistDeletionId,
+			onIdClear = { playlistDeletionId = null },
+			onRefresh = { backStack.removeLastOrNull() }
 		)
 	}
 }

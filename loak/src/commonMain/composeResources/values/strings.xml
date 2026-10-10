@@ -261,6 +261,7 @@
 	<string name="action_shuffle">Shuffle</string>
 	<string name="action_repeat">Repeat</string>
 	<string name="action_delete">Delete</string>
+	<string name="action_delete_playlist">Delete playlist</string>
 	<string name="action_cancel">Cancel</string>
 	<string name="action_refresh">Refresh</string>
 	<string name="action_share">Share</string>

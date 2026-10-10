@@ -167,7 +167,8 @@ class SheetRow(
 	val onClick: () -> Unit,
 	val enabled: Boolean = true,
 	val supporting: String? = null,
-	val opensPage: Boolean = false
+	val opensPage: Boolean = false,
+	val destructive: Boolean = false
 )
 
 /** The options sheets' other actions, as one group of connected rows; nothing when it's empty. */
@@ -179,6 +180,14 @@ fun SheetRows(rows: List<SheetRow>) {
 		containerColor = MaterialTheme.colorScheme.surfaceBright,
 		disabledContainerColor = MaterialTheme.colorScheme.surfaceBright
 	)
+	val destructiveColors = SegmentedListItemDefaults.segmentedColors(
+		containerColor = MaterialTheme.colorScheme.surfaceBright,
+		contentColor = MaterialTheme.colorScheme.error,
+		leadingContentColor = MaterialTheme.colorScheme.error,
+		disabledContainerColor = MaterialTheme.colorScheme.surfaceBright,
+		disabledContentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.38f),
+		disabledLeadingContentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.38f)
+	)
 	Column(
 		Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
 		verticalArrangement = Arrangement.spacedBy(SegmentedListItemDefaults.SegmentedGap)
@@ -188,7 +197,7 @@ fun SheetRows(rows: List<SheetRow>) {
 				onClick = row.onClick,
 				enabled = row.enabled,
 				shapes = SegmentedListItemDefaults.segmentedShapes(index = index, count = rows.size),
-				colors = colors,
+				colors = if (row.destructive) destructiveColors else colors,
 				leadingContent = { Icon(row.icon, null) },
 				supportingContent = row.supporting?.let {
 					{ Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
