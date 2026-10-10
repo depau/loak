@@ -28,6 +28,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -324,16 +325,31 @@ class LidarrManager(
 	/** Re-reads Lidarr's artists, albums and queue into [catalog]; no-op when not configured. */
 	suspend fun refreshCatalog() {
 		if (!isConfigured) return
-		val artists = runCatching { parseArtists(getJson("api/v1/artist")) }.getOrElse {
-			Logger.w(TAG, "Lidarr artists fetch failed", it)
+		val artists = try {
+			parseArtists(getJson("api/v1/artist"))
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			Logger.w(TAG, "Lidarr artists fetch failed", e)
 			emptyList()
 		}
-		val albums = runCatching { parseAlbums(getJson("api/v1/album")) }.getOrElse {
-			Logger.w(TAG, "Lidarr albums fetch failed", it)
+		val albums = try {
+			parseAlbums(getJson("api/v1/album"))
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			Logger.w(TAG, "Lidarr albums fetch failed", e)
 			emptyList()
 		}
-		val queue = runCatching { parseQueue(getJson("api/v1/queue") { parameter("includeAlbum", true); parameter("pageSize", 200) }) }.getOrElse {
-			Logger.w(TAG, "Lidarr queue fetch failed", it)
+		val queue = try {
+			parseQueue(getJson("api/v1/queue") {
+				parameter("includeAlbum", true)
+				parameter("pageSize", 200)
+			})
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			Logger.w(TAG, "Lidarr queue fetch failed", e)
 			emptyList()
 		}
 		catalog.value = LidarrCatalog(artists, albums, queue)
@@ -342,8 +358,15 @@ class LidarrManager(
 	/** Refreshes only the queue (the piece that changes while downloading). */
 	suspend fun refreshQueue() {
 		if (!isConfigured) return
-		val queue = runCatching { parseQueue(getJson("api/v1/queue") { parameter("includeAlbum", true); parameter("pageSize", 200) }) }.getOrElse {
-			Logger.w(TAG, "Lidarr queue fetch failed", it)
+		val queue = try {
+			parseQueue(getJson("api/v1/queue") {
+				parameter("includeAlbum", true)
+				parameter("pageSize", 200)
+			})
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			Logger.w(TAG, "Lidarr queue fetch failed", e)
 			return
 		}
 		catalog.value = catalog.value.copy(queue = queue)
@@ -573,22 +596,29 @@ class LidarrManager(
 		val album = lookupAlbumByMbId(releaseGroupMbid) ?: throw LidarrException("Not in Lidarr yet")
 		val title = album["title"]?.jsonPrimitive?.contentOrNull ?: albumTitle
 		val embedded = album["artist"]?.jsonObject
-		val artistMbid = embedded?.get("foreignArtistId")?.jsonPrimitive?.contentOrNull
-			?: throw LidarrException("Metadata for $title has no artist")
 		val embeddedId = embedded?.get("id")?.jsonPrimitive?.longOrNull ?: 0L
 		val existing = embeddedId > 0
+		// The album lookup only includes a partial artist on some Lidarr releases. The POST
+		// model still validates rootFolderPath, so reuse the full existing artist instead.
+		val artistJson = if (existing) getJson("api/v1/artist/$embeddedId").jsonObject else embedded
+		val artistMbid = artistJson?.get("foreignArtistId")?.jsonPrimitive?.contentOrNull
+			?: embedded?.get("foreignArtistId")?.jsonPrimitive?.contentOrNull
+			?: throw LidarrException("Metadata for $title has no artist")
 
 		val artist = if (existing) {
 			// existing-artist recipe: reuse the artist's own settings, monitor just the added album
 			AlbumArtistFields(
 				id = embeddedId,
-				name = embedded?.get("artistName")?.jsonPrimitive?.contentOrNull ?: "",
-				qualityProfileId = embedded?.get("qualityProfileId")?.jsonPrimitive?.longOrNull ?: qualityProfileId,
-				rootFolderPath = embedded?.get("rootFolderPath")?.jsonPrimitive?.contentOrNull ?: rootFolderPath,
-				metadataProfileId = embedded?.get("metadataProfileId")?.jsonPrimitive?.longOrNull ?: metadataProfileId,
+				name = artistJson?.get("artistName")?.jsonPrimitive?.contentOrNull ?: "",
+				qualityProfileId = artistJson?.get("qualityProfileId")?.jsonPrimitive?.longOrNull
+					?: qualityProfileId,
+				rootFolderPath = artistJson?.get("rootFolderPath")?.jsonPrimitive?.contentOrNull
+					?: rootFolderPath,
+				metadataProfileId = artistJson?.get("metadataProfileId")?.jsonPrimitive?.longOrNull
+					?: metadataProfileId,
 				musicBrainzId = artistMbid,
-				monitored = embedded?.get("monitored")?.jsonPrimitive?.booleanOrNull ?: true,
-				monitorNewItems = embedded?.get("monitorNewItems")?.jsonPrimitive?.contentOrNull ?: "none",
+				monitored = artistJson?.get("monitored")?.jsonPrimitive?.booleanOrNull ?: true,
+				monitorNewItems = artistJson?.get("monitorNewItems")?.jsonPrimitive?.contentOrNull ?: "none",
 				monitor = "none"
 			)
 		} else {
