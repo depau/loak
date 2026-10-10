@@ -156,6 +156,25 @@ fun parseCountryCharts(root: JsonObject): List<DeezerCountryChart> {
 }
 
 /**
+ * The playable search result matching a ListenBrainz track. Deezer's `track:`/`artist:`
+ * field query is unsupported by its public API, so first require a normalised title and then
+ * prefer the exact artist or exact title; a title match is still useful when ListenBrainz
+ * carries credits Deezer folds into the track title or primary artist.
+ */
+internal fun previewMatch(
+	songs: List<DiscoverSong>,
+	title: String,
+	artist: String
+): DiscoverSong? {
+	val matchingTitle = songs.filter {
+		it.previewUrl != null && normalizeTitle(it.title) == normalizeTitle(title)
+	}
+	return matchingTitle.firstOrNull { normalizeArtist(it.artist) == normalizeArtist(artist) }
+		?: matchingTitle.firstOrNull { it.title.equals(title, ignoreCase = true) }
+		?: matchingTitle.firstOrNull()
+}
+
+/**
  * Deezer's public search API. No auth, no key; errors come back as HTTP 200 with an
  * "error" object, and code 4 (quota) gets one retry after a short pause.
  */
@@ -225,18 +244,15 @@ class DeezerClient {
 	// ponytail: exact-title/day cache for preview lookups; a generic TTL cache only pays off with more hits
 	private val previewUrlCache = HashMap<String, String?>()
 
+
 	/**
-	 * The preview URL of [title] by [artist], found by a Deezer track search
-	 * (`track:"title" artist:"artist"`) and cached per exact title+artist for the session.
-	 * Null when Deezer has no match or the call fails. Used by the "made for you"
-	 * playlists, whose ListenBrainz tracks carry no preview.
+	 * The preview URL of [title] by [artist], found through a broad Deezer track search and cached
+	 * per exact title+artist for the session. Null when Deezer has no title match or the call fails.
+	 * Used by the "made for you" playlists, whose ListenBrainz tracks carry no preview.
 	 */
 	suspend fun resolveSongPreview(title: String, artist: String): String? {
 		previewUrlCache["$title\u0000$artist"]?.let { return it }
-		val url = orNull {
-			search("""track:"$title" artist:"$artist"""")
-				.firstOrNull { song -> song.previewUrl != null }?.previewUrl
-		}
+		val url = orNull { previewMatch(search("$title $artist"), title, artist)?.previewUrl }
 		previewUrlCache["$title\u0000$artist"] = url
 		return url
 	}

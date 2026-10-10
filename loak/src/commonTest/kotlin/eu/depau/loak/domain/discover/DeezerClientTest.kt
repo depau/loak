@@ -71,6 +71,30 @@ class DeezerClientTest {
 	}
 
 	@Test
+	fun previewMatchPrefersExactArtistOverEarlierTitleMatch() {
+		val wrongArtist = DiscoverSong("1", "The Motto", "Cover Artist", previewUrl = "wrong")
+		val exact = DiscoverSong("2", "The Motto", "Tiësto & Ava Max", previewUrl = "right")
+
+		assertEquals(exact, previewMatch(listOf(wrongArtist, exact), "The Motto", "Tiesto & Ava Max"))
+	}
+
+	@Test
+	fun previewMatchPrefersUnversionedTitleWhenArtistCreditsDiffer() {
+		val remix = DiscoverSong("1", "The Motto (VIP Mix)", "Tiësto", previewUrl = "remix")
+		val original = DiscoverSong("2", "The Motto", "Tiësto", previewUrl = "original")
+
+		assertEquals(original, previewMatch(listOf(remix, original), "The Motto", "Tiësto & Ava Max"))
+	}
+
+	@Test
+	fun previewMatchFallsBackToTitleWhenCreditsDiffer() {
+		val coldplay = DiscoverSong("1", "A Sky Full of Stars", "Coldplay", previewUrl = "preview")
+
+		assertEquals(coldplay, previewMatch(listOf(coldplay), "A Sky Full of Stars", "Coldplay & Rihanna"))
+		assertNull(previewMatch(listOf(coldplay), "Yellow", "Coldplay"))
+	}
+
+	@Test
 	fun parsesAlbumSearchResult() {
 		val album = discoverAlbumOf(
 			json.parseToJsonElement("""{
