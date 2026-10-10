@@ -38,6 +38,10 @@ import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.manager.ShareManager
 import eu.depau.loak.domain.manager.LidarrManager
+import androidx.compose.runtime.produceState
+import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.discover.MusicBrainzClient
+import eu.depau.loak.domain.discover.DeezerClient
 import eu.depau.loak.domain.manager.albumFor
 import eu.depau.loak.domain.manager.artistFor
 import eu.depau.loak.generated.resources.Res
@@ -173,9 +177,16 @@ fun DiscoverSongSheet(song: DiscoverSong, onDismissRequest: () -> Unit, onAddToL
 	val previewing = active?.takeIf { it.isPlaying }?.song?.id == song.id
 	val deezerUrl = song.deezerId?.let { "https://www.deezer.com/track/$it" }
 	val lidarr = koinInject<LidarrManager>()
+	val musicBrainz = koinInject<MusicBrainzClient>()
 	val catalog by lidarr.catalog.collectAsState()
-	// Lidarr has no page per track: its album's
-	val lidarrUrl = catalog.albumFor(null, song.album, song.artist)?.musicBrainzId?.let(lidarr::albumPageUrl)
+	// Lidarr has no page per track: its release group's
+	val releaseGroup by produceState<String?>(null, song) {
+		if (lidarr.isConfigured) value = musicBrainz.songReleaseGroup(song.isrc, song.title, song.artist, song.album)
+	}
+	val lidarrUrl = lidarr.albumUrl(
+		catalog.albumFor(releaseGroup, song.album, song.artist),
+		releaseGroup
+	)
 
 	DiscoverSheet(
 		art = song.coverUrl,
@@ -214,12 +225,17 @@ fun DiscoverSongSheet(song: DiscoverSong, onDismissRequest: () -> Unit, onAddToL
 
 /** A Discover album's options sheet: add to Lidarr, its artist, share, and its pages elsewhere. */
 @Composable
-fun DiscoverAlbumSheet(album: DiscoverAlbum, onDismissRequest: () -> Unit, addFlow: LidarrAddFlow) {
+fun DiscoverAlbumSheet(item: DiscoverAlbum, onDismissRequest: () -> Unit, addFlow: LidarrAddFlow) {
 	val opener = rememberDiscoverOpener()
+	val deezer = koinInject<DeezerClient>()
+	val musicBrainz = koinInject<MusicBrainzClient>()
+	val useDeezer = koinInject<PreferenceManager>().deezerEnabled
+	// the same links and details wherever it's opened from, however little the list knew
+	val album by produceState(item, item) { value = completeAlbum(item, deezer, musicBrainz, useDeezer) }
 	val deezerUrl = album.deezerId?.let { "https://www.deezer.com/album/$it" }
 	val lidarr = koinInject<LidarrManager>()
 	val catalog by lidarr.catalog.collectAsState()
-	val lidarrUrl = catalog.albumFor(album)?.musicBrainzId?.let(lidarr::albumPageUrl)
+	val lidarrUrl = lidarr.albumUrl(catalog.albumFor(album), album.mbid)
 	DiscoverSheet(
 		art = album.coverUrl,
 		title = album.title,
@@ -244,11 +260,15 @@ fun DiscoverAlbumSheet(album: DiscoverAlbum, onDismissRequest: () -> Unit, addFl
 
 /** A Discover artist's options sheet: add to Lidarr, share, and its pages elsewhere. */
 @Composable
-fun DiscoverArtistSheet(artist: DiscoverArtist, onDismissRequest: () -> Unit, addFlow: LidarrAddFlow) {
+fun DiscoverArtistSheet(item: DiscoverArtist, onDismissRequest: () -> Unit, addFlow: LidarrAddFlow) {
+	val deezer = koinInject<DeezerClient>()
+	val musicBrainz = koinInject<MusicBrainzClient>()
+	val useDeezer = koinInject<PreferenceManager>().deezerEnabled
+	val artist by produceState(item, item) { value = completeArtist(item, deezer, musicBrainz, useDeezer) }
 	val deezerUrl = artist.deezerId?.let { "https://www.deezer.com/artist/$it" }
 	val lidarr = koinInject<LidarrManager>()
 	val catalog by lidarr.catalog.collectAsState()
-	val lidarrUrl = catalog.artistFor(artist)?.musicBrainzId?.let(lidarr::artistPageUrl)
+	val lidarrUrl = lidarr.artistUrl(catalog.artistFor(artist), artist.mbid)
 	DiscoverSheet(
 		art = artist.pictureUrl,
 		title = artist.name,
@@ -267,4 +287,36 @@ fun DiscoverArtistSheet(artist: DiscoverArtist, onDismissRequest: () -> Unit, ad
 		onDismissRequest = onDismissRequest,
 		artShape = CircleShape
 	)
+}
+
+/** [album] with what Deezer knows of it (the album page's own source) and its release group. */
+private suspend fun completeAlbum(
+	album: DiscoverAlbum,
+	deezer: DeezerClient,
+	musicBrainz: MusicBrainzClient,
+	useDeezer: Boolean
+): DiscoverAlbum {
+	val found = if (album.deezerId == null && useDeezer) deezer.findAlbum(album.title, album.artist) else null
+	val known = if (found == null) album else album.copy(
+		deezerId = found.deezerId,
+		recordType = found.recordType ?: album.recordType,
+		year = found.year ?: album.year,
+		artistDeezerId = album.artistDeezerId ?: found.artistDeezerId
+	)
+	if (known.mbid != null) return known
+	val group = known.deezerId?.let { deezer.getAlbumUpc(it) }?.let { musicBrainz.resolveReleaseGroupByUpc(it) }
+		?: musicBrainz.searchReleaseGroup(known.title, known.artist)
+	return known.copy(mbid = group?.id?.takeIf { it.isNotEmpty() })
+}
+
+/** [artist] with its Deezer id and picture, and its MusicBrainz id. */
+private suspend fun completeArtist(
+	artist: DiscoverArtist,
+	deezer: DeezerClient,
+	musicBrainz: MusicBrainzClient,
+	useDeezer: Boolean
+): DiscoverArtist {
+	val found = if (artist.deezerId == null && useDeezer) deezer.findArtist(artist.name) else null
+	val known = artist.copy(deezerId = artist.deezerId ?: found?.deezerId, pictureUrl = artist.pictureUrl ?: found?.pictureUrl)
+	return if (known.mbid != null) known else known.copy(mbid = musicBrainz.searchArtist(known.name)?.id?.takeIf { it.isNotEmpty() })
 }

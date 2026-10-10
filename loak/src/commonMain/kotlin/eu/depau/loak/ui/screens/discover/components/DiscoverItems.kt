@@ -105,7 +105,8 @@ fun rememberDiscoverOpener(): DiscoverOpener {
 
 @Composable
 fun albumKind(album: DiscoverAlbum) = stringResource(
-	when (album.recordType) {
+	// Deezer says "single", MusicBrainz and ListenBrainz "Single"
+	when (album.recordType?.lowercase()) {
 		"single" -> Res.string.label_kind_single
 		"ep" -> Res.string.label_kind_ep
 		"compile" -> Res.string.label_kind_compilation

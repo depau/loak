@@ -53,6 +53,8 @@ fun freshReleaseAlbumOf(item: JsonObject): DiscoverAlbum? {
 		title = title,
 		artist = artist,
 		coverUrl = coverUrl,
+		year = item["release_date"]?.jsonPrimitive?.contentOrNull?.take(4)?.toIntOrNull(),
+		recordType = item["release_group_primary_type"]?.jsonPrimitive?.contentOrNull,
 		mbid = releaseGroup
 	)
 }

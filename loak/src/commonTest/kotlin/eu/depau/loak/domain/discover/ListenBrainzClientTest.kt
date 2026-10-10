@@ -52,6 +52,7 @@ class ListenBrainzClientTest {
 			"artist_credit_name": "Some Artist",
 			"artist_mbids": ["e2ef1279-ee73-4b6c-9f47-4b4c05cc06da"],
 			"release_group_primary_type": "Album",
+			"release_date": "2026-09-30",
 			"caa_id": 46358373164,
 			"caa_release_mbid": "544589e6-22ed-4bf9-ad5d-d21117b75758"
 		}""".trimIndent()).jsonObject)
@@ -61,6 +62,8 @@ class ListenBrainzClientTest {
 		assertEquals("19cfbf79-cc83-4fa5-9571-24b35040442d", album.id)
 		assertEquals("Some Album", album.title)
 		assertEquals("Some Artist", album.artist)
+		assertEquals("Album", album.recordType)
+		assertEquals(2026, album.year)
 		assertEquals(
 			"https://coverartarchive.org/release/544589e6-22ed-4bf9-ad5d-d21117b75758/46358373164-250.jpg",
 			album.coverUrl

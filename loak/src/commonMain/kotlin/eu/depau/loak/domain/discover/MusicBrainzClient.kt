@@ -106,6 +106,16 @@ class MusicBrainzClient {
 		return search("recording:\"$title\" AND artist:\"$artist\"") ?: SongReleases(null, null, emptyList())
 	}
 
+	/**
+	 * The release group a song is best known by: the one titled like its [album] when given, else
+	 * the default pick ([selectDefaultReleaseGroup]). Null when MusicBrainz doesn't know the song.
+	 */
+	suspend fun songReleaseGroup(isrc: String?, title: String, artist: String, album: String?): String? {
+		val groups = songReleases(isrc, title, artist).groups
+		return (album?.let { a -> groups.firstOrNull { normalizeTitle(it.title) == normalizeTitle(a) } }
+			?: selectDefaultReleaseGroup(groups) ?: groups.firstOrNull())?.id
+	}
+
 	/** The exact artist by name (score == 100), per spec. */
 	suspend fun searchArtist(name: String): MusicBrainzArtist? {
 		val result = getJson("/artist", mapOf("query" to "artist:\"$name\"")) ?: return null

@@ -26,6 +26,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -793,6 +794,25 @@ class LidarrManager(
 
 	/** The album's page in Lidarr's web UI, by its MusicBrainz release group. */
 	fun albumPageUrl(foreignAlbumId: String) = "$baseUrl/album/$foreignAlbumId"
+
+	/**
+	 * Where Lidarr shows an album: its page when Lidarr has it ([inLidarr]), else its add page
+	 * looking up release group [mbid]. Null without Lidarr, or with neither.
+	 */
+	fun albumUrl(inLidarr: LidarrAlbumSnapshot?, mbid: String?) =
+		link(inLidarr?.musicBrainzId?.let(::albumPageUrl), mbid)
+
+	/** Where Lidarr shows an artist: like [albumUrl], for artists. */
+	fun artistUrl(inLidarr: LidarrArtistSnapshot?, mbid: String?) =
+		link(inLidarr?.musicBrainzId?.let(::artistPageUrl), mbid)
+
+	// its add page takes "lidarr:<mbid>" for artists and release groups alike
+	private fun link(page: String?, mbid: String?) = when {
+		!isConfigured -> null
+		page != null -> page
+		mbid != null -> "$baseUrl/add/search?term=${"lidarr:$mbid".encodeURLParameter()}"
+		else -> null
+	}
 
 	/** Sends the `AlbumSearch` command for the given album ids. */
 	private suspend fun triggerAlbumSearch(albumIds: List<Long>) {
