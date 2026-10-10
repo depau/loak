@@ -333,7 +333,7 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 		}
 	}
 	when (top) {
-		is DiscoverSong -> SongGestures(top, status, onPreview, addFlow) { gestures, _ -> card(gestures) }
+		is DiscoverSong -> SongGestures(top, onPreview, addFlow) { gestures, _ -> card(gestures) }
 		is DiscoverAlbum -> AlbumGestures(top, addFlow) { gestures, _ -> card(gestures) }
 		is DiscoverArtist -> ArtistGestures(top, addFlow) { gestures, _ -> card(gestures) }
 	}

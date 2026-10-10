@@ -350,7 +350,7 @@ private fun TrackRow(
 	onPreview: () -> Unit
 ) {
 	val status = librarySong?.let { DiscoverBadgeState.InLibrary(song = it) } ?: DiscoverBadgeState.None
-	SongGestures(track, status, { onPreview() }, addFlow) { gestures, _ ->
+	SongGestures(track, { onPreview() }, addFlow) { gestures, _ ->
 		ListItem(
 			modifier = gestures,
 			leadingContent = {

@@ -31,7 +31,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,7 +48,6 @@ import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSong
-import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.discover.ListenBrainzPlaylist
 import eu.depau.loak.domain.discover.deezerImageUrl
 import eu.depau.loak.domain.manager.DiscoverBadgeState
@@ -67,8 +65,6 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Pause
 import eu.depau.loak.icons.filled.Play
 import eu.depau.loak.icons.outlined.MoreVert
-import eu.depau.loak.shared.MediaPlayerViewModel
-import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.TopBarButton
@@ -76,54 +72,35 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.theme.SmallCoverArtShape
 import eu.depau.loak.ui.util.onSecondaryClick
 import eu.depau.loak.ui.util.shimmerLoading
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.pluralStringResource
-import org.koin.compose.koinInject
 
 /**
- * Opens Discover albums and artists where they live: Lo'ak's own page when the library has
- * them, Discover's page otherwise.
+ * Opens Discover albums and artists on Discover's own pages, even when the library has them: there
+ * they show what can be downloaded, the library only badging what it already holds.
  */
 @Stable
-class DiscoverOpener internal constructor(
-	private val scope: CoroutineScope,
-	private val matcher: LibraryMatcher,
-	private val backStack: NavBackStack<NavKey>
-) {
-	private var opening: Job? = null
-
+class DiscoverOpener internal constructor(private val backStack: NavBackStack<NavKey>) {
 	/** Opens [album]; [then] runs once the page is on the stack (a sheet closing itself, say). */
-	fun album(album: DiscoverAlbum, then: () -> Unit = {}) = open(then) {
-		matcher.albumInLibrary(album)?.let { Screen.CollectionDetail(it.id, "library") }
-			?: Screen.DiscoverAlbum(album.deezerId, album.mbid, album.title, album.artist)
-	}
+	fun album(album: DiscoverAlbum, then: () -> Unit = {}) =
+		open(Screen.DiscoverAlbum(album.deezerId, album.mbid, album.title, album.artist), then)
 
 	/** Opens [artist]; [then] runs once the page is on the stack. */
-	fun artist(artist: DiscoverArtist, then: () -> Unit = {}) = open(then) {
-		matcher.artistInLibrary(artist)?.let { Screen.ArtistDetail(it.id) }
-			?: Screen.DiscoverArtist(artist.deezerId, artist.mbid, artist.name)
-	}
+	fun artist(artist: DiscoverArtist, then: () -> Unit = {}) =
+		open(Screen.DiscoverArtist(artist.deezerId, artist.mbid, artist.name), then)
 
-	/** One at a time, so a double tap doesn't push the page twice. */
-	private fun open(then: () -> Unit, screen: suspend () -> Screen) {
-		if (opening?.isActive == true) return
-		opening = scope.launch {
-			backStack.add(screen())
-			then()
-		}
+	/** A double tap doesn't push the page twice. */
+	private fun open(screen: Screen, then: () -> Unit) {
+		if (backStack.lastOrNull() != screen) backStack.add(screen)
+		then()
 	}
 }
 
 @Composable
 fun rememberDiscoverOpener(): DiscoverOpener {
-	val scope = rememberCoroutineScope()
-	val matcher = koinInject<LibraryMatcher>()
 	val backStack = LocalNavStack.current
-	return remember { DiscoverOpener(scope, matcher, backStack) }
+	return remember(backStack) { DiscoverOpener(backStack) }
 }
 
 @Composable
@@ -170,34 +147,25 @@ fun PreviewButton(previewing: Boolean, onClick: () -> Unit, enabled: Boolean = t
 val DiscoverSong.hasPreview get() = previewUrl != null || deezerId != null
 
 /**
- * A Discover song's gestures, handed to [content] as a modifier plus how to open its sheet: a
- * song already in the library plays with the normal player on tap and has the normal song sheet;
- * any other toggles its preview and has [DiscoverSongSheet].
+ * A Discover song's gestures, handed to [content] as a modifier plus how to open its sheet: tap
+ * toggles its preview, long-press or right-click opens [DiscoverSongSheet]. Songs the library has
+ * behave the same, only badged.
  */
 @Composable
 fun SongGestures(
 	song: DiscoverSong,
-	status: DiscoverBadgeState,
 	onPreview: (DiscoverSong) -> Unit,
 	addFlow: LidarrAddFlow,
 	content: @Composable (gestures: Modifier, openSheet: () -> Unit) -> Unit
 ) {
-	val librarySong = (status as? DiscoverBadgeState.InLibrary)?.song
-	val player = koinInject<MediaPlayerViewModel>()
 	var sheetOpen by rememberSaveable { mutableStateOf(false) }
-	if (librarySong != null) SongActionsSheet(librarySong, sheetOpen, onDismissRequest = { sheetOpen = false })
-	else if (sheetOpen) DiscoverSongSheet(
+	if (sheetOpen) DiscoverSongSheet(
 		song,
 		onDismissRequest = { sheetOpen = false },
 		onAddToLidarr = { addFlow.addSong(song) }
 	)
 	val openSheet = { sheetOpen = true }
-	content(
-		Modifier.onSecondaryClick(openSheet).combinedClickable(onLongClick = openSheet) {
-			if (librarySong != null) player.playNow(librarySong) else onPreview(song)
-		},
-		openSheet
-	)
+	content(Modifier.onSecondaryClick(openSheet).combinedClickable(onLongClick = openSheet) { onPreview(song) }, openSheet)
 }
 
 /** A Discover album's gestures: opens it on tap, its options sheet on long-press or right-click. */
@@ -288,7 +256,7 @@ fun SongItem(
 	onPreview: () -> Unit
 ) {
 	val status = rememberDiscoverStatus(song)
-	SongGestures(song, status, { onPreview() }, addFlow) { gestures, openSheet ->
+	SongGestures(song, { onPreview() }, addFlow) { gestures, openSheet ->
 		ResultItem(
 			song.coverUrl, song.title, subtitle, status, gestures,
 			previewing = previewing,
@@ -466,7 +434,7 @@ fun ChartSongItem(
 	onPreview: () -> Unit
 ) {
 	val status = rememberDiscoverStatus(song)
-	SongGestures(song, status, { onPreview() }, addFlow) { gestures, _ ->
+	SongGestures(song, { onPreview() }, addFlow) { gestures, _ ->
 		ListItem(
 			modifier = gestures,
 			leadingContent = {
