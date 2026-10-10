@@ -57,6 +57,9 @@ fun initializeSentry(release: String? = null) {
 		options.dist = SENTRY_BUILD_COMMIT
 		options.attachStackTrace = true
 		options.attachThreads = true
+		// Never send the host/LAN IP: Sentry fills the `server_name` tag from the
+		// machine's resolved name when this is unset (it leaked e.g. 192.168.3.130).
+		// The JVM actuals also call setAttachServerName(false) on the native options.
 		// Compose Multiplatform on Apple targets: unhandled Kotlin exceptions can
 		// otherwise surface as generic C++ crashes instead of useful stack traces.
 		options.enableUnhandledCppExceptionMonitoring = false

@@ -58,7 +58,29 @@ private val HOST_PORT_REGEX = Regex(
 )
 
 /**
- * Matches credential-style `key=value` / `key: value` assignments anywhere in
+ * Matches `file:` URIs and bare POSIX/Windows absolute paths — the local
+ * filesystem path of a downloaded/streamed file, which would leak the user's
+ * home dir and username (LOAK-10/Z shipped `file:/Users/<user>/Library/…`).
+ * `file:` alone is dropped as a bare scheme; require the scheme plus a path.
+ * The path runs to the first whitespace or quote/angle/bracket/paren that
+ * would end it in stack-trace and message text.
+ */
+private val FILE_PATH_REGEX = Regex(
+	"""file:(?:/{1,3})?(?:[A-Za-z]:)?[/\\][^\n"'<>]{0,512}\S""",
+	RegexOption.IGNORE_CASE
+)
+
+/**
+ * Thread names carry the target as a bare label: OkHttp names its worker
+ * threads after the connection (`OkHttp starrs.depau.eu`, `OkHttp dn7.ca.…`,
+ * sometimes with a URL). Layer-1 host regexes require a port/IP, so a bare
+ * hostname in a thread name would slip through; redact the whole `label` tail.
+ */
+private val THREAD_HOST_REGEX =
+	Regex("""(?:^|[\s])(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?:[:/][^\s]*)?(?=\s*$)""")
+
+/**
+ * Matches credential-style `key=value` / `key: value` assignments anywhere in
  * error text, in case a token or username surfaces without an enclosing URL.
  */
 private const val SENSITIVE_PARAM_KEYS =
@@ -128,6 +150,7 @@ internal data class Censored(val text: String, val breached: List<String>)
 internal fun censorSentryText(raw: String): Censored {
 	val l1 = URL_REGEX.replace(raw, "[REDACTED_URL]")
 		.let { HOST_PORT_REGEX.replace(it, "[REDACTED_HOST]") }
+		.let { FILE_PATH_REGEX.replace(it, "[REDACTED_PATH]") }
 		.let { UNKNOWN_HOST_REGEX.replace(it, "UnknownHostException: [REDACTED_HOST]") }
 		.let { QUOTED_HOST_REGEX.replace(it) { m ->
 			"resolve host " + m.groupValues[1] + "[REDACTED_HOST]" + m.groupValues[1]
@@ -142,6 +165,14 @@ internal fun censorSentryText(raw: String): Censored {
 
 /** Redact URLs, hostnames, IPs and credential assignments from a string. */
 internal fun String.sanitizeSentryText(): String = censorSentryText(this).text
+
+/**
+ * Redact the connection target from a thread name: the usual censor pass plus
+ * the bare-hostname tail OkHttp prints (`OkHttp starrs.depau.eu`), which has no
+ * port/IP to trigger [HOST_PORT_REGEX].
+ */
+internal fun String.sanitizeThreadName(): String =
+	THREAD_HOST_REGEX.replace(censorSentryText(this).text) { " [REDACTED_HOST]" }
 
 /** Sentinel tag on any shipping event that layer 2 had to scrub. Alerts can key on it. */
 internal const val CENSOR_BREACH_TAG = "sentry.censor-breach"

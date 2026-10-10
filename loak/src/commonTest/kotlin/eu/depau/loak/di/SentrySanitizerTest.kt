@@ -75,6 +75,19 @@ class SentrySanitizerTest {
 		assertEquals("[REDACTED_HOST] refused", out)
 	}
 
+	@Test
+	fun redactsFileUriAndLocalPath() {
+		// LOAK-10/Z regression: the desktop audio store's file path leaks the home dir + user.
+		val out = "URI is not absolute: file:/Users/ddepau/Library/Application Support/Loak/audio/ab12%40.mp3".sanitizeSentryText()
+		assertEquals("URI is not absolute: [REDACTED_PATH]", out)
+	}
+
+	@Test
+	fun redactsWindowsAndFileSlashVariants() {
+		val out = "found at file:C:\\Users\\ddepau\\AppData\\Loak\\x.mp3\nand file:///tmp/a 1.mp3".sanitizeSentryText()
+		assertEquals("found at [REDACTED_PATH]\nand [REDACTED_PATH]", out)
+	}
+
 	// endregion
 
 	// region layer 2: exact-match safety net on the user's real identifiers

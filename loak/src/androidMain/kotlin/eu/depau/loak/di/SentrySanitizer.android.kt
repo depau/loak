@@ -29,6 +29,8 @@ internal actual fun fireBreachAlert(message: String) {
 
 internal actual fun registerJvmSentrySanitizer() {
 	val options = Sentry.getCurrentHub().options
+	// never tag events with the host/LAN IP (see SentrySetup initializeSentry)
+	options.setAttachServerName(false)
 	options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, _ ->
 		sanitizeJvmEvent(event)
 	}
@@ -76,6 +78,15 @@ private fun sanitizeJvmEvent(event: SentryEvent): SentryEvent? {
 		ex.value = scrub(ex.value)
 	}
 	event.transaction = scrub(event.transaction)
+	// Thread names carry OkHttp's `host` label (and the LAN IP as `server_name`
+	// handles elsewhere): scrub them like any other text so no host/IP rides out.
+	event.threads?.forEach { thread ->
+		thread.name = thread.name?.sanitizeThreadName()
+	}
+	// Tags can hold host values (e.g. from spans); scrub the string ones.
+	event.tags?.forEach { (key, value) ->
+		if (value != null) event.setTag(key, scrub(value))
+	}
 	if (breached.isNotEmpty()) {
 		// layer 2 had to scrub a real identifier: flag the shipping event and alert
 		event.setTag(CENSOR_BREACH_TAG, "1")
