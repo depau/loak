@@ -36,7 +36,18 @@ class AlbumRepository(
 			audioStore.downloadedIds()
 		} else null
 
-		val rawAlbums = albumDao.getAlbumsByQuery(listType.toSqlQuery())
+		// A Random list can't live in SQL: Room reads a relation query's rows twice (once to
+		// prime each child key, once for the result), so ORDER BY RANDOM() LIMIT 30 returns a
+		// different set on each pass and the second pass misses a map key it created in the
+		// first (LOAK-11: "Key … is missing in the map"). Sample the id set once in Kotlin,
+		// then fetch those albums by a fixed id list, which is stable across both passes.
+		val rawAlbums = if (listType == DomainAlbumListType.Random) {
+			val ids = albumDao.getAllAlbumIds().shuffled().take(30)
+			val byId = albumDao.getAlbumsByIds(ids).associateBy { it.album.albumId }
+			ids.mapNotNull(byId::get)
+		} else {
+			albumDao.getAlbumsByQuery(listType.toSqlQuery())
+		}
 		Logger.i("AlbumRepository", "getLocalData ($listType): fetched ${rawAlbums.size} albums")
 		return rawAlbums
 			.map { it.toDomainModel() }
