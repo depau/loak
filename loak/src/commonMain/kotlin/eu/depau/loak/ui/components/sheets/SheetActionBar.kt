@@ -3,6 +3,7 @@ package eu.depau.loak.ui.components.sheets
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -210,7 +210,7 @@ fun SheetRows(rows: List<SheetRow>) {
 	}
 }
 
-/** An item's pages elsewhere, as chips after "Open in"; nothing when it has none. */
+/** An item's pages elsewhere, as chips under an "Open in" heading; nothing when it has none. */
 @Composable
 fun SheetLinks(
 	lastFmUrl: String?,
@@ -219,16 +219,18 @@ fun SheetLinks(
 	deezerUrl: String? = null
 ) {
 	if (lastFmUrl == null && musicBrainzUrl == null && deezerUrl == null) return
-	Row(
-		Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-		horizontalArrangement = Arrangement.spacedBy(8.dp),
-		verticalAlignment = Alignment.CenterVertically
+	// the heading on its own line, like the sheets' other section titles: inline, it sat
+	// misaligned beside the chips and left them wrapping under it
+	Text(
+		stringResource(Res.string.label_open_in),
+		style = MaterialTheme.typography.labelLarge,
+		color = MaterialTheme.colorScheme.primary,
+		modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp)
+	)
+	FlowRow(
+		Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
+		horizontalArrangement = Arrangement.spacedBy(8.dp)
 	) {
-		Text(
-			stringResource(Res.string.label_open_in),
-			style = MaterialTheme.typography.bodyMedium,
-			color = MaterialTheme.colorScheme.onSurfaceVariant
-		)
 		// brand names, not translated
 		lastFmUrl?.let { LinkChip("last.fm", Icons.Brand.Lastfm) { onOpen(it) } }
 		musicBrainzUrl?.let { LinkChip("MusicBrainz", Icons.Brand.Musicbrainz) { onOpen(it) } }
