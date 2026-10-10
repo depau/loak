@@ -4,6 +4,7 @@ import eu.depau.loak.domain.discover.selectDefaultReleaseGroup
 import eu.depau.loak.domain.discover.MusicBrainzReleaseGroup
 import eu.depau.loak.domain.discover.isSecondary
 import eu.depau.loak.domain.discover.songReleasesOf
+import eu.depau.loak.domain.discover.musicBrainzAlbumOf
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -201,5 +202,29 @@ class MusicBrainzAndLidarrAddTest {
 		assertEquals(10, releases.groups[0].trackCount)
 		assertEquals("rg1", selectDefaultReleaseGroup(releases.groups)?.id)
 		assertEquals(listOf(false, true), releases.groups.map { it.isSecondary() })
+	}
+
+	@Test
+	fun foldsAReleaseGroupAndItsReleaseIntoAnAlbumPage() {
+		val group = json.parseToJsonElement("""
+			{"id":"rg1","title":"finir en (...)","primary-type":"Single","first-release-date":"2026-09-30",
+			 "artist-credit":[{"name":"A","joinphrase":" & "},{"name":"B"}]}
+		""").jsonObject
+		val release = json.parseToJsonElement("""
+			{"media":[
+				{"tracks":[{"id":"t1","title":"One","length":61000,"recording":{"id":"r1","title":"One"}}]},
+				{"tracks":[{"id":"t2","title":"One","recording":{"id":"r1","length":2000},
+				  "artist-credit":[{"name":"C"}]}]}
+			]}
+		""").jsonObject
+		val (album, tracks) = musicBrainzAlbumOf(group, release)
+		assertEquals("A & B", album.artist)
+		assertEquals(2026, album.year)
+		assertEquals("Single", album.recordType)
+		// both media, keyed by track so a repeated recording stays unique
+		assertEquals(listOf("t1", "t2"), tracks.map { it.id })
+		assertEquals(listOf("r1", "r1"), tracks.map { it.mbid })
+		assertEquals(listOf("A & B", "C"), tracks.map { it.artist })
+		assertEquals(listOf(61, 2), tracks.map { it.duration })
 	}
 }

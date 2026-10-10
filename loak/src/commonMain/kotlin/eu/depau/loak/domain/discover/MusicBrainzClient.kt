@@ -131,6 +131,19 @@ class MusicBrainzClient {
 	}
 
 	/**
+	 * A release group as an album page, for what Deezer doesn't have: its earliest official
+	 * release's tracklist. Null when MusicBrainz doesn't know it or can't be reached.
+	 */
+	suspend fun getAlbum(rgMbid: String): Pair<DiscoverAlbum, List<DiscoverSong>>? {
+		val group = getJson("/release-group/$rgMbid", mapOf("inc" to "releases+artist-credits")) ?: return null
+		val release = group["releases"]?.jsonArray.orEmpty().map { it.jsonObject }
+			.sortedWith(compareBy({ it.str("status") != "Official" }, { it.str("date").isNullOrEmpty() }, { it.str("date") }))
+			.firstOrNull()?.str("id") ?: return null
+		val tracks = getJson("/release/$release", mapOf("inc" to "recordings+artist-credits")) ?: return null
+		return musicBrainzAlbumOf(group, tracks)
+	}
+
+	/**
 	 * Deezer-off fallback search: release groups and artists by name, no songs, no previews.
 	 * Two rate-limited, cached queries (one per result kind); the caller debounces to >= 1 s
 	 * to respect MusicBrainz's 1 request/s policy.
@@ -299,6 +312,47 @@ fun musicBrainzArtistOf(obj: JsonObject) = MusicBrainzArtist(
 		?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull
 		?.replaceFirstChar { it.uppercaseChar() }
 )
+
+private fun JsonObject.str(key: String) = this[key]?.jsonPrimitive?.contentOrNull
+
+private fun JsonObject.creditName() =
+	this["artist-credit"]?.jsonArray?.joinToString("") {
+		it.jsonObject.str("name").orEmpty() + it.jsonObject.str("joinphrase").orEmpty()
+	}?.takeIf { it.isNotBlank() }
+
+/**
+ * Folds a release group lookup and one of its releases (with recordings) into an album page:
+ * every medium's tracks in order. Pure, so it is unit-testable.
+ */
+fun musicBrainzAlbumOf(group: JsonObject, release: JsonObject): Pair<DiscoverAlbum, List<DiscoverSong>> {
+	val id = group.str("id").orEmpty()
+	val album = DiscoverAlbum(
+		id = id,
+		title = group.str("title").orEmpty(),
+		artist = group.creditName().orEmpty(),
+		coverUrl = "https://coverartarchive.org/release-group/$id/front-250",
+		year = group.str("first-release-date")?.take(4)?.toIntOrNull(),
+		recordType = group.str("primary-type"),
+		mbid = id
+	)
+	val tracks = release["media"]?.jsonArray.orEmpty().flatMap { medium ->
+		medium.jsonObject["tracks"]?.jsonArray.orEmpty().map { item ->
+			val track = item.jsonObject
+			val recording = track["recording"]?.jsonObject
+			DiscoverSong(
+				// a recording can repeat on a release; its track ids are unique
+				id = track.str("id") ?: recording?.str("id").orEmpty(),
+				title = track.str("title") ?: recording?.str("title").orEmpty(),
+				artist = track.creditName() ?: recording?.creditName() ?: album.artist,
+				album = album.title,
+				duration = ((track["length"] ?: recording?.get("length"))?.jsonPrimitive?.intOrNull ?: 0) / 1000,
+				coverUrl = album.coverUrl,
+				mbid = recording?.str("id")
+			)
+		}
+	}
+	return album to tracks
+}
 
 /** Maps one `/release-group` search answer to a Discover album. */
 internal fun JsonObject.discoverAlbumOfMusicBrainz() = DiscoverAlbum(
