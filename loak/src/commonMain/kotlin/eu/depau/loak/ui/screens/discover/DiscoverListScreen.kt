@@ -64,6 +64,7 @@ import eu.depau.loak.ui.screens.discover.components.ChartCountryChip
 import eu.depau.loak.ui.screens.discover.components.ChartCountryPickerSheet
 import eu.depau.loak.ui.screens.discover.components.ChartSongItem
 import eu.depau.loak.ui.screens.discover.components.DiscoverPageState
+import eu.depau.loak.ui.screens.discover.components.DiscoverSongPlaceholder
 import eu.depau.loak.ui.screens.discover.components.SongItem
 import eu.depau.loak.ui.screens.discover.components.hasPreview
 import eu.depau.loak.ui.screens.discover.components.rememberLidarrAddFlow
@@ -185,12 +186,11 @@ fun DiscoverListScreen(key: Screen.DiscoverList) {
 			if (type == DiscoverListType.TopSongs) itemsIndexed(songs, key = { _, s -> s.id }) { index, song ->
 				ChartSongItem(index + 1, song, song.id == previewing, addFlow) { previewManager.toggle(song) }
 			} else items(songs, key = { it.id }) { song ->
-				SongItem(
-					song,
-					song.id == previewing,
-					addFlow,
-					previewLoading = song.id in page.previewLoadingIds
-				) { previewManager.toggle(song) }
+				if (song.id in page.previewLoadingIds) {
+					DiscoverSongPlaceholder()
+				} else {
+					SongItem(song, song.id == previewing, addFlow) { previewManager.toggle(song) }
+				}
 			}
 			items(page.albums, key = { it.id }) { AlbumItem(it, addFlow) }
 			items(page.artists, key = { it.id }) { ArtistItem(it, addFlow) }

@@ -11,13 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -75,6 +75,7 @@ import eu.depau.loak.ui.components.layouts.TopBarButton
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.theme.SmallCoverArtShape
 import eu.depau.loak.ui.util.onSecondaryClick
+import eu.depau.loak.ui.util.shimmerLoading
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -153,24 +154,15 @@ fun WithBadge(status: DiscoverBadgeState, text: @Composable RowScope.() -> Unit)
 	}
 }
 
-/** A Discover song's round preview control, showing progress while its URL is resolving. */
+/** A Discover song's round play/pause preview button; disabled for songs without a preview. */
 @Composable
-fun PreviewButton(
-	previewing: Boolean,
-	onClick: () -> Unit,
-	enabled: Boolean = true,
-	loading: Boolean = false
-) {
-	FilledTonalIconButton(onClick = onClick, enabled = enabled && !loading) {
-		if (loading) {
-			CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-		} else {
-			Icon(
-				if (previewing) Icons.Filled.Pause else Icons.Filled.Play,
-				stringResource(if (previewing) Res.string.action_pause_preview else Res.string.action_preview),
-				Modifier.size(18.dp)
-			)
-		}
+fun PreviewButton(previewing: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
+	FilledTonalIconButton(onClick = onClick, enabled = enabled) {
+		Icon(
+			if (previewing) Icons.Filled.Pause else Icons.Filled.Play,
+			stringResource(if (previewing) Res.string.action_pause_preview else Res.string.action_preview),
+			Modifier.size(18.dp)
+		)
 	}
 }
 
@@ -246,7 +238,6 @@ fun ResultItem(
 	modifier: Modifier = Modifier,
 	artShape: Shape = SmallCoverArtShape,
 	previewing: Boolean = false,
-	previewLoading: Boolean = false,
 	onPreview: (() -> Unit)? = null,
 	onMore: () -> Unit
 ) {
@@ -261,10 +252,28 @@ fun ResultItem(
 		},
 		trailingContent = {
 			Row(verticalAlignment = Alignment.CenterVertically) {
-				if (onPreview != null) PreviewButton(previewing, onPreview, loading = previewLoading)
+				if (onPreview != null) PreviewButton(previewing, onPreview)
 				IconButton(onClick = onMore) {
 					Icon(Icons.Outlined.MoreVert, stringResource(Res.string.action_more))
 				}
+			}
+		}
+	)
+}
+
+/** A fixed-size Discover song row while its external preview lookup is pending. */
+@Composable
+fun DiscoverSongPlaceholder() {
+	ListItem(
+		leadingContent = { Box(Modifier.size(48.dp).clip(SmallCoverArtShape).shimmerLoading()) },
+		headlineContent = { Box(Modifier.width(180.dp).height(16.dp).clip(CircleShape).shimmerLoading()) },
+		supportingContent = {
+			Box(Modifier.width(132.dp).height(14.dp).clip(CircleShape).shimmerLoading())
+		},
+		trailingContent = {
+			Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+				Box(Modifier.size(40.dp).clip(CircleShape).shimmerLoading())
+				Box(Modifier.size(40.dp).clip(CircleShape).shimmerLoading())
 			}
 		}
 	)
@@ -276,7 +285,6 @@ fun SongItem(
 	previewing: Boolean,
 	addFlow: LidarrAddFlow,
 	subtitle: String = dotted(song.artist, song.album),
-	previewLoading: Boolean = false,
 	onPreview: () -> Unit
 ) {
 	val status = rememberDiscoverStatus(song)
@@ -284,7 +292,6 @@ fun SongItem(
 		ResultItem(
 			song.coverUrl, song.title, subtitle, status, gestures,
 			previewing = previewing,
-			previewLoading = previewLoading,
 			onPreview = onPreview,
 			onMore = openSheet
 		)
