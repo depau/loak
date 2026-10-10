@@ -56,6 +56,7 @@ import eu.depau.loak.di.isExpanded
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.DomainAlbum
+import eu.depau.loak.domain.models.settings.ListViewMode
 import eu.depau.loak.domain.repositories.SoundMapPoint
 import eu.depau.loak.generated.resources.*
 import eu.depau.loak.icons.Icons
@@ -66,6 +67,7 @@ import eu.depau.loak.icons.outlined.Search
 import eu.depau.loak.icons.outlined.SonicPath
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.layouts.ArtGridItem
+import eu.depau.loak.ui.components.layouts.ArtGridPlaceholder
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
 import eu.depau.loak.ui.components.layouts.NestedTopBar
@@ -78,6 +80,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import eu.depau.loak.ui.components.common.SongRow
+import eu.depau.loak.ui.util.shimmerLoading
 
 private const val TAB = "explore"
 
@@ -111,7 +114,11 @@ fun ExploreScreen() {
 	// opened from Library rather than as a tab
 	val nested = backStack.firstOrNull() != Screen.Explore
 
-	LaunchedEffect(info) { if (info != null && state.moods.isEmpty()) viewModel.refresh() }
+	LaunchedEffect(info) {
+		if (info != null && state.moods.isEmpty() && !state.loadingLibrary && !state.loadingMoods) {
+			viewModel.refresh()
+		}
+	}
 
 	val colors = MaterialTheme.colorScheme
 	val tools = info?.let { i ->
@@ -151,34 +158,46 @@ fun ExploreScreen() {
 		) {
 			// a fixed first item: sections that load later are inserted below it, not above the view
 			item(key = "top", span = full) {}
-			if (state.genres.isNotEmpty()) {
+			if (state.loadingLibrary || state.genres.isNotEmpty()) {
 				section(Res.string.title_genres)
 				// 3 a row on phones, 3 wider ones on tablets: long names wrap less
 				val genreSpan = if (expanded) 4 else 2
-				items(state.genres, key = { "genre ${it.name}" }, span = { GridItemSpan(genreSpan) }) { genre ->
-					GenreListScreenCard(Modifier.height(88.dp), genre)
-				}
-				item(key = "all genres", span = { GridItemSpan(genreSpan) }) {
-					Surface(
-						onClick = dropUnlessResumed { backStack.add(Screen.GenreList(nested = true)) },
-						modifier = Modifier.height(88.dp),
-						shape = MaterialTheme.shapes.medium,
-						color = colors.surfaceContainerHigh
-					) {
-						Column(Modifier.padding(10.dp)) {
-							Text(stringResource(Res.string.action_all_genres_tile), style = MaterialTheme.typography.titleSmall)
-							Text(stringResource(Res.string.info_genres_count, state.genreCount), style = MaterialTheme.typography.bodySmall)
-							Spacer(Modifier.weight(1f))
-							Icon(Icons.Outlined.ChevronForward, null, Modifier.align(Alignment.End))
+				if (state.loadingLibrary) {
+					items(6, key = { "genre-placeholder-$it" }, span = { GridItemSpan(genreSpan) }) {
+						ExploreTilePlaceholder(Modifier.height(88.dp))
+					}
+				} else {
+					items(state.genres, key = { "genre ${it.name}" }, span = { GridItemSpan(genreSpan) }) { genre ->
+						GenreListScreenCard(Modifier.height(88.dp), genre)
+					}
+					item(key = "all genres", span = { GridItemSpan(genreSpan) }) {
+						Surface(
+							onClick = dropUnlessResumed { backStack.add(Screen.GenreList(nested = true)) },
+							modifier = Modifier.height(88.dp),
+							shape = MaterialTheme.shapes.medium,
+							color = colors.surfaceContainerHigh
+						) {
+							Column(Modifier.padding(10.dp)) {
+								Text(stringResource(Res.string.action_all_genres_tile), style = MaterialTheme.typography.titleSmall)
+								Text(stringResource(Res.string.info_genres_count, state.genreCount), style = MaterialTheme.typography.bodySmall)
+								Spacer(Modifier.weight(1f))
+								Icon(Icons.Outlined.ChevronForward, null, Modifier.align(Alignment.End))
+							}
 						}
 					}
 				}
 			}
 
-			if (info != null && state.moods.isNotEmpty()) {
+			if (info != null && (state.loadingMoods || state.moods.isNotEmpty())) {
 				section(Res.string.title_moods, overline = Res.string.overline_audiomuse)
-				items(state.moods, key = { "mood ${it.id}" }, span = { GridItemSpan(2) }) { mood ->
-					MoodTile(mood.label, Modifier.height(72.dp)) { backStack.add(Screen.Mood(mood)) }
+				if (state.loadingMoods) {
+					items(6, key = { "mood-placeholder-$it" }, span = { GridItemSpan(2) }) {
+						ExploreTilePlaceholder(Modifier.height(72.dp))
+					}
+				} else {
+					items(state.moods, key = { "mood ${it.id}" }, span = { GridItemSpan(2) }) { mood ->
+						MoodTile(mood.label, Modifier.height(72.dp)) { backStack.add(Screen.Mood(mood)) }
+					}
 				}
 			}
 
@@ -202,29 +221,49 @@ fun ExploreScreen() {
 				}
 			}
 
-			if (info != null && state.soundMap.isNotEmpty()) {
+			if (info != null && (state.loadingSoundMap || state.soundMap.isNotEmpty())) {
 				section(Res.string.title_sound_map, overline = Res.string.overline_audiomuse)
 				item(key = "sound map", span = full) {
-					SoundMapCard(state.soundMap) { backStack.add(Screen.SoundMap) }
+					if (state.loadingSoundMap) ExploreTilePlaceholder(Modifier.fillMaxWidth().height(224.dp))
+					else SoundMapCard(state.soundMap) { backStack.add(Screen.SoundMap) }
 				}
 			}
 
-			if (state.forgotten.isNotEmpty() || state.neverPlayed.isNotEmpty() || state.deepCuts.isNotEmpty()) {
+			if (state.loadingLibrary ||
+				state.forgotten.isNotEmpty() || state.neverPlayed.isNotEmpty() || state.deepCuts.isNotEmpty()
+			) {
 				section(Res.string.title_off_beaten_path)
-				albumShelf(Res.string.title_forgotten_favourites, Res.string.info_forgotten_favourites, state.forgotten)
-				albumShelf(Res.string.title_never_played, Res.string.info_never_played, state.neverPlayed)
-				if (state.deepCuts.isNotEmpty()) {
+				if (state.loadingLibrary) {
+					albumShelfPlaceholder(Res.string.title_forgotten_favourites, Res.string.info_forgotten_favourites)
+					albumShelfPlaceholder(Res.string.title_never_played, Res.string.info_never_played)
 					item(key = "deep cuts header", span = full) {
-						ShelfTitle(Res.string.title_deep_cuts, Res.string.info_deep_cuts) {
-							TextButton(onClick = { player.playNow(state.deepCuts) }) { Text(stringResource(Res.string.action_play_all)) }
-						}
+						ShelfTitlePlaceholder()
 					}
-					itemsIndexed(state.deepCuts, key = { _, song -> "deep ${song.id}" }, span = { _, _ -> GridItemSpan(6) }) { i, song ->
-						SongRow(
-							song = song,
-							onClick = { player.playNow(state.deepCuts, i) },
-							modifier = Modifier.fillMaxWidth()
-						)
+					items(5, key = { "deep-placeholder-$it" }, span = { GridItemSpan(6) }) {
+						ArtGridPlaceholder(Modifier.fillMaxWidth(), viewMode = ListViewMode.List)
+					}
+				} else {
+					albumShelf(Res.string.title_forgotten_favourites, Res.string.info_forgotten_favourites, state.forgotten)
+					albumShelf(Res.string.title_never_played, Res.string.info_never_played, state.neverPlayed)
+					if (state.deepCuts.isNotEmpty()) {
+						item(key = "deep cuts header", span = full) {
+							ShelfTitle(Res.string.title_deep_cuts, Res.string.info_deep_cuts) {
+								TextButton(onClick = { player.playNow(state.deepCuts) }) {
+									Text(stringResource(Res.string.action_play_all))
+								}
+							}
+						}
+						itemsIndexed(
+							state.deepCuts,
+							key = { _, song -> "deep ${song.id}" },
+							span = { _, _ -> GridItemSpan(6) }
+						) { i, song ->
+							SongRow(
+								song = song,
+								onClick = { player.playNow(state.deepCuts, i) },
+								modifier = Modifier.fillMaxWidth()
+							)
+						}
 					}
 				}
 			}
@@ -244,6 +283,11 @@ private fun androidx.compose.foundation.lazy.grid.LazyGridScope.section(title: S
 }
 
 @Composable
+private fun ExploreTilePlaceholder(modifier: Modifier) {
+	Box(modifier.clip(MaterialTheme.shapes.medium).shimmerLoading())
+}
+
+@Composable
 private fun ShelfTitle(title: StringResource, subtitle: StringResource, action: (@Composable () -> Unit)? = null) {
 	Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
 		Column(Modifier.weight(1f)) {
@@ -251,6 +295,28 @@ private fun ShelfTitle(title: StringResource, subtitle: StringResource, action: 
 			Text(stringResource(subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 		}
 		action?.invoke()
+	}
+}
+
+@Composable
+private fun ShelfTitlePlaceholder() {
+	Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+		Box(Modifier.width(180.dp).height(20.dp).clip(CircleShape).shimmerLoading())
+		Box(Modifier.width(240.dp).height(14.dp).clip(CircleShape).shimmerLoading())
+	}
+}
+
+private fun androidx.compose.foundation.lazy.grid.LazyGridScope.albumShelfPlaceholder(
+	title: StringResource,
+	subtitle: StringResource
+) {
+	item(key = "shelf-placeholder-${title.key}", span = { GridItemSpan(maxLineSpan) }) {
+		Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+			ShelfTitlePlaceholder()
+			LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+				items(3) { ArtGridPlaceholder(Modifier.width(150.dp)) }
+			}
+		}
 	}
 }
 
