@@ -61,13 +61,22 @@ class Application : android.app.Application() {
 		}
 		scheduleDownloads(this)
 
-		// ponytail: the Inverted icon alias is gone; undo the disable it left on the
-		// default one. Drop once nobody updates from a build that had the setting.
-		packageManager.setComponentEnabledSetting(
-			ComponentName(this, "$packageName.MainActivityDefault"),
-			PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
-			PackageManager.DONT_KILL_APP
+		// Android Automotive draws media apps itself: there the icon opens the car's media app
+		// (library, queue, usable while driving), not this UI, which it blocks while driving; the
+		// UI stays reachable parked from that app's settings button. The swap keeps one launcher
+		// entry, or Android adds an app-info one. Elsewhere, DEFAULT also undoes the disable the
+		// removed Inverted icon alias left behind.
+		fun setState(component: String, state: Int) = packageManager.setComponentEnabledSetting(
+			ComponentName(this, component), state, PackageManager.DONT_KILL_APP
 		)
+		val phoneEntry = "$packageName.MainActivityDefault"
+		if (packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
+			// enable first: the playback service opens whichever launcher entry is on
+			setState(CarLauncherActivity::class.java.name, PackageManager.COMPONENT_ENABLED_STATE_ENABLED)
+			setState(phoneEntry, PackageManager.COMPONENT_ENABLED_STATE_DISABLED)
+		} else {
+			setState(phoneEntry, PackageManager.COMPONENT_ENABLED_STATE_DEFAULT)
+		}
 	}
 
 	private fun isCrashProcess(): Boolean {
