@@ -6,8 +6,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import eu.depau.loak.domain.manager.AudioFetcher
+import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.MediaControlManager
@@ -19,7 +22,10 @@ import eu.depau.loak.domain.manager.ScrobblePlayerSource
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
+import eu.depau.loak.domain.manager.audioExtension
 import eu.depau.loak.domain.models.AudioQuality
+import eu.depau.loak.domain.models.PlaybackSource
+import eu.depau.loak.domain.models.formatCodecName
 import eu.depau.loak.domain.models.formatSampleRate
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
@@ -31,24 +37,20 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_server_unreachable
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
-import java.io.BufferedInputStream
-import java.io.File
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import javax.sound.sampled.AudioFormat
-import javax.sound.sampled.AudioInputStream
-import javax.sound.sampled.AudioSystem
-import javax.sound.sampled.DataLine
-import javax.sound.sampled.FloatControl
-import javax.sound.sampled.SourceDataLine
+import dev.nucleusframework.rodio.PlaybackCallback
+import dev.nucleusframework.rodio.PlaybackEvent
+import dev.nucleusframework.rodio.RodioPlayer
+import org.koin.core.component.inject
 
 /**
- * Desktop (JVM) implementation of [MediaPlayerViewModel], using Java Sound.
+ * Desktop (JVM) implementation of [MediaPlayerViewModel], using Nucleus' rodio backend
+ * (Rust rodio → Symphonia decoders: FLAC, AAC, Opus, Vorbis, MP3, WAV).
  *
- * Requests MP3 container from Subsonic for universal compatibility across all
- * server formats (FLAC, AAC, Opus, Vorbis, etc.). The stream is decoded via
- * mp3spi into 16-bit signed PCM and written to a [SourceDataLine].
+ * rodio's HTTP path (playUrl) can't seek, and a FLAC file that isn't complete won't decode from
+ * mid-stream, so lossless playback goes through the [AudioStore]: the Raw file is fetched to disk
+ * (AudioFetcher), then played via playFile — the only fully-seekable path. To keep instant start
+ * the lossy (MP3) stream begins immediately and hot-swaps to the lossless file once it's ready.
+ * Everything else (lossy streams, live radio) plays straight over HTTP, native to the decoders.
  */
 class DesktopMediaPlayerViewModel(
 	stateRepository: PlayerStateRepository,
@@ -70,35 +72,32 @@ class DesktopMediaPlayerViewModel(
 	queueSyncManager = queueSyncManager
 ) {
 
-	private val player = DesktopAudioPlayer(
-		onFormatDecoded = { _, decodedFormat ->
-			val songId = _uiState.value.currentSong?.id ?: return@DesktopAudioPlayer
-			val sampleRate = decodedFormat.sampleRate.toInt()
-			val channels = if (decodedFormat.channels == 1) "Mono" else "Stereo"
-			val pcmBits = if (decodedFormat.sampleSizeInBits > 0) "${decodedFormat.sampleSizeInBits}-bit PCM" else "16-bit PCM"
-			val outFmt = "${formatSampleRate(sampleRate)} · $channels"
-			_uiState.update { state ->
-				val current = state.playbackDetails?.takeIf { it.songId == songId } ?: return@update state
-				state.copy(
-					playbackDetails = current.copy(
-						sampleRateHz = sampleRate,
-						channelCount = decodedFormat.channels,
-						decoder = "Java Sound",
-						pcmFormat = pcmBits,
-						outputFormat = outFmt,
-						outputDevice = "Default audio device"
-					)
-				)
+	private val audioFetcher: AudioFetcher by inject()
+
+	private val rodio = RodioPlayer().apply {
+		setCallback(object : PlaybackCallback {
+			override fun onEvent(event: PlaybackEvent) {}
+			override fun onMetadata(key: String, value: String) {}
+			override fun onError(message: String) {
+				Logger.e("DesktopMediaPlayerViewModel", "rodio error: $message")
 			}
-		}
-	)
+		})
+	}
+
+	/** A lossy fallback likely still streaming; cancelled before a new source takes over. */
+	private var swappedAwayJob: Job? = null
+
 	private var isTransitioningBetweenTracks = false
 	private var progressJob: Job? = null
 	private var lastTrackEndTime = 0L
 	private var rapidEndCount = 0
 
 	private val scrobbleManager = ScrobbleManager(
-		playerSource = player,
+		playerSource = object : ScrobblePlayerSource {
+			override val currentPosition: Long get() = rodio.getPositionMs()
+			override val duration: Long get() = rodio.getDurationMs() ?: 0L
+			override val isPlaying: Boolean get() = !rodio.isPaused() && !rodio.isEmpty()
+		},
 		connectivityManager = connectivityManager,
 		syncManager = syncManager,
 		sessionManager = sessionManager,
@@ -113,9 +112,9 @@ class DesktopMediaPlayerViewModel(
 			while (true) {
 				delay(250)
 				_uiState.update { state ->
-					state.copy(progress = player.progress().coerceIn(0f, 1f))
+					state.copy(progress = progress())
 				}
-				if (player.ended && !isTransitioningBetweenTracks) {
+				if (rodio.isEmpty() && !isTransitioningBetweenTracks && !rodio.isPaused()) {
 					onTrackEnded()
 				}
 			}
@@ -148,72 +147,97 @@ class DesktopMediaPlayerViewModel(
 
 	override fun onCleared() {
 		super.onCleared()
-		player.release()
+		rodio.close()
 		progressJob?.cancel()
+		swappedAwayJob?.cancel()
 		mediaControlManager.stop()
 	}
 
-	// --- stream URL ---
+	// --- stream URL / quality ---
 
-	private fun getStreamUrl(id: String): String {
+	private fun maxBitrate(): Int {
 		val isCellular = connectivityManager.isCellular.value
-		val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
-			if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
+		return if (preferenceManager.isAdvancedTranscodingActive) {
+			(if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi)
+				?.takeIf { it > 0 } ?: 320
 		} else {
-			val quality = if (isCellular) preferenceManager.streamingQualityCellular else preferenceManager.streamingQualityWifi
-			if (quality.bitrateIos > 0) quality.bitrateIos else 320
+			preferenceManager.streamingQualityCellular.takeIf { isCellular }?.bitrateIos
+				?.takeIf { it > 0 } ?: preferenceManager.streamingQualityWifi.bitrateIos.takeIf { it > 0 } ?: 320
 		}
-		val container = if (preferenceManager.isAdvancedTranscodingActive) {
-			if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi
+	}
+
+	private fun currentContainer(): String {
+		val isCellular = connectivityManager.isCellular.value
+		return if (preferenceManager.isAdvancedTranscodingActive) {
+			(if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi)
+				.orEmpty().ifBlank { "mp3" }
 		} else {
 			"mp3"
 		}
-		return sessionManager.api.getStreamUrl(
-			id = id,
-			maxBitRate = bitrate,
-			format = container?.takeIf { it.isNotBlank() } ?: "mp3"
+	}
+
+	/** The stream URL for [song]'s lossy fallback (mp3 unless the user picked a format). */
+	private fun streamSource(song: DomainSong): String =
+		sessionManager.api.getStreamUrl(
+			id = song.id,
+			maxBitRate = maxBitrate(),
+			format = currentContainer()
 		) + "&estimateContentLength=true"
+
+	/** The original-file URL for lossless playback (Raw): no transcode, no bitrate cap. */
+	private fun losslessStreamUrl(song: DomainSong): String =
+		sessionManager.api.getStreamUrl(
+			id = song.id,
+			maxBitRate = 0,
+			format = null
+		) + "&estimateContentLength=true"
+
+	/** Whether [song] should be played losslessly (Raw): the user chose lossless (bitrate 0, no
+	 *  container) or an advanced "raw"/"flac" container. Radio is never lossless. */
+	private fun wantsLossless(song: DomainSong): Boolean {
+		if (song.id.startsWith("radio_")) return false
+		val q = qualityRequested()
+		return q.format == null || q.format.equals("flac", true)
 	}
 
-	override fun requestedQuality(): AudioQuality {
+	private fun qualityRequested(): AudioQuality {
 		val isCellular = connectivityManager.isCellular.value
-		val bitrate = if (preferenceManager.isAdvancedTranscodingActive) {
-			if (isCellular) preferenceManager.customMaxBitrateCellular else preferenceManager.customMaxBitrateWifi
+		return if (preferenceManager.isAdvancedTranscodingActive) {
+			AudioQuality.of(currentContainer(), maxBitrate())
 		} else {
-			val quality = if (isCellular) preferenceManager.streamingQualityCellular else preferenceManager.streamingQualityWifi
-			if (quality.bitrateIos > 0) quality.bitrateIos else 320
+			val q = if (isCellular) preferenceManager.streamingQualityCellular else preferenceManager.streamingQualityWifi
+			AudioQuality.of(q.containerIos, q.bitrateIos)
 		}
-		val container = if (preferenceManager.isAdvancedTranscodingActive) {
-			if (isCellular) preferenceManager.customFormatCellular else preferenceManager.customFormatWifi
-		} else {
-			"mp3"
-		}
-		return AudioQuality.of(container?.takeIf { it.isNotBlank() } ?: "mp3", bitrate)
 	}
 
-	private fun resolveSourceUrl(song: DomainSong): String? =
-		when {
-			song.id.startsWith("radio_") && !song.filePath.isNullOrEmpty() -> song.filePath
-			else -> {
-				val localPath = downloadManager.getDownloadedFilePath(song.id)
-				// Only use local file if it's already decoded PCM / WAV or MP3 that Java Sound can decode.
-				// File.toURI() percent-encodes properly: a raw "file://$localPath" breaks URI parsing on
-				// spaces (e.g. "Application Support") and literal %NN in the store's file names (song ids
-				// are URL-encoded, so @ shows up as %40 in the on-disk name).
-				if (localPath != null && (localPath.endsWith(".mp3", true) || localPath.endsWith(".wav", true))) {
-					File(localPath).toURI().toString()
-				} else {
-					getStreamUrl(song.id)
-				}
-			}
-		}
+	override fun requestedQuality(): AudioQuality = qualityRequested()
 
-	// --- playback control ---
+	private suspend fun storedPath(song: DomainSong): String? =
+		audioStore.bestComplete(song.id)?.let { audioStore.pathOf(it) }
+
+	private fun setDecoderInfo(song: DomainSong, source: PlaybackSource, filePath: String?) {
+		_uiState.update { state ->
+			val current = state.playbackDetails?.takeIf { it.songId == song.id } ?: return@update state
+			val codec = if (filePath != null) "FLAC" else
+				formatCodecName(song.mimeType, song.fileExtension)
+			val stereo = (current.channelCount ?: song.audioChannelCount) != 1
+			val sampleRate = current.sampleRateHz ?: song.sampleRate ?: 44_100
+			state.copy(playbackDetails = current.copy(
+				source = source,
+				decoder = "rodio (Symphonia)",
+				codec = codec,
+				pcmFormat = "PCM",
+				outputFormat = "${formatSampleRate(sampleRate)} · ${if (stereo) "Stereo" else "Mono"}",
+				outputDevice = "Default audio device"
+			))
+		}
+	}
+
+	// --- playback ---
 
 	override fun playAt(index: Int) {
 		if (isTransitioningBetweenTracks) return
 		val songToPlay = _uiState.value.queue.getOrNull(index) ?: return
-		val url = resolveSourceUrl(songToPlay) ?: return
 
 		isTransitioningBetweenTracks = true
 		try {
@@ -226,17 +250,79 @@ class DesktopMediaPlayerViewModel(
 					progress = 0f
 				)
 			}
-			val durationMs = songToPlay.duration.inWholeMilliseconds
-			player.playUrl(url, durationMs)
-			player.volume = preferenceManager.playerVolume
 			scrobbleManager.onMediaChanged(songToPlay.id)
-			scrobbleManager.onPlayStateChanged(true)
-		} catch (e: Exception) {
-			Logger.e("DesktopMediaPlayerViewModel", "Failed to start playback for ${songToPlay.id}", e)
-			_uiState.update { it.copy(isPaused = true, isLoading = false) }
-			snackBarManager.notify(Res.string.notice_server_unreachable)
+			transferTo(songToPlay)
 		} finally {
 			isTransitioningBetweenTracks = false
+		}
+	}
+
+	/** Plays [song]: a complete store file if present; else for lossless it starts the mp3 fallback
+	 *  now and hot-swaps to the FLAC file once fetched; else it streams in the selected container. */
+	private fun transferTo(song: DomainSong) {
+		viewModelScope.launch(Dispatchers.IO) {
+			swappedAwayJob?.cancel()
+			swappedAwayJob = null
+			val stored = storedPath(song)
+			if (stored != null) {
+				playFileSource(song, stored)
+				return@launch
+			}
+			if (!wantsLossless(song)) {
+				playStreamingFallback(song)
+				return@launch
+			}
+			// lossless wanted but no file yet: start mp3 now, fetch Raw, swap on ready
+			playStreamingFallback(song)
+			val fetch = audioFetcher.fetch(
+				songId = song.id,
+				quality = AudioQuality.Raw,
+				extension = audioExtension(AudioQuality.Raw, song.fileExtension),
+				download = false,
+				url = { losslessStreamUrl(song) }
+			) ?: return@launch
+			val result = fetch.progress.first { it.done || it.failed }
+			if (!result.done) {
+				Logger.w("DesktopMediaPlayerViewModel", "lossless fetch of ${song.id} failed")
+				return@launch
+			}
+			if (_uiState.value.currentSong?.id != song.id) return@launch
+			val donePath = audioStore.bestComplete(song.id)?.let { audioStore.pathOf(it) }
+				?: run { Logger.w("DesktopMediaPlayerViewModel", "lossless file for ${song.id} vanished"); return@launch }
+			// mp3 was playing; swap to the FLAC file at the same position
+			val positionMs = rodio.getPositionMs().coerceAtLeast(0L)
+			val wasPaused = rodio.isPaused()
+			swappedAwayJob = viewModelScope.launch(Dispatchers.IO) {
+				playFileSource(song, donePath, startPosMs = positionMs)
+				if (wasPaused) pause()
+			}
+		}
+	}
+
+	private fun playStreamingFallback(song: DomainSong) {
+		try {
+			rodio.playUrl(streamSource(song), loop = false)
+			rodio.setVolume(volume.value)
+			setDecoderInfo(song, PlaybackSource.Stream, filePath = null)
+			scrobbleManager.onPlayStateChanged(true)
+		} catch (e: Exception) {
+			Logger.e("DesktopMediaPlayerViewModel", "Failed to stream ${song.id}", e)
+			_uiState.update { it.copy(isPaused = true, isLoading = false) }
+			snackBarManager.notify(Res.string.notice_server_unreachable)
+		}
+	}
+
+	private fun playFileSource(song: DomainSong, path: String, startPosMs: Long = 0L) {
+		try {
+			rodio.playFile(path, loop = false)
+			if (startPosMs > 0) runCatching { rodio.seekToMs(startPosMs) }
+			rodio.setVolume(volume.value)
+			setDecoderInfo(song, PlaybackSource.Download, filePath = path)
+			scrobbleManager.onPlayStateChanged(true)
+		} catch (e: Exception) {
+			Logger.e("DesktopMediaPlayerViewModel", "Failed to play file $path", e)
+			_uiState.update { it.copy(isPaused = true, isLoading = false) }
+			snackBarManager.notify(Res.string.notice_server_unreachable)
 		}
 	}
 
@@ -271,8 +357,8 @@ class DesktopMediaPlayerViewModel(
 			audioChannelCount = null,
 			replayGain = null,
 			fileSize = 0,
-			fileExtension = "",
-			mimeType = "",
+			fileExtension = null,
+			mimeType = null,
 			filePath = radio.streamUrl,
 			starredAt = null,
 			musicBrainzId = null,
@@ -283,7 +369,8 @@ class DesktopMediaPlayerViewModel(
 		)
 
 		try {
-			player.playUrl(radio.streamUrl, 0L)
+			rodio.playRadio(radio.streamUrl)
+			rodio.setVolume(volume.value)
 			_uiState.update { state ->
 				state.copy(
 					queue = listOf(dummyRadioSong),
@@ -315,7 +402,9 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	override fun clearQueue() {
-		player.stopStream()
+		swappedAwayJob?.cancel()
+		swappedAwayJob = null
+		rodio.clear()
 		_uiState.update {
 			it.copy(
 				queue = emptyList(),
@@ -329,16 +418,17 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	override fun resume() {
-		if (!player.resume()) {
+		if (rodio.isPaused()) {
+			rodio.play()
+			_uiState.update { it.copy(isPaused = false) }
+			scrobbleManager.onPlayStateChanged(true)
+		} else if (rodio.isEmpty()) {
 			playAt(_uiState.value.currentIndex)
-			return
 		}
-		_uiState.update { it.copy(isPaused = false) }
-		scrobbleManager.onPlayStateChanged(true)
 	}
 
 	override fun pause() {
-		player.pause()
+		rodio.pause()
 		_uiState.update { it.copy(isPaused = true) }
 		scrobbleManager.onPlayStateChanged(false)
 	}
@@ -385,23 +475,42 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	override fun seek(normalized: Float) {
-		if (player.duration <= 0) return
-		val targetMs = (player.duration * normalized).toLong()
+		val durationMs = rodio.getDurationMs() ?: _uiState.value.currentSong?.duration?.inWholeMilliseconds ?: 0L
+		if (durationMs <= 0) return
+		val targetMs = (durationMs * normalized).toLong().coerceIn(0L, durationMs)
 		_uiState.update { it.copy(progress = normalized) }
-		// a seek back reopens the stream: network, so not on the UI thread
-		viewModelScope.launch(Dispatchers.IO) { player.seekTo(targetMs) }
+		viewModelScope.launch(Dispatchers.IO) {
+			if (rodio.isSeekable()) {
+				runCatching { rodio.seekToMs(targetMs) }
+			} else {
+				// HTTP/stream: rodio can't seek remote streams — restart the stream, no re-spool
+				val song = _uiState.value.currentSong ?: return@launch
+				val wasPaused = rodio.isPaused()
+				playStreamingFallback(song)
+				if (wasPaused) pause()
+			}
+		}
 	}
 
 	override fun setVolume(value: Float) {
 		val v = value.coerceIn(0f, 1f)
 		volume.value = v
-		player.volume = v
+		rodio.setVolume(v)
 		preferenceManager.playerVolume = v
 	}
 
 	override fun syncPlayerWithState(state: PlayerUiState) {
 		// State restored from the server: paused, no audio started.
-		player.stopStream()
+		swappedAwayJob?.cancel()
+		swappedAwayJob = null
+		rodio.clear()
+	}
+
+	private fun progress(): Float {
+		val durationMs = _uiState.value.currentSong?.duration?.inWholeMilliseconds ?: 0L
+		if (durationMs <= 0) return 0f
+		val pos = rodio.getPositionMs().coerceIn(0L, durationMs)
+		return (pos.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
 	}
 
 	private fun onTrackEnded() {
@@ -424,263 +533,6 @@ class DesktopMediaPlayerViewModel(
 			_uiState.value.repeatMode == 1 -> playAt(_uiState.value.currentIndex)
 			_uiState.value.currentIndex + 1 < _uiState.value.queue.size -> playAt(_uiState.value.currentIndex + 1)
 			else -> pause()
-		}
-	}
-
-	private class DesktopAudioPlayer(
-		private val onFormatDecoded: ((base: AudioFormat, decoded: AudioFormat) -> Unit)? = null
-	) : ScrobblePlayerSource {
-		private var line: SourceDataLine? = null
-		private var stream: AudioInputStream? = null
-		private var source: HttpURLConnection? = null
-		private val buffer = ByteArray(64 * 1024)
-		private var playing = false
-		private var paused = false
-		private var atEnd = false
-
-		private var trackDurationMs: Long = 0
-		private var bytesPerSecond: Long = 0
-		private var frameSize: Int = 1
-		private var totalDecodedBytes: Long = 0
-		private var url: String? = null
-		/** Bumped by every new stream: a playback thread only touches the player while it's current. */
-		@Volatile private var session = 0
-		/** A seek forward the playback thread carries out: decode and drop up to this position. */
-		@Volatile private var pendingSeekMs: Long = -1
-		/** Where a seek is heading, shown as the position until the stream gets there. */
-		@Volatile private var seekingTo: Long = -1
-
-		override var currentPosition: Long = 0
-			private set
-
-		override val duration: Long
-			get() = trackDurationMs
-
-		override var isPlaying: Boolean
-			get() = playing && !paused
-			set(value) {}
-
-		val ended: Boolean get() = atEnd
-
-		/** [startMs] > 0 starts there (the playback thread skips ahead before any audio). */
-		fun playUrl(url: String, durationMs: Long, startMs: Long = 0, startPaused: Boolean = false) {
-			stopStream()
-			this.url = url
-			pendingSeekMs = if (startMs > 0) startMs else -1
-			seekingTo = pendingSeekMs
-			atEnd = false
-			playing = false
-			paused = startPaused
-			currentPosition = 0
-			trackDurationMs = durationMs
-
-			try {
-				val conn = if (url.startsWith("file:"))
-					null else URL(url).openConnection() as HttpURLConnection
-				source = conn
-
-				val rawIn = when {
-					conn != null -> {
-						conn.connect()
-						if (conn.responseCode !in 200..299) {
-							throw IOException("HTTP ${conn.responseCode} for $url")
-						}
-						conn.inputStream
-					}
-					else -> File(URL(url).toURI()).inputStream()
-				}
-				val bufferedIn = BufferedInputStream(rawIn)
-
-				val audioStream = AudioSystem.getAudioInputStream(bufferedIn)
-				val baseFormat = audioStream.format
-
-				// If the audio format is not PCM_SIGNED (e.g. MP3 via mp3spi), convert to PCM_SIGNED
-				val decodedFormat = if (baseFormat.encoding != AudioFormat.Encoding.PCM_SIGNED) {
-					AudioFormat(
-						AudioFormat.Encoding.PCM_SIGNED,
-						baseFormat.sampleRate,
-						16,
-						baseFormat.channels,
-						baseFormat.channels * 2,
-						baseFormat.sampleRate,
-						false
-					)
-				} else {
-					baseFormat
-				}
-
-				val pcmStream = if (baseFormat.encoding != AudioFormat.Encoding.PCM_SIGNED) {
-					AudioSystem.getAudioInputStream(decodedFormat, audioStream)
-				} else {
-					audioStream
-				}
-				stream = pcmStream
-				onFormatDecoded?.invoke(baseFormat, decodedFormat)
-
-				bytesPerSecond = (decodedFormat.sampleRate * decodedFormat.frameSize).toLong()
-				frameSize = decodedFormat.frameSize.coerceAtLeast(1)
-				totalDecodedBytes = if (durationMs > 0 && bytesPerSecond > 0) {
-					durationMs * bytesPerSecond / 1000L
-				} else {
-					0L
-				}
-
-				val info = DataLine.Info(SourceDataLine::class.java, decodedFormat)
-				val l = AudioSystem.getLine(info) as SourceDataLine
-				line = l
-				l.open(decodedFormat)
-				applyVolumeToLine(l, volume)
-				if (!startPaused) l.start()
-				playing = true
-				val mySession = ++session
-				val current = { session == mySession }
-
-				Thread {
-					try {
-						val buf = buffer
-						while (playing && current()) {
-							val seek = pendingSeekMs
-							if (seek >= 0) {
-								pendingSeekMs = -1
-								skipTo(pcmStream, buf, seek)
-								l.flush()
-								seekingTo = -1
-							}
-							if (paused) {
-								Thread.sleep(50)
-								continue
-							}
-							val read = pcmStream.read(buf, 0, buf.size)
-							if (read < 0) {
-								l.drain()
-								if (current()) atEnd = true
-								break
-							}
-							if (read > 0) {
-								l.write(buf, 0, read)
-								if (bytesPerSecond > 0 && current()) {
-									currentPosition += (read.toLong() * 1000L) / bytesPerSecond
-								}
-							}
-						}
-					} catch (e: Exception) {
-						if (current()) Logger.e("DesktopAudioPlayer", "playback stream error", e)
-					} finally {
-						// this thread's own line and stream; a newer stream may be playing by now
-						try {
-							l.drain()
-							l.stop()
-							l.close()
-						} catch (_: Exception) {}
-						runCatching { pcmStream.close() }
-						if (current()) {
-							playing = false
-							cleanupStream()
-						}
-					}
-				}.start()
-			} catch (e: Exception) {
-				Logger.e("DesktopAudioPlayer", "failed to play $url", e)
-				atEnd = false
-				cleanupStream()
-				throw e
-			}
-		}
-
-		private fun applyVolumeToLine(l: SourceDataLine?, vol: Float) {
-			if (l == null) return
-			runCatching {
-				val control = l.getControl(FloatControl.Type.MASTER_GAIN)
-				if (control is FloatControl) {
-					val min = control.minimum
-					val dB = if (vol <= 0f) min else (20.0 * Math.log10(vol.toDouble())).toFloat().coerceIn(control.minimum, 0.5f)
-					control.value = dB.coerceIn(control.minimum, control.maximum)
-				}
-			}.onFailure { Logger.w("DesktopAudioPlayer", "no volume control") }
-		}
-
-		fun resume(): Boolean {
-			val line = line ?: return false
-			paused = false
-			line.start()
-			return true
-		}
-
-		fun pause() {
-			if (line != null) {
-				line!!.stop()
-				paused = true
-			}
-		}
-
-		fun stopStream() {
-			playing = false
-			atEnd = false
-			try {
-				line?.flush()
-				line?.drain()
-				line?.stop()
-				line?.close()
-			} catch (_: Exception) {}
-			line = null
-			cleanupStream()
-			currentPosition = 0
-		}
-
-		/**
-		 * Java Sound streams only go forward: a seek ahead decodes and drops the audio up to the
-		 * target, a seek back reopens the stream and does the same from the start.
-		 * ponytail: seeking far into a long track re-downloads and decodes up to there; HTTP range
-		 * requests would need a byte offset per format.
-		 */
-		fun seekTo(ms: Long) {
-			val target = ms.coerceIn(0, trackDurationMs.takeIf { it > 0 } ?: Long.MAX_VALUE)
-			val url = url ?: return
-			if (target < currentPosition || !playing) {
-				runCatching { playUrl(url, trackDurationMs, target, startPaused = paused) }
-				return
-			}
-			seekingTo = target
-			pendingSeekMs = target
-		}
-
-		/** Reads and drops whole frames from [stream] until [currentPosition] reaches [ms]. */
-		private fun skipTo(stream: AudioInputStream, buf: ByteArray, ms: Long) {
-			if (bytesPerSecond <= 0) return
-			var left = (ms - currentPosition) * bytesPerSecond / 1000L
-			left -= left % frameSize
-			while (left > 0) {
-				val read = stream.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
-				if (read < 0) break
-				left -= read
-				currentPosition += read.toLong() * 1000L / bytesPerSecond
-			}
-		}
-
-		fun progress(): Float {
-			val position = seekingTo.takeIf { it >= 0 } ?: currentPosition
-			return if (trackDurationMs > 0) (position.toFloat() / trackDurationMs.toFloat()).coerceIn(0f, 1f) else 0f
-		}
-
-		var volume: Float = 1f
-			set(value) {
-				field = value.coerceIn(0f, 1f)
-				applyVolumeToLine(line, field)
-			}
-
-		fun release() {
-			stopStream()
-		}
-
-		private fun cleanupStream() {
-			try {
-				stream?.close()
-			} catch (_: Exception) {}
-			stream = null
-			try {
-				source?.disconnect()
-			} catch (_: Exception) {}
-			source = null
 		}
 	}
 }
