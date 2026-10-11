@@ -3,6 +3,7 @@ package eu.depau.loak.data.database.entities
 import androidx.room3.Entity
 import androidx.room3.PrimaryKey
 import kotlinx.serialization.Serializable
+import eu.depau.loak.domain.discover.GenrePlayableSong
 import eu.depau.loak.domain.models.DomainContributor
 import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainReplayGain
@@ -13,7 +14,7 @@ import kotlin.time.Instant
 @Serializable
 @Entity
 data class SongEntity(
-	@PrimaryKey val songId: String,
+	@PrimaryKey override val songId: String,
 	val title: String,
 	val artistName: String?,
 	val artistId: String,
@@ -25,8 +26,8 @@ data class SongEntity(
 	val discNumber: Int?,
 	val isrc: List<String>,
 	val year: Int?,
-	val genre: String?,
-	val genres: List<String>,
+	override val genre: String?,
+	override val genres: List<String>,
 	val moods: List<String>,
 	val duration: Duration,
 	val bpm: Int?,
@@ -50,4 +51,4 @@ data class SongEntity(
 	val artists: List<DomainSongArtist>,
 	val albumArtists: List<DomainSongArtist>,
 	val isExternal: Boolean
-)
+) : GenrePlayableSong

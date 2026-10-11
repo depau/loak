@@ -161,6 +161,33 @@ fun discoverPlaylistOf(item: JsonObject): DiscoverPlaylist {
 }
 
 /**
+ * The local plays per genre name, summed over the songs' genre tags. [plays] is the device play
+ * log (song id to plays) and [songs] the library's matching songs; each genre name gets the play
+ * count of any song carrying it (a song in several genres counts for each). Keys are lowercased.
+ * Pure, so it can be tested without the network or the DB.
+ */
+fun genrePlayCounts(plays: Map<String, Int>, songs: Collection<GenrePlayableSong>): Map<String, Int> {
+	val result = mutableMapOf<String, Int>()
+	for (song in songs) {
+		val count = plays[song.songId] ?: 0
+		for (genre in song.genreNames) {
+			val key = genre.lowercase()
+			result[key] = (result[key] ?: 0) + count
+		}
+	}
+	return result
+}
+
+/** What [genrePlayCounts] needs from a library song. */
+interface GenrePlayableSong {
+	val songId: String
+	val genre: String?
+	val genres: List<String>
+	val genreNames: List<String>
+		get() = (genres + listOfNotNull(genre)).distinct()
+}
+
+/**
  * Folds an album detail payload (album fields at the top level plus its `tracks.data`
  * array) into the album page pair; its tracks, which carry no album, get this one's.
  * Pure, so it can be tested without the network.

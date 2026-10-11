@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -82,6 +85,8 @@ import eu.depau.loak.ui.screens.discover.components.rememberLidarrAddFlow
 import eu.depau.loak.ui.screens.discover.components.playlistGradient
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverListViewModel
 import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.util.shimmerLoading
+import androidx.lifecycle.compose.dropUnlessResumed
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -259,8 +264,36 @@ fun DiscoverListScreen(key: Screen.DiscoverList) {
 			if (type is DiscoverListType.Moods) items(page.playlists, key = { it.id }) {
 				PlaylistRow(it) { open(DiscoverListType.Playlist(it.id, it.title)) }
 			}
-			if (type is DiscoverListType.Genres) items(page.genres, key = { it.id }) {
-				GenreTile(it, Modifier.fillMaxWidth()) { open(DiscoverListType.GenreRadios(it.id, it.name)) }
+			if (type is DiscoverListType.Genres) {
+				item(key = "genres-grid") {
+					Column(
+						Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+						verticalArrangement = Arrangement.spacedBy(12.dp)
+					) {
+						if (page.genres.isEmpty()) {
+							repeat(6) {
+								Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+									repeat(2) {
+										Box(
+											Modifier.weight(1f).height(96.dp)
+												.clip(MaterialTheme.shapes.medium).shimmerLoading()
+										)
+									}
+								}
+							}
+						} else page.genres.chunked(2).forEach { pair ->
+							Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+								pair.forEach { genre ->
+									GenreTile(genre, Modifier.weight(1f), dropUnlessResumed {
+										open(DiscoverListType.GenreRadios(genre.id, genre.name))
+									})
+								}
+								// an odd last tile keeps its column instead of stretching across
+								if (pair.size == 1) Spacer(Modifier.weight(1f))
+							}
+						}
+					}
+				}
 			}
 		}
 	}

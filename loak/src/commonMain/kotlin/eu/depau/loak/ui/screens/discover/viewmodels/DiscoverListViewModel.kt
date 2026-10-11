@@ -13,8 +13,13 @@ import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.discover.ListenBrainzClient
 import eu.depau.loak.domain.discover.activeChart
+import eu.depau.loak.domain.discover.genrePlayCounts
+import eu.depau.loak.domain.manager.PlayLogManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.screens.discover.DiscoverListType
+import eu.depau.loak.data.database.dao.SongDao
+import eu.depau.loak.data.database.entities.SongEntity
+import eu.depau.loak.util.IoDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -22,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** One Discover drill-down list; only the list its [DiscoverListType] asked for is filled. */
 data class DiscoverListPage(
@@ -47,7 +53,9 @@ class DiscoverListViewModel(
 	private val deezer: DeezerClient,
 	private val listenBrainz: ListenBrainzClient,
 	private val preferenceManager: PreferenceManager,
-	private val matcher: LibraryMatcher
+	private val matcher: LibraryMatcher,
+	private val playLog: PlayLogManager,
+	private val songDao: SongDao
 ) : ViewModel() {
 	val page: StateFlow<DiscoverListPage>
 		field = MutableStateFlow(DiscoverListPage())
@@ -81,8 +89,7 @@ class DiscoverListViewModel(
 				page.update { it.copy(loading = false, artists = deezer.getChartArtists()) }
 			DiscoverListType.Moods ->
 				page.update { it.copy(loading = false, playlists = deezer.getChartPlaylists()) }
-			DiscoverListType.Genres ->
-				page.update { it.copy(loading = false, genres = deezer.getGenres().filter { it.id != 0L }) }
+			DiscoverListType.Genres -> loadGenres()
 			is DiscoverListType.SimilarArtists -> loadSimilar(type.artistMbid)
 			is DiscoverListType.GenreRadios -> loadGenre(type.genreId, type.genreName)
 			is DiscoverListType.Radios ->
@@ -105,6 +112,29 @@ class DiscoverListViewModel(
 		val songs = deezer.getGenreTracks(genreId)
 		page.update { it.copy(loading = false, radios = radios, songs = songs) }
 		// the song list is the point; a page with only radios is fine to render too
+	}
+
+	/**
+	 * All the Discover genres, ordered by how often the user has listened to each locally:
+	 * the device play log's song plays, summed by the genre names those songs carry (which is
+	 * also how the genre shelf itself names things). Genres never played stay at the tail.
+	 */
+	private suspend fun loadGenres() {
+		val genres = deezer.getGenres().filter { it.id != 0L }
+		val playsByGenre = localPlayCountsByGenre()
+		page.update {
+			it.copy(
+				loading = false,
+				genres = genres.sortedByDescending { genre -> playsByGenre[genre.name.lowercase()] ?: 0 }
+			)
+		}
+	}
+
+	/** The user's local plays per genre name: song plays in the play log, summed over each song's genres. */
+	private suspend fun localPlayCountsByGenre(): Map<String, Int> = withContext(IoDispatcher) {
+		val plays = playLog.songPlays(PlayLogManager.KEEP)
+		if (plays.isEmpty()) return@withContext emptyMap()
+		genrePlayCounts(plays, songDao.getSongsByIds(plays.keys.toList()))
 	}
 
 	private suspend fun loadChart() {

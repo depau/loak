@@ -131,7 +131,7 @@ val viewModelModule = module {
 	viewModel { (key: Screen.DiscoverAlbum) -> DiscoverAlbumViewModel(key, get(), get(), get()) }
 	viewModel { (key: Screen.DiscoverArtist) -> DiscoverArtistViewModel(key, get(), get(), get()) }
 	viewModelOf(::DiscoverHomeViewModel)
-	viewModel { (type: DiscoverListType) -> DiscoverListViewModel(type, get(), get(), get(), get()) }
+	viewModel { (type: DiscoverListType) -> DiscoverListViewModel(type, get(), get(), get(), get(), get(), get()) }
 	viewModelOf(::ExploreViewModel)
 	viewModelOf(::GenreListViewModel)
 	viewModelOf(::RadioListViewModel)

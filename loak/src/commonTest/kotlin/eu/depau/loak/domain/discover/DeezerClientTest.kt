@@ -43,6 +43,32 @@ class DeezerClientTest {
 	}
 
 	@Test
+	fun genrePlayCountsSumsPlaysPerGenre() {
+		data class FakeSong(
+			override val songId: String,
+			override val genre: String?,
+			override val genres: List<String>
+		) : GenrePlayableSong
+
+		val plays = mapOf(
+			"a" to 3, // Rock, both genre + genres (dedup)
+			"b" to 2, // Pop
+			"c" to 1, // Rock + Electronic (multi-genre double count)
+		)
+		val songs = listOf(
+			FakeSong("a", "Rock", listOf("Rock")),
+			FakeSong("b", "Pop", emptyList()),
+			FakeSong("c", null, listOf("Rock", "Electronic")),
+		)
+		val counts = genrePlayCounts(plays, songs)
+		assertEquals(4, counts["rock"])
+		assertEquals(2, counts["pop"])
+		assertEquals(1, counts["electronic"])
+		// unplayed genre stays out
+		assertTrue("jazz" !in counts)
+	}
+
+	@Test
 	fun parsesTrackSearchResult() {
 		val song = discoverSongOf(
 			json.parseToJsonElement("""{
