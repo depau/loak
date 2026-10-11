@@ -41,6 +41,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,6 +67,7 @@ import eu.depau.loak.ui.screens.lyrics.components.LocalLyricsFontSize
 import eu.depau.loak.ui.screens.lyrics.components.LocalLyricsCentered
 import androidx.compose.foundation.layout.fillMaxHeight
 import eu.depau.loak.ui.screens.nowPlaying.components.controls.NowPlayingProgressBar
+import eu.depau.loak.ui.util.HiddenPointerIcon
 import eu.depau.loak.ui.util.Immersive
 import eu.depau.loak.ui.util.KeepScreenOn
 import kotlinx.coroutines.delay
@@ -74,8 +78,8 @@ import eu.depau.loak.ui.components.common.PlayPauseIcon
 
 /**
  * The lyrics, full screen: large lines over the blurred cover, the system bars hidden and the
- * screen kept on. Tapping shows the controls (exit, seek, transport) for a few seconds. Back
- * returns to the lyrics tab.
+ * screen kept on. Tapping (or moving the mouse) shows the controls (exit, seek, transport) for a
+ * few seconds; the mouse cursor hides with them. Back returns to the lyrics tab.
  */
 @Composable
 fun Karaoke(state: PlayerSheetState) {
@@ -111,13 +115,20 @@ fun Karaoke(state: PlayerSheetState) {
 				// going full screen (desktop) can drop the app's keyboard focus: take it here
 				.escapeToDismiss { state.karaoke = false }
 				.background(Color.Black)
-				// any tap shows the controls (a tap on a line also seeks to it); taps while
-				// they show keep them up
+				// the cursor goes with the controls, over everything
+				.pointerHoverIcon(
+					if (controls) PointerIcon.Default else HiddenPointerIcon,
+					overrideDescendants = !controls
+				)
+				// any tap or mouse move shows the controls (a tap on a line also seeks to it);
+				// taps and moves while they show keep them up
 				.pointerInput(Unit) {
 					awaitPointerEventScope {
 						while (true) {
 							val event = awaitPointerEvent(PointerEventPass.Initial)
-							if (event.type == PointerEventType.Release) {
+							val mouseMove = event.type == PointerEventType.Move &&
+								event.changes.any { it.type == PointerType.Mouse }
+							if (event.type == PointerEventType.Release || mouseMove) {
 								if (controls) touches++ else controls = true
 							}
 						}
