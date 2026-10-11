@@ -223,6 +223,14 @@ internal class PlaybackLibrary : KoinComponent {
 
 	private fun DomainAlbum.ordered() = songs.sortedWith(compareBy({ it.discNumber }, { it.trackNumber }))
 
+	/** The songs [id] stands for, for the queue actions: a song alone, a folder in its order. */
+	suspend fun songsOf(id: String): List<DomainSong> =
+		if (id.substringBefore('|') == SONG) {
+			listOfNotNull(songDao.getSongById(id.split('|')[1])?.toDomainModel())
+		} else {
+			songs(id)
+		}
+
 	private suspend fun collectionItem(id: String): MediaItem? =
 		albumDao.getAlbumById(id)?.let { albumItem(it.toDomainModel()) }
 			?: playlistDao.getPlaylistById(id)?.let { playlistItem(it.toDomainModel()) }
@@ -288,6 +296,10 @@ internal class PlaybackLibrary : KoinComponent {
 				.setIsBrowsable(browsable)
 				.setIsPlayable(playable)
 				.setMediaType(type)
+				// songs and what holds them can join the queue from the car's item menu
+				.setSupportedCommands(
+					if (id.substringBefore('|') in QUEUEABLE) listOf(PLAY_NEXT, ADD_TO_QUEUE) else emptyList()
+				)
 				.setExtras(extras)
 				.build()
 		)
@@ -329,6 +341,11 @@ internal class PlaybackLibrary : KoinComponent {
 		private const val SONG = "song"
 		private const val PLAY = "play"
 		private const val SHUFFLE = "shuffle"
+		private val QUEUEABLE = setOf(SONG, ALBUM, PLAYLIST, ARTIST, GENRE)
+
+		/** Session commands of the car's per-item menu; the item's id comes in their args. */
+		const val PLAY_NEXT = "PLAY_NEXT"
+		const val ADD_TO_QUEUE = "ADD_TO_QUEUE"
 
 		private const val GRID = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
 

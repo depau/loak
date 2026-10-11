@@ -62,6 +62,7 @@ import androidx.media3.session.MediaButtonReceiver
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -76,6 +77,8 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.SettableFuture
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.info_sign_in_on_phone
+import eu.depau.loak.generated.resources.action_add_to_queue
+import eu.depau.loak.generated.resources.action_play_next
 import org.jetbrains.compose.resources.getString
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
@@ -94,6 +97,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
@@ -355,6 +359,7 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 		mediaSession = MediaLibrarySession.Builder(this, sessionPlayer, SessionCallback())
 			.setSessionActivity(sessionPendingIntent)
 			.setBitmapLoader(bitmapLoader)
+			.setCommandButtonsForMediaItems(queueButtons())
 			.build()
 
 		// skipping, ReplayGain, Autoplay and saving the queue live in the player view model: the
@@ -549,6 +554,26 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 		}
 	}
 
+	/**
+	 * The car's per-item menu on songs and what holds them, see [PlaybackLibrary.songsOf]. Hosts
+	 * read only the icon URI, and crash without one.
+	 */
+	private fun queueButtons() = runBlocking {
+		fun icon(id: Int) = "android.resource://$packageName/$id".toUri()
+		listOf(
+			CommandButton.Builder(CommandButton.ICON_QUEUE_NEXT)
+				.setIconUri(icon(androidx.media3.session.R.drawable.media3_icon_queue_next))
+				.setSessionCommand(SessionCommand(PlaybackLibrary.PLAY_NEXT, Bundle.EMPTY))
+				.setDisplayName(getString(Res.string.action_play_next))
+				.build(),
+			CommandButton.Builder(CommandButton.ICON_QUEUE_ADD)
+				.setIconUri(icon(androidx.media3.session.R.drawable.media3_icon_queue_add))
+				.setSessionCommand(SessionCommand(PlaybackLibrary.ADD_TO_QUEUE, Bundle.EMPTY))
+				.setDisplayName(getString(Res.string.action_add_to_queue))
+				.build()
+		)
+	}
+
 	private fun toggleStar() {
 		val id = currentSongId.value ?: return
 		scope.launch {
@@ -618,6 +643,8 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
 				.buildUpon()
 				.add(SessionCommand(COMMAND_STAR, Bundle.EMPTY))
+				.add(SessionCommand(PlaybackLibrary.PLAY_NEXT, Bundle.EMPTY))
+				.add(SessionCommand(PlaybackLibrary.ADD_TO_QUEUE, Bundle.EMPTY))
 				.build()
 
 			return MediaSession.ConnectionResult.accept(
@@ -632,8 +659,17 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			customCommand: SessionCommand,
 			args: Bundle
 		): ListenableFuture<SessionResult> {
-			if (customCommand.customAction == COMMAND_STAR) toggleStar()
-
+			when (val action = customCommand.customAction) {
+				COMMAND_STAR -> toggleStar()
+				// through the player view model, like the app's own menus: queued songs move
+				// rather than repeat, and offline only the stored ones join
+				PlaybackLibrary.PLAY_NEXT, PlaybackLibrary.ADD_TO_QUEUE -> return future {
+					val songs = library.songsOf(args.getString(MediaConstants.EXTRA_KEY_MEDIA_ID).orEmpty())
+					val player = get<MediaPlayerViewModel>()
+					if (action == PlaybackLibrary.PLAY_NEXT) player.playNext(songs) else player.addToQueue(songs)
+					SessionResult(SessionResult.RESULT_SUCCESS)
+				}
+			}
 			return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
 		}
 

@@ -278,6 +278,8 @@ abstract class MediaPlayerViewModel(
 	fun playNext(collection: DomainSongCollection) =
 		enqueue(collection.orderedSongs(), next = true, notify = true)
 
+	fun playNext(songs: List<DomainSong>) = enqueue(songs, next = true, notify = true)
+
 	private fun DomainSongCollection.orderedSongs() =
 		if (this is DomainAlbum) songs.sortedWith(compareBy({ it.discNumber }, { it.trackNumber }))
 		else songs
