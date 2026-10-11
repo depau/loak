@@ -267,7 +267,8 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 
 	private suspend fun signIn() = mutex.withLock {
 		val response = client.post("$baseUrl/auth") {
-			// JSON back instead of a redirect
+			// the proxy in front may need its headers here too; JSON back instead of a redirect
+			audioMuseAuthHeaders()
 			header("X-Requested-With", "XMLHttpRequest")
 			contentType(ContentType.Application.Json)
 			setBody(buildJsonObject {
@@ -278,7 +279,7 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 		if (!response.status.isSuccess()) {
 			throw AudioMuseException(
 				if (response.status == HttpStatusCode.Unauthorized) "Wrong username or password"
-				else "Sign-in failed: ${response.status.description}",
+				else "Sign-in failed: ${response.status}",
 				response.status
 			)
 		}
