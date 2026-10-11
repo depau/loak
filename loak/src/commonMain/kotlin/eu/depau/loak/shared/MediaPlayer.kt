@@ -100,6 +100,17 @@ abstract class MediaPlayerViewModel(
 			&& preferenceManager.explicitContentPlayback != ExplicitContentPlayback.Allowed
 	}
 
+	/**
+	 * How many songs to fetch ahead of the current one, by the network class in use. Roaming is
+	 * the strictest (a metered, extra-cost connection), then mobile, then wifi; each has its own
+	 * read-ahead count preference.
+	 */
+	protected fun prefetchCount(): Int = when {
+		connectivityManager.isRoaming.value -> preferenceManager.prefetchReadAheadRoaming
+		connectivityManager.isCellular.value -> preferenceManager.prefetchReadAheadMobile
+		else -> preferenceManager.prefetchReadAheadWifi
+	}
+
 	/** The [syncKey] the server last saw from here, or that was loaded from it. */
 	// declared before init: restoreState() sets it while the constructor runs
 	private var syncedKey: Any? = null

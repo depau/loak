@@ -215,4 +215,9 @@ class PreferenceManager(
 	// streamed songs kept on disk (AudioStore); downloads don't count towards the limit
 	var audioCacheEnabled by preference(true)
 	var audioCacheMaxBytes by preference(2L * 1024 * 1024 * 1024)
+
+	/** How many songs past the current one are fetched ahead while playing, per network class. */
+	var prefetchReadAheadWifi by preference(3)
+	var prefetchReadAheadMobile by preference(3)
+	var prefetchReadAheadRoaming by preference(1)
 }

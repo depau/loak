@@ -10,12 +10,13 @@ class AudioPrefetchTest {
 	@Test
 	fun targets() {
 		val upcoming = listOf("a", null, "b", "c", "d")
-		assertEquals(listOf("a"), prefetchTargets("x", upcoming, metered = true))
-		// a downloaded/radio entry (null) still uses up a slot
-		assertEquals(listOf("a", "b"), prefetchTargets("x", upcoming, metered = false))
+		assertEquals(listOf("a"), prefetchTargets("x", upcoming, count = 1))
+		// skipped nulls don't use up a slot: they're filtered before counting
+		assertEquals(listOf("a", "b"), prefetchTargets("x", upcoming, count = 2))
+		assertEquals(listOf("a", "b", "c"), prefetchTargets("x", upcoming, count = 3))
 		// a short repeating queue: no duplicates, never the current song
-		assertEquals(listOf("y"), prefetchTargets("x", listOf("y", "x", "y"), metered = false))
-		assertEquals(emptyList(), prefetchTargets("x", emptyList(), metered = false))
+		assertEquals(listOf("y"), prefetchTargets("x", listOf("y", "x", "y"), count = 3))
+		assertEquals(emptyList(), prefetchTargets("x", emptyList(), count = 3))
 	}
 
 	@Test

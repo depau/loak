@@ -39,11 +39,12 @@ fun audioExtension(quality: AudioQuality, suffix: String?) =
 	quality.format?.takeIf { it != "default" } ?: suffix ?: "bin"
 
 /**
- * Songs to fetch ahead of [current]: the next queue entries, one on a metered network and three
- * otherwise. [upcoming] holds null for entries that don't stream (radio, downloaded files).
+ * Songs to fetch ahead of [current]: the first [count] playable (non-null, not the current
+ * song) queue entries. [count] comes from the network-class settings
+ * (prefetchReadAheadWifi/Mobile/Roaming); the call sites resolve the network class.
  */
-fun prefetchTargets(current: String?, upcoming: List<String?>, metered: Boolean): List<String> =
-	upcoming.take(if (metered) 1 else 3).filterNotNull().filter { it != current }.distinct()
+fun prefetchTargets(current: String?, upcoming: List<String?>, count: Int): List<String> =
+	upcoming.filterNotNull().filter { it != current }.distinct().take(count)
 
 /**
  * Downloads whole songs into the [AudioStore] at line rate, one request each, so the radio does

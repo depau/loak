@@ -962,6 +962,11 @@
 	<string name="option_go_offline_auto">Go offline automatically</string>
 	<string name="info_offline_mode_on">Offline mode is on</string>
 	<string name="title_cache">Cache</string>
+	<string name="title_read_ahead">Read-ahead</string>
+	<string name="option_read_ahead_wifi">On Wi-Fi</string>
+	<string name="option_read_ahead_mobile">On mobile data</string>
+	<string name="option_read_ahead_roaming">While roaming</string>
+	<string name="info_read_ahead_desc">Songs fetched ahead of the current one, so the next one starts already cached</string>
 	<string name="title_free_up_space">Free up space</string>
 	<string name="title_fix_problems">Fix problems</string>
 	<string name="subtitle_clear_pending_actions">Offline edits that haven't reached the server, if they keep failing</string>

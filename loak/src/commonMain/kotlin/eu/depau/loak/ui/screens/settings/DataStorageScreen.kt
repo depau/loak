@@ -13,6 +13,11 @@ import eu.depau.loak.generated.resources.title_going_offline
 import eu.depau.loak.generated.resources.option_go_offline_auto
 import eu.depau.loak.generated.resources.info_offline_mode_on
 import eu.depau.loak.generated.resources.title_cache
+import eu.depau.loak.generated.resources.title_read_ahead
+import eu.depau.loak.generated.resources.option_read_ahead_wifi
+import eu.depau.loak.generated.resources.option_read_ahead_mobile
+import eu.depau.loak.generated.resources.option_read_ahead_roaming
+import eu.depau.loak.generated.resources.info_read_ahead_desc
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseOut
@@ -98,7 +103,9 @@ import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
 import eu.depau.loak.ui.screens.settings.components.SettingsChoiceItem
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
+import eu.depau.loak.ui.screens.settings.components.SettingsSliderItem
 import eu.depau.loak.ui.screens.settings.viewmodels.SettingsDataStorageViewModel
+import kotlin.math.roundToInt
 
 /** What gets downloaded and when, going offline on its own, and the streaming cache. */
 @Composable
@@ -287,9 +294,50 @@ fun SettingsDataStorageScreen() {
 						shapes = SegmentedListItemDefaults.segmentedShapes(index = cacheRows - 1, count = cacheRows)
 					)
 				}
+
+				SettingsGroup(title = { Text(stringResource(Res.string.title_read_ahead)) }) {
+					ReadAheadCountItem(
+						value = preferenceManager.prefetchReadAheadWifi,
+						onValueChange = { preferenceManager.prefetchReadAheadWifi = it },
+						content = { Text(stringResource(Res.string.option_read_ahead_wifi)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3)
+					)
+					ReadAheadCountItem(
+						value = preferenceManager.prefetchReadAheadMobile,
+						onValueChange = { preferenceManager.prefetchReadAheadMobile = it },
+						content = { Text(stringResource(Res.string.option_read_ahead_mobile)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3)
+					)
+					ReadAheadCountItem(
+						value = preferenceManager.prefetchReadAheadRoaming,
+						onValueChange = { preferenceManager.prefetchReadAheadRoaming = it },
+						content = { Text(stringResource(Res.string.option_read_ahead_roaming)) },
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3)
+					)
+				}
 			}
 		}
 	}
+}
+
+/** A count with a slider (and tapping the number clears it); see title_read_ahead. */
+@Composable
+private fun ReadAheadCountItem(
+	value: Int,
+	onValueChange: (Int) -> Unit,
+	content: @Composable () -> Unit,
+	shapes: ListItemShapes
+) {
+	SettingsSliderItem(
+		value = value.toFloat(),
+		valueRange = 0f..10f,
+		steps = 10,
+		onValueChange = { onValueChange(it.roundToInt()) },
+		shapes = shapes,
+		description = stringResource(Res.string.info_read_ahead_desc),
+		content = content,
+		trailingContent = { Text(value.toString()) }
+	)
 }
 
 /** The image cache's size on disk, measured once; set it after clearing the cache. */

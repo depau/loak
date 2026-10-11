@@ -458,11 +458,16 @@ class IOSMediaPlayerViewModel(
 	 */
 	private fun schedulePrefetch() {
 		val state = _uiState.value
-		val upcoming = state.queue.drop(state.currentIndex + 1).take(3)
+		val maxAhead = maxOf(
+			preferenceManager.prefetchReadAheadWifi,
+			preferenceManager.prefetchReadAheadMobile,
+			preferenceManager.prefetchReadAheadRoaming
+		)
+		val upcoming = state.queue.drop(state.currentIndex + 1).take(maxAhead)
 			.map { song -> song.takeUnless { it.id.startsWith("radio_") } }
 		val current = state.currentSong?.id?.takeUnless { it.startsWith("radio_") }
 		val targets = prefetchTargets(
-			current, upcoming.map { it?.id }, connectivityManager.isCellular.value
+			current, upcoming.map { it?.id }, prefetchCount()
 		)
 		val keep = setOfNotNull(current) + targets
 		(keep - retained).forEach(audioStore::retain)
