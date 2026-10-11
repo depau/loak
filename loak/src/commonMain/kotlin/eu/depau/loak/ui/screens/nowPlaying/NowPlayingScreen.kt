@@ -193,7 +193,7 @@ fun NowPlayingScreen() {
 							.windowInsetsPadding(WindowInsets.systemBars)
 							.then(
 								if (docked) Modifier
-								else Modifier.padding(top = 8.dp, end = 16.dp, bottom = 16.dp)
+								else Modifier.padding(top = 16.dp, end = 16.dp, bottom = 16.dp)
 							)
 							.width(paneWidth)
 							.fillMaxHeight()
