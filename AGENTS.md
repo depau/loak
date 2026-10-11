@@ -89,6 +89,7 @@ Classic layered single-module KMP app. Everything lives under `loak/src/commonMa
   - `parser/` — `LogLineParser`, `LyricsContentParser`.
 - **`shared/MediaPlayer.kt`** — abstract `MediaPlayerViewModel` (queue, playback state, scrobbling, explicit-content handling); `MediaPlayer`/`MediaPlayerViewModel` are `expect`/`actual` split:
   - Android → Media3/ExoPlayer (`androidMain/.../exoplayer/`, `AndroidMediaPlayerViewModel`, `PlaybackService`, `AudioGainProcessor`).
+    - `PlaybackService` is a Media3 `MediaLibraryService`: `PlaybackLibrary` is the browse tree, search and "play X" resolution that Android Auto / Automotive render (the host draws everything; there is no car UI code). Car picks carry only a media id and are resolved in `onSetMediaItems`; `CoverArtProvider` serves artwork as `content://` URIs, the only kind car hosts load. The service creates the `MediaPlayerViewModel` singleton, which adopts queues other controllers set (`followQueue`), so skipping, ReplayGain, Autoplay and queue saving also run when the car starts playback with no screen open.
   - iOS → AVFoundation (`iosMain/.../shared/MediaPlayer.ios.kt`, `IOSMediaPlayerViewModel`).
 - **`ui/`** — Compose UI.
   - `screens/<feature>/` — each feature has `<Feature>Screen.kt` + `components/` + `viewmodels/` (Koin `viewModel {}` registered in `di/ViewModelModule.kt`).
@@ -165,6 +166,7 @@ Debug realm: the Android `debug` build has **no ABIs excluded** (`x86_64` is add
 - Running an Android emulator: use `$ANDROID_HOME/emulator/emulator -avd <avd>` (if `ANDROID_HOME` is unset, the SDK is at `sdk.dir` in `local.properties`) and wait for boot with `adb wait-for-device` + `adb shell getprop sys.boot_completed` == `1`. A headless run is fine for CI-style checks; keep only one instance per AVD running.
 - **An emulator launched from a sandboxed agent shell has no internet** (`ip route` shows no default route, and the app reports itself offline). Launch it outside the sandbox.
 - Driving the app: `adb shell uiautomator dump` lists on-screen texts with their bounds; `adb shell input tap|swipe|text` acts on them (a long-press is a `swipe` that starts and ends at the same point, held ~900 ms); `adb shell input keyevent 4` is the system back, `111` is Esc. Compose sheets and dialogs are separate windows, so check that back reaches them (see gotcha 11).
+- Car media (Android Auto's browse tree): an Android Automotive emulator renders the same `MediaLibraryService` without a Google sign-in. Create one from `system-images;android-35-ext15;android-automotive;arm64-v8a`, start it with `-no-audio`, log in through the app, then open the car media app on Lo'ak: `adb shell am start -a android.car.intent.action.MEDIA_TEMPLATE --es android.car.intent.extra.MEDIA_COMPONENT eu.depau.loak.debug/eu.depau.loak.shared.PlaybackService`. Projected Android Auto proper needs the Desktop Head Unit (`extras;google;auto`) and the Android Auto app on a Play-signed-in device.
 
 ## Sentry (error reporting)
 

@@ -79,11 +79,17 @@
 			android:foregroundServiceType="mediaPlayback">
 			<!--			android:permission="${applicationId}.permission.PLAYBACK_SERVICE">   : Blocks android auto from seeing the app at all? -->
 			<intent-filter>
-
+				<action android:name="androidx.media3.session.MediaLibraryService" />
 				<action android:name="androidx.media3.session.MediaSessionService" />
 				<action android:name="android.media.browse.MediaBrowserService" />
 			</intent-filter>
 		</service>
+
+		<!-- cover art for Android Auto / Automotive, which load artwork only from content URIs -->
+		<provider
+			android:name="eu.depau.loak.shared.CoverArtProvider"
+			android:authorities="${applicationId}.coverart"
+			android:exported="true" />
 
 		<service
 			android:name="androidx.work.impl.foreground.SystemForegroundService"

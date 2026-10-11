@@ -61,13 +61,22 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaButtonReceiver
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaLibraryService.LibraryParams
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import coil3.ImageLoader
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.SettableFuture
+import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.info_sign_in_on_phone
+import org.jetbrains.compose.resources.getString
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -174,10 +183,14 @@ internal fun currentAudioOutputDevice(context: Context): String? {
 }
 @OptIn(UnstableApi::class)
 @kotlin.OptIn(ExperimentalCoroutinesApi::class)
-class PlaybackService : MediaSessionService(), KoinComponent {
+class PlaybackService : MediaLibraryService(), KoinComponent {
 	private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-	private var mediaSession: MediaSession? = null
+	private var mediaSession: MediaLibrarySession? = null
+	private val library = PlaybackLibrary()
+
+	/** The last browse search, which the car then asks for page by page. */
+	private var searchResults: Pair<String, List<MediaItem>> = "" to emptyList()
 	private val audioGainProcessor: AudioGainProcessor by inject()
 	private val serviceScope = MainScope()
 	private var scrobbleManager: AndroidScrobbleManager? = null
@@ -339,11 +352,9 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 				super.seekToPreviousMediaItem().also { play() }
 		}
 
-		mediaSession = MediaSession.Builder(this, sessionPlayer)
+		mediaSession = MediaLibrarySession.Builder(this, sessionPlayer, SessionCallback())
 			.setSessionActivity(sessionPendingIntent)
 			.setBitmapLoader(bitmapLoader)
-			.setCallback(MediaSessionCallback(::toggleStar, ::savedQueue))
-			.setSessionActivity(sessionPendingIntent)
 			.build()
 
 		// skipping, ReplayGain, Autoplay and saving the queue live in the player view model: the
@@ -449,7 +460,7 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		}
 	}
 
-	override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+	override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
 		return mediaSession
 	}
 
@@ -576,10 +587,22 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 			stateRepository.state.value?.queue.isNullOrEmpty().not()
 	}
 
-	class MediaSessionCallback(
-		private val onStar: () -> Unit,
-		private val savedQueue: () -> MediaSession.MediaItemsWithStartPosition?
-	) : MediaSession.Callback {
+	/** Runs [block] in the service's scope, for the session callbacks that answer later. */
+	private fun <T> future(block: suspend () -> T): ListenableFuture<T> =
+		SettableFuture.create<T>().also { result ->
+			serviceScope.launch {
+				try {
+					result.set(block())
+				} catch (e: Exception) {
+					result.setException(e)
+				}
+			}
+		}
+
+	/** The car's picks carry no stream: [PlaybackLibrary] turns them into the songs to play. */
+	private fun MediaItem.fromBrowser() = localConfiguration == null
+
+	private inner class SessionCallback : MediaLibrarySession.Callback {
 		override fun onPlaybackResumption(
 			mediaSession: MediaSession,
 			controller: MediaSession.ControllerInfo,
@@ -609,9 +632,108 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 			customCommand: SessionCommand,
 			args: Bundle
 		): ListenableFuture<SessionResult> {
-			if (customCommand.customAction == COMMAND_STAR) onStar()
+			if (customCommand.customAction == COMMAND_STAR) toggleStar()
 
 			return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+		}
+
+		override fun onGetLibraryRoot(
+			session: MediaLibrarySession,
+			browser: MediaSession.ControllerInfo,
+			params: LibraryParams?
+		): ListenableFuture<LibraryResult<MediaItem>> = Futures.immediateFuture(
+			LibraryResult.ofItem(
+				library.root(),
+				LibraryParams.Builder().setExtras(PlaybackLibrary.rootExtras).build()
+			)
+		)
+
+		override fun onGetItem(
+			session: MediaLibrarySession,
+			browser: MediaSession.ControllerInfo,
+			mediaId: String
+		): ListenableFuture<LibraryResult<MediaItem>> = Futures.immediateFuture(
+			if (mediaId == PlaybackLibrary.ROOT) LibraryResult.ofItem(library.root(), null)
+			else LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED)
+		)
+
+		// children are loaded fresh on each request, nothing to track
+		override fun onSubscribe(
+			session: MediaLibrarySession,
+			browser: MediaSession.ControllerInfo,
+			parentId: String,
+			params: LibraryParams?
+		): ListenableFuture<LibraryResult<Void>> = Futures.immediateFuture(LibraryResult.ofVoid())
+
+		override fun onGetChildren(
+			session: MediaLibrarySession,
+			browser: MediaSession.ControllerInfo,
+			parentId: String,
+			page: Int,
+			pageSize: Int,
+			params: LibraryParams?
+		): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = future {
+			if (!sessionManager.isLoggedIn.value) {
+				LibraryResult.ofError(
+					SessionError(
+						SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED,
+						getString(Res.string.info_sign_in_on_phone)
+					)
+				)
+			} else {
+				LibraryResult.ofItemList(library.children(parentId).page(page, pageSize), params)
+			}
+		}
+
+		override fun onSearch(
+			session: MediaLibrarySession,
+			browser: MediaSession.ControllerInfo,
+			query: String,
+			params: LibraryParams?
+		): ListenableFuture<LibraryResult<Void>> = future {
+			val results = library.search(query)
+			searchResults = query to results
+			session.notifySearchResultChanged(browser, query, results.size, params)
+			LibraryResult.ofVoid()
+		}
+
+		override fun onGetSearchResult(
+			session: MediaLibrarySession,
+			browser: MediaSession.ControllerInfo,
+			query: String,
+			page: Int,
+			pageSize: Int,
+			params: LibraryParams?
+		): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = future {
+			val results = searchResults.takeIf { it.first == query }?.second ?: library.search(query)
+			LibraryResult.ofItemList(results.page(page, pageSize), params)
+		}
+
+		override fun onAddMediaItems(
+			mediaSession: MediaSession,
+			controller: MediaSession.ControllerInfo,
+			mediaItems: List<MediaItem>
+		): ListenableFuture<List<MediaItem>> = future {
+			mediaItems.flatMap { if (it.fromBrowser()) library.play(it)?.first.orEmpty() else listOf(it) }
+		}
+
+		override fun onSetMediaItems(
+			mediaSession: MediaSession,
+			controller: MediaSession.ControllerInfo,
+			mediaItems: List<MediaItem>,
+			startIndex: Int,
+			startPositionMs: Long
+		): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+			val picked = mediaItems.singleOrNull()?.takeIf { it.fromBrowser() }
+				?: return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
+			return future {
+				library.play(picked)?.let { (items, start) ->
+					MediaSession.MediaItemsWithStartPosition(items, start, C.TIME_UNSET)
+				}
+					// "play music" without saying what: carry on with the saved queue
+					?: savedQueue()
+					?: throw UnsupportedOperationException("nothing to play for ${picked.mediaId}")
+			}
 		}
 	}
 
@@ -1447,6 +1569,10 @@ private class StreamStatsListener(private val stats: NetworkStatsManager) : Tran
 	}
 }
 
+/** One page of a browser's request; older hosts ask for everything as page 0 of MAX_VALUE. */
+private fun <T> List<T>.page(page: Int, pageSize: Int): List<T> =
+	drop((page.toLong() * pageSize).coerceAtMost(size.toLong()).toInt()).take(pageSize)
+
 /** A live radio stream as a queue entry: [id] starts with `radio_`, [url] is the stream. */
 internal fun radioSong(id: String, name: String, url: String) = DomainSong(
 	id = id,
@@ -1501,9 +1627,8 @@ internal fun DomainSong.toMediaItem(sessionManager: SessionManager): MediaItem {
 		.setDurationMs(duration.inWholeMilliseconds)
 		.setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
 
-	metadataBuilder.setArtworkUri(
-		coverArtId?.let { sessionManager.getCoverArtUrl(it, COVER_ART_MEDIUM).toUri() }
-	)
+	// a content URI: car hosts load nothing else, and the server URL carries the login
+	metadataBuilder.setArtworkUri(coverArtId?.let(CoverArtProvider::uri))
 
 	val metadata = metadataBuilder.build()
 

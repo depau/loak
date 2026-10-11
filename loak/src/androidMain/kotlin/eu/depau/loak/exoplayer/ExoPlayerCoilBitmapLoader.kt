@@ -35,7 +35,9 @@ class ExoPlayerCoilBitmapLoader(
 	}
 
 	override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> {
-		val coverId = uri.getQueryParameter("id") ?: return bitmapLoader.loadBitmap(uri)
+		// CoverArtProvider's URIs: straight to the image cache, skipping the provider
+		val coverId = uri.takeIf { it.scheme == "content" }?.lastPathSegment
+			?: return bitmapLoader.loadBitmap(uri)
 		val future = SettableFuture.create<Bitmap>()
 		imageLoader.enqueue(
 			ImageRequest.Builder(context)
