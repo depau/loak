@@ -37,7 +37,7 @@ class PreferenceManager(
 	var lyricsBrightInactive by preference(false)
 	var enableScrobbling by preference(true)
 	var scrobblePercentage by preference(.5f)
-	var replayGainMode by preference(ReplayGainMode.Off)
+	var replayGainMode by preference(ReplayGainMode.Dynamic)
 	var rgAmpGain by preference(0f)
 	var ampGain by preference(0f)
 	var gaplessPlayback by preference(true)

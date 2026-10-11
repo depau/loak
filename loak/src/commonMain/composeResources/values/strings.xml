@@ -104,6 +104,12 @@
 	<string name="option_preamp_with_rg">Boost, songs with tags</string>
 	<string name="option_preamp_without_rg">Boost, songs without tags</string>
 	<string name="option_preamp_tip">High values can distort</string>
+	<string name="info_replaygain_mode_off">No volume leveling; songs play at their recorded loudness.</string>
+	<string name="info_replaygain_mode_track">Each song is evened to the same loudness, whichever queue it plays in.</string>
+	<string name="info_replaygain_mode_album">The album keeps its original loudness shape, so quiet songs stay quieter.</string>
+	<string name="info_replaygain_mode_dynamic">Per album when playing one album, per song otherwise.</string>
+	<string name="info_preamp_with_rg_explainer">Extra loudness for songs with loudness tags. High values can distort.</string>
+	<string name="info_preamp_without_rg_explainer">Extra loudness for songs without loudness tags. High values can distort.</string>
 	<string name="option_gapless_playback">Gapless playback</string>
 	<string name="option_audio_offload">Battery saver playback</string>
 	<string name="option_image_cache_size">Image cache size</string>

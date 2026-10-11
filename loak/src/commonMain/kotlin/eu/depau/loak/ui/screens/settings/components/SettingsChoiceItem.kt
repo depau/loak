@@ -34,6 +34,7 @@ fun <Choice> SettingsChoiceItem(
 	onChoiceSelected: (Choice) -> Unit,
 	label: @Composable (Choice) -> String,
 	description: String? = null,
+	choiceDescription: ((Choice) -> @Composable () -> Unit)? = null,
 	enabled: Boolean = true,
 	shapes: ListItemShapes,
 	content: @Composable () -> Unit
@@ -62,6 +63,7 @@ fun <Choice> SettingsChoiceItem(
 			selectedChoice = selectedChoice,
 			onChoiceSelected = onChoiceSelected,
 			label = label,
+			choiceDescription = choiceDescription,
 			title = content
 		)
 	}
@@ -74,6 +76,7 @@ private fun <Choice> ChoiceDialog(
 	selectedChoice: Choice,
 	onChoiceSelected: (Choice) -> Unit,
 	label: @Composable (Choice) -> String,
+	choiceDescription: ((Choice) -> @Composable () -> Unit)?,
 	title: @Composable () -> Unit
 ) {
 	val listItemColors = ListItemDefaults.colors(
@@ -103,6 +106,7 @@ private fun <Choice> ChoiceDialog(
 						selected = selected,
 						onClick = { onChoiceSelected(choice) },
 						content = { Text(label(choice)) },
+						supportingContent = choiceDescription?.invoke(choice),
 						colors = listItemColors,
 						contentPadding = listItemContentPadding,
 						trailingContent = {

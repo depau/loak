@@ -23,13 +23,18 @@ import eu.depau.loak.domain.models.settings.ReplayGainMode
 import eu.depau.loak.domain.models.settings.StreamingQuality
 import eu.depau.loak.domain.models.settings.description
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.info_replaygain_mode_album
+import eu.depau.loak.generated.resources.info_replaygain_mode_dynamic
+import eu.depau.loak.generated.resources.info_replaygain_mode_off
+import eu.depau.loak.generated.resources.info_replaygain_mode_track
 import eu.depau.loak.generated.resources.info_uses_replaygain
 import eu.depau.loak.generated.resources.option_audio_offload
 import eu.depau.loak.generated.resources.option_custom_transcoding
 import eu.depau.loak.generated.resources.option_equaliser
 import eu.depau.loak.generated.resources.option_even_out_volume
 import eu.depau.loak.generated.resources.option_gapless_playback
-import eu.depau.loak.generated.resources.option_preamp_tip
+import eu.depau.loak.generated.resources.info_preamp_with_rg_explainer
+import eu.depau.loak.generated.resources.info_preamp_without_rg_explainer
 import eu.depau.loak.generated.resources.option_preamp_with_rg
 import eu.depau.loak.generated.resources.option_preamp_without_rg
 import eu.depau.loak.generated.resources.option_streaming_cellular
@@ -205,6 +210,18 @@ private fun VolumeGroup() {
 			content = { Text(stringResource(Res.string.option_even_out_volume)) },
 			label = { stringResource(it.displayName) },
 			description = stringResource(Res.string.info_uses_replaygain),
+			choiceDescription = { mode ->
+				@Composable {
+					Text(
+						when (mode) {
+							ReplayGainMode.Off -> stringResource(Res.string.info_replaygain_mode_off)
+							ReplayGainMode.Track -> stringResource(Res.string.info_replaygain_mode_track)
+							ReplayGainMode.Album -> stringResource(Res.string.info_replaygain_mode_album)
+							ReplayGainMode.Dynamic -> stringResource(Res.string.info_replaygain_mode_dynamic)
+						}
+					)
+				}
+			},
 			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3)
 		)
 		SettingsSliderItem(
@@ -219,6 +236,7 @@ private fun VolumeGroup() {
 					withoutReplayGain = preferenceManager.ampGain
 				)
 			},
+			description = stringResource(Res.string.info_preamp_with_rg_explainer),
 			shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3)
 		)
 		SettingsSliderItem(
@@ -233,7 +251,7 @@ private fun VolumeGroup() {
 					withoutReplayGain = it
 				)
 			},
-			description = stringResource(Res.string.option_preamp_tip),
+			description = stringResource(Res.string.info_preamp_without_rg_explainer),
 			shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3)
 		)
 	}
