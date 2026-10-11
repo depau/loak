@@ -237,6 +237,7 @@ kotlin {
 				implementation(libs.nucleus.updater.runtime)
 				implementation(libs.nucleus.media.control)
 				implementation(libs.nucleus.system.color)
+				implementation(libs.jna)
 			}
 		}
 	}

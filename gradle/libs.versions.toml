@@ -45,6 +45,8 @@ kotlinx-coroutines = "1.11.0"
 # xerial sqlite-jdbc ships JVM natives (incl. aarch64) for every desktop arch;
 # androidx's sqlite-bundled-jvm lacks windows_arm64 and dropped osx_x64 in 2.7.
 sqlite-jdbc = "3.53.4.0"
+# CoreGraphics calls (hiding the cursor on macOS); already pulled in transitively
+jna = "5.13.0"
 
 # Error reporting
 # sentry KMP SDK + gradle plugin share one version; must stay in lockstep with
@@ -110,6 +112,7 @@ koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 mp3spi = { module = "com.googlecode.soundlibs:mp3spi", version.ref = "mp3spi" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 nucleus-rodio = { module = "dev.nucleusframework:nucleus.rodio", version.ref = "nucleus-rodio" }
 nucleus-menu-macos = { module = "dev.nucleusframework:nucleus.menu-macos", version.ref = "nucleus" }
 nucleus-media-control = { module = "dev.nucleusframework:nucleus.media-control", version.ref = "nucleus" }

@@ -41,9 +41,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.PointerType
-import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,7 +65,7 @@ import eu.depau.loak.ui.screens.lyrics.components.LocalLyricsFontSize
 import eu.depau.loak.ui.screens.lyrics.components.LocalLyricsCentered
 import androidx.compose.foundation.layout.fillMaxHeight
 import eu.depau.loak.ui.screens.nowPlaying.components.controls.NowPlayingProgressBar
-import eu.depau.loak.ui.util.HiddenPointerIcon
+import eu.depau.loak.ui.util.hiddenCursor
 import eu.depau.loak.ui.util.Immersive
 import eu.depau.loak.ui.util.KeepScreenOn
 import kotlinx.coroutines.delay
@@ -116,10 +114,7 @@ fun Karaoke(state: PlayerSheetState) {
 				.escapeToDismiss { state.karaoke = false }
 				.background(Color.Black)
 				// the cursor goes with the controls, over everything
-				.pointerHoverIcon(
-					if (controls) PointerIcon.Default else HiddenPointerIcon,
-					overrideDescendants = !controls
-				)
+				.hiddenCursor(!controls)
 				// any tap or mouse move shows the controls (a tap on a line also seeks to it);
 				// taps and moves while they show keep them up
 				.pointerInput(Unit) {
