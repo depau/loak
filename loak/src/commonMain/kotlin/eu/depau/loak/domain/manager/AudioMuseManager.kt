@@ -276,7 +276,8 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 				put("password", JsonPrimitive(preferenceManager.audioMusePassword))
 			}.toString())
 		}
-		if (!response.status.isSuccess()) {
+		// 404 "Auth not configured": the server has sign-in off and every call is open
+		if (!response.status.isSuccess() && response.status != HttpStatusCode.NotFound) {
 			throw AudioMuseException(
 				if (response.status == HttpStatusCode.Unauthorized) "Wrong username or password"
 				else "Sign-in failed: ${response.status}",
