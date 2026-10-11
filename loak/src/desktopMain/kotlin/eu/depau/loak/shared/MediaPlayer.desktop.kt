@@ -278,68 +278,90 @@ class DesktopMediaPlayerViewModel(
 		if (isTransitioningBetweenTracks) return
 		val songToPlay = _uiState.value.queue.getOrNull(index) ?: return
 
+		// Held until the source actually starts (see transferTo): rodio.playUrl can block for
+		// seconds inside the IO coroutine, and clearing the flag here would let the progress
+		// loop see the still-empty previous source as "ended" and skip the new track.
+		val startToken = ++sourceStartToken
 		isTransitioningBetweenTracks = true
 		streamFailed = false
-		try {
-			_uiState.update {
-				it.copy(
-					currentIndex = index,
-					currentSong = songToPlay,
-					isPaused = false,
-					isLoading = false,
-					progress = 0f
-				)
-			}
-			scrobbleManager.onMediaChanged(songToPlay.id)
-			transferTo(songToPlay)
-		} finally {
-			isTransitioningBetweenTracks = false
+		_uiState.update {
+			it.copy(
+				currentIndex = index,
+				currentSong = songToPlay,
+				isPaused = false,
+				isLoading = false,
+				progress = 0f
+			)
 		}
+		scrobbleManager.onMediaChanged(songToPlay.id)
+		transferTo(songToPlay, startToken)
 	}
 
+	/** Monotonic token identifying the current source-start. The end-detection flag is only
+	 *  cleared by the start that owns it, so a cancelled (superseded) start's completion can't
+	 *  stomp the flag of the start that replaced it and re-expose the skip race. */
+	private var sourceStartToken = 0
+
 	/** Plays [song]: a complete store file if present; else for lossless it starts the mp3 fallback
-	 *  now and hot-swaps to the FLAC file once fetched; else it streams in the selected container. */
-	private fun transferTo(song: DomainSong) {
+	 *  now and hot-swaps to the FLAC file once fetched; else it streams in the selected container.
+	 *  [isTransitioningBetweenTracks] stays true until rodio has actually been handed a source
+	 *  (for lossless: until the hot-swap starts), so the end-detection loop can't skip the new
+	 *  track while its stream is still connecting. */
+	private fun transferTo(song: DomainSong, startToken: Int) {
 		viewModelScope.launch(Dispatchers.IO) {
-			swappedAwayJob?.cancel()
-			swappedAwayJob = null
-			val stored = storedPath(song)
-			if (stored != null) {
-				playFileSource(song, stored)
-				return@launch
-			}
-			if (!wantsLossless(song)) {
-				playStreamingFallback(song)
-				return@launch
-			}
-			// lossless wanted but no file yet: start mp3 now, fetch Raw, swap on ready.
-			// if the mp3 fallback can't start, there's no point spooling: abort and keep
-			// the (correctly paused) error state — never swap into a broken half-state.
-			if (!playStreamingFallback(song)) return@launch
-			val fetch = audioFetcher.fetch(
-				songId = song.id,
-				quality = AudioQuality.Raw,
-				extension = audioExtension(AudioQuality.Raw, song.fileExtension),
-				download = false,
-				url = { losslessStreamUrl(song) }
-			) ?: return@launch
-			val result = fetch.progress.first { it.done || it.failed }
-			if (!result.done) {
-				// the mp3 fallback is playing fine; leave it. Log for diagnostics.
-				Logger.w("DesktopMediaPlayerViewModel", "lossless fetch of ${song.id} failed; keeping mp3 fallback")
-				return@launch
-			}
-			if (_uiState.value.currentSong?.id != song.id) return@launch
-			val donePath = audioStore.bestComplete(song.id)?.let { audioStore.pathOf(it) }
-				?: run { Logger.w("DesktopMediaPlayerViewModel", "lossless file for ${song.id} vanished"); return@launch }
-			// mp3 was playing; swap to the FLAC file at the same position.
-			// playFileSource resets isPaused=false, so the button stays correct even if the
-			// fallback had briefly reported a failure.
-			val positionMs = rodio.getPositionMs().coerceAtLeast(0L)
-			val wasPaused = rodio.isPaused()
-			swappedAwayJob = viewModelScope.launch(Dispatchers.IO) {
-				if (!playFileSource(song, donePath, startPosMs = positionMs)) return@launch
-				if (wasPaused) pause()
+			val myToken = startToken
+			// set by the swap job when it takes over starting the FLAC source; if it is, the
+			// finally here must NOT clear the flag (the swap job clears it instead).
+			var swapOwnsFlag = false
+			try {
+				swappedAwayJob?.cancel()
+				swappedAwayJob = null
+				val stored = storedPath(song)
+				if (stored != null) {
+					playFileSource(song, stored)
+					return@launch
+				}
+				if (!wantsLossless(song)) {
+					playStreamingFallback(song)
+					return@launch
+				}
+				// lossless wanted but no file yet: start mp3 now, fetch Raw, swap on ready.
+				// if the mp3 fallback can't start, there's no point spooling: abort and keep
+				// the (correctly paused) error state — never swap into a broken half-state.
+				if (!playStreamingFallback(song)) return@launch
+				val fetch = audioFetcher.fetch(
+					songId = song.id,
+					quality = AudioQuality.Raw,
+					extension = audioExtension(AudioQuality.Raw, song.fileExtension),
+					download = false,
+					url = { losslessStreamUrl(song) }
+				) ?: return@launch
+				val result = fetch.progress.first { it.done || it.failed }
+				if (!result.done) {
+					// the mp3 fallback is playing fine; leave it. Log for diagnostics.
+					Logger.w("DesktopMediaPlayerViewModel", "lossless fetch of ${song.id} failed; keeping mp3 fallback")
+					return@launch
+				}
+				if (_uiState.value.currentSong?.id != song.id) return@launch
+				val donePath = audioStore.bestComplete(song.id)?.let { audioStore.pathOf(it) }
+					?: run { Logger.w("DesktopMediaPlayerViewModel", "lossless file for ${song.id} vanished"); return@launch }
+				// mp3 was playing; swap to the FLAC file at the same position.
+				// playFileSource resets isPaused=false, so the button stays correct even if the
+				// fallback had briefly reported a failure.
+				val positionMs = rodio.getPositionMs().coerceAtLeast(0L)
+				val wasPaused = rodio.isPaused()
+				swapOwnsFlag = true
+				swappedAwayJob = viewModelScope.launch(Dispatchers.IO) {
+					try {
+						if (sourceStartToken != myToken) return@launch
+						if (!playFileSource(song, donePath, startPosMs = positionMs)) return@launch
+						if (wasPaused) pause()
+					} finally {
+						if (sourceStartToken == myToken) isTransitioningBetweenTracks = false
+					}
+				}
+			} finally {
+				if (!swapOwnsFlag && sourceStartToken == myToken) isTransitioningBetweenTracks = false
 			}
 		}
 	}
@@ -474,6 +496,10 @@ class DesktopMediaPlayerViewModel(
 	override fun clearQueue() {
 		swappedAwayJob?.cancel()
 		swappedAwayJob = null
+		// supersede any in-flight source start so its completion can't reintroduce
+		// isTransitioningBetweenTracks while the (now cancelled) start is still blocked
+		sourceStartToken++
+		isTransitioningBetweenTracks = false
 		streamFailed = false
 		rodio.clear()
 		_uiState.update {
@@ -580,6 +606,9 @@ class DesktopMediaPlayerViewModel(
 		// State restored from the server: paused, no audio started.
 		swappedAwayJob?.cancel()
 		swappedAwayJob = null
+		// supersede any in-flight source start (see clearQueue)
+		sourceStartToken++
+		isTransitioningBetweenTracks = false
 		streamFailed = false
 		rodio.clear()
 	}
