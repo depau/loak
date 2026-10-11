@@ -34,6 +34,10 @@ class LyricsScreenViewModel(
 	val lyricOffset: StateFlow<Long>
 		field = MutableStateFlow(0L)
 
+	/** The offset in effect before the sync tool was opened (Cancel returns to it). */
+	val committedOffset: StateFlow<Long>
+		field = MutableStateFlow(0L)
+
 	val isSaving: StateFlow<Boolean>
 		field = MutableStateFlow(false)
 
@@ -64,6 +68,7 @@ class LyricsScreenViewModel(
 				lyricsState.value = UiState.Success(repository.fetchAllLyrics(song))
 				selectedProviderIndex.value = 0
 				lyricOffset.value = 0L
+				committedOffset.value = 0L
 			} catch (e: Exception) {
 				lyricsState.value = UiState.Error(e)
 			}
@@ -74,12 +79,28 @@ class LyricsScreenViewModel(
 		if (index == selectedProviderIndex.value) return
 		selectedProviderIndex.value = index
 		lyricOffset.value = 0L
+		committedOffset.value = 0L
+	}
+
+	/** Remember where the preview started so Cancel can restore it. */
+	fun beginSyncAdjustment() {
+		committedOffset.value = lyricOffset.value
+	}
+
+	/** Set the offset directly (editable field, clamped to ±200 s). */
+	fun setOffset(ms: Long) {
+		lyricOffset.value = ms.coerceIn(-200000L, 200000L)
 	}
 
 	/** Shift the synced lyrics by [deltaMs]; positive = lyrics appear earlier (feishin sign). */
 	fun adjustOffset(deltaMs: Long) {
 		val newOffset = (lyricOffset.value + deltaMs).coerceIn(-200000L, 200000L)
 		lyricOffset.value = newOffset
+	}
+
+	/** Undo any preview edits since the tool opened. */
+	fun discardOffset() {
+		lyricOffset.value = committedOffset.value
 	}
 
 	/**
@@ -111,6 +132,7 @@ class LyricsScreenViewModel(
 						it.providerName == LOCAL_PROVIDER
 					}.coerceAtLeast(0)
 				lyricOffset.value = 0L
+				committedOffset.value = 0L
 				snackBarManager.notify(Res.string.notice_lyrics_saved)
 			} catch (e: Exception) {
 				snackBarManager.notify(Res.string.notice_lyrics_save_failed)

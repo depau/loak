@@ -2,20 +2,17 @@ package eu.depau.loak.ui.screens.lyrics
 
 import androidx.compose.animation.AnimatedContent
 import org.jetbrains.compose.resources.stringResource
-import eu.depau.loak.icons.outlined.Add
 import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Lyrics
-import eu.depau.loak.icons.outlined.Remove
 import eu.depau.loak.icons.outlined.Share
+import eu.depau.loak.icons.outlined.Speed
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Fullscreen
 import eu.depau.loak.generated.resources.action_karaoke
 import eu.depau.loak.generated.resources.action_cancel
-import eu.depau.loak.generated.resources.action_save
 import eu.depau.loak.generated.resources.action_share_lyrics
-import eu.depau.loak.generated.resources.action_decrease_lyric_offset
-import eu.depau.loak.generated.resources.action_increase_lyric_offset
+import eu.depau.loak.generated.resources.action_sync_lyrics
 import eu.depau.loak.generated.resources.action_change_lyrics_provider
 import eu.depau.loak.generated.resources.Res
 import androidx.compose.ui.Alignment
@@ -24,7 +21,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
@@ -67,6 +63,7 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenContent
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenLoadingView
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenPlaceholder
+import eu.depau.loak.ui.screens.lyrics.components.LyricsSyncOverlay
 import eu.depau.loak.ui.screens.lyrics.dialogs.LyricsShareSheet
 import eu.depau.loak.ui.screens.lyrics.viewmodels.LyricsScreenViewModel
 import eu.depau.loak.ui.util.KeepScreenOn
@@ -98,6 +95,7 @@ fun LyricsScreen(
 	val selectedIndices = rememberSaveable { mutableStateListOf<Int>() }
 	var wasPlayingBeforeSelection by rememberSaveable { mutableStateOf(false) }
 	var shareSheetOpen by rememberSaveable { mutableStateOf(false) }
+	var syncToolOpen by rememberSaveable { mutableStateOf(false) }
 	var providerMenuOpen by rememberSaveable { mutableStateOf(false) }
 
 	val song = song ?: return LyricsScreenPlaceholder(
@@ -132,6 +130,7 @@ fun LyricsScreen(
 	// lyrics currently on screen + the alternatives
 	val providerResults = (lyricsState as? UiState.Success)?.data.orEmpty()
 	val currentData = providerResults.getOrNull(selectedProviderIndex)
+	val canSync = currentData?.isSynced == true && providerResults.isNotEmpty()
 
 	val body: @Composable (PaddingValues) -> Unit = { contentPadding ->
 		AnimatedContent(
@@ -237,6 +236,14 @@ fun LyricsScreen(
 			if (onFullScreen != null && !isSelecting) IconButton(onClick = onFullScreen) {
 				Icon(Icons.Outlined.Fullscreen, stringResource(Res.string.action_karaoke))
 			}
+			if (!isSelecting && canSync) IconButton(
+				onClick = {
+					syncToolOpen = true
+					viewModel.beginSyncAdjustment()
+				}
+			) {
+				Icon(Icons.Outlined.Speed, stringResource(Res.string.action_sync_lyrics))
+			}
 			if (isSelecting) IconButton(onClick = toggleIsSelecting) {
 				Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
 			}
@@ -251,55 +258,21 @@ fun LyricsScreen(
 			}
 		}
 
-		// sync/offset controls: only while lyrics are shown and not selecting
-		if (!isSelecting) {
-			val canAdjust = currentData?.isSynced == true && providerResults.isNotEmpty()
-			if (canAdjust) {
-				val offsetMs = lyricOffset
-				Row(
-					Modifier
-						.align(Alignment.BottomCenter)
-						.padding(bottom = 16.dp),
-					verticalAlignment = Alignment.CenterVertically
-				) {
-					Surface(
-						shape = MaterialTheme.shapes.large,
-						color = MaterialTheme.colorScheme.surfaceContainer
-					) {
-						Row(verticalAlignment = Alignment.CenterVertically) {
-							IconButton(
-								onClick = { viewModel.adjustOffset(-50) },
-								enabled = !isSaving
-							) {
-								Icon(
-									Icons.Outlined.Remove,
-									stringResource(Res.string.action_decrease_lyric_offset)
-								)
-							}
-							Text(
-								(if (offsetMs >= 0) "+$offsetMs ms" else "$offsetMs ms"),
-								style = MaterialTheme.typography.labelLarge
-							)
-							IconButton(
-								onClick = { viewModel.adjustOffset(50) },
-								enabled = !isSaving
-							) {
-								Icon(
-									Icons.Outlined.Add,
-									stringResource(Res.string.action_increase_lyric_offset)
-								)
-							}
-						}
-					}
-					// Save is available as soon as there's a provider to copy from
-					IconButton(
-						onClick = { viewModel.saveLyrics() },
-						enabled = !isSaving
-					) {
-						Icon(Icons.Outlined.Check, stringResource(Res.string.action_save))
-					}
-				}
-			}
+		// sync/offset tool: hidden by default, shown only on trigger (see the Speed button above)
+		if (syncToolOpen) {
+			LyricsSyncOverlay(
+				offsetMs = lyricOffset,
+				onOffsetChange = { viewModel.setOffset(it) },
+				onCancel = {
+					syncToolOpen = false
+					viewModel.discardOffset()
+				},
+				onSave = {
+					syncToolOpen = false
+					viewModel.saveLyrics()
+				},
+				saving = isSaving
+			)
 		}
 	}
 }

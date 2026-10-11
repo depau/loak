@@ -318,9 +318,12 @@
 	<string name="action_karaoke">Full screen</string>
 	<string name="action_exit_karaoke">Exit full screen</string>
 	<string name="action_share_lyrics">Share lyrics</string>
+	<string name="action_sync_lyrics">Adjust lyrics sync</string>
 	<string name="action_change_lyrics_provider">Change lyrics source</string>
-	<string name="action_decrease_lyric_offset">Make lyrics appear later</string>
-	<string name="action_increase_lyric_offset">Make lyrics appear earlier</string>
+	<string name="title_sync_lyrics">Sync lyrics</string>
+	<string name="action_decrease_lyric_offset">Lyrics appear later</string>
+	<string name="action_increase_lyric_offset">Lyrics appear earlier</string>
+	<string name="action_lyric_offset_ms">Offset in milliseconds</string>
 	<string name="notice_lyrics_saved">Lyrics saved on this device.</string>
 	<string name="notice_lyrics_save_failed">Couldn't save the lyrics.</string>
 	<string name="action_update_app">Update</string>
