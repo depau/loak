@@ -48,6 +48,9 @@ import androidx.navigationevent.NavigationEventTransitionState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.outlined.Note
+import eu.depau.loak.icons.outlined.Radio
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.navigation.Screen
@@ -418,6 +421,7 @@ fun PlayerLayer(state: PlayerSheetState) {
 				run {
 					CoverArt(
 						coverArtId = song?.coverArtId,
+						placeholderIcon = if (song?.id?.startsWith("radio_") == true) Icons.Outlined.Radio else Icons.Outlined.Note,
 						crossfadeMs = 0,
 						shape = RoundedCornerShape(lerp(8.dp, 16.dp, f)),
 						modifier = Modifier

@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
@@ -62,7 +63,8 @@ fun CoverArt(
 	crossfadeMs: Int = 500,
 	shadowElevation: Dp = 0.dp,
 	interactionSource: MutableInteractionSource? = null,
-	shape: Shape? = null
+	shape: Shape? = null,
+	placeholderIcon: ImageVector = Icons.Outlined.Note
 ) {
 	val coilPlatformContext = LocalCoilPlatformContext.current
 
@@ -110,10 +112,13 @@ fun CoverArt(
 			else Modifier
 		)
 
-	// no art: a note, so the box still shows on surfaces of the same colour
-	if (coverArtId.isNullOrBlank()) return Box(commonModifier, contentAlignment = Alignment.Center) {
+	// Missing art stays distinct from the container behind it.
+	if (coverArtId.isNullOrBlank()) return Box(
+		commonModifier.background(MaterialTheme.colorScheme.surfaceContainerHighest),
+		contentAlignment = Alignment.Center
+	) {
 		Icon(
-			Icons.Outlined.Note,
+			placeholderIcon,
 			null,
 			Modifier.fillMaxSize(0.4f),
 			tint = MaterialTheme.colorScheme.onSurfaceVariant

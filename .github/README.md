@@ -15,6 +15,8 @@ Fork of [Navic](https://github.com/ssalggnikool/Navic).
 ## Features
 
 * **Modern**: actually decent UI (unlike a lot of players) with Material 3 Expressive design
+* **Artwork fallbacks**: missing covers show one note (or radio icon) on a contrasting,
+  theme-aware tile
 * **Highly customisable**: almost everything is a setting!
 * **Works everywhere**: access library offline & scrobble offline
 * **Powerful playback**: equaliser, ReplayGain\*, transcoding\* & more

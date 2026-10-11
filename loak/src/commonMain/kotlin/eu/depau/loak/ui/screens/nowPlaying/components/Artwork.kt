@@ -2,14 +2,10 @@ package eu.depau.loak.ui.screens.nowPlaying.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -19,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.filled.Note
+import eu.depau.loak.icons.outlined.Note
 import eu.depau.loak.icons.outlined.Radio
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.CoverArt
@@ -55,15 +51,8 @@ fun NowPlayingArtwork(
 				// the open player's cover is where the mini player's one travels to
 				.then(if (playerState.currentSong?.id == song.id) Modifier.playerArt(LocalPlayerSheet.current) else Modifier),
 			shadowElevation = 8.dp,
-			onClick = onClick
+			onClick = onClick,
+			placeholderIcon = if (isRadio) Icons.Outlined.Radio else Icons.Outlined.Note
 		)
-		if (song.coverArtId.isNullOrEmpty()) {
-			Icon(
-				imageVector = if (isRadio) Icons.Outlined.Radio else Icons.Filled.Note,
-				contentDescription = null,
-				tint = MaterialTheme.colorScheme.onSurface.copy(alpha = .38f),
-				modifier = Modifier.size(96.dp)
-			)
-		}
 	}
 }
