@@ -299,9 +299,9 @@ private fun PlayerWithSheet(
 				}
 				.nestedScroll(sheet.sheetScroll),
 			shape = ContinuousRoundedRectangle(topStart = 28.dp, topEnd = 28.dp),
-			color = MaterialTheme.colorScheme.surfaceContainer.copy(
-				alpha = .72f + .28f * seg(sheet.queueFraction, .5f, .72f)
-			)
+			// the same translucent surfaceContainer the side pane uses, so the Up next /
+			// Lyrics sheet and the wide-window pane read as the same surface
+			color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .72f)
 		) {
 			Column {
 				Box(Modifier.fillMaxWidth().height(peekHeight)) {
