@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import eu.depau.loak.domain.manager.AudioFetcher
+import eu.depau.loak.domain.manager.AudioGainManager
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
@@ -31,12 +32,15 @@ import eu.depau.loak.domain.models.DomainExplicitStatus
 import eu.depau.loak.domain.models.DomainRadio
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.DomainSongCollection
+import eu.depau.loak.domain.models.settings.ReplayGainMode
 import eu.depau.loak.domain.repositories.PlayerStateRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.notice_stream_failed
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
+import eu.depau.loak.util.decibelsToLinear
+import eu.depau.loak.util.effectiveGain
 import dev.nucleusframework.rodio.PlaybackCallback
 import dev.nucleusframework.rodio.PlaybackEvent
 import dev.nucleusframework.rodio.RodioPlayer
@@ -73,6 +77,7 @@ class DesktopMediaPlayerViewModel(
 ) {
 
 	private val audioFetcher: AudioFetcher by inject()
+	private val audioGainManager: AudioGainManager by inject()
 
 	private val rodio = RodioPlayer().apply {
 		setCallback(object : PlaybackCallback {
@@ -126,6 +131,31 @@ class DesktopMediaPlayerViewModel(
 
 		// OS media controls (MPRIS / SMTC / Now Playing): media keys, shell widgets, headsets
 		mediaControlManager.start(uiState, volume, ::onMediaControlEvent)
+
+		// ReplayGain: when settings change (SoundScreen sliders/segmented control) the manager
+		// tells us to recompute the effective volume and reapply it to rodio.
+		audioGainManager.setOnGainChanged { applyVolume() }
+	}
+
+	/** rodio's Sink gain: the user volume folded with the ReplayGain multiplier. */
+	private fun replayGainMultiplier(): Float {
+		val song = _uiState.value.currentSong
+		val mode = when (val m = preferenceManager.replayGainMode) {
+			// Dynamic picks Album gain when the whole queue is one album, else Track (matches Android)
+			ReplayGainMode.Dynamic ->
+				if (_uiState.value.queue.all { it.albumId == song?.albumId }) ReplayGainMode.Album else ReplayGainMode.Track
+			else -> m
+		}
+		if (mode == ReplayGainMode.Off) {
+			return preferenceManager.ampGain.decibelsToLinear()
+		}
+		val gainDb = song?.replayGain?.effectiveGain(mode)?.let { it + preferenceManager.rgAmpGain }
+			?: preferenceManager.ampGain
+		return gainDb.decibelsToLinear()
+	}
+
+	private fun applyVolume() {
+		rodio.setVolume(volume.value * replayGainMultiplier())
 	}
 
 	private fun onMediaControlEvent(event: MediaControlEvent) {
@@ -320,7 +350,7 @@ class DesktopMediaPlayerViewModel(
 	private fun playStreamingFallback(song: DomainSong): Boolean {
 		try {
 			rodio.playUrl(streamSource(song), loop = false)
-			rodio.setVolume(volume.value)
+			applyVolume()
 			streamFailed = false
 			_uiState.update { it.copy(isPaused = false, isLoading = false) }
 			setDecoderInfo(song, PlaybackSource.Stream, filePath = null)
@@ -340,7 +370,7 @@ class DesktopMediaPlayerViewModel(
 		try {
 			rodio.playFile(path, loop = false)
 			if (startPosMs > 0) runCatching { rodio.seekToMs(startPosMs) }
-			rodio.setVolume(volume.value)
+			applyVolume()
 			streamFailed = false
 			_uiState.update { it.copy(isPaused = false, isLoading = false) }
 			setDecoderInfo(song, PlaybackSource.Download, filePath = path)
@@ -408,7 +438,7 @@ class DesktopMediaPlayerViewModel(
 
 		try {
 			rodio.playRadio(radio.streamUrl)
-			rodio.setVolume(volume.value)
+			applyVolume()
 			streamFailed = false
 			_uiState.update { state ->
 				state.copy(
@@ -542,7 +572,7 @@ class DesktopMediaPlayerViewModel(
 	override fun setVolume(value: Float) {
 		val v = value.coerceIn(0f, 1f)
 		volume.value = v
-		rodio.setVolume(v)
+		applyVolume()
 		preferenceManager.playerVolume = v
 	}
 

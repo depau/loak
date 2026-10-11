@@ -108,22 +108,24 @@ fun SettingsSoundScreen() {
 					DownloadQualityItem(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1))
 				}
 
-				if (isAndroid) {
+				if (isAndroid || platformContext.platformType == PlatformType.Desktop) {
 					VolumeGroup()
 
-					SettingsGroup(title = { Text(stringResource(Res.string.title_effects)) }) {
-						SettingsNavItem(
-							onClick = dropUnlessResumed { backStack.add(Screen.Settings.Equaliser) },
-							content = { Text(stringResource(Res.string.option_equaliser)) },
-							enabled = !preferenceManager.audioOffload,
-							supportingContent = {
-								Text(stringResource(
-									if (!preferenceManager.audioOffload) Res.string.subtitle_equaliser
-									else Res.string.subtitle_equaliser_disabled
-								))
-							},
-							shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
-						)
+					if (isAndroid) {
+						SettingsGroup(title = { Text(stringResource(Res.string.title_effects)) }) {
+							SettingsNavItem(
+								onClick = dropUnlessResumed { backStack.add(Screen.Settings.Equaliser) },
+								content = { Text(stringResource(Res.string.option_equaliser)) },
+								enabled = !preferenceManager.audioOffload,
+								supportingContent = {
+									Text(stringResource(
+										if (!preferenceManager.audioOffload) Res.string.subtitle_equaliser
+										else Res.string.subtitle_equaliser_disabled
+									))
+								},
+								shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+							)
+						}
 					}
 				}
 
