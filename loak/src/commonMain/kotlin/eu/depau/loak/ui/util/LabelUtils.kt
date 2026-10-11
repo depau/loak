@@ -128,6 +128,7 @@ fun PaletteStyle.label(): String = when (this) {
 
 fun LyricsProvider.Id.label() = when (this) {
 	LyricsProvider.Id.SUBSONIC -> "Subsonic"
+	LyricsProvider.Id.MUSIXMATCH -> "Musixmatch"
 	LyricsProvider.Id.LYRICS_PLUS -> "LyricsPlus"
 	LyricsProvider.Id.LRCLIB -> "LRCLIB"
 }

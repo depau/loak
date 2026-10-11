@@ -10,6 +10,7 @@ data class LyricsProvider(
 	@Serializable
 	enum class Id {
 		SUBSONIC,
+		MUSIXMATCH,
 		LYRICS_PLUS,
 		LRCLIB
 	}

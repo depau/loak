@@ -11,12 +11,14 @@ data class LyricsConfig(
 ) {
 	companion object {
 		const val KEY = "lyricsConfig"
-		const val VERSION = 1
+		// 2: added Musixmatch, and every provider now starts enabled
+		const val VERSION = 2
 		val Default = LyricsConfig(
 			providers = listOf(
 				LyricsProvider(LyricsProvider.Id.SUBSONIC, true),
-				LyricsProvider(LyricsProvider.Id.LRCLIB, false),
-				LyricsProvider(LyricsProvider.Id.LYRICS_PLUS, false)
+				LyricsProvider(LyricsProvider.Id.MUSIXMATCH, true),
+				LyricsProvider(LyricsProvider.Id.LRCLIB, true),
+				LyricsProvider(LyricsProvider.Id.LYRICS_PLUS, true)
 			),
 			lyricsPlusMirrors = listOf(
 				"https://lyricsplus.atomix.one",
