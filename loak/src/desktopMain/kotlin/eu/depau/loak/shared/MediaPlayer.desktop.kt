@@ -515,13 +515,17 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	override fun resume() {
-		if (rodio.isPaused()) {
+		if (rodio.isEmpty()) {
+			// Empty (e.g. restored but not yet playing — syncPlayerWithState clears rodio):
+			// rodio.play() on an empty source would only flip the native paused flag while
+			// staying empty, which the progress loop then reads as a natural end and skips
+			// the visible song. Start it properly instead.
+			playAt(_uiState.value.currentIndex)
+		} else if (rodio.isPaused()) {
 			rodio.play()
 			streamFailed = false
 			_uiState.update { it.copy(isPaused = false) }
 			scrobbleManager.onPlayStateChanged(true)
-		} else if (rodio.isEmpty()) {
-			playAt(_uiState.value.currentIndex)
 		} else {
 			// rodio is playing but our state says paused (e.g. a failed source briefly
 			// marked us paused): resync the button instead of doing nothing.
