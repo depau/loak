@@ -2,6 +2,9 @@ package eu.depau.loak.ui.screens.nowPlaying
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -138,7 +141,19 @@ fun NowPlayingScreen() {
 						)
 					}
 				) { contentPadding ->
-					Box(Modifier.fillMaxSize()) {
+					// On desktop the toolbar above is the window's title bar, so the dismiss drag
+					// lives here instead, below it: it drags the player down without competing
+					// with native title-bar dragging (mobile's full-surface drag still covers it).
+					val dismissDrag = rememberDraggableState { playerSheet.dragPlayer(it) }
+					Box(
+						Modifier.fillMaxSize().then(
+							if (chrome != null) Modifier.draggable(
+								state = dismissDrag,
+								orientation = Orientation.Vertical,
+								onDragStopped = { velocity -> playerSheet.settlePlayer(velocity) }
+							) else Modifier
+						)
+					) {
 						if (preferenceManager.nowPlayingBackgroundStyle
 							== NowPlayingBackgroundStyle.Dynamic
 						) {
