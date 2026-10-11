@@ -559,15 +559,14 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 	 * read only the icon URI, and crash without one.
 	 */
 	private fun queueButtons() = runBlocking {
-		fun icon(id: Int) = "android.resource://$packageName/$id".toUri()
 		listOf(
 			CommandButton.Builder(CommandButton.ICON_QUEUE_NEXT)
-				.setIconUri(icon(androidx.media3.session.R.drawable.media3_icon_queue_next))
+				.setIconUri(library.iconUri(eu.depau.loak.R.drawable.auto_play_next))
 				.setSessionCommand(SessionCommand(PlaybackLibrary.PLAY_NEXT, Bundle.EMPTY))
 				.setDisplayName(getString(Res.string.action_play_next))
 				.build(),
 			CommandButton.Builder(CommandButton.ICON_QUEUE_ADD)
-				.setIconUri(icon(androidx.media3.session.R.drawable.media3_icon_queue_add))
+				.setIconUri(library.iconUri(eu.depau.loak.R.drawable.auto_add_to_queue))
 				.setSessionCommand(SessionCommand(PlaybackLibrary.ADD_TO_QUEUE, Bundle.EMPTY))
 				.setDisplayName(getString(Res.string.action_add_to_queue))
 				.build()

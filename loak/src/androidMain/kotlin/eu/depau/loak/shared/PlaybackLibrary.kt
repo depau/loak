@@ -1,11 +1,14 @@
 package eu.depau.loak.shared
 
+import android.content.ContentResolver
+import android.content.Context
+import android.net.Uri
 import android.os.Bundle
-import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaConstants
+import eu.depau.loak.R
 import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.dao.ArtistDao
 import eu.depau.loak.data.database.dao.DownloadCollectionDao
@@ -14,7 +17,6 @@ import eu.depau.loak.data.database.dao.PlaylistDao
 import eu.depau.loak.data.database.dao.RadioDao
 import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.mappers.toDomainModel
-import eu.depau.loak.di.COVER_ART_MEDIUM
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.DomainAlbum
@@ -66,42 +68,52 @@ internal class PlaybackLibrary : KoinComponent {
 	private val homeRepository: HomeRepository by inject()
 	private val searchRepository: SearchRepository by inject()
 	private val audioStore: AudioStore by inject()
+	private val context: Context by inject()
 
-	fun root(): MediaItem = folder(ROOT, "")
+	fun root(): MediaItem = item(ROOT, "", browsable = true)
 
+	// Layout follows Android Auto's media guidelines: artwork-led lists (albums, playlists,
+	// artists) as grids, folders of folders as category lists with small tinted icons.
 	// ponytail: whole lists from the DB per request, sliced into pages; DB paging if a big
 	// library proves slow
 	suspend fun children(id: String): List<MediaItem> = when (id) {
 		ROOT -> listOf(
-			folder(HOME, Res.string.title_home),
-			folder(STARRED, Res.string.title_starred),
-			folder(LIBRARY, Res.string.title_library),
-			folder(DOWNLOADS, Res.string.title_downloads)
+			folder(HOME, Res.string.title_home, R.drawable.auto_home, browsable = GRID),
+			folder(STARRED, Res.string.title_starred, R.drawable.auto_star, browsable = CATEGORY),
+			folder(LIBRARY, Res.string.title_library, R.drawable.auto_library, browsable = CATEGORY),
+			folder(DOWNLOADS, Res.string.title_downloads, R.drawable.auto_download, browsable = GRID)
 		)
 		HOME -> home()
 		STARRED -> listOf(
-			folder(STARRED_SONGS, Res.string.title_songs),
-			folder(STARRED_ALBUMS, Res.string.title_albums, grid = true),
-			folder(STARRED_ARTISTS, Res.string.title_artists)
+			folder(STARRED_SONGS, Res.string.title_songs, R.drawable.auto_song),
+			folder(STARRED_ALBUMS, Res.string.title_albums, R.drawable.auto_album, browsable = GRID),
+			folder(STARRED_ARTISTS, Res.string.title_artists, R.drawable.auto_artist, browsable = GRID)
 		)
 		LIBRARY -> listOf(
-			folder(PLAYLISTS, Res.string.title_playlists, grid = true),
-			folder(ARTISTS, Res.string.title_artists),
-			folder(ALBUMS, Res.string.title_albums, grid = true),
-			folder(GENRES, Res.string.title_genres),
-			folder(RADIOS, Res.string.title_radios)
+			folder(PLAYLISTS, Res.string.title_playlists, R.drawable.auto_playlist, browsable = GRID),
+			folder(ARTISTS, Res.string.title_artists, R.drawable.auto_artist, browsable = GRID),
+			folder(ALBUMS, Res.string.title_albums, R.drawable.auto_album, browsable = GRID),
+			folder(GENRES, Res.string.title_genres, R.drawable.auto_genre, browsable = CATEGORY),
+			folder(RADIOS, Res.string.title_radios, R.drawable.auto_radio, playable = CATEGORY)
 		)
-		DOWNLOADS -> listOf(folder(DOWNLOADED_SONGS, Res.string.title_songs)) +
-			downloadCollectionDao.getAll().mapNotNull { collectionItem(it.collectionId) }
+		// a category tile among the downloaded albums and playlists
+		DOWNLOADS -> listOf(
+			folder(DOWNLOADED_SONGS, Res.string.title_songs, R.drawable.auto_song, single = CATEGORY_GRID)
+		) + downloadCollectionDao.getAll().mapNotNull { collectionItem(it.collectionId) }
 		PLAYLISTS -> playlistDao.getAllPlaylistsByName().map { playlistItem(it.toDomainModel()) }
 		ARTISTS -> artistDao.getArtistsAlphabeticalByName().map { artistItem(it.toDomainModel()) }
 		STARRED_ARTISTS -> artistDao.getArtistsStarred().map { artistItem(it.toDomainModel()) }
 		ALBUMS -> albumDao.getAllAlbumsList().map { albumItem(it.toDomainModel()) }
 		STARRED_ALBUMS -> albumDao.getAllAlbumsList().map { it.toDomainModel() }
 			.filter { it.starredAt != null }.sortedByDescending { it.starredAt }.map(::albumItem)
-		GENRES -> genreDao.getGenres().map { folder("$GENRE|${it.genreName}", it.genreName, grid = true) }
+		GENRES -> genreDao.getGenres().map {
+			folder("$GENRE|${it.genreName}", it.genreName, R.drawable.auto_genre, browsable = GRID)
+		}
 		RADIOS -> radioDao.getRadios().map {
-			item("$RADIO|${it.radioId}", it.name, playable = true, type = MediaMetadata.MEDIA_TYPE_RADIO_STATION)
+			item(
+				"$RADIO|${it.radioId}", it.name, icon = R.drawable.auto_radio, playable = true,
+				type = MediaMetadata.MEDIA_TYPE_RADIO_STATION
+			)
 		}
 		else -> when (id.substringBefore('|')) {
 			// a whole discography or genre is too long a list: its albums, and actions for all
@@ -117,7 +129,9 @@ internal class PlaybackLibrary : KoinComponent {
 	private suspend fun home(): List<MediaItem> {
 		val library = homeRepository.library()
 		fun List<DomainAlbum>.group(title: String) = map { albumItem(it, group = title) }
-		return listOf(folder(QUICK_PICKS, Res.string.title_quick_picks)) +
+		return listOf(
+			folder(QUICK_PICKS, Res.string.title_quick_picks, R.drawable.auto_quick_picks, single = CATEGORY_GRID)
+		) +
 			homeRepository.madeForYou().map {
 				playlistItem(it, group = getString(Res.string.title_made_for_you))
 			} +
@@ -235,26 +249,45 @@ internal class PlaybackLibrary : KoinComponent {
 		albumDao.getAlbumById(id)?.let { albumItem(it.toDomainModel()) }
 			?: playlistDao.getPlaylistById(id)?.let { playlistItem(it.toDomainModel()) }
 
+	// small tinted rows above the songs, not artwork tiles
 	private suspend fun actions(folder: String) = listOf(
-		item("$PLAY|$folder", getString(Res.string.action_play_all), playable = true),
-		item("$SHUFFLE|$folder", getString(Res.string.action_shuffle), playable = true)
+		item(
+			"$PLAY|$folder", getString(Res.string.action_play_all), icon = R.drawable.auto_play,
+			playable = true, extras = style(single = CATEGORY)
+		),
+		item(
+			"$SHUFFLE|$folder", getString(Res.string.action_shuffle), icon = R.drawable.auto_shuffle,
+			playable = true, extras = style(single = CATEGORY)
+		)
 	)
 
-	private suspend fun folder(id: String, title: StringResource, grid: Boolean = false) =
-		folder(id, getString(title), grid)
+	/** A folder; [browsable], [playable] and [single] are content styles, see [style]. */
+	private suspend fun folder(
+		id: String,
+		title: StringResource,
+		icon: Int,
+		browsable: Int? = null,
+		playable: Int? = null,
+		single: Int? = null
+	) = folder(id, getString(title), icon, browsable, playable, single)
 
-	private fun folder(id: String, title: String, grid: Boolean = false) = item(
-		id, title, browsable = true, extras = if (grid) style(browsable = GRID) else null
-	)
+	private fun folder(
+		id: String,
+		title: String,
+		icon: Int,
+		browsable: Int? = null,
+		playable: Int? = null,
+		single: Int? = null
+	) = item(id, title, icon = icon, browsable = true, extras = style(browsable, playable, single))
 
 	private fun albumItem(album: DomainAlbum, group: String? = null) = item(
 		"$ALBUM|${album.id}", album.name.orEmpty(), album.artistName, album.coverArtId,
-		browsable = true, type = MediaMetadata.MEDIA_TYPE_ALBUM, extras = groupExtras(group)
+		browsable = true, type = MediaMetadata.MEDIA_TYPE_ALBUM, extras = style(group = group)
 	)
 
 	private fun playlistItem(playlist: DomainPlaylist, group: String? = null) = item(
 		"$PLAYLIST|${playlist.id}", playlist.name.orEmpty(), null, playlist.coverArtId,
-		browsable = true, type = MediaMetadata.MEDIA_TYPE_PLAYLIST, extras = groupExtras(group)
+		browsable = true, type = MediaMetadata.MEDIA_TYPE_PLAYLIST, extras = style(group = group)
 	)
 
 	private fun artistItem(artist: DomainArtist) = item(
@@ -276,11 +309,13 @@ internal class PlaybackLibrary : KoinComponent {
 		}
 	)
 
+	/** [coverArtId] for artwork, else the vector [icon], which hosts tint to their theme. */
 	private fun item(
 		id: String,
 		title: String,
 		subtitle: String? = null,
 		coverArtId: String? = null,
+		icon: Int? = null,
 		browsable: Boolean = false,
 		playable: Boolean = false,
 		type: Int = if (browsable) MediaMetadata.MEDIA_TYPE_FOLDER_MIXED else MediaMetadata.MEDIA_TYPE_MUSIC,
@@ -292,11 +327,11 @@ internal class PlaybackLibrary : KoinComponent {
 				.setTitle(title)
 				.setSubtitle(subtitle)
 				.setArtist(subtitle)
-				.setArtworkUri(coverArtId?.let(CoverArtProvider::uri))
+				.setArtworkUri(coverArtId?.let(CoverArtProvider::uri) ?: icon?.let(::iconUri))
 				.setIsBrowsable(browsable)
 				.setIsPlayable(playable)
 				.setMediaType(type)
-				// songs and what holds them can join the queue from the car's item menu
+				// songs and their albums and playlists can join the queue from the car's item menu
 				.setSupportedCommands(
 					if (id.substringBefore('|') in QUEUEABLE) listOf(PLAY_NEXT, ADD_TO_QUEUE) else emptyList()
 				)
@@ -305,13 +340,29 @@ internal class PlaybackLibrary : KoinComponent {
 		)
 		.build()
 
-	private fun style(browsable: Int) = Bundle().apply {
-		putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, browsable)
+	/**
+	 * Content style hints: how the item's [browsable] and [playable] children lay out, how the
+	 * item itself does ([single]), and the subheader it sits under ([group]).
+	 */
+	private fun style(
+		browsable: Int? = null,
+		playable: Int? = null,
+		single: Int? = null,
+		group: String? = null
+	) = Bundle().apply {
+		browsable?.let { putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, it) }
+		playable?.let { putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, it) }
+		single?.let { putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_SINGLE_ITEM, it) }
+		group?.let { putString(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, it) }
 	}
 
-	private fun groupExtras(group: String?) = group?.let {
-		Bundle().apply { putString(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, it) }
-	}
+	/** A drawable as hosts load icons: `android.resource://<package>/drawable/<name>`. */
+	fun iconUri(id: Int): Uri = Uri.Builder()
+		.scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+		.authority(context.packageName)
+		.appendPath(context.resources.getResourceTypeName(id))
+		.appendPath(context.resources.getResourceEntryName(id))
+		.build()
 
 	companion object {
 		const val ROOT = "root"
@@ -341,13 +392,15 @@ internal class PlaybackLibrary : KoinComponent {
 		private const val SONG = "song"
 		private const val PLAY = "play"
 		private const val SHUFFLE = "shuffle"
-		private val QUEUEABLE = setOf(SONG, ALBUM, PLAYLIST, ARTIST, GENRE)
+		private val QUEUEABLE = setOf(SONG, ALBUM, PLAYLIST)
 
 		/** Session commands of the car's per-item menu; the item's id comes in their args. */
 		const val PLAY_NEXT = "PLAY_NEXT"
 		const val ADD_TO_QUEUE = "ADD_TO_QUEUE"
 
 		private const val GRID = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
+		private const val CATEGORY = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_CATEGORY_LIST_ITEM
+		private const val CATEGORY_GRID = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_CATEGORY_GRID_ITEM
 
 		/** Root extras: grid-or-list defaults and search support, read by Android Auto. */
 		val rootExtras = Bundle().apply {
