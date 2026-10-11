@@ -45,6 +45,10 @@ class SongRepository(
 		return songDao.getRandomSongs(count).map { it.toDomainModel() }
 	}
 
+	/** The cached songs among [ids], in no particular order. */
+	suspend fun getSongsByIds(ids: List<String>): List<DomainSong> =
+		songDao.getSongsByIds(ids).map { it.toDomainModel() }
+
 	/** The artist's most popular songs (Last.fm-based on Navidrome), in order. */
 	suspend fun getTopSongs(artistName: String, count: Int = 50): List<DomainSong> {
 		return sessionManager.api.getTopSongs(artistName, count).take(count)

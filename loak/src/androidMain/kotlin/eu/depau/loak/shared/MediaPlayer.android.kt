@@ -87,6 +87,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 import org.koin.core.component.inject
 import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.entities.TransferCategory
@@ -344,6 +345,10 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 			.setCallback(MediaSessionCallback(::toggleStar, ::savedQueue))
 			.setSessionActivity(sessionPendingIntent)
 			.build()
+
+		// skipping, ReplayGain, Autoplay and saving the queue live in the player view model: the
+		// car or a headset can start playback without the app's screen ever creating it
+		get<MediaPlayerViewModel>()
 
 		currentAudioSessionId = player.audioSessionId
 		equaliserMode = equaliserManager.config.value.mode
@@ -757,6 +762,9 @@ class AndroidMediaPlayerViewModel(
 	/** Nudges the player when a song stalls silent in READY; see [stalled]. */
 	private var stallJob: Job? = null
 
+	/** Looks up the songs of a queue another controller set; see [followQueue]. */
+	private var followJob: Job? = null
+
 	/** How long a song may sit READY-but-silent before the watchdog re-drives the source. */
 	private val stallNudgeAfter = 5.seconds
 
@@ -866,6 +874,7 @@ class AndroidMediaPlayerViewModel(
 					}
 
 					override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+						followQueue()
 						updatePlaybackState()
 					}
 				})
@@ -920,6 +929,37 @@ class AndroidMediaPlayerViewModel(
 		} else {
 			// just skip to the next song
 			controller?.seekTo(nextAvailableIdx, 0L)
+		}
+	}
+
+	/**
+	 * Adopts a queue another controller put in the player (the car, the assistant, a resumed
+	 * session), so skipping, ReplayGain, Autoplay and saving keep working on it. The app's own
+	 * edits update the state right after the player, which the lookup's suspension waits out.
+	 */
+	private fun followQueue() {
+		val player = controller ?: return
+		val items = List(player.mediaItemCount) { player.getMediaItemAt(it) }
+		val ids = items.map { it.mediaId }
+		if (ids == _uiState.value.queue.map { it.id }) return
+		followJob?.cancel()
+		followJob = viewModelScope.launch {
+			val byId = songRepository.getSongsByIds(ids.distinct()).associateBy { it.id }
+			val current = controller ?: return@launch
+			if (_uiState.value.queue.map { it.id } == ids) return@launch
+			if (List(current.mediaItemCount) { current.getMediaItemAt(it).mediaId } != ids) return@launch
+			val songs = items.map { item ->
+				byId[item.mediaId] ?: radioSong(
+					item.mediaId,
+					item.mediaMetadata.title?.toString().orEmpty(),
+					item.localConfiguration?.uri?.toString().orEmpty()
+				)
+			}
+			val index = if (songs.isEmpty()) -1 else current.currentMediaItemIndex.coerceIn(songs.indices)
+			_uiState.update {
+				it.copy(queue = songs, currentIndex = index, currentSong = songs.getOrNull(index))
+			}
+			updatePlaybackState()
 		}
 	}
 
@@ -1238,46 +1278,7 @@ class AndroidMediaPlayerViewModel(
 	override fun playRadio(radio: DomainRadio) {
 		viewModelScope.launch {
 			val radioId = "radio_${radio.name.hashCode()}"
-
-			val dummyRadioSong = DomainSong(
-				id = radioId,
-				title = radio.name,
-				artistName = "Live Radio",
-				albumId = "radio_album",
-				albumTitle = "Live Stream",
-				duration = Duration.ZERO,
-				trackNumber = 1,
-				coverArtId = null,
-				artistId = "",
-				parentId = "",
-				comment = null,
-				discNumber = null,
-				isrc = emptyList(),
-				year = null,
-				genre = null,
-				genres = emptyList(),
-				moods = emptyList(),
-				bpm = null,
-				contributors = emptyList(),
-				playCount = 0,
-				userRating = 0,
-				averageRating = null,
-				bitRate = null,
-				bitDepth = null,
-				sampleRate = null,
-				audioChannelCount = null,
-				replayGain = null,
-				fileSize = 0,
-				fileExtension = "",
-				mimeType = "",
-				filePath = radio.streamUrl,
-				starredAt = null,
-				musicBrainzId = null,
-				explicitStatus = DomainExplicitStatus.Unknown,
-				artists = emptyList(),
-				albumArtists = emptyList(),
-				isExternal = false
-			)
+			val dummyRadioSong = radioSong(radioId, radio.name, radio.streamUrl)
 
 			val metadata = MediaMetadata.Builder()
 				.setTitle(radio.name)
@@ -1446,7 +1447,48 @@ private class StreamStatsListener(private val stats: NetworkStatsManager) : Tran
 	}
 }
 
-private fun DomainSong.toMediaItem(sessionManager: SessionManager): MediaItem {
+/** A live radio stream as a queue entry: [id] starts with `radio_`, [url] is the stream. */
+internal fun radioSong(id: String, name: String, url: String) = DomainSong(
+	id = id,
+	title = name,
+	artistName = "Live Radio",
+	albumId = "radio_album",
+	albumTitle = "Live Stream",
+	duration = Duration.ZERO,
+	trackNumber = 1,
+	coverArtId = null,
+	artistId = "",
+	parentId = "",
+	comment = null,
+	discNumber = null,
+	isrc = emptyList(),
+	year = null,
+	genre = null,
+	genres = emptyList(),
+	moods = emptyList(),
+	bpm = null,
+	contributors = emptyList(),
+	playCount = 0,
+	userRating = 0,
+	averageRating = null,
+	bitRate = null,
+	bitDepth = null,
+	sampleRate = null,
+	audioChannelCount = null,
+	replayGain = null,
+	fileSize = 0,
+	fileExtension = "",
+	mimeType = "",
+	filePath = url,
+	starredAt = null,
+	musicBrainzId = null,
+	explicitStatus = DomainExplicitStatus.Unknown,
+	artists = emptyList(),
+	albumArtists = emptyList(),
+	isExternal = false
+)
+
+internal fun DomainSong.toMediaItem(sessionManager: SessionManager): MediaItem {
 	val displayArtist = artists.joinToString { it.name }.ifBlank { artistName }
 	val albumArtistName = albumArtists.joinToString { it.name }.ifBlank { artistName }
 
