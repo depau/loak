@@ -173,6 +173,11 @@ fun Modifier.longPressOverChildren(onLongClick: () -> Unit): Modifier = pointerI
 				if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
 					return@withTimeoutOrNull false
 				}
+				// Parents consume swipes in Main, after this detector's Initial pass.
+				// A swiped row moves with the pointer, so local distance alone is insufficient.
+				if (awaitPointerEvent(PointerEventPass.Final).changes.any { it.isConsumed }) {
+					return@withTimeoutOrNull false
+				}
 			}
 			@Suppress("UNREACHABLE_CODE") false
 		} == null

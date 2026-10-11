@@ -1,31 +1,46 @@
 package eu.depau.loak.ui.screens.queue.components
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.gestures.snapTo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
+import kotlin.math.roundToInt
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.ui.theme.ContinuousRoundedRectangle
-import kotlinx.coroutines.launch
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_from_queue
@@ -105,33 +120,80 @@ fun QueueScreenItem(
 		animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()
 	)
 
-	val dismissState = rememberSwipeToDismissBoxState()
-	val scope = rememberCoroutineScope()
+	val dismissState = remember { AnchoredDraggableState(SwipeToDismissBoxValue.Settled) }
+	val snapAnimationSpec = remember {
+		spring<Float>(
+			dampingRatio = Spring.DampingRatioNoBouncy,
+			stiffness = Spring.StiffnessMediumLow
+		)
+	}
+	val snapFling = AnchoredDraggableDefaults.flingBehavior(
+		state = dismissState,
+		positionalThreshold = { it * .5f },
+		animationSpec = snapAnimationSpec
+	)
+	val flingBehavior = remember(snapFling) {
+		object : FlingBehavior {
+			// Release position decides: a quick flick must not bypass the halfway threshold.
+			override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+				with(snapFling) { performFling(0f) }
+				return initialVelocity
+			}
+		}
+	}
+	val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+	val offset = dismissState.offset.takeUnless { it.isNaN() } ?: 0f
+	val direction = when {
+		offset > 0f -> SwipeToDismissBoxValue.StartToEnd
+		offset < 0f -> SwipeToDismissBoxValue.EndToStart
+		else -> SwipeToDismissBoxValue.Settled
+	}
+	val armed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+	val actionScale by animateFloatAsState(if (armed) 1.25f else 1f)
+	LaunchedEffect(armed) {
+		if (offset != 0f) haptic.performHapticFeedback(
+			if (armed) HapticFeedbackType.GestureThresholdActivate
+			else HapticFeedbackType.GestureEnd
+		)
+	}
+	LaunchedEffect(dismissState.settledValue) {
+		val settled = dismissState.settledValue
+		if (settled != SwipeToDismissBoxValue.Settled) {
+			// Reset before mutating the keyed queue so removal animations cannot dismiss twice.
+			dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+			if (settled == SwipeToDismissBoxValue.EndToStart) onPlayNext() else onRemove()
+		}
+	}
 
 	val itemShape = SegmentedListItemDefaults.segmentedShapes(
 		index = index,
 		count = count,
-		dismissDirection = dismissState.dismissDirection
+		dismissDirection = direction
 	)
 
-	SwipeToDismissBox(
-		state = dismissState,
-		onDismiss = { direction ->
-			scope.launch {
-				// rows are keyed by song id: the box first returns to its slot so its
-				// own dismissed-offset transition doesn't double-fire during the
-				// removal fade (the removed row keeps its per-song key and disappears)
-				dismissState.snapTo(SwipeToDismissBoxValue.Settled)
-				if (direction == SwipeToDismissBoxValue.EndToStart) onPlayNext() else onRemove()
+	Box(
+		modifier = Modifier
+			.onSizeChanged { size ->
+				dismissState.updateAnchors(DraggableAnchors {
+					SwipeToDismissBoxValue.Settled at 0f
+					SwipeToDismissBoxValue.StartToEnd at size.width.toFloat()
+					SwipeToDismissBoxValue.EndToStart at -size.width.toFloat()
+				})
 			}
-		},
-		backgroundContent = {
-			// the rows are translucent: only draw the action behind one being swiped
-			if (dismissState.dismissDirection == SwipeToDismissBoxValue.Settled) return@SwipeToDismissBox
-			val playNext = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
+			.anchoredDraggable(
+				state = dismissState,
+				orientation = Orientation.Horizontal,
+				reverseDirection = isRtl,
+				enabled = !isDragging && dismissState.settledValue == SwipeToDismissBoxValue.Settled,
+				flingBehavior = flingBehavior
+			),
+		propagateMinConstraints = true
+	) {
+		if (direction != SwipeToDismissBoxValue.Settled) {
+			val playNext = direction == SwipeToDismissBoxValue.EndToStart
 			Box(
 				modifier = Modifier
-					.fillMaxSize()
+					.matchParentSize()
 					.clip(itemShape.shape)
 					.background(
 						if (playNext) MaterialTheme.colorScheme.primaryContainer
@@ -144,25 +206,29 @@ fun QueueScreenItem(
 						imageVector = Icons.Outlined.QueuePlayNext,
 						contentDescription = stringResource(Res.string.action_play_next),
 						tint = MaterialTheme.colorScheme.onPrimaryContainer,
-						modifier = Modifier.align(Alignment.CenterEnd)
+						modifier = Modifier.align(Alignment.CenterEnd).scale(actionScale)
 					)
 				} else {
 					Icon(
 						imageVector = Icons.Outlined.Delete,
 						contentDescription = stringResource(Res.string.action_remove_from_queue),
 						tint = MaterialTheme.colorScheme.onErrorContainer,
-						modifier = Modifier.align(Alignment.CenterStart)
+						modifier = Modifier.align(Alignment.CenterStart).scale(actionScale)
 					)
 				}
 			}
-		},
-		content = {
+		}
+		Row(
+			modifier = Modifier.offset {
+				IntOffset((offset * if (isRtl) -1 else 1).roundToInt(), 0)
+			}
+		) {
 			Surface(
 				shadowElevation = elevation,
 				shape = itemShape.shape,
-				// translucent over the pane or sheet, which may be tinted by the cover art;
-				// opaque while lifted for dragging
-				color = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh
+				// Keep the artwork tint at rest, but cover the action beneath a moving row.
+				color = if (isDragging || direction != SwipeToDismissBoxValue.Settled)
+					MaterialTheme.colorScheme.surfaceContainerHigh
 				else Color.Transparent
 			) {
 				SegmentedListItem(
@@ -234,5 +300,5 @@ fun QueueScreenItem(
 				)
 			}
 		}
-	)
+	}
 }

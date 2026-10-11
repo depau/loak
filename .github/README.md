@@ -22,6 +22,8 @@ Fork of [Navic](https://github.com/ssalggnikool/Navic).
 * **Highly customisable**: almost everything is a setting!
 * **Works everywhere**: access library offline & scrobble offline
 * **Powerful playback**: equaliser, ReplayGain\*, transcoding\* & more
+* **Queue gestures**: swipe halfway to remove or play next, with threshold haptics and
+  spring snap-back; move back before releasing to cancel, or use Undo after committing
 * **Lyrics support**: multiple lyric providers & word-by-word lyrics\*
 * **Radio stations**: stream & add internet radio stations
 * **Home widgets**: a couple of home screen widgets are inbuilt
