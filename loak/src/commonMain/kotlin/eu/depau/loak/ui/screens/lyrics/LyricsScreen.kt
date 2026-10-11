@@ -1,5 +1,6 @@
 package eu.depau.loak.ui.screens.lyrics
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.icons.outlined.Check
@@ -74,7 +75,9 @@ import kotlin.time.Duration.Companion.milliseconds
 fun LyricsScreen(
 	song: DomainSong?,
 	/** Shows the full-screen (karaoke) button. */
-	onFullScreen: (() -> Unit)? = null
+	onFullScreen: (() -> Unit)? = null,
+	/** Shows the actions (top start); full screen fades them out with its own controls. */
+	showActions: Boolean = true
 ) {
 	val backStack = LocalNavStack.current
 
@@ -199,62 +202,70 @@ fun LyricsScreen(
 
 	Box(Modifier.fillMaxSize()) {
 		body(PaddingValues())
-		// provider picker first, then full-screen, then cancel toggles, then share
-		Row(Modifier.align(Alignment.TopStart)) {
-			if (!isSelecting && providerResults.isNotEmpty()) {
-				Box {
-					IconButton(onClick = { providerMenuOpen = true }) {
-						Icon(
-							Icons.Outlined.Lyrics,
-							stringResource(Res.string.action_change_lyrics_provider)
-						)
-					}
-					DropdownMenu(
-						expanded = providerMenuOpen,
-						onDismissRequest = { providerMenuOpen = false }
-					) {
-						providerResults.forEachIndexed { index, result ->
-							DropdownMenuItem(
-								text = { Text(result.providerName) },
-								leadingIcon = {
-									if (index == selectedProviderIndex) {
-										Icon(
-											Icons.Outlined.Check,
-											contentDescription = null
-										)
-									}
-								},
-								onClick = {
-									providerMenuOpen = false
-									viewModel.selectProvider(index)
-								}
+		// provider picker first, then full-screen, then cancel toggles, then share; an open
+		// provider menu keeps them up
+		AnimatedVisibility(
+			visible = showActions || providerMenuOpen,
+			modifier = Modifier.align(Alignment.TopStart),
+			enter = fadeIn(),
+			exit = fadeOut()
+		) {
+			Row {
+				if (!isSelecting && providerResults.isNotEmpty()) {
+					Box {
+						IconButton(onClick = { providerMenuOpen = true }) {
+							Icon(
+								Icons.Outlined.Lyrics,
+								stringResource(Res.string.action_change_lyrics_provider)
 							)
+						}
+						DropdownMenu(
+							expanded = providerMenuOpen,
+							onDismissRequest = { providerMenuOpen = false }
+						) {
+							providerResults.forEachIndexed { index, result ->
+								DropdownMenuItem(
+									text = { Text(result.providerName) },
+									leadingIcon = {
+										if (index == selectedProviderIndex) {
+											Icon(
+												Icons.Outlined.Check,
+												contentDescription = null
+											)
+										}
+									},
+									onClick = {
+										providerMenuOpen = false
+										viewModel.selectProvider(index)
+									}
+								)
+							}
 						}
 					}
 				}
-			}
-			if (onFullScreen != null && !isSelecting) IconButton(onClick = onFullScreen) {
-				Icon(Icons.Outlined.Fullscreen, stringResource(Res.string.action_karaoke))
-			}
-			if (!isSelecting && canSync) IconButton(
-				onClick = {
-					syncToolOpen = true
-					viewModel.beginSyncAdjustment()
+				if (onFullScreen != null && !isSelecting) IconButton(onClick = onFullScreen) {
+					Icon(Icons.Outlined.Fullscreen, stringResource(Res.string.action_karaoke))
 				}
-			) {
-				Icon(Icons.Outlined.SyncAlt, stringResource(Res.string.action_sync_lyrics))
-			}
-			if (isSelecting) IconButton(onClick = toggleIsSelecting) {
-				Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
-			}
-			IconButton(
-				onClick = { if (isSelecting) shareSheetOpen = true else toggleIsSelecting() },
-				enabled = !isSelecting || selectedIndices.isNotEmpty()
-			) {
-				Icon(
-					if (isSelecting) Icons.Outlined.Check else Icons.Outlined.Share,
-					stringResource(Res.string.action_share_lyrics)
-				)
+				if (!isSelecting && canSync) IconButton(
+					onClick = {
+						syncToolOpen = true
+						viewModel.beginSyncAdjustment()
+					}
+				) {
+					Icon(Icons.Outlined.SyncAlt, stringResource(Res.string.action_sync_lyrics))
+				}
+				if (isSelecting) IconButton(onClick = toggleIsSelecting) {
+					Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
+				}
+				IconButton(
+					onClick = { if (isSelecting) shareSheetOpen = true else toggleIsSelecting() },
+					enabled = !isSelecting || selectedIndices.isNotEmpty()
+				) {
+					Icon(
+						if (isSelecting) Icons.Outlined.Check else Icons.Outlined.Share,
+						stringResource(Res.string.action_share_lyrics)
+					)
+				}
 			}
 		}
 

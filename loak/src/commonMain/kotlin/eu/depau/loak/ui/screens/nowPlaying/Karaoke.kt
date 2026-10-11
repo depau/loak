@@ -146,7 +146,7 @@ fun Karaoke(state: PlayerSheetState) {
 			) {
 				// centred where lines are short next to the window's width
 				CompositionLocalProvider(LocalLyricsFontSize provides size, LocalLyricsCentered provides wide) {
-					LyricsScreen(song)
+					LyricsScreen(song, showActions = controls)
 				}
 			}
 
