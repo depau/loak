@@ -22,10 +22,12 @@ import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentLength
 import io.ktor.http.contentType
+import io.ktor.utils.io.readAvailable
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CoroutineScope
@@ -904,11 +906,42 @@ class LidarrManager(
 	}
 
 	private suspend fun parse(response: HttpResponse): JsonElement {
-		val text = response.bodyAsText()
+		val text = boundedBodyAsText(response)
 		if (!response.status.isSuccess()) {
 			throw LidarrException(statusMessage(response.status, text), response.status)
 		}
 		return json.parseToJsonElement(text)
+	}
+
+	/**
+	 * Reads the body as text, refusing anything bigger than [MAX_JSON_BYTES]. The catalog
+	 * endpoints have no paging (Lidarr returns one bare array), so a huge library is a single
+	 * multi-hundred-MB JSON body; reading it blindly is an OOM, this makes it a skipped catalog.
+	 */
+	private suspend fun boundedBodyAsText(response: HttpResponse): String {
+		if (response.contentLength()?.let { it > MAX_JSON_BYTES } == true) {
+			throw LidarrException("Lidarr response too large to read")
+		}
+		val channel = response.bodyAsChannel()
+		val buffer = ByteArray(64 * 1024)
+		val chunks = ArrayList<ByteArray>()
+		var total = 0
+		while (true) {
+			val n = channel.readAvailable(buffer)
+			if (n <= 0) break
+			total += n
+			if (total > MAX_JSON_BYTES) {
+				throw LidarrException("Lidarr response too large to read")
+			}
+			chunks += buffer.copyOf(n)
+		}
+		val bytes = ByteArray(total)
+		var offset = 0
+		chunks.forEach {
+			it.copyInto(bytes, offset)
+			offset += it.size
+		}
+		return bytes.decodeToString()
 	}
 
 	/** The API key plus custom and inherited headers; read per request so edits apply next call. */
@@ -937,5 +970,7 @@ class LidarrManager(
 
 	private companion object {
 		const val TAG = "LidarrManager"
+		/** A whole-catalog response bigger than this is a failure, not an OOM (see [parse]). */
+		const val MAX_JSON_BYTES = 128 * 1024 * 1024
 	}
 }
