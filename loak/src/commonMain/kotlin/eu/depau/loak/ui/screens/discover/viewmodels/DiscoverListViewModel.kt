@@ -6,6 +6,9 @@ import eu.depau.loak.domain.discover.DeezerClient
 import eu.depau.loak.domain.discover.DeezerCountryChart
 import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
+import eu.depau.loak.domain.discover.DiscoverGenre
+import eu.depau.loak.domain.discover.DiscoverPlaylist
+import eu.depau.loak.domain.discover.DiscoverRadio
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.discover.ListenBrainzClient
@@ -26,6 +29,9 @@ data class DiscoverListPage(
 	val songs: List<DiscoverSong> = emptyList(),
 	val albums: List<DiscoverAlbum> = emptyList(),
 	val artists: List<DiscoverArtist> = emptyList(),
+	val genres: List<DiscoverGenre> = emptyList(),
+	val radios: List<DiscoverRadio> = emptyList(),
+	val playlists: List<DiscoverPlaylist> = emptyList(),
 	/** Which chart the songs come from, on the Top songs list. */
 	val chart: DeezerCountryChart? = null,
 	/** Ids of the songs the library already has, for "Hide songs I have". */
@@ -69,11 +75,36 @@ class DiscoverListViewModel(
 			DiscoverListType.TopSongs -> loadChart()
 			DiscoverListType.NewReleases ->
 				page.update { it.copy(loading = false, albums = listenBrainz.getFreshReleases()) }
+			DiscoverListType.TopAlbums ->
+				page.update { it.copy(loading = false, albums = deezer.getChartAlbums()) }
+			DiscoverListType.TopArtists ->
+				page.update { it.copy(loading = false, artists = deezer.getChartArtists()) }
+			DiscoverListType.Moods ->
+				page.update { it.copy(loading = false, playlists = deezer.getChartPlaylists()) }
+			DiscoverListType.Genres ->
+				page.update { it.copy(loading = false, genres = deezer.getGenres().filter { it.id != 0L }) }
 			is DiscoverListType.SimilarArtists -> loadSimilar(type.artistMbid)
-			is DiscoverListType.Genre ->
-				page.update { it.copy(loading = false, songs = deezer.getGenreTracks(type.genreId)) }
+			is DiscoverListType.GenreRadios -> loadGenre(type.genreId, type.genreName)
+			is DiscoverListType.Radios ->
+				page.update { it.copy(loading = false, radios = deezer.getGenreRadios(type.genreId)) }
+			is DiscoverListType.Radio ->
+				page.update { it.copy(loading = false, songs = deezer.getRadioTracks(type.radioId)) }
+			is DiscoverListType.Playlist ->
+				page.update { it.copy(loading = false, songs = deezer.getChartTracks(type.playlistId)) }
 			is DiscoverListType.MadeForYou -> loadPlaylist(type.playlistMbid)
 		}
+	}
+
+	/**
+	 * A genre's page in Discover: its radios rail plus its chart songs. Radios are Deezer's
+	 * sub-genre/mood layer — the "more genres" you can't get from the top-level list.
+	 */
+	private suspend fun loadGenre(genreId: Long, genreName: String) {
+		page.update { it.copy(loading = true, radios = emptyList(), songs = emptyList()) }
+		val radios = deezer.getGenreRadios(genreId)
+		val songs = deezer.getGenreTracks(genreId)
+		page.update { it.copy(loading = false, radios = radios, songs = songs) }
+		// the song list is the point; a page with only radios is fine to render too
 	}
 
 	private suspend fun loadChart() {

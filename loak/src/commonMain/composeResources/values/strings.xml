@@ -1132,6 +1132,10 @@
 	<string name="info_discover_artist_unavailable">Couldn't load this artist</string>
 	<string name="title_new_releases">New releases</string>
 	<string name="title_browse_genres">Browse genres</string>
+	<string name="title_top_albums">Top albums</string>
+	<string name="title_top_artists">Top artists</string>
+	<string name="title_moods_activities">Moods &amp; activities</string>
+	<string name="title_radio_stations">Radio stations</string>
 	<string name="title_because_you_listen">Because you listen to %1$s</string>
 	<string name="subtitle_from_deezer">From Deezer</string>
 	<string name="subtitle_from_listenbrainz">From ListenBrainz</string>

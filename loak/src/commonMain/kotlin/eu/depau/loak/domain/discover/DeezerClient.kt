@@ -403,6 +403,75 @@ class DeezerClient {
 		return tracks
 	}
 
+	/** The radios under a genre (`genre/<id>/radios`): Deezer's mood/sub-genre layer. Empty when the call fails. */
+	suspend fun getGenreRadios(genreId: Long): List<DiscoverRadio> = withContext(IoDispatcher) {
+		try {
+			val root = fetchRaw("genre/$genreId/radios") { parameter("limit", CHART_PLAYLIST_LIMIT) }
+			(root["data"] as? JsonArray).orEmpty().map { discoverRadioOf(it.jsonObject) }
+		} catch (e: CancellationException) {
+			throw e
+		} catch (_: Exception) {
+			emptyList()
+		}
+	}
+
+	/** A radio's tracks (`/radio/<id>/tracks`), cached for an hour. Empty when the call fails. */
+	suspend fun getRadioTracks(radioId: Long): List<DiscoverSong> {
+		radioTracksCache[radioId]?.takeIf { nowMs() - it.second < TRACKS_CACHE_TTL_MS }?.let { return it.first }
+		val tracks = withContext(IoDispatcher) {
+			try {
+				topKind("radio/$radioId/tracks", CHART_PLAYLIST_LIMIT) { discoverSongOf(it) }
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
+		synchronized(radioTracksCache) { radioTracksCache[radioId] = tracks to nowMs() }
+		return tracks
+	}
+
+	/** The top albums of the global chart (`/chart/0/albums`), cached for an hour. Empty when the call fails. */
+	suspend fun getChartAlbums(): List<DiscoverAlbum> = topKindCached(
+		"chart/0/albums", CHART_PLAYLIST_LIMIT, chartAlbumsCache
+	) { discoverAlbumOf(it) }
+
+	/** The top artists of the global chart (`/chart/0/artists`), cached for an hour. Empty when the call fails. */
+	suspend fun getChartArtists(): List<DiscoverArtist> = topKindCached(
+		"chart/0/artists", CHART_PLAYLIST_LIMIT, chartArtistsCache
+	) { discoverArtistOf(it) }
+
+	/** The editorial playlists of the global chart (`/chart/0/playlists`, "Moods & activities"). Cached for an hour. */
+	suspend fun getChartPlaylists(): List<DiscoverPlaylist> = topKindCached(
+		"chart/0/playlists", CHART_PLAYLIST_LIMIT, chartPlaylistsCache
+	) { discoverPlaylistOf(it) }
+
+	private val radioTracksCache = HashMap<Long, Pair<List<DiscoverSong>, Long>>()
+	private val chartAlbumsCache = HashMap<String, Pair<List<DiscoverAlbum>, Long>>()
+	private val chartArtistsCache = HashMap<String, Pair<List<DiscoverArtist>, Long>>()
+	private val chartPlaylistsCache = HashMap<String, Pair<List<DiscoverPlaylist>, Long>>()
+
+	/** One unchanging-limit list endpoint, cached under [ttl] with the one-hour TTL. */
+	private suspend fun <T> topKindCached(
+		path: String,
+		limit: Int,
+		cache: HashMap<String, Pair<List<T>, Long>>,
+		map: (JsonObject) -> T
+	): List<T> {
+		cache[path]?.takeIf { nowMs() - it.second < TRACKS_CACHE_TTL_MS }?.let { return it.first }
+		val items = withContext(IoDispatcher) {
+			try {
+				topKind(path, limit, map)
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
+		synchronized(cache) { cache[path] = items to nowMs() }
+		return items
+	}
+
 	/** The playlist pages of the Charts account, folded into one `data` array for [parseCountryCharts]. */
 	private suspend fun fetchChartPlaylists(): List<DeezerCountryChart> {
 		val all = mutableListOf<JsonObject>()

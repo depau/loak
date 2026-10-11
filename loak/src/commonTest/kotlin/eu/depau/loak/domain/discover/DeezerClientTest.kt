@@ -273,4 +273,44 @@ class DeezerClientTest {
 		assertEquals("Worldwide", isoCountryName("XW"))
 		assertNull(isoCountryName("ZZ"))
 	}
+
+	@Test
+	fun parsesRadioResult() {
+		val radio = discoverRadioOf(
+			json.parseToJsonElement("""{
+				"id": 30991,
+				"title": "Hip Hop",
+				"picture_medium": "https://e-cdns-images.dzcdn.net/images/misc/abc/250x250-000000-80-0-0.jpg"
+			}""".trimIndent()).jsonObject
+		)
+		assertEquals(30991L, radio.id)
+		assertEquals("Hip Hop", radio.title)
+		assertEquals("https://e-cdns-images.dzcdn.net/images/misc/abc/250x250-000000-80-0-0.jpg", radio.pictureUrl)
+	}
+
+	@Test
+	fun parsesPlaylistResult() {
+		val playlist = discoverPlaylistOf(
+			json.parseToJsonElement("""{
+				"id": 9346933942,
+				"title": "Acoustic Hits",
+				"nb_tracks": 80,
+				"picture_medium": "https://cdn-images.dzcdn.net/images/playlist/abc/250x250-000000-80-0-0.jpg"
+			}""".trimIndent()).jsonObject
+		)
+		assertEquals(9346933942L, playlist.id)
+		assertEquals("Acoustic Hits", playlist.title)
+		assertEquals(80, playlist.trackCount)
+		assertEquals("https://cdn-images.dzcdn.net/images/playlist/abc/250x250-000000-80-0-0.jpg", playlist.pictureUrl)
+	}
+
+	@Test
+	fun missingRadioFieldsFallBackToDefaults() {
+		val radio = discoverRadioOf(
+			json.parseToJsonElement("""{"id": 5}""".trimIndent()).jsonObject
+		)
+		assertEquals(5L, radio.id)
+		assertEquals("", radio.title)
+		assertNull(radio.pictureUrl)
+	}
 }

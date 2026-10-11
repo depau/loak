@@ -9,6 +9,7 @@ import eu.depau.loak.domain.discover.DeezerCountryChart
 import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverGenre
+import eu.depau.loak.domain.discover.DiscoverPlaylist
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.discover.ListenBrainzClient
@@ -33,6 +34,12 @@ data class DiscoverHome(
 	/** The ListenBrainz "made for you" playlists; empty without a username. */
 	val madeForYou: List<ListenBrainzPlaylist> = emptyList(),
 	val newReleases: List<DiscoverAlbum> = emptyList(),
+	/** The global Deezer chart's top albums ("Top albums"). */
+	val topAlbums: List<DiscoverAlbum> = emptyList(),
+	/** Deezer's "Moods & activities" editorial playlists. */
+	val moods: List<DiscoverPlaylist> = emptyList(),
+	/** The global Deezer chart's top artists ("Top artists"). */
+	val topArtists: List<DiscoverArtist> = emptyList(),
 	val chart: DeezerCountryChart? = null,
 	val topSongs: List<DiscoverSong> = emptyList(),
 	/** The library artist "Because you listen to…" is seeded from. */
@@ -41,6 +48,9 @@ data class DiscoverHome(
 	val genres: List<DiscoverGenre> = emptyList(),
 	val loadingMadeForYou: Boolean = false,
 	val loadingNewReleases: Boolean = false,
+	val loadingTopAlbums: Boolean = false,
+	val loadingMoods: Boolean = false,
+	val loadingTopArtists: Boolean = false,
 	val loadingChart: Boolean = false,
 	val loadingSimilar: Boolean = false,
 	val loadingGenres: Boolean = false
@@ -51,6 +61,9 @@ private const val NEW_RELEASES = 20
 private const val SHELF_SONGS = 5
 private const val SIMILAR_ARTISTS = 12
 private const val GENRES = 12
+private const val SHELF_ALBUMS = 12
+private const val SHELF_MOODS = 10
+private const val SHELF_ARTISTS = 12
 
 class DiscoverHomeViewModel(
 	private val deezer: DeezerClient,
@@ -75,6 +88,9 @@ class DiscoverHomeViewModel(
 		home.value = DiscoverHome(
 			loadingMadeForYou = preferenceManager.listenBrainzUsername.isNotBlank(),
 			loadingNewReleases = true,
+			loadingTopAlbums = deezerEnabled,
+			loadingMoods = deezerEnabled,
+			loadingTopArtists = deezerEnabled,
 			loadingChart = deezerEnabled,
 			loadingSimilar = true,
 			loadingGenres = deezerEnabled
@@ -112,6 +128,30 @@ class DiscoverHomeViewModel(
 		launch { loadSimilar() }
 		if (!preferenceManager.deezerEnabled) return@coroutineScope
 		launch { loadChart() }
+		launch {
+			home.update {
+				it.copy(
+					topAlbums = deezer.getChartAlbums().take(SHELF_ALBUMS),
+					loadingTopAlbums = false
+				)
+			}
+		}
+		launch {
+			home.update {
+				it.copy(
+					moods = deezer.getChartPlaylists().take(SHELF_MOODS),
+					loadingMoods = false
+				)
+			}
+		}
+		launch {
+			home.update {
+				it.copy(
+					topArtists = deezer.getChartArtists().take(SHELF_ARTISTS),
+					loadingTopArtists = false
+				)
+			}
+		}
 		launch {
 			// genre 0 is Deezer's "all genres" catch-all: nothing to browse
 			home.update {

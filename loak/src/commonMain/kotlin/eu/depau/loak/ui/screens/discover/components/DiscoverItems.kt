@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -26,6 +29,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -39,20 +43,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
+import eu.depau.loak.domain.discover.DiscoverPlaylist
+import eu.depau.loak.domain.discover.DiscoverRadio
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.ListenBrainzPlaylist
 import eu.depau.loak.domain.discover.deezerImageUrl
 import eu.depau.loak.domain.manager.DiscoverBadgeState
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_more
+import eu.depau.loak.generated.resources.action_see_all
 import eu.depau.loak.generated.resources.count_songs
 import eu.depau.loak.generated.resources.action_pause_preview
 import eu.depau.loak.generated.resources.action_preview
@@ -75,6 +87,7 @@ import eu.depau.loak.ui.util.shimmerLoading
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.pluralStringResource
+import org.koin.compose.koinInject
 
 /**
  * Opens Discover albums and artists on Discover's own pages, even when the library has them: there
@@ -481,4 +494,124 @@ fun ChartSongPlaceholder() {
 		supportingContent = { Box(Modifier.width(132.dp).height(14.dp).clip(CircleShape).shimmerLoading()) },
 		trailingContent = { Box(Modifier.size(40.dp).clip(CircleShape).shimmerLoading()) }
 	)
+}
+
+/** A Deezer radio on a rail: its picture darkened under the title (Deezer's mood/sub-genre). */
+@Composable
+fun RadioTile(radio: DiscoverRadio, modifier: Modifier, onClick: () -> Unit) {
+	Surface(
+		onClick = onClick,
+		modifier = modifier.height(64.dp),
+		shape = MaterialTheme.shapes.medium,
+		color = MaterialTheme.colorScheme.surfaceContainerHigh
+	) {
+		Box {
+			AsyncImage(
+				model = radio.pictureUrl,
+				imageLoader = koinInject<ImageLoader>(),
+				contentDescription = null,
+				contentScale = ContentScale.Crop,
+				modifier = Modifier.fillMaxSize()
+			)
+			Box(
+				Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 14.dp),
+				contentAlignment = Alignment.CenterStart
+			) {
+				Text(
+					radio.title,
+					color = Color.White,
+					style = MaterialTheme.typography.titleMedium,
+					fontWeight = FontWeight.SemiBold,
+					maxLines = 2,
+					overflow = TextOverflow.Ellipsis
+				)
+			}
+		}
+	}
+}
+
+/** The radio rail on a drill-down page: its title chip and the radios under the genre. */
+@Composable
+fun RadiosRail(
+	title: String,
+	radios: List<DiscoverRadio>,
+	onRadio: (DiscoverRadio) -> Unit,
+	onSeeAll: (() -> Unit)? = null
+) {
+	Column {
+		Row(
+			Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 18.dp, bottom = 4.dp),
+			verticalAlignment = Alignment.CenterVertically,
+			horizontalArrangement = Arrangement.spacedBy(8.dp)
+		) {
+			Text(
+				title,
+				Modifier.weight(1f),
+				style = MaterialTheme.typography.titleLarge,
+				maxLines = 1,
+				overflow = TextOverflow.Ellipsis
+			)
+			if (onSeeAll != null) TextButton(onClick = onSeeAll) {
+				Text(stringResource(Res.string.action_see_all))
+			}
+		}
+		if (radios.isEmpty()) {
+			repeat(3) {
+				Box(
+					Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth().height(56.dp)
+						.clip(MaterialTheme.shapes.medium).shimmerLoading()
+				)
+			}
+		} else {
+			LazyRow(
+				contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+				horizontalArrangement = Arrangement.spacedBy(12.dp)
+			) {
+				items(radios, key = { it.id }) { radio -> RadioTile(radio, Modifier.width(180.dp)) { onRadio(radio) } }
+			}
+		}
+	}
+}
+
+/** One Deezer editorial playlist row on the Moods list: its cover, title and track count. */
+@Composable
+fun PlaylistRow(playlist: DiscoverPlaylist, onOpen: () -> Unit) {
+	ResultItem(
+		playlist.pictureUrl,
+		playlist.title,
+		pluralStringResource(Res.plurals.count_songs, playlist.trackCount, playlist.trackCount),
+		DiscoverBadgeState.None, // editorial playlists are never in the library
+		onMore = onOpen
+	)
+}
+
+/** One Deezer editorial playlist on the Moods rail: cover, title and track count. */
+@Composable
+fun PlaylistCard(playlist: DiscoverPlaylist, onClick: () -> Unit) {
+	Column(Modifier.width(168.dp)) {
+		Box(Modifier.clip(MaterialTheme.shapes.large).clickable(onClick = onClick)) {
+			DiscoverArt(playlist.pictureUrl.let { deezerImageUrl(it, 500) }, 168.dp, MaterialTheme.shapes.large)
+		}
+		Text(
+			playlist.title,
+			Modifier.padding(top = 6.dp),
+			style = MaterialTheme.typography.bodyLarge,
+			maxLines = 2,
+			overflow = TextOverflow.Ellipsis
+		)
+		if (playlist.trackCount > 0) Text(
+			pluralStringResource(Res.plurals.count_songs, playlist.trackCount, playlist.trackCount),
+			style = MaterialTheme.typography.bodyMedium,
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis
+		)
+	}
+}
+
+@Composable
+fun PlaylistCardPlaceholder() = Column(Modifier.width(168.dp)) {
+	Box(Modifier.size(168.dp).clip(MaterialTheme.shapes.large).shimmerLoading())
+	Box(Modifier.padding(top = 6.dp).width(112.dp).height(16.dp).clip(CircleShape).shimmerLoading())
+	Box(Modifier.padding(top = 4.dp).width(88.dp).height(14.dp).clip(CircleShape).shimmerLoading())
 }

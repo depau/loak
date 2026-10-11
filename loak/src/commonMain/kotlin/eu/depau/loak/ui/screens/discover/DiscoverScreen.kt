@@ -64,7 +64,10 @@ import eu.depau.loak.generated.resources.title_made_for_you
 import eu.depau.loak.generated.resources.title_because_you_listen
 import eu.depau.loak.generated.resources.title_browse_genres
 import eu.depau.loak.generated.resources.title_discover
+import eu.depau.loak.generated.resources.title_moods_activities
 import eu.depau.loak.generated.resources.title_new_releases
+import eu.depau.loak.generated.resources.title_top_albums
+import eu.depau.loak.generated.resources.title_top_artists
 import eu.depau.loak.generated.resources.title_top_songs
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Download
@@ -85,6 +88,8 @@ import eu.depau.loak.ui.screens.discover.components.ChartSongPlaceholder
 import eu.depau.loak.ui.screens.discover.components.DiscoverAlbumCardPlaceholder
 import eu.depau.loak.ui.screens.discover.components.DiscoverArtistCardPlaceholder
 import eu.depau.loak.ui.screens.discover.components.MadeForYouPlaceholder
+import eu.depau.loak.ui.screens.discover.components.PlaylistCard
+import eu.depau.loak.ui.screens.discover.components.PlaylistCardPlaceholder
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverHomeViewModel
 import eu.depau.loak.ui.screens.discover.components.dotted
 import eu.depau.loak.ui.util.shimmerLoading
@@ -181,6 +186,34 @@ fun DiscoverScreen() {
 					}
 				}
 			}
+			if (home.loadingTopAlbums || home.topAlbums.isNotEmpty()) item(key = "top-albums") {
+				ShelfHeader(
+					stringResource(Res.string.title_top_albums),
+					subtitle = stringResource(Res.string.subtitle_from_deezer)
+				) {
+					SeeAll(dropUnlessResumed { open(DiscoverListType.TopAlbums) })
+				}
+				Rail {
+					if (home.loadingTopAlbums) items(6) { DiscoverAlbumCardPlaceholder() }
+					else items(home.topAlbums, key = { it.id }) {
+						DiscoverAlbumCard(it, addFlow, dotted(it.artist, it.year?.toString()))
+					}
+				}
+			}
+			if (home.loadingMoods || home.moods.isNotEmpty()) item(key = "moods") {
+				ShelfHeader(
+					stringResource(Res.string.title_moods_activities),
+					subtitle = stringResource(Res.string.subtitle_from_deezer)
+				) {
+					SeeAll(dropUnlessResumed { open(DiscoverListType.Moods) })
+				}
+				Rail {
+					if (home.loadingMoods) items(3) { PlaylistCardPlaceholder() }
+					else items(home.moods, key = { it.id }) {
+						PlaylistCard(it) { open(DiscoverListType.Playlist(it.id, it.title)) }
+					}
+				}
+			}
 			if (home.loadingChart || (home.chart != null && home.topSongs.isNotEmpty())) {
 				if (home.loadingChart) {
 					item(key = "top-songs") {
@@ -211,6 +244,18 @@ fun DiscoverScreen() {
 					}
 				}
 			}
+			if (home.loadingTopArtists || home.topArtists.isNotEmpty()) item(key = "top-artists") {
+				ShelfHeader(
+					stringResource(Res.string.title_top_artists),
+					subtitle = stringResource(Res.string.subtitle_from_deezer)
+				) {
+					SeeAll(dropUnlessResumed { open(DiscoverListType.TopArtists) })
+				}
+				Rail {
+					if (home.loadingTopArtists) items(6) { DiscoverArtistCardPlaceholder() }
+					else items(home.topArtists, key = { it.id }) { DiscoverArtistCard(it, addFlow) }
+				}
+			}
 			if (home.loadingSimilar || home.seed != null) item(key = "similar") {
 				if (home.loadingSimilar) ShelfHeaderPlaceholder()
 				else {
@@ -233,7 +278,9 @@ fun DiscoverScreen() {
 				ShelfHeader(
 					stringResource(Res.string.title_browse_genres),
 					subtitle = stringResource(Res.string.subtitle_from_deezer)
-				)
+				) {
+					SeeAll(dropUnlessResumed { open(DiscoverListType.Genres) })
+				}
 				Column(
 					Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
 					verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -251,7 +298,7 @@ fun DiscoverScreen() {
 						Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
 							pair.forEach { genre ->
 								GenreTile(genre, Modifier.weight(1f), dropUnlessResumed {
-									open(DiscoverListType.Genre(genre.id, genre.name))
+									open(DiscoverListType.GenreRadios(genre.id, genre.name))
 								})
 							}
 							// an odd last tile keeps its column instead of stretching across
@@ -319,7 +366,7 @@ private fun Rail(content: LazyListScope.() -> Unit) = LazyRow(
 
 /** One "Browse genres" tile: Deezer's picture for the genre, darkened under its name. */
 @Composable
-private fun GenreTile(genre: DiscoverGenre, modifier: Modifier, onClick: () -> Unit) {
+fun GenreTile(genre: DiscoverGenre, modifier: Modifier, onClick: () -> Unit) {
 	Surface(
 		onClick = onClick,
 		modifier = modifier.height(64.dp),

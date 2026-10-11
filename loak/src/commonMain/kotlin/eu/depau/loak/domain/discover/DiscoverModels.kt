@@ -54,6 +54,21 @@ data class DiscoverGenre(
 	val pictureUrl: String? = null
 )
 
+/** A Deezer radio: Deezer's mood/sub-genre layer, e.g. "Grime" under Rap/Hip Hop. Playable via `radio/{id}/tracks`. */
+data class DiscoverRadio(
+	val id: Long,
+	val title: String,
+	val pictureUrl: String? = null
+)
+
+/** A Deezer editorial playlist (a mood/activities chart, e.g. "Acoustic Hits"), playable via `playlist/{id}/tracks`. */
+data class DiscoverPlaylist(
+	val id: Long,
+	val title: String,
+	val pictureUrl: String? = null,
+	val trackCount: Int = 0
+)
+
 /** The three kinds of Deezer search results, as the search screen shows them. */
 data class DiscoverSearchResults(
 	val songs: List<DiscoverSong>,
@@ -123,6 +138,25 @@ fun discoverGenreOf(item: JsonObject): DiscoverGenre {
 		id = item.deezerId() ?: 0L,
 		name = item.str("name").orEmpty(),
 		pictureUrl = item.str("picture_medium") ?: item.str("picture_big")
+	)
+}
+
+/** Maps one Deezer radio (`genre/{id}/radios`'s `data`). */
+fun discoverRadioOf(item: JsonObject): DiscoverRadio {
+	return DiscoverRadio(
+		id = item.deezerId() ?: 0L,
+		title = item.str("title").orEmpty(),
+		pictureUrl = item.str("picture_medium") ?: item.str("picture_big")
+	)
+}
+
+/** Maps one Deezer editorial playlist (`chart/0/playlists`'s or `editorial/{id}/charts`'s `data`). */
+fun discoverPlaylistOf(item: JsonObject): DiscoverPlaylist {
+	return DiscoverPlaylist(
+		id = item.deezerId() ?: 0L,
+		title = item.str("title").orEmpty(),
+		pictureUrl = item.str("picture_medium") ?: item.str("picture_big"),
+		trackCount = item["nb_tracks"]?.jsonPrimitive?.intOrNull ?: 0
 	)
 }
 
