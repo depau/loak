@@ -128,6 +128,7 @@ import eu.depau.loak.util.Logger
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 
 internal data class AndroidAudioSinkState(
@@ -473,6 +474,13 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 	private fun streamSource(songId: String) =
 		streamSource(songId, sessionManager, connectivityManager, preferenceManager)
 
+	/** How many songs to fetch ahead now, from the per-network-class read-ahead setting. */
+	private fun prefetchCount(): Int = when {
+		connectivityManager.isRoaming.value -> preferenceManager.prefetchReadAheadRoaming
+		connectivityManager.isCellular.value -> preferenceManager.prefetchReadAheadMobile
+		else -> preferenceManager.prefetchReadAheadWifi
+	}
+
 	/**
 	 * Fetches the songs after the current one into the store, one at a time once nothing else is
 	 * fetching (the current song first), so the next track plays from disk without waking the
@@ -486,7 +494,13 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 			val mode = player.repeatMode.takeIf { it != Player.REPEAT_MODE_ONE }
 				?: Player.REPEAT_MODE_OFF
 			var i = player.currentMediaItemIndex
-			while (upcoming.size < 3) {
+			// a bigger wifi read-ahead needs more than three candidates
+			val maxAhead = maxOf(
+				preferenceManager.prefetchReadAheadWifi,
+				preferenceManager.prefetchReadAheadMobile,
+				preferenceManager.prefetchReadAheadRoaming
+			)
+			while (upcoming.size < maxAhead) {
 				i = timeline.getNextWindowIndex(i, mode, player.shuffleModeEnabled)
 				if (i == C.INDEX_UNSET) break
 				upcoming += player.getMediaItemAt(i).localConfiguration?.uri
@@ -494,7 +508,9 @@ class PlaybackService : MediaSessionService(), KoinComponent {
 		}
 		val current = player.currentMediaItem?.localConfiguration?.uri?.songId
 		val targets = prefetchTargets(
-			current, upcoming.map { it?.songId }, connectivityManager.isCellular.value
+			current,
+			upcoming.map { it?.songId },
+			prefetchCount()
 		)
 		val keep = setOfNotNull(current) + targets
 		(keep - retained).forEach(audioStore::retain)
@@ -738,6 +754,12 @@ class AndroidMediaPlayerViewModel(
 	/** The running progress poller; at most one is ever active. */
 	private var progressJob: Job? = null
 
+	/** Nudges the player when a song stalls silent in READY; see [stalled]. */
+	private var stallJob: Job? = null
+
+	/** How long a song may sit READY-but-silent before the watchdog re-drives the source. */
+	private val stallNudgeAfter = 5.seconds
+
 	init {
 		connectToService()
 		viewModelScope.launch {
@@ -810,16 +832,24 @@ class AndroidMediaPlayerViewModel(
 							}
 
 						application.sendBroadcast(intent)
+						stalled()
 						updatePlaybackState()
 					}
 
 					// play pressed while buffering doesn't change isPlaying: show it right away
 					override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
 						updatePlaybackState()
+						stalled()
 					}
 
 					override fun onPlaybackStateChanged(playbackState: Int) {
-						_uiState.update { it.copy(isLoading = playbackState == Player.STATE_BUFFERING) }
+						// READY while "playing" but silent is the store fetch starving the decoder
+						// (the 2.5s bufferForPlaybackMs is hit and left empty): that's buffering too
+						val waiting = playbackState == Player.STATE_BUFFERING ||
+							(playbackState == Player.STATE_READY && controller?.playWhenReady == true &&
+								controller?.isPlaying == false)
+						_uiState.update { it.copy(isLoading = waiting) }
+						stalled()
 						updatePlaybackState()
 					}
 
@@ -1041,6 +1071,30 @@ class AndroidMediaPlayerViewModel(
 				else -> return
 			}
 			_uiState.update { it.copy(progress = progress) }
+		}
+	}
+
+	/**
+	 * "Playing" but silent: the store fetch feeding the decoder is trickling on a slow network
+	 * (see StoreDataSource), ExoPlayer sits READY with nothing buffered. Give it a moment to
+	 * catch up, then re-drive the source the same way pause+resume does by hand.
+	 */
+	private fun stalled() {
+		stallJob?.cancel()
+		val player = controller
+		if (player?.playWhenReady != true) return
+		if (player.playbackState != Player.STATE_READY || player.isPlaying) return
+		stallJob = viewModelScope.launch {
+			delay(stallNudgeAfter)
+			val controller = controller ?: return@launch
+			// still silent: ask the source for the next chunk again
+			if (controller.playWhenReady && controller.playbackState == Player.STATE_READY &&
+				!controller.isPlaying
+			) {
+				controller.play()
+				controller.seekTo(controller.currentPosition)
+				controller.play()
+			}
 		}
 	}
 
