@@ -36,6 +36,9 @@ class NavtabsViewModel(
 		combine(shared, snapshotFlow { lidarr.discoverShown }) { state, discover -> state.shown(discover) }
 			.stateIn(viewModelScope, SharingStarted.Eagerly, shared.value.shown(lidarr.discoverShown))
 
+	/** Whether the Discover tab can be turned on at all (Lidarr needs a working address). */
+	val discoverAvailable: Boolean get() = lidarr.isConfigured
+
 	private fun UiState<NavbarConfig>.shown(discover: Boolean) =
 		if (this is UiState.Success) UiState.Success(data.shown(discover)) else this
 
@@ -64,6 +67,8 @@ class NavtabsViewModel(
 	fun toggleVisibility(id: NavbarTab.Id) {
 		val config = (shared.value as UiState.Success).data
 		val turningOn = config.tabs.any { it.id == id && !it.visible }
+		// Discover can't be turned on without a working Lidarr connection (see discoverAvailable)
+		if (turningOn && id == NavbarTab.Id.DISCOVER && !lidarr.isConfigured) return
 		// ponytail: a hidden Discover doesn't count, so the bar can go one over the limit when it returns
 		if (turningOn && config.shown().tabs.count { it.visible } >= NavbarConfig.MAX_VISIBLE) return
 		setConfig(

@@ -103,8 +103,11 @@ fun TabsScreen() {
 			}
 			draggableItems(state = draggable, items = config.tabs, key = { it.id }) { tab, isDragging ->
 				val elevation by animateDpAsState(if (isDragging) 4.dp else 0.dp)
-				// Home can't go: something has to open first
-				val enabled = tab.id != NavbarTab.Id.HOME && (tab.visible || !full)
+				// Home can't go: something has to open first. Discover needs Lidarr set up, and
+				// nothing can be hidden once the bar is full
+				val enabled = tab.id != NavbarTab.Id.HOME &&
+					(tab.id != NavbarTab.Id.DISCOVER || viewModel.discoverAvailable) &&
+					(tab.visible || !full)
 				Surface(shape = MaterialTheme.shapes.large, shadowElevation = elevation, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
 					ListItem(
 						colors = ListItemDefaults.colors(containerColor = Color.Transparent),
