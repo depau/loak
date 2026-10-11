@@ -4,7 +4,6 @@ import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -182,7 +181,7 @@ private fun SongRowContent(
 			)
 		},
 		trailingContent = {
-			Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(83.dp)) {
+			Row(verticalAlignment = Alignment.CenterVertically) {
 				if (starredState) {
 					Icon(
 						Icons.Filled.Star,
