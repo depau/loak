@@ -5,9 +5,11 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.accept
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -32,6 +34,9 @@ import eu.depau.loak.domain.parser.LyricsContentParser
 import eu.depau.loak.util.Logger
 import kotlin.time.Duration.Companion.milliseconds
 
+/** Provider name of lyrics the user saved on this device (offset baked in). */
+const val LOCAL_PROVIDER = "Lo'ak"
+
 class LyricsRepository(
 	private val lyricDao: LyricDao,
 	private val settings: Settings,
@@ -51,6 +56,11 @@ class LyricsRepository(
 	// regex for finding parenthesis as they are often for crediting producers which can make lrclib
 	// miss a search. example "songTitle (prod. producer123)"
 	private companion object {
+		const val MUSIXMATCH_UA =
+			"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36"
+		/** The token is anonymous and reusable; refresh it only when the API asks us to. */
+		var musixmatchToken: String? = null
+
 		val PARENTHETICAL = Regex("""\([^)]*\)""")
 		val REPEATED_WHITESPACE = Regex("""\s+""")
 	}
@@ -68,98 +78,144 @@ class LyricsRepository(
 		}
 	}
 
-	suspend fun fetchLyrics(song: DomainSong): LyricsResult? {
+	/** Persist [rawContent] (already offset-adjusted) so it wins over every provider next time. */
+	suspend fun saveLyrics(song: DomainSong, rawContent: String) {
 		try {
-			val cached = lyricDao.getLyrics(song.id)
-			if (cached != null) {
-				val parsed = LyricsContentParser.parse(cached.rawContent)
-				if (!parsed.isNullOrEmpty()) return LyricsResult(
-					lines = parsed,
-					providerName = cached.providerName,
-					rawContent = cached.rawContent
+			lyricDao.insertLyrics(
+				LyricEntity(
+					songId = song.id,
+					providerName = LOCAL_PROVIDER,
+					rawContent = rawContent
 				)
+			)
+		} catch (e: Exception) {
+			Logger.e("LyricRepository", "Failed to save lyrics for ${song.title}", e)
+		}
+	}
+
+	private suspend fun getCached(song: DomainSong): LyricEntity? = try {
+		lyricDao.getLyrics(song.id)
+	} catch (ex: Exception) {
+		Logger.w("LyricsRepository", "failed getting cached lyrics", ex)
+		null
+	}
+
+	/**
+	 * Fetch lyrics for [song] from every enabled provider, in priority order.
+	 * Lyrics the user saved on this device (offset baked in) are pinned first so they keep
+	 * priority, and the auto-cache from the last run is returned when offline.
+	 */
+	suspend fun fetchAllLyrics(song: DomainSong): List<LyricsResult> {
+		val cached = getCached(song)
+		val saved = cached?.takeIf { it.providerName == LOCAL_PROVIDER }
+		val parse = { entity: LyricEntity ->
+			LyricsContentParser.parse(entity.rawContent)?.let { lines ->
+				LyricsResult(lines, entity.providerName, entity.rawContent)
 			}
-		} catch (ex: Exception) {
-			Logger.w("LyricsRepository", "failed getting cached lyrics", ex)
 		}
 
-		// offline: the cached lyrics only
-		if (!connectivityManager.isOnline.value) return null
+		// offline: show the last-known lyrics only (saved copy, or the last provider cache)
+		if (!connectivityManager.isOnline.value) {
+			val entity = saved ?: cached ?: return emptyList()
+			return parse(entity)?.let { listOf(it) } ?: emptyList()
+		}
+
 		val currentConfig = getConfig()
+		val results = mutableListOf<LyricsResult>()
+		saved?.let { s -> parse(s)?.let { results.add(it) } }
+
 		for (provider in currentConfig.providers.filter { it.enabled }) {
 			try {
-				var rawContentToCache: String? = null
-
-				val parsedLyrics = when (provider.id) {
-					LyricsProvider.Id.LYRICS_PLUS -> {
-						val raw = fetchRawLyricsPlus(song, currentConfig)
-						rawContentToCache = raw
-						raw?.let { LyricsContentParser.parse(it) }
-					}
-
-					LyricsProvider.Id.LRCLIB -> {
-						val raw = fetchRawLrcLib(song, currentConfig)
-						rawContentToCache = raw
-						raw?.let { LyricsContentParser.parse(it) }
-					}
-
-					LyricsProvider.Id.SUBSONIC -> {
-						val subsonicLyrics = sessionManager.api.getLyrics(song.id).firstOrNull()
-
-						val lines = subsonicLyrics?.lines?.flatMap { line ->
-							if (!subsonicLyrics.synced && line.value.contains("\n")) {
-								line.value.lineSequence()
-									.filter { it.isNotBlank() }
-									.map { LyricsLine(time = null, text = it.trim()) }
-									.toList()
-							} else {
-								val time =
-									if (subsonicLyrics.synced) line.start?.milliseconds else null
-								listOf(LyricsLine(time = time, text = line.value))
-							}
-						}
-
-						if (!lines.isNullOrEmpty()) {
-							rawContentToCache = lines.joinToString("\n") { l ->
-								val t = l.time
-								if (t != null) {
-									val m = t.inWholeMinutes.toString().padStart(2, '0')
-									val s = (t.inWholeSeconds % 60).toString().padStart(2, '0')
-									val ms = ((t.inWholeMilliseconds % 1000) / 10).toString()
-										.padStart(2, '0')
-									"[$m:$s.$ms]${l.text}"
-								} else l.text
-							}
-						}
-						lines
-					}
-				}
-
-				if (!parsedLyrics.isNullOrEmpty()) {
+				val parsed = fetchFromProvider(provider, song, currentConfig) ?: continue
+				if (saved == null && results.isEmpty()) {
+					// cache the highest-priority provider only, as today
 					try {
-						rawContentToCache?.let { content ->
-							val entity = LyricEntity(
+						lyricDao.insertLyrics(
+							LyricEntity(
 								songId = song.id,
 								providerName = provider.id.name,
-								rawContent = content
+								rawContent = parsed.rawContent!!
 							)
-							lyricDao.insertLyrics(entity)
-						}
+						)
 					} catch (e: Exception) {
 						Logger.e("LyricRepository", "Failed to cache lyrics for ${song.title}", e)
 					}
-					return LyricsResult(
-						lines = parsedLyrics,
-						providerName = provider.id.name,
-						rawContent = rawContentToCache
-					)
 				}
+				results.add(parsed)
 			} catch (e: Exception) {
 				Logger.e("LyricRepository", "Provider ${provider.id.name} failed!", e)
-				continue
 			}
 		}
-		return null
+		return results
+	}
+
+	/** Convenience for single-result callers (downloads, the lyrics screen's current view). */
+	suspend fun fetchLyrics(song: DomainSong): LyricsResult? = fetchAllLyrics(song).firstOrNull()
+
+	private suspend fun fetchFromProvider(
+		provider: LyricsProvider,
+		song: DomainSong,
+		config: LyricsConfig
+	): LyricsResult? {
+		var rawContentToCache: String? = null
+
+		val parsedLyrics = when (provider.id) {
+			LyricsProvider.Id.LYRICS_PLUS -> {
+				val raw = fetchRawLyricsPlus(song, config)
+				rawContentToCache = raw
+				raw?.let { LyricsContentParser.parse(it) }
+			}
+
+			LyricsProvider.Id.LRCLIB -> {
+				val raw = fetchRawLrcLib(song, config)
+				rawContentToCache = raw
+				raw?.let { LyricsContentParser.parse(it) }
+			}
+
+			LyricsProvider.Id.MUSIXMATCH -> {
+				val raw = fetchRawMusixmatch(song)
+				rawContentToCache = raw
+				raw?.let { LyricsContentParser.parse(it) }
+			}
+
+			LyricsProvider.Id.SUBSONIC -> {
+				val subsonicLyrics = sessionManager.api.getLyrics(song.id).firstOrNull()
+
+				val lines = subsonicLyrics?.lines?.flatMap { line ->
+					if (!subsonicLyrics.synced && line.value.contains("\n")) {
+						line.value.lineSequence()
+							.filter { it.isNotBlank() }
+							.map { LyricsLine(time = null, text = it.trim()) }
+							.toList()
+					} else {
+						val time =
+							if (subsonicLyrics.synced) line.start?.milliseconds else null
+						listOf(LyricsLine(time = time, text = line.value))
+					}
+				}
+
+				if (!lines.isNullOrEmpty()) {
+					rawContentToCache = lines.joinToString("\n") { l ->
+						val t = l.time
+						if (t != null) {
+							val m = t.inWholeMinutes.toString().padStart(2, '0')
+							val s = (t.inWholeSeconds % 60).toString().padStart(2, '0')
+							val ms = ((t.inWholeMilliseconds % 1000) / 10).toString()
+								.padStart(2, '0')
+							"[$m:$s.$ms]${l.text}"
+						} else l.text
+					}
+				}
+				lines
+			}
+		}
+
+		if (parsedLyrics.isNullOrEmpty()) return null
+		return LyricsResult(
+			lines = parsedLyrics,
+			providerName = provider.id.name,
+			rawContent = rawContentToCache
+		)
 	}
 
 	private suspend fun fetchRawLrcLib(song: DomainSong, config: LyricsConfig): String? {
@@ -237,4 +293,85 @@ class LyricsRepository(
 			jobs.forEach { it.cancel() }
 			result
 		}
+
+	/**
+	 * Musixmatch's undocumented client API, reachable without an API key since 2024
+	 * (the desktop app's old endpoint returns a canned response; this Android app id works).
+	 * A fresh anonymous token is requested once and reused; it's only refreshed when the API
+	 * asks for a renew.
+	 */
+	private suspend fun fetchRawMusixmatch(song: DomainSong): String? {
+		val token = musixmatchToken ?: fetchMusixmatchToken() ?: return null
+		val response = try {
+			client.get("https://apic.musixmatch.com/ws/1.1/macro.subtitles.get") {
+				parameter("app_id", "android-player-v1.0")
+				parameter("usertoken", token)
+				parameter("format", "json")
+				parameter("namespace", "lyrics_richsynched")
+				parameter("subtitle_format", "lrc")
+				parameter("q_artist", song.artistName ?: "")
+				parameter("q_track", song.title.withoutParentheticals())
+				parameter("q_album", song.albumTitle ?: "")
+				header(HttpHeaders.UserAgent, MUSIXMATCH_UA)
+				accept(ContentType.Application.Json)
+			}
+		} catch (ex: Exception) {
+			Logger.w("LyricsRepository", "failed fetching from musixmatch", ex)
+			return null
+		}
+		if (!response.status.isSuccess()) {
+			// 401/403 = the anonymous token got revoked, get a fresh one next time
+			if (response.status.value == 401 || response.status.value == 403) {
+				musixmatchToken = null
+			}
+			return null
+		}
+
+		val rootObj = try {
+			json.parseToJsonElement(response.bodyAsText())
+				.jsonObject["message"]?.jsonObject
+		} catch (ex: Exception) {
+			Logger.w("LyricsRepository", "failed parsing musixmatch response", ex)
+			null
+		} ?: return null
+
+		// the anonymous token was rejected (even on a 200 shell): drop it so the next
+		// song requests a fresh one
+		if (rootObj["header"]?.jsonObject?.get("hint")?.jsonPrimitive?.contentOrNull == "renew") {
+			musixmatchToken = null
+			return null
+		}
+
+		val body = rootObj["body"]?.jsonObject ?: return null
+		val subtitleCalls = body["macro_calls"]?.jsonObject
+			?.get("track.subtitles.get")?.jsonObject
+			?.get("message")?.jsonObject
+			?.get("body")?.jsonObject
+		val subtitle = subtitleCalls
+			?.get("subtitle_list")?.jsonArray
+			?.firstOrNull()?.jsonObject?.get("subtitle")?.jsonObject
+		return subtitle?.get("subtitle_body")?.jsonPrimitive?.contentOrNull
+			?.takeIf { it.isNotBlank() }
+	}
+
+	private suspend fun fetchMusixmatchToken(): String? = try {
+		val response = client.get("https://apic.musixmatch.com/ws/1.1/token.get") {
+			parameter("user_language", "en")
+			parameter("app_id", "android-player-v1.0")
+			header(HttpHeaders.UserAgent, MUSIXMATCH_UA)
+		}
+		if (!response.status.isSuccess()) return null
+		val token = json.parseToJsonElement(response.bodyAsText())
+			.jsonObject["message"]?.jsonObject
+			?.get("body")?.jsonObject
+			?.get("user_token")?.jsonPrimitive?.contentOrNull
+			?.takeIf { it.isNotBlank() && it.first() != '0' }
+		if (token == null) return null
+		musixmatchToken = token
+		token
+	} catch (ex: Exception) {
+		Logger.w("LyricsRepository", "failed fetching musixmatch token", ex)
+		null
+	}
+
 }
