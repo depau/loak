@@ -2,24 +2,17 @@ package eu.depau.loak.ui.screens.lyrics.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,24 +24,22 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Add
 import eu.depau.loak.icons.outlined.Check
+import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Remove
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel
 import eu.depau.loak.generated.resources.action_decrease_lyric_offset
 import eu.depau.loak.generated.resources.action_increase_lyric_offset
-import eu.depau.loak.generated.resources.action_lyric_offset_ms
 import eu.depau.loak.generated.resources.action_save
-import eu.depau.loak.generated.resources.title_sync_lyrics
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * The lyrics sync tool: an overlay letting the user shift synced lines by an editable number of
- * milliseconds. Edits preview immediately; only Save bakes the offset into the stored lyrics and
- * hides the tool, Cancel discards the preview and hides it.
+ * The lyrics sync tool: an inline bar letting the user shift synced lines by an editable number of
+ * milliseconds. Edits preview immediately; Save bakes the offset into the stored lyrics and hides
+ * the tool, Cancel (the X) discards the preview and hides it. The lyrics stay fully readable.
  */
 @Composable
 fun LyricsSyncTool(
@@ -56,62 +47,46 @@ fun LyricsSyncTool(
 	onOffsetChange: (Long) -> Unit,
 	onCancel: () -> Unit,
 	onSave: () -> Unit,
-	saving: Boolean = false,
-	modifier: Modifier = Modifier
+	saving: Boolean = false
 ) {
 	var text by remember(offsetMs) { mutableStateOf(offsetMs.toString()) }
 
 	Surface(
-		modifier = modifier,
 		shape = MaterialTheme.shapes.large,
 		color = MaterialTheme.colorScheme.surfaceContainer,
 		tonalElevation = 6.dp
 	) {
-		Column(
-			Modifier.padding(16.dp),
-			horizontalAlignment = Alignment.CenterHorizontally,
-			verticalArrangement = Arrangement.spacedBy(12.dp)
+		Row(
+			Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+			verticalAlignment = Alignment.CenterVertically,
+			horizontalArrangement = Arrangement.spacedBy(2.dp)
 		) {
-			Text(
-				stringResource(Res.string.title_sync_lyrics),
-				style = MaterialTheme.typography.titleMedium
-			)
-			Row(
-				verticalAlignment = Alignment.CenterVertically,
-				horizontalArrangement = Arrangement.spacedBy(4.dp)
-			) {
-				IconButton(onClick = { onOffsetChange(offsetMs - 50) }, enabled = !saving) {
-					Icon(
-						Icons.Outlined.Remove,
-						stringResource(Res.string.action_decrease_lyric_offset)
-					)
-				}
-				OffsetInput(
-					value = text,
-					onValueChange = { newText, newValue ->
-						text = newText
-						onOffsetChange(newValue)
-					},
-					enabled = !saving
-				)
-				IconButton(onClick = { onOffsetChange(offsetMs + 50) }, enabled = !saving) {
-					Icon(
-						Icons.Outlined.Add,
-						stringResource(Res.string.action_increase_lyric_offset)
-					)
-				}
+			// Cancel (X) on the opposite side from Save
+			IconButton(onClick = onCancel, enabled = !saving) {
+				Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
 			}
-			Row(
-				Modifier.fillMaxWidth(),
-				horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
-			) {
-				TextButton(onClick = onCancel, enabled = !saving) {
-					Text(stringResource(Res.string.action_cancel))
-				}
-				Button(onClick = onSave, enabled = !saving) {
-					Icon(Icons.Outlined.Check, null, Modifier.padding(end = 4.dp))
-					Text(stringResource(Res.string.action_save))
-				}
+			IconButton(onClick = { onOffsetChange(offsetMs - 50) }, enabled = !saving) {
+				Icon(
+					Icons.Outlined.Remove,
+					stringResource(Res.string.action_decrease_lyric_offset)
+				)
+			}
+			OffsetInput(
+				value = text,
+				onValueChange = { newText, newValue ->
+					text = newText
+					onOffsetChange(newValue)
+				},
+				enabled = !saving
+			)
+			IconButton(onClick = { onOffsetChange(offsetMs + 50) }, enabled = !saving) {
+				Icon(
+					Icons.Outlined.Add,
+					stringResource(Res.string.action_increase_lyric_offset)
+				)
+			}
+			IconButton(onClick = onSave, enabled = !saving) {
+				Icon(Icons.Outlined.Check, stringResource(Res.string.action_save))
 			}
 		}
 	}
@@ -134,7 +109,7 @@ private fun OffsetInput(
 			onValueChange(newText, newValue)
 		},
 		enabled = enabled,
-		textStyle = MaterialTheme.typography.titleLarge.copy(
+		textStyle = MaterialTheme.typography.titleMedium.copy(
 			textAlign = TextAlign.Center,
 			color = MaterialTheme.colorScheme.onSurface
 		),
@@ -144,47 +119,21 @@ private fun OffsetInput(
 		decorationBox = { inner ->
 			Box(
 				Modifier
-					.widthIn(min = 96.dp)
 					.background(
-						MaterialTheme.colorScheme.surfaceVariant,
+						MaterialTheme.colorScheme.onSurface.copy(alpha = .08f),
 						MaterialTheme.shapes.medium
 					)
-					.border(2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.medium)
-					.padding(horizontal = 12.dp, vertical = 10.dp)
+					.padding(horizontal = 10.dp, vertical = 8.dp)
 			) {
 				Row(verticalAlignment = Alignment.CenterVertically) {
 					inner()
 					Text(
 						" ms",
-						style = MaterialTheme.typography.labelLarge,
+						style = MaterialTheme.typography.labelMedium,
 						color = MaterialTheme.colorScheme.onSurfaceVariant
 					)
 				}
 			}
 		}
 	)
-}
-
-/** Overlay wrapper: dims the screen and centers the tool. */
-@Composable
-fun LyricsSyncOverlay(
-	offsetMs: Long,
-	onOffsetChange: (Long) -> Unit,
-	onCancel: () -> Unit,
-	onSave: () -> Unit,
-	saving: Boolean = false
-) {
-	Box(
-		Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = .45f)),
-		contentAlignment = Alignment.Center
-	) {
-		LyricsSyncTool(
-			offsetMs = offsetMs,
-			onOffsetChange = onOffsetChange,
-			onCancel = onCancel,
-			onSave = onSave,
-			saving = saving,
-			modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
-		)
-	}
 }

@@ -6,7 +6,7 @@ import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.icons.outlined.Lyrics
 import eu.depau.loak.icons.outlined.Share
-import eu.depau.loak.icons.outlined.Speed
+import eu.depau.loak.icons.outlined.SyncAlt
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Fullscreen
 import eu.depau.loak.generated.resources.action_karaoke
@@ -63,7 +63,7 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenContent
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenLoadingView
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenPlaceholder
-import eu.depau.loak.ui.screens.lyrics.components.LyricsSyncOverlay
+import eu.depau.loak.ui.screens.lyrics.components.LyricsSyncTool
 import eu.depau.loak.ui.screens.lyrics.dialogs.LyricsShareSheet
 import eu.depau.loak.ui.screens.lyrics.viewmodels.LyricsScreenViewModel
 import eu.depau.loak.ui.util.KeepScreenOn
@@ -200,7 +200,7 @@ fun LyricsScreen(
 	Box(Modifier.fillMaxSize()) {
 		body(PaddingValues())
 		// provider picker first, then full-screen, then cancel toggles, then share
-		Row(Modifier.align(Alignment.TopEnd)) {
+		Row(Modifier.align(Alignment.TopStart)) {
 			if (!isSelecting && providerResults.isNotEmpty()) {
 				Box {
 					IconButton(onClick = { providerMenuOpen = true }) {
@@ -242,7 +242,7 @@ fun LyricsScreen(
 					viewModel.beginSyncAdjustment()
 				}
 			) {
-				Icon(Icons.Outlined.Speed, stringResource(Res.string.action_sync_lyrics))
+				Icon(Icons.Outlined.SyncAlt, stringResource(Res.string.action_sync_lyrics))
 			}
 			if (isSelecting) IconButton(onClick = toggleIsSelecting) {
 				Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
@@ -258,21 +258,24 @@ fun LyricsScreen(
 			}
 		}
 
-		// sync/offset tool: hidden by default, shown only on trigger (see the Speed button above)
+		// sync/offset tool: hidden by default, an inline bar bottom-center when triggered so the
+		// lyrics stay fully readable. Cancel (X) is on the opposite side from Save.
 		if (syncToolOpen) {
-			LyricsSyncOverlay(
-				offsetMs = lyricOffset,
-				onOffsetChange = { viewModel.setOffset(it) },
-				onCancel = {
-					syncToolOpen = false
-					viewModel.discardOffset()
-				},
-				onSave = {
-					syncToolOpen = false
-					viewModel.saveLyrics()
-				},
-				saving = isSaving
-			)
+			Row(Modifier.align(Alignment.BottomCenter).padding(vertical = 12.dp)) {
+				LyricsSyncTool(
+					offsetMs = lyricOffset,
+					onOffsetChange = { viewModel.setOffset(it) },
+					onCancel = {
+						syncToolOpen = false
+						viewModel.discardOffset()
+					},
+					onSave = {
+						syncToolOpen = false
+						viewModel.saveLyrics()
+					},
+					saving = isSaving
+				)
+			}
 		}
 	}
 }
