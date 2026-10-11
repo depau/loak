@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
@@ -573,18 +574,6 @@ fun RadiosRail(
 	}
 }
 
-/** One Deezer editorial playlist row on the Moods list: its cover, title and track count. */
-@Composable
-fun PlaylistRow(playlist: DiscoverPlaylist, onOpen: () -> Unit) {
-	ResultItem(
-		playlist.pictureUrl,
-		playlist.title,
-		pluralStringResource(Res.plurals.count_songs, playlist.trackCount, playlist.trackCount),
-		DiscoverBadgeState.None, // editorial playlists are never in the library
-		onMore = onOpen
-	)
-}
-
 /** One Deezer editorial playlist on the Moods rail: cover, title and track count. */
 @Composable
 fun PlaylistCard(playlist: DiscoverPlaylist, onClick: () -> Unit) {
@@ -607,6 +596,44 @@ fun PlaylistCard(playlist: DiscoverPlaylist, onClick: () -> Unit) {
 			overflow = TextOverflow.Ellipsis
 		)
 	}
+}
+
+/** One editorial playlist as a grid tile (the Moods See-all page): a square cover, title, count. */
+@Composable
+fun PlaylistGridCard(playlist: DiscoverPlaylist, onClick: () -> Unit) {
+	Column(Modifier.fillMaxWidth()) {
+		Box(
+			Modifier.fillMaxWidth().aspectRatio(1f)
+				.clip(MaterialTheme.shapes.large)
+				.background(MaterialTheme.colorScheme.surfaceContainer)
+				.clickable(onClick = onClick),
+			contentAlignment = Alignment.Center
+		) {
+			DiscoverArt(playlist.pictureUrl.let { deezerImageUrl(it, 500) }, 140.dp, MaterialTheme.shapes.large)
+		}
+		Text(
+			playlist.title,
+			Modifier.padding(top = 6.dp),
+			style = MaterialTheme.typography.bodyLarge,
+			maxLines = 2,
+			overflow = TextOverflow.Ellipsis
+		)
+		if (playlist.trackCount > 0) Text(
+			pluralStringResource(Res.plurals.count_songs, playlist.trackCount, playlist.trackCount),
+			style = MaterialTheme.typography.bodyMedium,
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis
+		)
+	}
+}
+
+/** A loading tile matching [PlaylistGridCard]. */
+@Composable
+fun PlaylistGridCardPlaceholder() = Column(Modifier.fillMaxWidth()) {
+	Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(MaterialTheme.shapes.large).shimmerLoading())
+	Box(Modifier.padding(top = 6.dp).width(112.dp).height(16.dp).clip(CircleShape).shimmerLoading())
+	Box(Modifier.padding(top = 4.dp).width(88.dp).height(14.dp).clip(CircleShape).shimmerLoading())
 }
 
 @Composable

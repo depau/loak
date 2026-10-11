@@ -88,7 +88,7 @@ class DiscoverListViewModel(
 			DiscoverListType.TopArtists ->
 				page.update { it.copy(loading = false, artists = deezer.getChartArtists()) }
 			DiscoverListType.Moods ->
-				page.update { it.copy(loading = false, playlists = deezer.getChartPlaylists()) }
+				page.update { it.copy(loading = false, playlists = deezer.getChartPlaylists().sortedBy { p -> p.title }) }
 			DiscoverListType.Genres -> loadGenres()
 			is DiscoverListType.SimilarArtists -> loadSimilar(type.artistMbid)
 			is DiscoverListType.GenreRadios -> loadGenre(type.genreId, type.genreName)

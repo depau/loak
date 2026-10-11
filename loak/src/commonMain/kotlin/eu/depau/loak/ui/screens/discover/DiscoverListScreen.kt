@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.domain.discover.DiscoverPlaylist
 import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.PreferenceManager
@@ -65,9 +69,11 @@ import eu.depau.loak.icons.outlined.Album
 import eu.depau.loak.icons.outlined.Artist
 import eu.depau.loak.icons.outlined.BarChart
 import eu.depau.loak.icons.outlined.Genre
-import eu.depau.loak.icons.outlined.Radio
-import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.icons.outlined.PlaylistPlay
+import eu.depau.loak.icons.outlined.Radio
+import eu.depau.loak.ui.components.common.AlphabeticalScroller
+import eu.depau.loak.ui.components.layouts.ArtGrid
+import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.screens.discover.components.AlbumItem
 import eu.depau.loak.ui.screens.discover.components.ArtistItem
@@ -76,7 +82,8 @@ import eu.depau.loak.ui.screens.discover.components.ChartCountryPickerSheet
 import eu.depau.loak.ui.screens.discover.components.ChartSongItem
 import eu.depau.loak.ui.screens.discover.components.DiscoverPageState
 import eu.depau.loak.ui.screens.discover.components.DiscoverSongPlaceholder
-import eu.depau.loak.ui.screens.discover.components.PlaylistRow
+import eu.depau.loak.ui.screens.discover.components.PlaylistGridCard
+import eu.depau.loak.ui.screens.discover.components.PlaylistGridCardPlaceholder
 import eu.depau.loak.ui.screens.discover.components.RadioTile
 import eu.depau.loak.ui.screens.discover.components.RadiosRail
 import eu.depau.loak.ui.screens.discover.components.SongItem
@@ -86,7 +93,9 @@ import eu.depau.loak.ui.screens.discover.components.playlistGradient
 import eu.depau.loak.ui.screens.discover.viewmodels.DiscoverListViewModel
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.util.shimmerLoading
+import eu.depau.loak.ui.util.withoutTop
 import androidx.lifecycle.compose.dropUnlessResumed
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.Serializable
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -198,6 +207,10 @@ fun DiscoverListScreen(key: Screen.DiscoverList) {
 			DiscoverPageState(page.loading, Res.string.info_discover_list_unavailable, listIcon(type), padding)
 			return@Scaffold
 		}
+		if (type is DiscoverListType.Moods) {
+			MoodsGrid(page.playlists, padding) { open(it) }
+			return@Scaffold
+		}
 		LazyColumn(
 			Modifier.fillMaxSize(),
 			contentPadding = padding,
@@ -261,9 +274,6 @@ fun DiscoverListScreen(key: Screen.DiscoverList) {
 			if (type is DiscoverListType.Radios) items(page.radios, key = { it.id }) {
 				RadioTile(it, Modifier.fillMaxWidth()) { open(DiscoverListType.Radio(it.id, it.title)) }
 			}
-			if (type is DiscoverListType.Moods) items(page.playlists, key = { it.id }) {
-				PlaylistRow(it) { open(DiscoverListType.Playlist(it.id, it.title)) }
-			}
 			if (type is DiscoverListType.Genres) {
 				item(key = "genres-grid") {
 					Column(
@@ -296,6 +306,66 @@ fun DiscoverListScreen(key: Screen.DiscoverList) {
 				}
 			}
 		}
+	}
+}
+
+@Composable
+private fun MoodsGrid(
+	playlists: List<DiscoverPlaylist>,
+	padding: PaddingValues,
+	open: (DiscoverListType) -> Unit
+) {
+	val gridState = rememberLazyGridState()
+	val grouped = remember(playlists) {
+		playlists.groupBy { it.title.firstOrNull()?.uppercaseChar() ?: '#' }
+			.toList()
+			.sortedBy { it.first }
+	}
+	val headerIndices = remember(grouped) {
+		var currentIndex = 0
+		grouped.map { (letter, pls) ->
+			val pos = currentIndex
+			currentIndex += pls.size + 1
+			letter.toString() to pos
+		}.toImmutableList()
+	}
+
+	Box(Modifier.fillMaxSize()) {
+		ArtGrid(
+			state = gridState,
+			contentPadding = padding.withoutTop(),
+			columns = GridCells.Fixed(2),
+			verticalArrangement = if (grouped.isEmpty()) Arrangement.Center else Arrangement.spacedBy(12.dp)
+		) {
+			if (playlists.isEmpty()) {
+				items(6) { PlaylistGridCardPlaceholder() }
+			} else {
+				grouped.forEach { (letter, pls) ->
+					stickyHeader(key = "header-$letter") {
+						Row(
+							Modifier
+								.fillMaxWidth()
+								.background(MaterialTheme.colorScheme.surface)
+								.padding(vertical = 8.dp, horizontal = 16.dp)
+						) {
+							Text(
+								letter.toString(),
+								color = MaterialTheme.colorScheme.onSurfaceVariant,
+								style = MaterialTheme.typography.labelLarge
+							)
+						}
+					}
+					items(pls, key = { it.id }) { pl ->
+						PlaylistGridCard(pl) { open(DiscoverListType.Playlist(pl.id, pl.title)) }
+					}
+				}
+			}
+		}
+		AlphabeticalScroller(
+			state = gridState,
+			headers = headerIndices,
+			modifier = Modifier.align(Alignment.TopEnd)
+		)
 	}
 }
 
