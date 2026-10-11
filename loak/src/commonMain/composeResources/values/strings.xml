@@ -883,6 +883,7 @@
 	<string name="notice_export_failed">Couldn't save the original file.</string>
 	<string name="action_export_original">Save original file</string>
 	<string name="notice_server_unreachable">Couldn't reach the server.</string>
+	<string name="notice_stream_failed">Playback failed: %1$s</string>
 	<string name="notice_no_server_queue">The server has no queue.</string>
 	<string name="info_queue_from">From %1$s</string>
 	<string name="info_instant_mix">Instant mix · %1$s</string>

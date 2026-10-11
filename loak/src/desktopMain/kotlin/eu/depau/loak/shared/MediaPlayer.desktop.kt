@@ -34,7 +34,7 @@ import eu.depau.loak.domain.models.DomainSongCollection
 import eu.depau.loak.domain.repositories.PlayerStateRepository
 import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.notice_server_unreachable
+import eu.depau.loak.generated.resources.notice_stream_failed
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import dev.nucleusframework.rodio.PlaybackCallback
@@ -92,6 +92,10 @@ class DesktopMediaPlayerViewModel(
 	private var lastTrackEndTime = 0L
 	private var rapidEndCount = 0
 
+	/** A source failed to start; suppress auto-advance (the progress loop must not skip the
+	 *  broken track). Cleared when a new track is attempted or a source actually starts. */
+	private var streamFailed = false
+
 	private val scrobbleManager = ScrobbleManager(
 		playerSource = object : ScrobblePlayerSource {
 			override val currentPosition: Long get() = rodio.getPositionMs()
@@ -114,7 +118,7 @@ class DesktopMediaPlayerViewModel(
 				_uiState.update { state ->
 					state.copy(progress = progress())
 				}
-				if (rodio.isEmpty() && !isTransitioningBetweenTracks && !rodio.isPaused()) {
+				if (rodio.isEmpty() && !isTransitioningBetweenTracks && !streamFailed && !rodio.isPaused()) {
 					onTrackEnded()
 				}
 			}
@@ -176,13 +180,18 @@ class DesktopMediaPlayerViewModel(
 		}
 	}
 
-	/** The stream URL for [song]'s lossy fallback (mp3 unless the user picked a format). */
+	/** The stream URL for [song]'s lossy fallback (mp3 unless the user picked a format).
+	 *  estimateContentLength=false: with it true, Navidrome may send a mismatched Content-Length
+	 *  for transcoded streams and rodio's strict reader errors out
+	 *  ("end of file before message length reached") — DownloadManager hits the same issue
+	 *  and explicitly disables it. */
 	private fun streamSource(song: DomainSong): String =
 		sessionManager.api.getStreamUrl(
 			id = song.id,
 			maxBitRate = maxBitrate(),
-			format = currentContainer()
-		) + "&estimateContentLength=true"
+			format = currentContainer(),
+			estimateContentLength = false
+		)
 
 	/** The original-file URL for lossless playback (Raw): no transcode, no bitrate cap. */
 	private fun losslessStreamUrl(song: DomainSong): String =
@@ -240,6 +249,7 @@ class DesktopMediaPlayerViewModel(
 		val songToPlay = _uiState.value.queue.getOrNull(index) ?: return
 
 		isTransitioningBetweenTracks = true
+		streamFailed = false
 		try {
 			_uiState.update {
 				it.copy(
@@ -272,8 +282,10 @@ class DesktopMediaPlayerViewModel(
 				playStreamingFallback(song)
 				return@launch
 			}
-			// lossless wanted but no file yet: start mp3 now, fetch Raw, swap on ready
-			playStreamingFallback(song)
+			// lossless wanted but no file yet: start mp3 now, fetch Raw, swap on ready.
+			// if the mp3 fallback can't start, there's no point spooling: abort and keep
+			// the (correctly paused) error state — never swap into a broken half-state.
+			if (!playStreamingFallback(song)) return@launch
 			val fetch = audioFetcher.fetch(
 				songId = song.id,
 				quality = AudioQuality.Raw,
@@ -283,47 +295,73 @@ class DesktopMediaPlayerViewModel(
 			) ?: return@launch
 			val result = fetch.progress.first { it.done || it.failed }
 			if (!result.done) {
-				Logger.w("DesktopMediaPlayerViewModel", "lossless fetch of ${song.id} failed")
+				// the mp3 fallback is playing fine; leave it. Log for diagnostics.
+				Logger.w("DesktopMediaPlayerViewModel", "lossless fetch of ${song.id} failed; keeping mp3 fallback")
 				return@launch
 			}
 			if (_uiState.value.currentSong?.id != song.id) return@launch
 			val donePath = audioStore.bestComplete(song.id)?.let { audioStore.pathOf(it) }
 				?: run { Logger.w("DesktopMediaPlayerViewModel", "lossless file for ${song.id} vanished"); return@launch }
-			// mp3 was playing; swap to the FLAC file at the same position
+			// mp3 was playing; swap to the FLAC file at the same position.
+			// playFileSource resets isPaused=false, so the button stays correct even if the
+			// fallback had briefly reported a failure.
 			val positionMs = rodio.getPositionMs().coerceAtLeast(0L)
 			val wasPaused = rodio.isPaused()
 			swappedAwayJob = viewModelScope.launch(Dispatchers.IO) {
-				playFileSource(song, donePath, startPosMs = positionMs)
+				if (!playFileSource(song, donePath, startPosMs = positionMs)) return@launch
 				if (wasPaused) pause()
 			}
 		}
 	}
 
-	private fun playStreamingFallback(song: DomainSong) {
+	/** Starts the lossy HTTP stream for [song]. Returns true if the stream was accepted by rodio.
+	 *  On failure the UI is paused, the error is logged and toasted, and [streamFailed] is set so
+	 *  the progress loop doesn't auto-skip the broken track. */
+	private fun playStreamingFallback(song: DomainSong): Boolean {
 		try {
 			rodio.playUrl(streamSource(song), loop = false)
 			rodio.setVolume(volume.value)
+			streamFailed = false
+			_uiState.update { it.copy(isPaused = false, isLoading = false) }
 			setDecoderInfo(song, PlaybackSource.Stream, filePath = null)
 			scrobbleManager.onPlayStateChanged(true)
+			return true
 		} catch (e: Exception) {
 			Logger.e("DesktopMediaPlayerViewModel", "Failed to stream ${song.id}", e)
+			streamFailed = true
 			_uiState.update { it.copy(isPaused = true, isLoading = false) }
-			snackBarManager.notify(Res.string.notice_server_unreachable)
+			snackBarManager.notify(Res.string.notice_stream_failed, streamFailureReason(e))
+			return false
 		}
 	}
 
-	private fun playFileSource(song: DomainSong, path: String, startPosMs: Long = 0L) {
+	/** Plays a local file. Returns true if playback started. */
+	private fun playFileSource(song: DomainSong, path: String, startPosMs: Long = 0L): Boolean {
 		try {
 			rodio.playFile(path, loop = false)
 			if (startPosMs > 0) runCatching { rodio.seekToMs(startPosMs) }
 			rodio.setVolume(volume.value)
+			streamFailed = false
+			_uiState.update { it.copy(isPaused = false, isLoading = false) }
 			setDecoderInfo(song, PlaybackSource.Download, filePath = path)
 			scrobbleManager.onPlayStateChanged(true)
+			return true
 		} catch (e: Exception) {
 			Logger.e("DesktopMediaPlayerViewModel", "Failed to play file $path", e)
+			streamFailed = true
 			_uiState.update { it.copy(isPaused = true, isLoading = false) }
-			snackBarManager.notify(Res.string.notice_server_unreachable)
+			snackBarManager.notify(Res.string.notice_stream_failed, streamFailureReason(e))
+			return false
 		}
+	}
+
+	/** Human-readable short reason for a stream failure, for the error toast. */
+	private fun streamFailureReason(e: Exception): String {
+		val msg = e.message ?: return "unknown error"
+		return msg
+			.removePrefix("http error: ")
+			.lineSequence().first()
+			.take(90)
 	}
 
 	override fun playRadio(radio: DomainRadio) {
@@ -371,6 +409,7 @@ class DesktopMediaPlayerViewModel(
 		try {
 			rodio.playRadio(radio.streamUrl)
 			rodio.setVolume(volume.value)
+			streamFailed = false
 			_uiState.update { state ->
 				state.copy(
 					queue = listOf(dummyRadioSong),
@@ -384,8 +423,9 @@ class DesktopMediaPlayerViewModel(
 			scrobbleManager.onPlayStateChanged(true)
 		} catch (e: Exception) {
 			Logger.e("DesktopMediaPlayerViewModel", "Failed to start radio stream", e)
+			streamFailed = true
 			_uiState.update { it.copy(isPaused = true, isLoading = false) }
-			snackBarManager.notify(Res.string.notice_server_unreachable)
+			snackBarManager.notify(Res.string.notice_stream_failed, streamFailureReason(e))
 		}
 	}
 
@@ -404,6 +444,7 @@ class DesktopMediaPlayerViewModel(
 	override fun clearQueue() {
 		swappedAwayJob?.cancel()
 		swappedAwayJob = null
+		streamFailed = false
 		rodio.clear()
 		_uiState.update {
 			it.copy(
@@ -420,10 +461,16 @@ class DesktopMediaPlayerViewModel(
 	override fun resume() {
 		if (rodio.isPaused()) {
 			rodio.play()
+			streamFailed = false
 			_uiState.update { it.copy(isPaused = false) }
 			scrobbleManager.onPlayStateChanged(true)
 		} else if (rodio.isEmpty()) {
 			playAt(_uiState.value.currentIndex)
+		} else {
+			// rodio is playing but our state says paused (e.g. a failed source briefly
+			// marked us paused): resync the button instead of doing nothing.
+			streamFailed = false
+			_uiState.update { it.copy(isPaused = false) }
 		}
 	}
 
@@ -503,6 +550,7 @@ class DesktopMediaPlayerViewModel(
 		// State restored from the server: paused, no audio started.
 		swappedAwayJob?.cancel()
 		swappedAwayJob = null
+		streamFailed = false
 		rodio.clear()
 	}
 
