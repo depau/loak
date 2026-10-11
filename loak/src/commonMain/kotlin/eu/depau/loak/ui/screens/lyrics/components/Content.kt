@@ -55,6 +55,7 @@ fun LyricsScreenContent(
 	onRestartAtIndex: (Int) -> Unit,
 	duration: Duration,
 	currentDuration: Duration,
+	lyricOffset: Duration,
 	contentPadding: PaddingValues
 ) {
 	val density = LocalDensity.current
@@ -74,9 +75,11 @@ fun LyricsScreenContent(
 
 	if (lyrics.isNullOrEmpty()) return LyricsScreenPlaceholder(onRefresh = onRefresh)
 
+	// Positive offset makes a line activate earlier: we compare playback time against
+	// (line.time - offset), exactly like feishin's "lyrics appear faster" delay.
 	val activeIndex = if (isSynced) {
 		lyrics.indexOfLast { line ->
-			line.time != null && currentDuration >= line.time
+			line.time != null && currentDuration >= line.time.minus(lyricOffset)
 		}
 	} else -1
 
@@ -133,9 +136,10 @@ fun LyricsScreenContent(
 			val isEmphasised = (isActive && !isSelecting) || isSelected
 			val distance = abs(index - activeIndex)
 
-			val lineTime = line.time ?: 0.milliseconds
+			val lineTime = line.time?.minus(lyricOffset) ?: 0.milliseconds
 			val preEmphasis = 200.milliseconds
-			val nextTime = lyrics.getOrNull(index + 1)?.time ?: duration
+			val nextTime = lyrics.getOrNull(index + 1)?.time?.minus(lyricOffset)
+				?: (duration - lyricOffset)
 			val lineDuration =
 				(nextTime - lineTime).coerceAtLeast(1.milliseconds)
 			val effectiveStart = lineTime - preEmphasis
@@ -188,7 +192,7 @@ fun LyricsScreenContent(
 				!isSynced -> 1f
 				isActive -> line.words
 					?.takeIf { it.isNotEmpty() }
-					?.calculateWordProgress(line.text, currentDuration)
+					?.calculateWordProgress(line.text, currentDuration.plus(lyricOffset))
 					?: lineProgress
 
 				else -> 0f
@@ -236,7 +240,10 @@ fun LyricsScreenContent(
 							}
 						}
 					} else if (line.time != null) {
-						player.seek((line.time / duration).toFloat())
+						// seek to where the playback time should be to highlight this line
+						val target = (line.time?.minus(lyricOffset) ?: duration)
+							.coerceIn(Duration.ZERO, duration)
+						player.seek((target / duration).toFloat())
 						if (player.uiState.value.isPaused) {
 							player.resume()
 						}

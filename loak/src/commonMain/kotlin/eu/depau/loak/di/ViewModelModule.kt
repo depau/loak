@@ -78,7 +78,8 @@ val viewModelModule = module {
 	viewModel { (song: DomainSong?) ->
 		LyricsScreenViewModel(
 			song = song,
-			repository = get()
+			repository = get(),
+			snackBarManager = get()
 		)
 	}
 

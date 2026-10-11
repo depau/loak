@@ -312,6 +312,11 @@
 	<string name="action_karaoke">Full screen</string>
 	<string name="action_exit_karaoke">Exit full screen</string>
 	<string name="action_share_lyrics">Share lyrics</string>
+	<string name="action_change_lyrics_provider">Change lyrics source</string>
+	<string name="action_decrease_lyric_offset">Make lyrics appear later</string>
+	<string name="action_increase_lyric_offset">Make lyrics appear earlier</string>
+	<string name="notice_lyrics_saved">Lyrics saved on this device.</string>
+	<string name="notice_lyrics_save_failed">Couldn't save the lyrics.</string>
 	<string name="action_update_app">Update</string>
 	<string name="action_play_next">Play next</string>
 	<string name="action_add_to_queue">Add to queue</string>
@@ -514,7 +519,7 @@
 	<string name="info_app_icon">Changing the app icon will close Lo'ak as Android requires this. Some icons may look identical on your home screen if your launcher dynamically theme the icons.</string>
 	<string name="info_equaliser_unsupported">Your device does not support this feature.</string>
 	<string name="info_equaliser_mode_not_builtin">Please adjust the external equalizer using its dedicated app.</string>
-	<string name="info_lyric_provider_disclaimer">Enabling LRCLIB and/or LyricsPlus will make requests to external and unaffiliated web services.</string>
+	<string name="info_lyric_provider_disclaimer">Enabling LRCLIB, MusicMatch and/or LyricsPlus will make requests to external and unaffiliated web services.</string>
 	<string name="info_duration_left">%1$s left</string>
 	<string name="title_connection">Connection</string>
 	<string name="title_this_device">This device</string>

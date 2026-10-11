@@ -2,18 +2,30 @@ package eu.depau.loak.ui.screens.lyrics
 
 import androidx.compose.animation.AnimatedContent
 import org.jetbrains.compose.resources.stringResource
+import eu.depau.loak.icons.outlined.Add
 import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.Close
+import eu.depau.loak.icons.outlined.Lyrics
+import eu.depau.loak.icons.outlined.Remove
 import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Fullscreen
 import eu.depau.loak.generated.resources.action_karaoke
 import eu.depau.loak.generated.resources.action_cancel
+import eu.depau.loak.generated.resources.action_save
 import eu.depau.loak.generated.resources.action_share_lyrics
+import eu.depau.loak.generated.resources.action_decrease_lyric_offset
+import eu.depau.loak.generated.resources.action_increase_lyric_offset
+import eu.depau.loak.generated.resources.action_change_lyrics_provider
 import eu.depau.loak.generated.resources.Res
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -24,8 +36,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -34,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
@@ -57,6 +70,7 @@ import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenPlaceholder
 import eu.depau.loak.ui.screens.lyrics.dialogs.LyricsShareSheet
 import eu.depau.loak.ui.screens.lyrics.viewmodels.LyricsScreenViewModel
 import eu.depau.loak.ui.util.KeepScreenOn
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,11 +90,15 @@ fun LyricsScreen(
 		viewModelStoreOwner = koinInject<PersistentViewModelStoreOwner>()
 	)
 	val lyricsState by viewModel.lyricsState.collectAsStateWithLifecycle()
+	val selectedProviderIndex by viewModel.selectedProviderIndex.collectAsStateWithLifecycle()
+	val lyricOffset by viewModel.lyricOffset.collectAsStateWithLifecycle()
+	val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
 
 	var isSelecting by rememberSaveable { mutableStateOf(false) }
 	val selectedIndices = rememberSaveable { mutableStateListOf<Int>() }
 	var wasPlayingBeforeSelection by rememberSaveable { mutableStateOf(false) }
 	var shareSheetOpen by rememberSaveable { mutableStateOf(false) }
+	var providerMenuOpen by rememberSaveable { mutableStateOf(false) }
 
 	val song = song ?: return LyricsScreenPlaceholder(
 		onRefresh = { viewModel.refreshResults() }
@@ -111,6 +129,10 @@ fun LyricsScreen(
 		KeepScreenOn()
 	}
 
+	// lyrics currently on screen + the alternatives
+	val providerResults = (lyricsState as? UiState.Success)?.data.orEmpty()
+	val currentData = providerResults.getOrNull(selectedProviderIndex)
+
 	val body: @Composable (PaddingValues) -> Unit = { contentPadding ->
 		AnimatedContent(
 			targetState = lyricsState,
@@ -132,7 +154,7 @@ fun LyricsScreen(
 				is UiState.Loading -> LyricsScreenLoadingView()
 				is UiState.Success -> {
 					LyricsScreenContent(
-						data = lyricsState.data,
+						data = currentData,
 						onRefresh = { viewModel.refreshResults() },
 						isSelecting = isSelecting,
 						selectedIndices = selectedIndices.toImmutableList(),
@@ -144,6 +166,7 @@ fun LyricsScreen(
 						},
 						duration = duration,
 						currentDuration = currentDuration,
+						lyricOffset = lyricOffset.milliseconds,
 						contentPadding = contentPadding
 					)
 				}
@@ -151,7 +174,7 @@ fun LyricsScreen(
 		}
 
 		if (shareSheetOpen) {
-			val lyricsList = lyricsState.data?.lines?.map { line ->
+			val lyricsList = currentData?.lines?.map { line ->
 				(line.time?.inWholeMilliseconds ?: 0L) to line.text
 			}
 
@@ -177,8 +200,40 @@ fun LyricsScreen(
 
 	Box(Modifier.fillMaxSize()) {
 		body(PaddingValues())
-		// first pick the lines, then share them; the full-screen button sits next to it
+		// provider picker first, then full-screen, then cancel toggles, then share
 		Row(Modifier.align(Alignment.TopEnd)) {
+			if (!isSelecting && providerResults.isNotEmpty()) {
+				Box {
+					IconButton(onClick = { providerMenuOpen = true }) {
+						Icon(
+							Icons.Outlined.Lyrics,
+							stringResource(Res.string.action_change_lyrics_provider)
+						)
+					}
+					DropdownMenu(
+						expanded = providerMenuOpen,
+						onDismissRequest = { providerMenuOpen = false }
+					) {
+						providerResults.forEachIndexed { index, result ->
+							DropdownMenuItem(
+								text = { Text(result.providerName) },
+								leadingIcon = {
+									if (index == selectedProviderIndex) {
+										Icon(
+											Icons.Outlined.Check,
+											contentDescription = null
+										)
+									}
+								},
+								onClick = {
+									providerMenuOpen = false
+									viewModel.selectProvider(index)
+								}
+							)
+						}
+					}
+				}
+			}
 			if (onFullScreen != null && !isSelecting) IconButton(onClick = onFullScreen) {
 				Icon(Icons.Outlined.Fullscreen, stringResource(Res.string.action_karaoke))
 			}
@@ -193,6 +248,57 @@ fun LyricsScreen(
 					if (isSelecting) Icons.Outlined.Check else Icons.Outlined.Share,
 					stringResource(Res.string.action_share_lyrics)
 				)
+			}
+		}
+
+		// sync/offset controls: only while lyrics are shown and not selecting
+		if (!isSelecting) {
+			val canAdjust = currentData?.isSynced == true && providerResults.isNotEmpty()
+			if (canAdjust) {
+				val offsetMs = lyricOffset
+				Row(
+					Modifier
+						.align(Alignment.BottomCenter)
+						.padding(bottom = 16.dp),
+					verticalAlignment = Alignment.CenterVertically
+				) {
+					Surface(
+						shape = MaterialTheme.shapes.large,
+						color = MaterialTheme.colorScheme.surfaceContainer
+					) {
+						Row(verticalAlignment = Alignment.CenterVertically) {
+							IconButton(
+								onClick = { viewModel.adjustOffset(-50) },
+								enabled = !isSaving
+							) {
+								Icon(
+									Icons.Outlined.Remove,
+									stringResource(Res.string.action_decrease_lyric_offset)
+								)
+							}
+							Text(
+								(if (offsetMs >= 0) "+$offsetMs ms" else "$offsetMs ms"),
+								style = MaterialTheme.typography.labelLarge
+							)
+							IconButton(
+								onClick = { viewModel.adjustOffset(50) },
+								enabled = !isSaving
+							) {
+								Icon(
+									Icons.Outlined.Add,
+									stringResource(Res.string.action_increase_lyric_offset)
+								)
+							}
+						}
+					}
+					// Save is available as soon as there's a provider to copy from
+					IconButton(
+						onClick = { viewModel.saveLyrics() },
+						enabled = !isSaving
+					) {
+						Icon(Icons.Outlined.Check, stringResource(Res.string.action_save))
+					}
+				}
 			}
 		}
 	}
