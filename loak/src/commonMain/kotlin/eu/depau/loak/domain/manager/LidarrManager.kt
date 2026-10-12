@@ -15,19 +15,19 @@ import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.get
+import io.ktor.client.request.prepareRequest
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
-import io.ktor.client.request.post
-import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.ContentType
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentLength
 import io.ktor.http.contentType
-import io.ktor.utils.io.readAvailable
+import io.ktor.utils.io.readRemaining
+import kotlinx.io.readByteArray
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CoroutineScope
@@ -802,26 +802,18 @@ class LidarrManager(
 	/** POSTs JSON with the Lidarr headers; throws [LidarrException] on a non-OK answer. */
 	private suspend fun postJson(path: String, body: JsonObject): JsonElement {
 		if (!isConfigured) throw LidarrException("Lidarr is not connected")
-		return withContext(IoDispatcher) {
-			val response = client.post("$baseUrl/${path.trimStart('/')}") {
-				lidarrHeaders()
-				contentType(ContentType.Application.Json)
-				setBody(body.toString())
-			}
-			parse(response)
+		return send(HttpMethod.Post, path) {
+			contentType(ContentType.Application.Json)
+			setBody(body.toString())
 		}
 	}
 
 	/** PUTs JSON with the Lidarr headers; throws [LidarrException] on a non-OK answer. */
 	private suspend fun putJson(path: String, body: JsonObject): JsonElement {
 		if (!isConfigured) throw LidarrException("Lidarr is not connected")
-		return withContext(IoDispatcher) {
-			val response = client.put("$baseUrl/${path.trimStart('/')}") {
-				lidarrHeaders()
-				contentType(ContentType.Application.Json)
-				setBody(body.toString())
-			}
-			parse(response)
+		return send(HttpMethod.Put, path) {
+			contentType(ContentType.Application.Json)
+			setBody(body.toString())
 		}
 	}
 
@@ -891,26 +883,29 @@ class LidarrManager(
 	}
 
 	suspend fun getJson(path: String, block: HttpRequestBuilder.() -> Unit = {}): JsonElement =
-		parse(request(path, block = block))
+		send(HttpMethod.Get, path, block)
 
-	suspend fun request(
+	/**
+	 * Sends a request with the Lidarr headers and parses its JSON answer. Streamed, not
+	 * `client.get`: that one reads the whole body into memory before returning, so a huge
+	 * catalog would OOM before [readBoundedText] could refuse it.
+	 */
+	private suspend fun send(
+		method: HttpMethod,
 		path: String,
 		block: HttpRequestBuilder.() -> Unit
-	): HttpResponse = withContext(IoDispatcher) {
-		val url = "$baseUrl/${path.trimStart('/')}"
-		val auth: HttpRequestBuilder.() -> Unit = {
+	): JsonElement = withContext(IoDispatcher) {
+		client.prepareRequest("$baseUrl/${path.trimStart('/')}") {
+			this.method = method
 			lidarrHeaders()
 			block()
+		}.execute { response ->
+			val text = readBoundedText(response)
+			if (!response.status.isSuccess()) {
+				throw LidarrException(statusMessage(response.status, text), response.status)
+			}
+			json.parseToJsonElement(text)
 		}
-		client.get(url, auth)
-	}
-
-	private suspend fun parse(response: HttpResponse): JsonElement {
-		val text = boundedBodyAsText(response)
-		if (!response.status.isSuccess()) {
-			throw LidarrException(statusMessage(response.status, text), response.status)
-		}
-		return json.parseToJsonElement(text)
 	}
 
 	/**
@@ -918,29 +913,12 @@ class LidarrManager(
 	 * endpoints have no paging (Lidarr returns one bare array), so a huge library is a single
 	 * multi-hundred-MB JSON body; reading it blindly is an OOM, this makes it a skipped catalog.
 	 */
-	private suspend fun boundedBodyAsText(response: HttpResponse): String {
+	private suspend fun readBoundedText(response: HttpResponse): String {
 		if (response.contentLength()?.let { it > MAX_JSON_BYTES } == true) {
 			throw LidarrException("Lidarr response too large to read")
 		}
-		val channel = response.bodyAsChannel()
-		val buffer = ByteArray(64 * 1024)
-		val chunks = ArrayList<ByteArray>()
-		var total = 0
-		while (true) {
-			val n = channel.readAvailable(buffer)
-			if (n <= 0) break
-			total += n
-			if (total > MAX_JSON_BYTES) {
-				throw LidarrException("Lidarr response too large to read")
-			}
-			chunks += buffer.copyOf(n)
-		}
-		val bytes = ByteArray(total)
-		var offset = 0
-		chunks.forEach {
-			it.copyInto(bytes, offset)
-			offset += it.size
-		}
+		val bytes = response.bodyAsChannel().readRemaining(MAX_JSON_BYTES + 1L).readByteArray()
+		if (bytes.size > MAX_JSON_BYTES) throw LidarrException("Lidarr response too large to read")
 		return bytes.decodeToString()
 	}
 
@@ -970,7 +948,10 @@ class LidarrManager(
 
 	private companion object {
 		const val TAG = "LidarrManager"
-		/** A whole-catalog response bigger than this is a failure, not an OOM (see [parse]). */
-		const val MAX_JSON_BYTES = 128 * 1024 * 1024
+		/**
+		 * A whole-catalog response bigger than this is a failure, not an OOM (see [readBoundedText]):
+		 * the body, its text and the parsed tree (several times the text) must fit the heap together.
+		 */
+		const val MAX_JSON_BYTES = 32 * 1024 * 1024
 	}
 }
