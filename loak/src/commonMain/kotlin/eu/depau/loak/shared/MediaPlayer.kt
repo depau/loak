@@ -65,6 +65,12 @@ import eu.depau.loak.generated.resources.notice_volume_muted
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+/** The slice of the player the domain managers talk to, so they are testable without a real player. */
+interface PlayerControl {
+	val uiState: StateFlow<PlayerUiState>
+	fun pause()
+}
+
 abstract class MediaPlayerViewModel(
 	private val stateRepository: PlayerStateRepository,
 	protected val songRepository: SongRepository,
@@ -72,7 +78,7 @@ abstract class MediaPlayerViewModel(
 	protected val downloadManager: DownloadManager,
 	protected val preferenceManager: PreferenceManager,
 	protected val queueSyncManager: QueueSyncManager
-) : ViewModel(), KoinComponent {
+) : ViewModel(), KoinComponent, PlayerControl {
 	/** Records the playlists and albums started, for Home. */
 	protected val playLog: PlayLogManager by inject()
 	protected val audioStore: AudioStore by inject()
@@ -93,7 +99,7 @@ abstract class MediaPlayerViewModel(
 
 	@Suppress("PropertyName")
 	protected val _uiState = MutableStateFlow(PlayerUiState())
-	val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
+	override val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
 	protected fun isExplicit(song: DomainSong): Boolean {
 		return song.explicitStatus == DomainExplicitStatus.Explicit
@@ -250,7 +256,7 @@ abstract class MediaPlayerViewModel(
 	abstract fun clearQueue()
 	abstract fun playAt(index: Int)
 	abstract fun playRadio(radio: DomainRadio)
-	abstract fun pause()
+	abstract override fun pause()
 	abstract fun resume()
 	abstract fun seek(normalized: Float)
 	abstract fun next()

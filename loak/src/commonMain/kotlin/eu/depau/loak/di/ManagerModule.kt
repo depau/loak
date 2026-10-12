@@ -20,6 +20,7 @@ import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.SleepTimerManager
+import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.discover.DeezerClient
 import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.discover.ListenBrainzClient
@@ -30,7 +31,7 @@ import eu.depau.loak.domain.manager.StorageManager
 import eu.depau.loak.domain.manager.SyncManager
 
 val managerModule = module {
-	singleOf(::SleepTimerManager)
+	single { SleepTimerManager(get<MediaPlayerViewModel>()) }
 	single(createdAtStart = true) {
 		SyncManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()).apply {
 			startPeriodicSync()
