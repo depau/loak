@@ -161,6 +161,10 @@ kotlin {
 		compileSdk = libs.versions.android.compileSdk.get().toInt()
 		minSdk = libs.versions.android.minSdk.get().toInt()
 
+		withHostTest {
+			// run commonTest (and Android JVM unit tests) during :loak:testDebugUnitTest
+		}
+
 		androidResources.enable = true
 
 		compilerOptions {
@@ -204,6 +208,8 @@ kotlin {
 
 		commonTest.dependencies {
 			implementation(kotlin("test"))
+			implementation(libs.kotlinx.coroutines.test)
+			implementation(libs.ktor.client.mock)
 		}
 
 		androidMain.dependencies {

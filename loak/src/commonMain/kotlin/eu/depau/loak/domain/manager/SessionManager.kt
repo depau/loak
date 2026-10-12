@@ -5,6 +5,7 @@ import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
 import eu.depau.loak.util.systemDeviceName
 
+import io.ktor.client.engine.HttpClientEngine
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
 import dev.zt64.subsonic.api.model.Role
@@ -25,7 +26,14 @@ import kotlinx.coroutines.sync.withLock
 class SessionManager(
 	private val settings: Settings,
 	private val preferenceManager: PreferenceManager,
-	private val networkStatsManager: NetworkStatsManager
+	private val networkStatsManager: NetworkStatsManager,
+	/**
+	 * The HTTP engine the Subsonic client talks through. Null (default) uses Ktor's own
+	 * platform default; tests inject a [io.ktor.client.engine.mock.MockEngine] to serve a
+	 * fake Subsonic server without any network. Intentionally optional so production code
+	 * never passes it.
+	 */
+	private val httpEngine: HttpClientEngine? = null
 ) {
 	val isLoggedIn: StateFlow<Boolean>
 		field = MutableStateFlow(false)
@@ -77,6 +85,8 @@ class SessionManager(
 			password = password,
 		),
 		client = clientName,
+		// null HTTP engine resolves to Ktor's platform default; tests inject a MockEngine here
+		engine = httpEngine,
 		clientConfig = {
 			install(UserAgent) {
 				agent = CLIENT_NAME
