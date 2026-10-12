@@ -2,6 +2,8 @@ package eu.depau.loak.domain.repositories
 
 import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.accept
 import io.ktor.client.request.get
@@ -44,10 +46,19 @@ class LyricsRepository(
 	private val lyricDao: LyricDao,
 	private val settings: Settings,
 	private val sessionManager: SessionManager,
-	private val connectivityManager: ConnectivityManager
+	private val connectivityManager: ConnectivityManager,
+	/**
+	 * The HTTP engine the LRC providers go through. Null (default) uses Ktor's own platform
+	 * default; tests inject a [io.ktor.client.engine.mock.MockEngine] fake server. Intentionally
+	 * optional so production code never passes it — mirrors SessionManager's engine seam.
+	 */
+	engine: HttpClientEngine? = null
 ) {
 
-	private val client = HttpClient {
+	private val client = engine?.let { HttpClient(it) { timeoutConfig() } }
+		?: HttpClient { timeoutConfig() }
+
+	private fun HttpClientConfig<*>.timeoutConfig() {
 		install(HttpTimeout) {
 			requestTimeoutMillis = 40000
 			connectTimeoutMillis = 40000
