@@ -26,8 +26,11 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentLength
 import io.ktor.http.contentType
+import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.readRemaining
+import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
+import kotlinx.io.readString
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CoroutineScope
@@ -192,6 +195,62 @@ internal fun lidarrQueueItemsOf(json: JsonElement): List<LidarrQueueItem> {
 				?.get("name")?.jsonPrimitive?.contentOrNull,
 			eta = item["estimatedCompletionTime"]?.jsonPrimitive?.contentOrNull
 		)
+	}
+}
+
+/**
+ * Splits a streamed top-level JSON array into its object elements, handing each one's text to
+ * [onElement] as soon as it's complete. Scans bytes: the structural characters are ASCII, which
+ * never occur inside a UTF-8 multi-byte sequence.
+ */
+internal class JsonArrayObjects(private val onElement: (String) -> Unit) {
+	private var depth = 0
+	private var inString = false
+	private var escaped = false
+	private var element: Buffer? = null
+
+	fun feed(bytes: ByteArray, count: Int) {
+		var start = 0
+		for (i in 0 until count) {
+			val b = bytes[i]
+			if (inString) {
+				when {
+					escaped -> escaped = false
+					b == BACKSLASH -> escaped = true
+					b == QUOTE -> inString = false
+				}
+				continue
+			}
+			when (b) {
+				QUOTE -> inString = true
+				OPEN_OBJECT, OPEN_ARRAY -> {
+					if (depth == 1 && b == OPEN_OBJECT) {
+						element = Buffer()
+						start = i
+					}
+					depth++
+				}
+				CLOSE_OBJECT, CLOSE_ARRAY -> {
+					depth--
+					val done = element
+					if (depth == 1 && done != null) {
+						done.write(bytes, start, i + 1)
+						element = null
+						onElement(done.readString())
+					}
+				}
+			}
+		}
+		element?.write(bytes, start, count)
+	}
+
+	private companion object {
+		const val QUOTE = '"'.code.toByte()
+		const val BACKSLASH = '\\'.code.toByte()
+		const val OPEN_OBJECT = '{'.code.toByte()
+		const val CLOSE_OBJECT = '}'.code.toByte()
+		const val OPEN_ARRAY = '['.code.toByte()
+		const val CLOSE_ARRAY = ']'.code.toByte()
 	}
 }
 
@@ -387,7 +446,7 @@ class LidarrManager(
 	suspend fun refreshCatalog() {
 		if (!isConfigured) return
 		val artists = try {
-			parseArtists(getJson("api/v1/artist"))
+			getArray("api/v1/artist", ::artistOf)
 		} catch (e: CancellationException) {
 			throw e
 		} catch (e: Exception) {
@@ -395,7 +454,7 @@ class LidarrManager(
 			emptyList()
 		}
 		val albums = try {
-			parseAlbums(getJson("api/v1/album"))
+			getArray("api/v1/album", ::albumOf)
 		} catch (e: CancellationException) {
 			throw e
 		} catch (e: Exception) {
@@ -452,28 +511,21 @@ class LidarrManager(
 		polling = false
 	}
 
-	private fun parseArtists(json: JsonElement): List<LidarrArtistSnapshot> =
-		foldAsJsonArray(json) { obj ->
-			LidarrArtistSnapshot(
-				id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@foldAsJsonArray null,
-				musicBrainzId = obj["foreignArtistId"]?.jsonPrimitive?.contentOrNull,
-				name = obj["artistName"]?.jsonPrimitive?.contentOrNull ?: "",
-				monitored = obj["monitored"]?.jsonPrimitive?.booleanOrNull ?: false
-			)
-		}
+	private fun artistOf(obj: JsonObject): LidarrArtistSnapshot? = LidarrArtistSnapshot(
+		id = obj["id"]?.jsonPrimitive?.longOrNull ?: return null,
+		musicBrainzId = obj["foreignArtistId"]?.jsonPrimitive?.contentOrNull,
+		name = obj["artistName"]?.jsonPrimitive?.contentOrNull ?: "",
+		monitored = obj["monitored"]?.jsonPrimitive?.booleanOrNull ?: false
+	)
 
-	private fun parseAlbums(json: JsonElement): List<LidarrAlbumSnapshot> =
-		foldAsJsonArray(json) { obj ->
-			LidarrAlbumSnapshot(
-				id = obj["id"]?.jsonPrimitive?.longOrNull ?: return@foldAsJsonArray null,
-				musicBrainzId = obj["foreignAlbumId"]?.jsonPrimitive?.contentOrNull,
-				title = obj["title"]?.jsonPrimitive?.contentOrNull ?: "",
-				artistId = obj["artistId"]?.jsonPrimitive?.longOrNull ?: 0L,
-				monitored = obj["monitored"]?.jsonPrimitive?.booleanOrNull ?: false,
-				downloaded = (obj["statistics"]?.jsonObject?.get("percentOfTracks")?.jsonPrimitive?.doubleOrNull ?: 0.0) >= 100.0
-			)
-		}
-
+	private fun albumOf(obj: JsonObject): LidarrAlbumSnapshot? = LidarrAlbumSnapshot(
+		id = obj["id"]?.jsonPrimitive?.longOrNull ?: return null,
+		musicBrainzId = obj["foreignAlbumId"]?.jsonPrimitive?.contentOrNull,
+		title = obj["title"]?.jsonPrimitive?.contentOrNull ?: "",
+		artistId = obj["artistId"]?.jsonPrimitive?.longOrNull ?: 0L,
+		monitored = obj["monitored"]?.jsonPrimitive?.booleanOrNull ?: false,
+		downloaded = (obj["statistics"]?.jsonObject?.get("percentOfTracks")?.jsonPrimitive?.doubleOrNull ?: 0.0) >= 100.0
+	)
 
 	private inline fun <T> foldAsJsonArray(
 		json: JsonElement,
@@ -885,34 +937,56 @@ class LidarrManager(
 	suspend fun getJson(path: String, block: HttpRequestBuilder.() -> Unit = {}): JsonElement =
 		send(HttpMethod.Get, path, block)
 
-	/**
-	 * Sends a request with the Lidarr headers and parses its JSON answer. Streamed, not
-	 * `client.get`: that one reads the whole body into memory before returning, so a huge
-	 * catalog would OOM before [readBoundedText] could refuse it.
-	 */
 	private suspend fun send(
 		method: HttpMethod,
 		path: String,
 		block: HttpRequestBuilder.() -> Unit
-	): JsonElement = withContext(IoDispatcher) {
+	): JsonElement = request(method, path, block) { json.parseToJsonElement(readBoundedText(it)) }
+
+	/**
+	 * GETs one of the unpaged catalog arrays (hundreds of MB for a big library), parsing one
+	 * element at a time and keeping only what [build] makes of it.
+	 */
+	private suspend fun <T : Any> getArray(path: String, build: (JsonObject) -> T?): List<T> =
+		request(HttpMethod.Get, path, {}) { response ->
+			val out = ArrayList<T>()
+			val objects = JsonArrayObjects { element ->
+				(json.parseToJsonElement(element) as? JsonObject)?.let(build)?.let(out::add)
+			}
+			val channel = response.bodyAsChannel()
+			val buffer = ByteArray(64 * 1024)
+			while (true) {
+				val n = channel.readAvailable(buffer)
+				if (n == -1) break
+				objects.feed(buffer, n)
+			}
+			out
+		}
+
+	/**
+	 * Sends a request with the Lidarr headers and hands the successful answer to [read].
+	 * Streamed, not `client.get`: that one reads the whole body into memory before returning.
+	 */
+	private suspend fun <T> request(
+		method: HttpMethod,
+		path: String,
+		block: HttpRequestBuilder.() -> Unit,
+		read: suspend (HttpResponse) -> T
+	): T = withContext(IoDispatcher) {
 		client.prepareRequest("$baseUrl/${path.trimStart('/')}") {
 			this.method = method
 			lidarrHeaders()
 			block()
 		}.execute { response ->
-			val text = readBoundedText(response)
 			if (!response.status.isSuccess()) {
+				val text = readBoundedText(response)
 				throw LidarrException(statusMessage(response.status, text), response.status)
 			}
-			json.parseToJsonElement(text)
+			read(response)
 		}
 	}
 
-	/**
-	 * Reads the body as text, refusing anything bigger than [MAX_JSON_BYTES]. The catalog
-	 * endpoints have no paging (Lidarr returns one bare array), so a huge library is a single
-	 * multi-hundred-MB JSON body; reading it blindly is an OOM, this makes it a skipped catalog.
-	 */
+	/** Reads the body as text, refusing anything bigger than [MAX_JSON_BYTES] instead of an OOM. */
 	private suspend fun readBoundedText(response: HttpResponse): String {
 		if (response.contentLength()?.let { it > MAX_JSON_BYTES } == true) {
 			throw LidarrException("Lidarr response too large to read")
@@ -949,7 +1023,7 @@ class LidarrManager(
 	private companion object {
 		const val TAG = "LidarrManager"
 		/**
-		 * A whole-catalog response bigger than this is a failure, not an OOM (see [readBoundedText]):
+		 * A non-catalog response bigger than this is a failure, not an OOM (see [readBoundedText]):
 		 * the body, its text and the parsed tree (several times the text) must fit the heap together.
 		 */
 		const val MAX_JSON_BYTES = 32 * 1024 * 1024
