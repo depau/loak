@@ -61,9 +61,19 @@ object TestFakes {
 		override suspend fun pruneSyncRuns(before: Instant) {}
 	}
 
-	/** A SessionManager on the fake server with in-memory settings. */
-	fun sessionManager(engine: MockEngine = fakeServer()): SessionManager {
-		val settings = Settings()
+	/**
+	 * A SessionManager on the fake server.
+	 *
+	 * NOTE: the no-arg `Settings()` resolves to a persistent store on the JVM
+	 * (`java.util.Preferences.userRoot()`) — shared across tests and even builds.
+	 * Tests that read prefs the way production does (e.g. queueSyncEnabled,
+	 * saved credentials) MUST pass an isolated store, e.g.
+	 * `PropertiesSettings(Properties())` on desktop (see AudioStoreTest).
+	 */
+	fun sessionManager(
+		settings: Settings = Settings(),
+		engine: MockEngine = fakeServer(),
+	): SessionManager {
 		val prefs = PreferenceManager(settings)
 		val conn = ConnectivityManager(prefs)
 		val stats = NetworkStatsManager(fakeNetworkStatsDao(), conn)
