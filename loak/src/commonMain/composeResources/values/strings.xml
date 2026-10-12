@@ -269,6 +269,7 @@
 	<string name="action_delete">Delete</string>
 	<string name="action_delete_playlist">Delete playlist</string>
 	<string name="action_delete_radio">Delete radio</string>
+	<string name="info_delete_audiomuse_rebuilt">AudioMuse-AI makes it again on its next run</string>
 	<string name="action_cancel">Cancel</string>
 	<string name="action_refresh">Refresh</string>
 	<string name="action_share">Share</string>

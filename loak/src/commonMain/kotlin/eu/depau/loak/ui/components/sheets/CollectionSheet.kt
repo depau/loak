@@ -76,6 +76,7 @@ import eu.depau.loak.icons.outlined.Edit
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.generated.resources.action_delete_playlist
 import eu.depau.loak.generated.resources.action_delete_radio
+import eu.depau.loak.generated.resources.info_delete_audiomuse_rebuilt
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.PlaylistAdd
@@ -312,6 +313,9 @@ fun CollectionSheet(
 						onDismissRequest()
 						onDelete()
 					},
+					// a radio stops when deleted; AudioMuse-AI makes these again on its next run
+					supporting = playlistName?.kind?.takeIf { it.isRebuilt && it != PlaylistKind.AudioMuseRadio }
+						?.let { stringResource(Res.string.info_delete_audiomuse_rebuilt) },
 					destructive = true
 				) else null
 			))
