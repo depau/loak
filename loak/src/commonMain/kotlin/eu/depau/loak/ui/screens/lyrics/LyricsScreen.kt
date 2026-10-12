@@ -202,11 +202,11 @@ fun LyricsScreen(
 
 	Box(Modifier.fillMaxSize()) {
 		body(PaddingValues())
-		// provider picker first, then full-screen, then cancel toggles, then share; an open
+		// provider picker, then sync, then share, then full-screen; an open
 		// provider menu keeps them up
 		AnimatedVisibility(
 			visible = showActions || providerMenuOpen,
-			modifier = Modifier.align(Alignment.TopStart),
+			modifier = Modifier.align(Alignment.TopEnd),
 			enter = fadeIn(),
 			exit = fadeOut()
 		) {
@@ -243,9 +243,6 @@ fun LyricsScreen(
 						}
 					}
 				}
-				if (onFullScreen != null && !isSelecting) IconButton(onClick = onFullScreen) {
-					Icon(Icons.Outlined.Fullscreen, stringResource(Res.string.action_karaoke))
-				}
 				if (!isSelecting && canSync) IconButton(
 					onClick = {
 						syncToolOpen = true
@@ -265,6 +262,9 @@ fun LyricsScreen(
 						if (isSelecting) Icons.Outlined.Check else Icons.Outlined.Share,
 						stringResource(Res.string.action_share_lyrics)
 					)
+				}
+				if (onFullScreen != null && !isSelecting) IconButton(onClick = onFullScreen) {
+					Icon(Icons.Outlined.Fullscreen, stringResource(Res.string.action_karaoke))
 				}
 			}
 		}
