@@ -3,6 +3,7 @@ package eu.depau.loak.domain.manager
 import eu.depau.loak.util.IoDispatcher
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -22,10 +23,18 @@ interface ScrobblePlayerSource {
 class ScrobbleManager(
 	private val playerSource: ScrobblePlayerSource,
 	private val connectivityManager: ConnectivityManager,
-	private val syncManager: SyncManager,
+	/**
+	 * Offline/failed-submission queue. Nullable so tests can build the manager without the
+	 * whole sync graph; the online path never touches it (mirrors LoginManager's hooks).
+	 */
+	private val syncManager: SyncManager?,
 	private val sessionManager: SessionManager,
 	private val scope: CoroutineScope,
-	private val preferenceManager: PreferenceManager
+	private val preferenceManager: PreferenceManager,
+	/** Test seam: controllable time source; prod uses the system clock. */
+	private val clock: Clock = Clock.System,
+	/** Test seam: where network/queue work runs; prod uses the platform IO dispatcher. */
+	private val ioDispatcher: CoroutineDispatcher = IoDispatcher
 ) : KoinComponent {
 	// injected rather than passed in: each platform builds this class itself
 	private val playLog: PlayLogManager by inject()
@@ -67,7 +76,7 @@ class ScrobbleManager(
 		}
 	}
 
-	private fun now() = Clock.System.now().toEpochMilliseconds()
+	private fun now() = clock.now().toEpochMilliseconds()
 
 	private fun playedTime() = accumulatedPlayTime + (playingSince?.let { now() - it } ?: 0)
 
@@ -107,17 +116,17 @@ class ScrobbleManager(
 	private fun scrobbleSubmission(songId: String?) {
 		if (!preferenceManager.enableScrobbling || songId == null) return
 
-		scope.launch(IoDispatcher) {
-			val currentTime = Clock.System.now()
+		scope.launch(ioDispatcher) {
+			val currentTime = clock.now()
 
 			if (connectivityManager.isOnline.value) {
 				try {
 					sessionManager.api.scrobble(songId, submission = true, time = currentTime)
 				} catch (_: Exception) {
-					syncManager.enqueueAction(SyncActionType.SCROBBLE, songId, currentTime)
+					syncManager?.enqueueAction(SyncActionType.SCROBBLE, songId, currentTime)
 				}
 			} else {
-				syncManager.enqueueAction(SyncActionType.SCROBBLE, songId, currentTime)
+				syncManager?.enqueueAction(SyncActionType.SCROBBLE, songId, currentTime)
 			}
 		}
 	}
@@ -127,7 +136,7 @@ class ScrobbleManager(
 
 		if (!connectivityManager.isOnline.value) return
 
-		scope.launch(IoDispatcher) {
+		scope.launch(ioDispatcher) {
 			try {
 				sessionManager.api.scrobble(songId, submission = false)
 			} catch (_: Exception) {
