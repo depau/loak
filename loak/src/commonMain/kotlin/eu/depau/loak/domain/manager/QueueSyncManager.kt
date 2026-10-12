@@ -48,7 +48,11 @@ class QueueSyncManager(
 	private val sessionManager: SessionManager,
 	private val preferenceManager: PreferenceManager,
 	private val songDao: SongDao,
-	private val collectionRepository: CollectionRepository
+	/**
+	 * Only reached when "On startup, play" is a playlist. Nullable (as with the SessionManager
+	 * engine seam) so flow tests can construct the manager without a Room-backed repository.
+	 */
+	private val collectionRepository: CollectionRepository? = null
 ) {
 	private val json = Json { ignoreUnknownKeys = true }
 
@@ -146,7 +150,7 @@ class QueueSyncManager(
 		val id = preferenceManager.startupPlaylistId.ifBlank { return null }
 		// fetched again because automations may rewrite the playlist; the cached copy if offline
 		val playlist = runCatching {
-			collectionRepository.getCollectionFlow(fullRefresh = true, collectionId = id).last().data
+			collectionRepository?.getCollectionFlow(fullRefresh = true, collectionId = id)?.last()?.data
 		}.getOrNull() ?: return null
 		if (playlist.songs.isEmpty()) return null
 		return (base ?: PlayerUiState()).copy(
