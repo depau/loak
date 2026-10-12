@@ -1,6 +1,5 @@
 package eu.depau.loak.domain.manager
 
-import eu.depau.loak.di.setSentryUser
 import eu.depau.loak.di.recordPii
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
@@ -122,7 +121,6 @@ class SessionManager(
 		api = client
 		isLoggedIn.value = true
 		updateServerKey()
-		setSentryUser(currentUser)
 	}
 
 	fun logout() {
@@ -131,7 +129,6 @@ class SessionManager(
 		isLoggedIn.value = false
 		updateServerKey()
 		currentUser = null
-		setSentryUser(null)
 	}
 
 	private fun updateServerKey() {
@@ -163,7 +160,6 @@ class SessionManager(
 			if (username.isNotBlank()) {
 				recordPii(instanceUrl)
 				currentUser = client.getUser(username)
-				setSentryUser(currentUser)
 				return currentUser
 			}
 		}

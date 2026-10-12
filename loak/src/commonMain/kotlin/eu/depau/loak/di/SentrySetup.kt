@@ -1,10 +1,8 @@
 package eu.depau.loak.di
 
-import dev.zt64.subsonic.api.model.User as SubsonicUser
 import io.sentry.kotlin.multiplatform.Sentry
 import io.sentry.kotlin.multiplatform.SentryEvent
 import io.sentry.kotlin.multiplatform.protocol.Breadcrumb
-import io.sentry.kotlin.multiplatform.protocol.User
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import io.sentry.kotlin.multiplatform.SentryLevel
@@ -63,7 +61,9 @@ fun initializeSentry(release: String? = null) {
 		// Compose Multiplatform on Apple targets: unhandled Kotlin exceptions can
 		// otherwise surface as generic C++ crashes instead of useful stack traces.
 		options.enableUnhandledCppExceptionMonitoring = false
-		options.sendDefaultPii = true
+		// No PII: with it on, Sentry stores each sender's IP address (and a city derived from
+		// it) on every event. Android still tags events with the SDK's random per-install id.
+		options.sendDefaultPii = false
 		// Performance tracing for the few spans we create (see [traced]). Span names and data
 		// are fixed strings/ids/counts we set ourselves: never URLs, usernames or servers.
 		// ANR (Android) and app-hang (iOS) detection stay at their defaults (on).
@@ -160,29 +160,6 @@ private fun sanitizeBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
 	breadcrumb.message = breadcrumb.message?.sanitizeSentryText()
 	breadcrumb.category = breadcrumb.category?.sanitizeSentryText()
 	return breadcrumb
-}
-
-/**
- * Attach the logged-in user to Sentry events. With multiple accounts managed
- * from one app install this makes issues attributable; `sendDefaultPii` is on,
- * so only a username is sent (no PII collection beyond what the user already
- * exposes as their Subsonic login). Also seeds the layer-2 censor with the
- * server this account talks to, so the user's real identifiers are redacted
- * verbatim even if the regexes ever miss a spelling.
- */
-fun setSentryUser(user: SubsonicUser?) {
-	if (!isSentryEnabled()) return
-	if (!Sentry.isEnabled()) return
-	if (user == null) {
-		Sentry.setUser(null)
-		return
-	}
-	Sentry.setUser(
-		io.sentry.kotlin.multiplatform.protocol.User(
-			id = user.name,
-			username = user.name,
-		)
-	)
 }
 
 /**
