@@ -35,6 +35,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -43,13 +44,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LocalPinnableContainer
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -74,10 +78,21 @@ fun rememberDraggableListState(
 			scope = scope
 		)
 	}
+	// Edge autoscroll runs per frame, not per pointer event: a mouse sends events at its own
+	// rate (or none while held still), and can be dragged far past the list's edge.
 	LaunchedEffect(state) {
-		while (true) {
-			val diff = state.scrollChannel.receive()
-			lazyListState.scrollBy(diff)
+		snapshotFlow { state.draggingItemIndex != null }.collectLatest { dragging ->
+			if (!dragging) return@collectLatest
+			var last = withFrameNanos { it }
+			while (true) {
+				val now = withFrameNanos { it }
+				val step = state.autoScrollStep((now - last) / 1e9f)
+				last = now
+				if (step != 0f) {
+					lazyListState.scrollBy(step)
+					state.onDrag(Offset.Zero)
+				}
+			}
 		}
 	}
 	return state
@@ -104,19 +119,33 @@ class DraggableListState internal constructor(
 	var draggingItemIndex by mutableStateOf<Int?>(null)
 		private set
 
-	internal val scrollChannel = Channel<Float>()
+	/** Found by key: until the list lays out a move, [draggingItemIndex] is another item's. */
+	private var draggingItemKey: Any? = null
 
 	private var draggingItemDraggedDelta by mutableFloatStateOf(0f)
 
 	private var draggingItemInitialOffset by mutableIntStateOf(0)
 
+	/** Where the pointer holds the dragged item's top, even past the list's edges. */
+	private val draggingItemPointerOffset: Float
+		get() = draggingItemInitialOffset + draggingItemDraggedDelta
+
+	/**
+	 * Kept inside the viewport: a pointer dragged past the list's edge (easy with a mouse)
+	 * leaves the item at the edge, where autoscroll keeps moving it along.
+	 */
 	val draggingItemOffset: Float
 		get() = draggingItemLayoutInfo?.let { item ->
-			draggingItemInitialOffset + draggingItemDraggedDelta - item.offset
+			val info = listState.layoutInfo
+			draggingItemPointerOffset
+				.coerceAtMost((info.viewportEndOffset - item.size).toFloat())
+				.coerceAtLeast(info.viewportStartOffset.toFloat()) - item.offset
 		} ?: 0f
 
 	private val draggingItemLayoutInfo: LazyListItemInfo?
-		get() = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == draggingItemIndex }
+		get() = draggingItemKey?.let { key ->
+			listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }
+		}
 
 	var previousIndexOfDraggedItem by mutableStateOf<Int?>(null)
 		private set
@@ -124,22 +153,16 @@ class DraggableListState internal constructor(
 	var previousItemOffset = Animatable(0f)
 		private set
 
-	internal fun onDragStart(index: Int) {
-		listState.layoutInfo.visibleItemsInfo
-			.find { it.index == index }
-			?.also {
-				draggingItemIndex = it.index
-				draggingItemInitialOffset = it.offset
-			}
-	}
+	internal fun onDragStart(index: Int) = onDragStart { it.index == index }
 
-	internal fun onDragStart(key: Any) {
-		listState.layoutInfo.visibleItemsInfo
-			.find { it.key == key }
-			?.also {
-				draggingItemIndex = it.index
-				draggingItemInitialOffset = it.offset
-			}
+	internal fun onDragStart(key: Any) = onDragStart { it.key == key }
+
+	private fun onDragStart(predicate: (LazyListItemInfo) -> Boolean) {
+		listState.layoutInfo.visibleItemsInfo.find(predicate)?.also {
+			draggingItemIndex = it.index
+			draggingItemKey = it.key
+			draggingItemInitialOffset = it.offset
+		}
 	}
 
 	internal fun onDragInterrupted() {
@@ -157,13 +180,16 @@ class DraggableListState internal constructor(
 		}
 		draggingItemDraggedDelta = 0f
 		draggingItemIndex = null
+		draggingItemKey = null
 		draggingItemInitialOffset = 0
 	}
 
 	internal fun onDrag(offset: Offset) {
 		draggingItemDraggedDelta += offset.y
 
-		val draggingItem = draggingItemLayoutInfo ?: return
+		// off-screen (autoscroll brings it back), or its last move isn't laid out yet
+		val draggingItem = draggingItemLayoutInfo
+			?.takeIf { it.index == draggingItemIndex } ?: return
 		val startOffset = draggingItem.offset + draggingItemOffset
 		val endOffset = startOffset + draggingItem.size
 		val middleOffset = startOffset + (endOffset - startOffset) / 2f
@@ -185,25 +211,45 @@ class DraggableListState internal constructor(
 			}
 			onMove(draggingItem.index, targetItem.index)
 			draggingItemIndex = targetItem.index
-		} else {
-			val overscroll = when {
-				draggingItemDraggedDelta > 0 ->
-					(endOffset - listState.layoutInfo.viewportEndOffset).coerceAtLeast(0f)
-
-				draggingItemDraggedDelta < 0 ->
-					(startOffset - listState.layoutInfo.viewportStartOffset).coerceAtMost(0f)
-
-				else -> 0f
-			}
-			if (overscroll != 0f) {
-				scrollChannel.trySend(overscroll)
-			}
 		}
+	}
+
+	/**
+	 * How far to scroll in [seconds] while the pointer holds the dragged item past the
+	 * viewport: [AUTO_SCROLL_ITEMS_PER_SECOND] items per second per item out, up to 1.5 items.
+	 */
+	internal fun autoScrollStep(seconds: Float): Float {
+		val info = listState.layoutInfo
+		val item = draggingItemLayoutInfo ?: run {
+			// a move next to the first visible item can leave its slot just out of view:
+			// scroll back to it rather than lose the drag
+			val index = draggingItemIndex ?: return 0f
+			val size = info.visibleItemsInfo.firstOrNull()?.size ?: return 0f
+			val step = size * AUTO_SCROLL_ITEMS_PER_SECOND * seconds
+			return if (index < listState.firstVisibleItemIndex) -step else step
+		}
+		val start = draggingItemPointerOffset
+		val end = start + item.size
+		val overscroll = when {
+			draggingItemDraggedDelta > 0 -> (end - info.viewportEndOffset).coerceAtLeast(0f)
+			draggingItemDraggedDelta < 0 -> (start - info.viewportStartOffset).coerceAtMost(0f)
+			else -> 0f
+		}
+		val size = item.size.toFloat()
+		val step = overscroll.coerceIn(-1.5f * size, 1.5f * size) *
+			AUTO_SCROLL_ITEMS_PER_SECOND * seconds
+		// never past the item's own slot: when it can't move on (canMove), the drag would be lost
+		return step.coerceIn(
+			(item.offsetEnd - info.viewportEndOffset).coerceAtMost(0).toFloat(),
+			(item.offset - info.viewportStartOffset).coerceAtLeast(0).toFloat()
+		)
 	}
 
 	private val LazyListItemInfo.offsetEnd: Int
 		get() = this.offset + this.size
 }
+
+private const val AUTO_SCROLL_ITEMS_PER_SECOND = 3f
 
 /**
  * Defines the area that will act as the handle for dragging operations.
@@ -314,6 +360,14 @@ inline fun <T> LazyListScope.draggableItemsIndexed(
 ) { index, item ->
 
 	val isDragging = index == state.draggingItemIndex
+	if (isDragging) {
+		// kept composed while scrolled out of view, or its drag gesture would be cancelled
+		val pinnable = LocalPinnableContainer.current
+		DisposableEffect(pinnable) {
+			val handle = pinnable?.pin()
+			onDispose { handle?.release() }
+		}
+	}
 	val draggingModifier = if (isDragging) {
 		Modifier
 			.zIndex(1f)
