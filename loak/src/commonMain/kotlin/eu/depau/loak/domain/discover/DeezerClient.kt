@@ -10,6 +10,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -327,6 +329,8 @@ class DeezerClient {
 	private var chartsFetchedAtMs = 0L
 	private val chartTracksCache = HashMap<Long, Pair<List<DiscoverSong>, Long>>()
 	private val genreTracksCache = HashMap<Long, Pair<List<DiscoverSong>, Long>>()
+	// guards the cache writes; `synchronized` is JVM-only and breaks the web build
+	private val cacheLock = Mutex()
 
 	/** The "Top <country>" charts of Deezer's Charts account, cached for a day. Empty when the call fails. */
 	suspend fun getCountryCharts(): List<DeezerCountryChart> {
@@ -334,7 +338,7 @@ class DeezerClient {
 		val fresh = fetchChartPlaylists()
 		// don't cache an empty page (a failed call would look cached for a day)
 		if (fresh.isNotEmpty() || chartsValue == null) {
-			synchronized(this) {
+			cacheLock.withLock {
 				chartsValue = fresh
 				chartsFetchedAtMs = nowMs()
 			}
@@ -354,7 +358,7 @@ class DeezerClient {
 				emptyList()
 			}
 		}
-		synchronized(chartTracksCache) { chartTracksCache[playlistId] = tracks to nowMs() }
+		cacheLock.withLock { chartTracksCache[playlistId] = tracks to nowMs() }
 		return tracks
 	}
 
@@ -399,7 +403,7 @@ class DeezerClient {
 				emptyList()
 			}
 		}
-		synchronized(genreTracksCache) { genreTracksCache[genreId] = tracks to nowMs() }
+		cacheLock.withLock { genreTracksCache[genreId] = tracks to nowMs() }
 		return tracks
 	}
 
@@ -427,7 +431,7 @@ class DeezerClient {
 				emptyList()
 			}
 		}
-		synchronized(radioTracksCache) { radioTracksCache[radioId] = tracks to nowMs() }
+		cacheLock.withLock { radioTracksCache[radioId] = tracks to nowMs() }
 		return tracks
 	}
 
@@ -468,7 +472,7 @@ class DeezerClient {
 				emptyList()
 			}
 		}
-		synchronized(cache) { cache[path] = items to nowMs() }
+		cacheLock.withLock { cache[path] = items to nowMs() }
 		return items
 	}
 
