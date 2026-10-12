@@ -65,13 +65,15 @@ class AudioStoreTest {
 		File(dir, "stray").writeText("x")
 		store.openWrite("s5", AudioQuality.Raw, "opus")!!.run { write(bytes); close() }
 		store.openWrite("s6", AudioQuality.Raw, "opus", pinned = true)!!.run { write(bytes); close() }
-		AudioStore(dir.path, db.audioFileDao(), prefs, MutableStateFlow(""))
+		val restarted = AudioStore(dir.path, db.audioFileDao(), prefs, MutableStateFlow(""))
 		repeat(100) { if (File(dir, "stray").exists()) delay(20) }
 		assertEquals(
 			setOf(File(store.pathOf(raw)).name, File(store.pathOf(s3)).name, "s6.raw.opus.partial"),
 			dir.list()!!.toSet()
 		)
 		assertEquals(1000, store.openWrite("s6", AudioQuality.Raw, "opus", resume = true)!!.offset)
+		restarted.close()
+		store.close()
 		db.close()
 	}
 
@@ -115,6 +117,7 @@ class AudioStoreTest {
 		store.unpin(listOf("s1"))
 		assertEquals(emptyList(), store.pendingDownloads())
 		assertEquals(setOf("s2"), store.downloadedIds())
+		store.close()
 		db.close()
 	}
 
@@ -151,6 +154,7 @@ class AudioStoreTest {
 			setOf("al1", "ar-s1", "albumArtist", "p1"),
 			store.storedCollections.first { it.isNotEmpty() }
 		)
+		store.close()
 		db.close()
 	}
 }

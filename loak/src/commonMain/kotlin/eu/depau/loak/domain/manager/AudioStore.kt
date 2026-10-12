@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -105,6 +106,16 @@ class AudioStore(
 				Logger.e(TAG, "startup sweep failed", e)
 			}
 		}
+	}
+
+	/**
+	 * Cancels the store's background collectors (Room `observe*` flows) and the startup sweep.
+	 * Production keeps a single app-lifetime store and never calls this; tests must, so a store
+	 * abandoned with its Room DB closed doesn't leak a "connection pool is closed" exception onto
+	 * the real IO dispatcher and into the next test's coroutine-scheduler boundary.
+	 */
+	fun close() {
+		scope.cancel()
 	}
 
 	/** The highest-quality complete file for [songId], to play or share instead of streaming. */
