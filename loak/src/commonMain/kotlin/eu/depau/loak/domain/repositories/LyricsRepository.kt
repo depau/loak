@@ -16,7 +16,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -327,9 +330,8 @@ class LyricsRepository(
 			return null
 		}
 
-		val rootObj = try {
-			json.parseToJsonElement(response.bodyAsText())
-				.jsonObject["message"]?.jsonObject
+		val message = try {
+			json.parseToJsonElement(response.bodyAsText()).field("message")
 		} catch (ex: Exception) {
 			Logger.w("LyricsRepository", "failed parsing musixmatch response", ex)
 			null
@@ -337,21 +339,11 @@ class LyricsRepository(
 
 		// the anonymous token was rejected (even on a 200 shell): drop it so the next
 		// song requests a fresh one
-		if (rootObj["header"]?.jsonObject?.get("hint")?.jsonPrimitive?.contentOrNull == "renew") {
+		if (message.field("header").field("hint").string() == "renew") {
 			musixmatchToken = null
 			return null
 		}
-
-		val body = rootObj["body"]?.jsonObject ?: return null
-		val subtitleCalls = body["macro_calls"]?.jsonObject
-			?.get("track.subtitles.get")?.jsonObject
-			?.get("message")?.jsonObject
-			?.get("body")?.jsonObject
-		val subtitle = subtitleCalls
-			?.get("subtitle_list")?.jsonArray
-			?.firstOrNull()?.jsonObject?.get("subtitle")?.jsonObject
-		return subtitle?.get("subtitle_body")?.jsonPrimitive?.contentOrNull
-			?.takeIf { it.isNotBlank() }
+		return musixmatchSubtitle(message)
 	}
 
 	private suspend fun fetchMusixmatchToken(): String? = try {
@@ -375,3 +367,16 @@ class LyricsRepository(
 	}
 
 }
+
+// Musixmatch answers `[]` where an object is empty ("body": [] when nothing matched), so
+// every step tolerates a non-object instead of throwing like `.jsonObject` would.
+private fun JsonElement?.field(key: String): JsonElement? = (this as? JsonObject)?.get(key)
+
+private fun JsonElement?.string(): String? = (this as? JsonPrimitive)?.contentOrNull
+
+/** The LRC body of a `macro.subtitles.get` answer's `message`, or null when it has none. */
+internal fun musixmatchSubtitle(message: JsonElement): String? =
+	(message.field("body").field("macro_calls").field("track.subtitles.get")
+		.field("message").field("body").field("subtitle_list") as? JsonArray)
+		?.firstOrNull().field("subtitle").field("subtitle_body").string()
+		?.takeIf { it.isNotBlank() }
