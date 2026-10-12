@@ -19,6 +19,7 @@ actual fun rememberPlatformContext(): PlatformContext {
 			override val platformType = PlatformType.Web
 			override val name = "Web"
 			override val appVersion = "web"
+			override val buildVariant = "web"
 			override val sizeClass = sizeClass
 
 			@Composable

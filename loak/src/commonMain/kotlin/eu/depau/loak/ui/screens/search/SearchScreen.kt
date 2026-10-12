@@ -46,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -150,6 +151,7 @@ fun SearchScreen(
 	val playlistListSelection by playlistListViewModel.selectedPlaylist.collectAsState()
 	val albumListStarred by albumListViewModel.starred.collectAsState()
 	val selectedAlbumRating by albumListViewModel.rating.collectAsStateWithLifecycle()
+	val searchFocusRequester = remember { FocusRequester() }
 
 	val query = viewModel.searchQuery
 	val state by viewModel.searchState.collectAsState()
@@ -188,22 +190,25 @@ fun SearchScreen(
 						TopAppBarDefaults.windowInsets.add(windowControlsInsets()).asPaddingValues()
 					)
 			) {
-				SearchScreenTopBar(
-					query = query,
-					nested = nested,
-					onSearch = { submittedQuery ->
-						viewModel.addToSearchHistory(submittedQuery)
-						viewModel.searchBySound(submittedQuery)
-					}
-				)
-				SearchScreenChips(
-					selectedCategory = selectedCategory,
-					onCategorySelect = {
-						viewModel.selectedCategory.value = it
-						if (it == SearchCategory.SOUND) viewModel.searchBySound()
-					},
-					soundAvailable = audioMuseInfo?.soundSearch == true && audioMusePrefs.audioMuseDescribe
-				)
+			SearchScreenTopBar(
+				query = query,
+				nested = nested,
+				onSearch = { submittedQuery ->
+					viewModel.addToSearchHistory(submittedQuery)
+					viewModel.searchBySound(submittedQuery)
+				},
+				focusRequester = searchFocusRequester
+			)
+			SearchScreenChips(
+				selectedCategory = selectedCategory,
+				onCategorySelect = {
+					viewModel.selectedCategory.value = it
+					if (it == SearchCategory.SOUND) viewModel.searchBySound()
+					// a chip click steals focus from the search field; take it back
+					runCatching { searchFocusRequester.requestFocus() }
+				},
+				soundAvailable = audioMuseInfo?.soundSearch == true && audioMusePrefs.audioMuseDescribe
+			)
 			}
 		},
 		bottomBar = {

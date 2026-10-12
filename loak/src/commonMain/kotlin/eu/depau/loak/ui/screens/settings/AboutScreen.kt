@@ -28,6 +28,7 @@ import eu.depau.loak.generated.resources.title_navic
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.SENTRY_BUILD_COMMIT
 import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.components.common.SegmentedListItem
@@ -65,15 +66,14 @@ fun SettingsAboutScreen() {
 			verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
 		) {
 			SettingsGroup {
-				val text = buildString {
-					append(platformContext.name + "\n")
-					append(
-						stringResource(
-							Res.string.info_app_version,
-							platformContext.appVersion
-						)
-					)
-				}
+			val text = buildString {
+				append(platformContext.name + "\n")
+				append(stringResource(Res.string.info_app_version, platformContext.appVersion))
+				append("\n")
+				append("Build: ${platformContext.buildVariant}")
+				append("\n")
+				append("Commit: $SENTRY_BUILD_COMMIT")
+			}
 				SegmentedListItem(
 					onClick = { clipboard.setText(AnnotatedString(text)) },
 					shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1),

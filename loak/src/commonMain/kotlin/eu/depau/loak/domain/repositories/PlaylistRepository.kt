@@ -136,16 +136,36 @@ class PlaylistRepository(
 		return id
 	}
 
-	/** Appends the songs not in the playlist yet; false if there were none. */
-	suspend fun addSongs(playlistId: String, songs: List<DomainSong>): Boolean {
-		val id = syncManager.playlistId(playlistId)
-		val current = playlistDao.getPlaylistSongIds(id)
-		val toAdd = songs.filterNot { it.id in current }.distinctBy { it.id }
-		if (toAdd.isEmpty()) return false
-		setSongs(id, current + toAdd.map { it.id }, toAdd)
-		enqueue(SyncActionType.ADD_TO_PLAYLIST, id, PlaylistEdit(toAdd.map { it.id }))
-		return true
+/**
+ * Appends the songs not in the playlist yet; false if there were none.
+ * When the local cache says they're all already present, refreshes from the
+ * server once before declaring a duplicate — the cache can be stale if songs
+ * were removed on the server or from another client since the last sync.
+ */
+suspend fun addSongs(playlistId: String, songs: List<DomainSong>): Boolean {
+	val id = syncManager.playlistId(playlistId)
+	val toAdd = songsToAppend(id, songs)
+	if (toAdd.isEmpty()) return false
+	val current = playlistDao.getPlaylistSongIds(id)
+	setSongs(id, current + toAdd.map { it.id }, toAdd)
+	enqueue(SyncActionType.ADD_TO_PLAYLIST, id, PlaylistEdit(toAdd.map { it.id }))
+	return true
+}
+
+private suspend fun songsToAppend(id: String, songs: List<DomainSong>): List<DomainSong> {
+	val current = playlistDao.getPlaylistSongIds(id)
+	val toAdd = songs.filterNot { it.id in current }.distinctBy { it.id }
+	if (toAdd.isNotEmpty()) return toAdd
+	// local cache says all songs are already in the playlist, but it may be stale:
+	// a song removed on the server (or from another client) would still be in the
+	// local cross-ref table until the next sync refreshes it. Re-check from the server.
+	if (id !in syncDao.pendingPlaylistIds()) {
+		runCatching { dbRepository.syncPlaylistSongs(id) }
+		val refreshed = playlistDao.getPlaylistSongIds(id)
+		return songs.filterNot { it.id in refreshed }.distinctBy { it.id }
 	}
+	return emptyList()
+}
 
 	/**
 	 * Removes the song at [index]. The removal is held for an Undo: returns the action id for

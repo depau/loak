@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 interface PlatformContext {
 	val name: String
 	val appVersion: String
+	/** "debug", "release", "nightly", etc. — identifies the build for troubleshooting. */
+	val buildVariant: String
 	val sizeClass: WindowSizeClass
 	val platformType: PlatformType
 

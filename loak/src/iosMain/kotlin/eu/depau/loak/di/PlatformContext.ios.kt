@@ -21,6 +21,10 @@ actual fun rememberPlatformContext(): PlatformContext {
 				(NSBundle.mainBundle.objectForInfoDictionaryKey(
 					"CFBundleShortVersionString"
 				) as? String).toString()
+			override val buildVariant = if (NSBundle.mainBundle.bundlePath.contains(".app")) {
+				// ponytail: no debug-detection without extra config; "release" is the default
+				"release"
+			} else "debug"
 			override val sizeClass = sizeClass
 
 			@Composable
