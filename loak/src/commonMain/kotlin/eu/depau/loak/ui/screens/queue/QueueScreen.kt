@@ -147,7 +147,9 @@ fun QueueScreen() {
 		haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
 	}
 
-	LaunchedEffect(playerState.currentIndex) {
+	// follow the playing song, not its index: reordering around it shifts the index, and
+	// scrolling then would pull the dragged row off-screen mid-drag
+	LaunchedEffect(playerState.currentSong?.id) {
 		runCatching {
 			if (queue.isNotEmpty()) {
 				draggableState.listState.scrollToItem(
