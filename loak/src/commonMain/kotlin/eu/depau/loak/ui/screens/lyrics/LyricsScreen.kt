@@ -2,39 +2,20 @@ package eu.depau.loak.ui.screens.lyrics
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
-import org.jetbrains.compose.resources.stringResource
-import eu.depau.loak.icons.outlined.Check
-import eu.depau.loak.icons.outlined.Close
-import eu.depau.loak.icons.outlined.Lyrics
-import eu.depau.loak.icons.outlined.Share
-import eu.depau.loak.icons.outlined.SyncAlt
-import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.outlined.Fullscreen
-import eu.depau.loak.generated.resources.action_karaoke
-import eu.depau.loak.generated.resources.action_cancel
-import eu.depau.loak.generated.resources.action_share_lyrics
-import eu.depau.loak.generated.resources.action_sync_lyrics
-import eu.depau.loak.generated.resources.action_change_lyrics_provider
-import eu.depau.loak.generated.resources.Res
 import androidx.compose.ui.Alignment
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -61,6 +42,7 @@ import eu.depau.loak.ui.components.layouts.SheetScaffold
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
 import eu.depau.loak.ui.navigation.Screen
+import eu.depau.loak.ui.screens.lyrics.components.LyricsActions
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenContent
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenLoadingView
 import eu.depau.loak.ui.screens.lyrics.components.LyricsScreenPlaceholder
@@ -210,63 +192,22 @@ fun LyricsScreen(
 			enter = fadeIn(),
 			exit = fadeOut()
 		) {
-			Row {
-				if (!isSelecting && providerResults.isNotEmpty()) {
-					Box {
-						IconButton(onClick = { providerMenuOpen = true }) {
-							Icon(
-								Icons.Outlined.Lyrics,
-								stringResource(Res.string.action_change_lyrics_provider)
-							)
-						}
-						DropdownMenu(
-							expanded = providerMenuOpen,
-							onDismissRequest = { providerMenuOpen = false }
-						) {
-							providerResults.forEachIndexed { index, result ->
-								DropdownMenuItem(
-									text = { Text(result.providerName) },
-									leadingIcon = {
-										if (index == selectedProviderIndex) {
-											Icon(
-												Icons.Outlined.Check,
-												contentDescription = null
-											)
-										}
-									},
-									onClick = {
-										providerMenuOpen = false
-										viewModel.selectProvider(index)
-									}
-								)
-							}
-						}
-					}
-				}
-				if (!isSelecting && canSync) IconButton(
-					onClick = {
-						syncToolOpen = true
-						viewModel.beginSyncAdjustment()
-					}
-				) {
-					Icon(Icons.Outlined.SyncAlt, stringResource(Res.string.action_sync_lyrics))
-				}
-				if (isSelecting) IconButton(onClick = toggleIsSelecting) {
-					Icon(Icons.Outlined.Close, stringResource(Res.string.action_cancel))
-				}
-				IconButton(
-					onClick = { if (isSelecting) shareSheetOpen = true else toggleIsSelecting() },
-					enabled = !isSelecting || selectedIndices.isNotEmpty()
-				) {
-					Icon(
-						if (isSelecting) Icons.Outlined.Check else Icons.Outlined.Share,
-						stringResource(Res.string.action_share_lyrics)
-					)
-				}
-				if (onFullScreen != null && !isSelecting) IconButton(onClick = onFullScreen) {
-					Icon(Icons.Outlined.Fullscreen, stringResource(Res.string.action_karaoke))
-				}
-			}
+			LyricsActions(
+				providerResults = providerResults,
+				selectedProviderIndex = selectedProviderIndex,
+				isSelecting = isSelecting,
+				selectedIndicesSize = selectedIndices.size,
+				providerMenuOpen = providerMenuOpen,
+				onProviderMenuOpenChange = { providerMenuOpen = it },
+				onSelectProvider = { viewModel.selectProvider(it) },
+				onSync = {
+					syncToolOpen = true
+					viewModel.beginSyncAdjustment()
+				},
+				onToggleSelecting = toggleIsSelecting,
+				onShare = { if (isSelecting) shareSheetOpen = true else toggleIsSelecting() },
+				onFullScreen = onFullScreen
+			)
 		}
 
 		// sync/offset tool: hidden by default, an inline bar bottom-center when triggered so the
