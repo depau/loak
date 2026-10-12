@@ -62,7 +62,8 @@ class SyncManager(
 	private val playlistDao: PlaylistDao,
 	private val snackBarManager: SnackBarManager,
 	private val downloadManager: DownloadManager,
-	private val libraryMatcher: LibraryMatcher
+	private val libraryMatcher: LibraryMatcher,
+	private val audioMuse: AudioMuseManager
 ) {
 	private val scope = CoroutineScope(SupervisorJob() + IoDispatcher)
 	private var syncJob: Job? = null
@@ -255,7 +256,12 @@ class SyncManager(
 				when (action.actionType) {
 					SyncActionType.STAR -> sessionManager.api.star(action.itemId)
 					SyncActionType.UNSTAR -> sessionManager.api.unstar(action.itemId)
-					SyncActionType.DELETE_PLAYLIST -> sessionManager.api.deletePlaylist(action.itemId)
+					SyncActionType.DELETE_PLAYLIST -> {
+						// its AudioMuse-AI radio first, or that makes the playlist again; while
+						// AudioMuse-AI is unreachable the delete waits without holding up the rest
+						if (action.payload != null && !audioMuse.deleteRadio(action.payload.toInt())) continue
+						sessionManager.api.deletePlaylist(action.itemId)
+					}
 					SyncActionType.REMOVE_FROM_PLAYLIST if action.payload == null -> {
 						// queued by an older version: by index
 						val (playlistId, index) = action.itemId.split(':').let { it[0] to it[1].toInt() }

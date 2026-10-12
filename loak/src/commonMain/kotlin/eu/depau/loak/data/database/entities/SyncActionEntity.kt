@@ -8,7 +8,10 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 enum class SyncActionType {
-	STAR, UNSTAR, DELETE_PLAYLIST, SCROBBLE,
+	STAR, UNSTAR, SCROBBLE,
+
+	/** itemId is the playlist id; payload, if any, the AudioMuse-AI radio that refills it. */
+	DELETE_PLAYLIST,
 
 	/**
 	 * With a [PlaylistEdit] payload: itemId is the playlist id. Without one (queued by older
@@ -30,7 +33,7 @@ data class SyncActionEntity(
 	val itemId: String,
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	val time: Instant = Clock.System.now(),
-	/** JSON [PlaylistEdit] for playlist edits. */
+	/** JSON [PlaylistEdit] for playlist edits, a radio id for [SyncActionType.DELETE_PLAYLIST]. */
 	val payload: String? = null
 )
 

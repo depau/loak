@@ -75,6 +75,7 @@ import eu.depau.loak.icons.outlined.DragHandle
 import eu.depau.loak.icons.outlined.Edit
 import eu.depau.loak.icons.outlined.Delete
 import eu.depau.loak.generated.resources.action_delete_playlist
+import eu.depau.loak.generated.resources.action_delete_radio
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.InstantMix
 import eu.depau.loak.icons.outlined.PlaylistAdd
@@ -302,7 +303,10 @@ fun CollectionSheet(
 					{ copying = true }
 				) else null,
 				if (editablePlaylist != null && onDelete != null) SheetRow(
-					stringResource(Res.string.action_delete_playlist),
+					stringResource(
+						if (playlistName?.kind == PlaylistKind.AudioMuseRadio) Res.string.action_delete_radio
+						else Res.string.action_delete_playlist
+					),
 					Icons.Outlined.Delete,
 					{
 						onDismissRequest()

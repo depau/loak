@@ -176,6 +176,18 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 		return list
 	}
 
+	/** Stops radio [id] refilling its playlist. False when the server can't do it now: retry later. */
+	suspend fun deleteRadio(id: Int): Boolean {
+		// disconnected since: nothing left to stop from here
+		if (!isConfigured) return true
+		val status = runCatching { request("api/radios/$id", delete = true) {}.status }
+			.onFailure { Logger.w(TAG, "Couldn't delete radio $id", it) }.getOrNull()
+		// 404: already gone
+		if (status == null || !status.isSuccess() && status != HttpStatusCode.NotFound) return false
+		refreshRadios()
+		return true
+	}
+
 	/** Connects in the background at startup, if set up. */
 	suspend fun start() {
 		runCatching { refresh() }.onFailure { Logger.w(TAG, "AudioMuse-AI unreachable", it) }

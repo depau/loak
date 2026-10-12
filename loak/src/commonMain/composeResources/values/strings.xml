@@ -268,6 +268,7 @@
 	<string name="action_repeat">Repeat</string>
 	<string name="action_delete">Delete</string>
 	<string name="action_delete_playlist">Delete playlist</string>
+	<string name="action_delete_radio">Delete radio</string>
 	<string name="action_cancel">Cancel</string>
 	<string name="action_refresh">Refresh</string>
 	<string name="action_share">Share</string>
@@ -392,6 +393,7 @@
 	<string name="subtitle_rebuild_database">Wipes the local copy of your library and syncs it again</string>
 
 	<string name="notice_deleted_playlist">Playlist %1$s deleted.</string>
+	<string name="notice_deleted_radio">Radio %1$s deleted.</string>
 	<string name="notice_deleted_share">Share deleted.</string>
 	<string name="notice_created_playlist">Playlist %1$s created.</string>
 	<string name="notice_deleted_download">Download deleted.</string>

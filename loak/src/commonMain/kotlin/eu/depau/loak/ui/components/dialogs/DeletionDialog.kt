@@ -25,6 +25,8 @@ import eu.depau.loak.generated.resources.action_delete
 import eu.depau.loak.generated.resources.info_action_is_permanent
 import eu.depau.loak.generated.resources.info_error
 import eu.depau.loak.generated.resources.notice_deleted_playlist
+import eu.depau.loak.generated.resources.notice_deleted_radio
+import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.models.snackbarName
 import eu.depau.loak.generated.resources.notice_deleted_share
 import eu.depau.loak.generated.resources.title_delete_playlist
@@ -54,7 +56,8 @@ class DeletionViewModel(
 	private val syncManager: SyncManager,
 	private val playlistDao: PlaylistDao,
 	private val sessionManager: SessionManager,
-	private val snackBarManager: SnackBarManager
+	private val snackBarManager: SnackBarManager,
+	private val audioMuse: AudioMuseManager
 ) : ViewModel() {
 	val state: StateFlow<UiState<Nothing?>>
 		field = MutableStateFlow<UiState<Nothing?>>(UiState.Success(null))
@@ -87,16 +90,20 @@ class DeletionViewModel(
 		}
 	}
 
-	/** Hides the playlist at once; the server delete waits until the Undo snackbar is gone. */
+	/**
+	 * Hides the playlist at once; the server delete waits until the Undo snackbar is gone.
+	 * An AudioMuse-AI radio goes with it, or it would make the playlist again on its next run.
+	 */
 	fun deletePlaylist(id: String, onRefresh: () -> Unit) {
 		viewModelScope.launch {
-			// queued now, so the delete still happens if the app dies during the Undo window
-			val actionId = syncManager.enqueueHeld(SyncActionType.DELETE_PLAYLIST, id)
 			val deleted = playlistDao.getPlaylistById(id)
+			val radio = audioMuse.radios.value.find { it.name == deleted?.playlist?.name }
+			// queued now, so the delete still happens if the app dies during the Undo window
+			val actionId = syncManager.enqueueHeld(SyncActionType.DELETE_PLAYLIST, id, payload = radio?.id?.toString())
 			playlistDao.deletePlaylist(id)
 			onRefresh()
 			snackBarManager.notifyWithDeferredCommit(
-				Res.string.notice_deleted_playlist,
+				if (radio != null) Res.string.notice_deleted_radio else Res.string.notice_deleted_playlist,
 				snackbarName(deleted?.playlist?.name),
 				onUndo = {
 					syncManager.cancel(actionId)
