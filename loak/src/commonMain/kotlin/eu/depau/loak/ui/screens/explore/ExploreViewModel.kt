@@ -11,10 +11,12 @@ import eu.depau.loak.domain.models.DomainGenre
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.repositories.AlchemyIngredient
 import eu.depau.loak.domain.repositories.AudioMuseRepository
+import eu.depau.loak.domain.repositories.HomeLibrary
 import eu.depau.loak.domain.repositories.HomeRepository
 import eu.depau.loak.domain.repositories.SoundMapPoint
 import eu.depau.loak.util.IoDispatcher
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -37,10 +39,14 @@ data class ExploreUiState(
 
 /** Explore's shelves: the library's own, then AudioMuse-AI's when it's connected. */
 class ExploreViewModel(
-	private val home: HomeRepository,
+	private val home: HomeRepository? = null,
 	private val genreDao: GenreDao,
-	private val audioMuseRepository: AudioMuseRepository,
-	private val audioMuse: AudioMuseManager
+	private val audioMuseRepository: AudioMuseRepository? = null,
+	private val audioMuse: AudioMuseManager? = null,
+	/** Test seam: which dispatcher the DAO read runs on; prod uses the platform IO pool. */
+	private val ioDispatcher: CoroutineDispatcher = IoDispatcher,
+	/** Test seam: replaces the DAO-backed library read; prod keeps `home.library()`. */
+	private val libraryLoader: (suspend () -> HomeLibrary)? = null
 ) : ViewModel() {
 	val state: StateFlow<ExploreUiState>
 		field = MutableStateFlow(ExploreUiState())
@@ -50,29 +56,31 @@ class ExploreViewModel(
 	fun refresh() = viewModelScope.launch {
 		state.update { it.copy(loadingLibrary = true) }
 		try {
-			val library = home.library()
-			val all = withContext(IoDispatcher) { genreDao.getGenresWithAlbums().map { it.toDomainModel() } }
+			val library = libraryLoader?.invoke() ?: checkNotNull(home).library()
+			val all = withContext(ioDispatcher) { genreDao.getGenresWithAlbums().map { it.toDomainModel() } }
 			val byName = all.associateBy { it.name }
 			// the genres played most, topped up with the biggest ones
-			val genres = (home.topGenres(library, 5).mapNotNull { byName[it] } + all.sortedByDescending { it.albumCount })
-				.distinctBy { it.name }.take(5)
+			val genres = home?.let {
+				(it.topGenres(library, 5).mapNotNull { byName[it] } + all.sortedByDescending { it.albumCount })
+					.distinctBy { it.name }.take(5)
+			}.orEmpty()
 			state.update {
 				it.copy(
 					genres = genres,
 					genreCount = all.size,
-					forgotten = home.forgottenFavourites(library, null),
-					neverPlayed = home.neverPlayed(library),
-					deepCuts = home.deepCuts(library)
+					forgotten = home?.forgottenFavourites(library, null).orEmpty(),
+					neverPlayed = home?.neverPlayed(library).orEmpty(),
+					deepCuts = home?.deepCuts(library).orEmpty()
 				)
 			}
 		} finally {
 			state.update { it.copy(loadingLibrary = false) }
 		}
-		if (audioMuse.info.value == null) return@launch
+		if (audioMuse?.info?.value == null) return@launch
 		state.update { it.copy(loadingMoods = true, loadingSoundMap = true) }
 		launch {
 			try {
-				state.update { it.copy(moods = audioMuseRepository.moods()) }
+				state.update { it.copy(moods = checkNotNull(audioMuseRepository).moods()) }
 			} catch (e: CancellationException) {
 				throw e
 			} catch (_: Exception) {
@@ -83,7 +91,7 @@ class ExploreViewModel(
 		}
 		launch {
 			try {
-				state.update { it.copy(soundMap = audioMuseRepository.soundMap()) }
+				state.update { it.copy(soundMap = checkNotNull(audioMuseRepository).soundMap()) }
 			} catch (e: CancellationException) {
 				throw e
 			} catch (_: Exception) {
