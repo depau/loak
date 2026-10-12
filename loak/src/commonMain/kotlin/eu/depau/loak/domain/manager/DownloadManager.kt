@@ -617,17 +617,18 @@ class DownloadManager(
 		if (!store.available || sessionManager.serverKey.value.isEmpty()) return
 		val own = pinned.value.filter { it.server == sessionManager.serverKey.value }
 		if (own.isEmpty()) return
-		val wanted = mutableSetOf<String>()
-		wanted += manualDao.getAllIds().toSet()
-		if (libraryPinned.value) wanted += own.map { it.songId }
-		val subscribed = collectionDao.getAll()
-		for (rec in subscribed) {
+		val memberships = mutableListOf<Set<String>>()
+		for (rec in collectionDao.getAll()) {
 			if (rec.collectionId == exceptCollection) continue
-			val members = collectionMembers(rec)
-			wanted += members
+			memberships += collectionMembers(rec)
 		}
-		wanted += keep
-		val orphans = own.map { it.songId }.toSet() - wanted
+		val orphans = pinnedIdsNeedingUnpin(
+			pinnedServerIds = own.map { it.songId }.toSet(),
+			manualIds = manualDao.getAllIds().toSet(),
+			libraryPinned = libraryPinned.value,
+			collectionMembership = memberships,
+			keep = keep
+		)
 		if (orphans.isNotEmpty()) {
 			Logger.i(TAG, "unpinning ${orphans.size} orphan downloads")
 			store.unpin(orphans)
@@ -677,6 +678,28 @@ class DownloadManager(
 		const val MAX_ATTEMPTS = 5
 		val RETRY_DELAY = 30.seconds
 	}
+}
+
+/**
+ * Pure orphan-unpin decision (extracted from [DownloadManager.reconcileOrphans] so it's
+ * unit-testable without DAOs/flows): which of [pinnedServerIds] should lose their pin.
+ * A song stays pinned while it is in [manualIds], while the whole library is pinned
+ * ([libraryPinned]), in any of the other downloaded collections' [collectionMembership],
+ * or in [keep]. internal for commonTest visibility.
+ */
+internal fun pinnedIdsNeedingUnpin(
+	pinnedServerIds: Set<String>,
+	manualIds: Set<String>,
+	libraryPinned: Boolean,
+	collectionMembership: List<Set<String>>,
+	keep: Set<String>
+): Set<String> {
+	val wanted = hashSetOf<String>()
+	wanted += manualIds
+	if (libraryPinned) wanted += pinnedServerIds
+	for (members in collectionMembership) wanted += members
+	wanted += keep
+	return pinnedServerIds - wanted
 }
 
 /** Which [DownloadCollectionType] an album/artist/playlist collection is stored as. */
