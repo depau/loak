@@ -16,9 +16,9 @@ import eu.depau.loak.domain.repositories.DbRepository
 import eu.depau.loak.ui.core.LoginUiState
 
 class LoginManager(
-	private val repository: DbRepository,
+	private val repository: DbRepository? = null,
 	private val sessionManager: SessionManager,
-	private val syncManager: SyncManager
+	private val syncManager: SyncManager? = null
 ) {
 	val scope = CoroutineScope(IoDispatcher + SupervisorJob())
 
@@ -84,7 +84,7 @@ class LoginManager(
 
 				loginState.value = LoginUiState.Success
 				// in the background, with a header on Home; joins the periodic loop's first pull
-				syncManager.triggerManualSync()
+				syncManager?.triggerManualSync()
 			} catch (e: Exception) {
 				loginState.value = LoginUiState.Error(e)
 			}
@@ -103,8 +103,8 @@ class LoginManager(
 		val switched = url != sessionManager.instanceUrl || username != sessionManager.username
 		sessionManager.login(url, username, password)
 		if (switched) scope.launch {
-			repository.removeEverything()
-			syncManager.pullLibrary()
+			repository?.removeEverything()
+			syncManager?.pullLibrary()
 		}
 	}
 
@@ -112,7 +112,7 @@ class LoginManager(
 		loginState.value = LoginUiState.Idle
 		sessionManager.logout()
 		scope.launch {
-			repository.removeEverything()
+			repository?.removeEverything()
 		}
 	}
 }

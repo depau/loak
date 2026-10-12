@@ -65,10 +65,15 @@ kotlin {
 		val desktopTest by getting {
 			dependencies {
 				implementation(kotlin("test"))
+				implementation(libs.cmp.ui.test)
+				implementation(libs.cmp.ui.test.junit4)
+				implementation(libs.cmp.material3.windowSize)
 				implementation(libs.ktor.client.mock)
 				implementation(libs.kotlinx.coroutines.test)
 				implementation(libs.subsonicKotlin)
 				implementation(libs.kotlinx.serialization.json)
+				implementation(libs.androidx.navigation3.ui)
+				implementation(libs.multiplatformSettings)
 			}
 		}
 	}
