@@ -59,8 +59,7 @@ jobs:
           SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: loak
-          SENTRY_PROJECT: kotlin
-          SENTRY_URL: https://de.sentry.io/
+          SENTRY_PROJECT: loak
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
           ./gradlew :loakApp:packageRelease --stacktrace
@@ -78,8 +77,7 @@ jobs:
           SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: loak
-          SENTRY_PROJECT: kotlin
-          SENTRY_URL: https://de.sentry.io/
+          SENTRY_PROJECT: loak
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
           version_code=$(( $(git show -s --format=%ct HEAD) / 60 ))
