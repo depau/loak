@@ -98,8 +98,11 @@ fun QueueScreenItem(
 	val haptic = LocalHapticFeedback.current
 	var sheetOpen by rememberSaveable { mutableStateOf(false) }
 	val onLongClick = {
-		haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-		sheetOpen = true
+		// holding the drag handle still is no long-press on the row
+		if (!draggableState.isHandlePressed) {
+			haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+			sheetOpen = true
+		}
 	}
 	SongActionsSheet(
 		song = song,

@@ -24,6 +24,8 @@ package eu.depau.loak.ui.util
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
@@ -50,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LocalPinnableContainer
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.CoroutineScope
@@ -118,6 +121,13 @@ class DraggableListState internal constructor(
 ) {
 	var draggingItemIndex by mutableStateOf<Int?>(null)
 		private set
+
+	/**
+	 * Whether a [dragHandle] is held, dragging or not: a row that's also long-clickable
+	 * should ignore long-presses on its handle.
+	 */
+	var isHandlePressed by mutableStateOf(false)
+		internal set
 
 	/** Found by key: until the list lays out a move, [draggingItemIndex] is another item's. */
 	private var draggingItemKey: Any? = null
@@ -262,31 +272,7 @@ fun Modifier.dragHandle(
 	state: DraggableListState,
 	index: Int,
 	onlyAfterLongPress: Boolean = false
-): Modifier {
-	return pointerInput(state) {
-		if (onlyAfterLongPress) {
-			detectDragGesturesAfterLongPress(
-				onDrag = { change, offset ->
-					change.consume()
-					state.onDrag(offset = offset)
-				},
-				onDragStart = { state.onDragStart(index = index) },
-				onDragEnd = { state.onDragInterrupted() },
-				onDragCancel = { state.onDragInterrupted() }
-			)
-		} else {
-			detectDragGestures(
-				onDrag = { change, offset ->
-					change.consume()
-					state.onDrag(offset = offset)
-				},
-				onDragStart = { state.onDragStart(index = index) },
-				onDragEnd = { state.onDragInterrupted() },
-				onDragCancel = { state.onDragInterrupted() }
-			)
-		}
-	}
-}
+): Modifier = dragHandle(state, onlyAfterLongPress) { state.onDragStart(index = index) }
 
 /**
  * Defines the area that will act as the handle for dragging operations.
@@ -302,31 +288,45 @@ fun Modifier.dragHandle(
 	state: DraggableListState,
 	key: Any,
 	onlyAfterLongPress: Boolean = false
-): Modifier {
-	return pointerInput(state) {
+): Modifier = dragHandle(state, onlyAfterLongPress) { state.onDragStart(key = key) }
+
+private fun Modifier.dragHandle(
+	state: DraggableListState,
+	onlyAfterLongPress: Boolean,
+	onDragStart: () -> Unit
+): Modifier = this
+	.pointerInput(state) {
+		awaitEachGesture {
+			awaitFirstDown(requireUnconsumed = false)
+			state.isHandlePressed = true
+			try {
+				while (currentEvent.changes.any { it.pressed }) awaitPointerEvent()
+			} finally {
+				state.isHandlePressed = false
+			}
+		}
+	}
+	.pointerInput(state) {
+		val onDrag = { change: PointerInputChange, offset: Offset ->
+			change.consume()
+			state.onDrag(offset = offset)
+		}
 		if (onlyAfterLongPress) {
 			detectDragGesturesAfterLongPress(
-				onDrag = { change, offset ->
-					change.consume()
-					state.onDrag(offset = offset)
-				},
-				onDragStart = { state.onDragStart(key = key) },
-				onDragEnd = { state.onDragInterrupted() },
-				onDragCancel = { state.onDragInterrupted() }
+				onDrag = onDrag,
+				onDragStart = { onDragStart() },
+				onDragEnd = state::onDragInterrupted,
+				onDragCancel = state::onDragInterrupted
 			)
 		} else {
 			detectDragGestures(
-				onDrag = { change, offset ->
-					change.consume()
-					state.onDrag(offset = offset)
-				},
-				onDragStart = { state.onDragStart(key = key) },
-				onDragEnd = { state.onDragInterrupted() },
-				onDragCancel = { state.onDragInterrupted() }
+				onDrag = onDrag,
+				onDragStart = { onDragStart() },
+				onDragEnd = state::onDragInterrupted,
+				onDragCancel = state::onDragInterrupted
 			)
 		}
 	}
-}
 
 /**
  * Adds a list of draggable items.
