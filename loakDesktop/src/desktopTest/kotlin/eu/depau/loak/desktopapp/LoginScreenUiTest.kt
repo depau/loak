@@ -117,6 +117,7 @@ class LoginScreenUiTest {
 				object : PlatformContext {
 					override val name = "desktop-test"
 					override val appVersion = "test"
+					override val buildVariant = "test"
 					override val sizeClass = WindowSizeClass.calculateFromSize(DpSize(900.dp, 700.dp))
 					override val platformType = PlatformType.Desktop
 					@Composable
