@@ -46,9 +46,12 @@ import dev.nucleusframework.rodio.PlaybackEvent
 import dev.nucleusframework.rodio.RodioPlayer
 import org.koin.core.component.inject
 
+/** Original-file extensions nucleus' rodio build decodes (Symphonia flac/mp3/aac/vorbis/ogg/wav). */
+private val RODIO_FORMATS = setOf("flac", "mp3", "aac", "ogg", "oga", "wav")
+
 /**
  * Desktop (JVM) implementation of [MediaPlayerViewModel], using Nucleus' rodio backend
- * (Rust rodio → Symphonia decoders: FLAC, AAC, Opus, Vorbis, MP3, WAV).
+ * (Rust rodio → Symphonia decoders: FLAC, AAC, Vorbis, MP3, WAV).
  *
  * rodio's HTTP path (playUrl) can't seek, and a FLAC file that isn't complete won't decode from
  * mid-stream, so lossless playback goes through the [AudioStore]: the Raw file is fetched to disk
@@ -232,9 +235,11 @@ class DesktopMediaPlayerViewModel(
 		) + "&estimateContentLength=true"
 
 	/** Whether [song] should be played losslessly (Raw): the user chose lossless (bitrate 0, no
-	 *  container) or an advanced "raw"/"flac" container. Radio is never lossless. */
+	 *  container) or an advanced "raw"/"flac" container. Radio is never lossless, nor is an
+	 *  original rodio can't decode (APE, WavPack, Opus, ALAC…): that one plays transcoded. */
 	private fun wantsLossless(song: DomainSong): Boolean {
 		if (song.id.startsWith("radio_")) return false
+		if (song.fileExtension?.lowercase() !in RODIO_FORMATS) return false
 		val q = qualityRequested()
 		return q.format == null || q.format.equals("flac", true)
 	}
@@ -251,8 +256,10 @@ class DesktopMediaPlayerViewModel(
 
 	override fun requestedQuality(): AudioQuality = qualityRequested()
 
+	// a stored original rodio can't decode (a download kept as is) streams transcoded instead
 	private suspend fun storedPath(song: DomainSong): String? =
 		audioStore.bestComplete(song.id)?.let { audioStore.pathOf(it) }
+			?.takeIf { it.substringAfterLast('.').lowercase() in RODIO_FORMATS }
 
 	private fun setDecoderInfo(song: DomainSong, source: PlaybackSource, filePath: String?) {
 		_uiState.update { state ->
