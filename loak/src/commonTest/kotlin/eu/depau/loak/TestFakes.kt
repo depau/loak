@@ -1,0 +1,72 @@
+package eu.depau.loak
+
+import com.russhwolf.settings.Settings
+import eu.depau.loak.data.database.dao.NetworkStatsDao
+import eu.depau.loak.data.database.entities.NetworkStatsEntity
+import eu.depau.loak.data.database.entities.SyncRunEntity
+import eu.depau.loak.data.database.entities.TransferCategory
+import eu.depau.loak.domain.manager.ConnectivityManager
+import eu.depau.loak.domain.manager.NetworkStatsManager
+import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.SessionManager
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlin.time.Instant
+
+/**
+ * Shared test helpers for CF flow gates. Reused by every
+ * commonTest unit test; the desktop UI tests keep their own copy
+ * (different source set — no shared test classpath).
+ *
+ * The wire shapes are empirically verified against the real subsonic
+ * client in `SessionManagerLoginTest` / the CF-01 spread — do not
+ * "fix" them or response parsing breaks.
+ */
+object TestFakes {
+
+	/** The exact `getUser` response body the client parses. */
+	val getUserJson: String = """
+		{"subsonic-response":{"status":"ok","version":"1.16.1","user":{
+			"username":"demo","email":"demo@demo.navidrome.org","scrobblingEnabled":true,
+			"folder":[],"roles":["STREAM","PLAYLIST","SHARE"]
+		}}}
+	""".trimIndent()
+
+	fun pingJson(): String =
+		"""{"subsonic-response":{"status":"ok","version":"1.16.1"}}"""
+
+	/** A fake Subsonic server: `ping` and `getUser` succeed. */
+	fun fakeServer(): MockEngine = MockEngine { request ->
+		val body = when {
+			request.url.encodedPath.endsWith("/getUser.view") -> getUserJson
+			else -> pingJson()
+		}
+		respond(
+			content = body,
+			status = HttpStatusCode.OK,
+			headers = headersOf(HttpHeaders.ContentType, "application/json")
+		)
+	}
+
+	/** No-op [NetworkStatsDao] so managers needing it don't require a Room DB. */
+	fun fakeNetworkStatsDao(): NetworkStatsDao = object : NetworkStatsDao {
+		override suspend fun add(hour: Long, metered: Boolean, category: TransferCategory, bytes: Long, requests: Long) {}
+		override suspend fun getSince(since: Long) = emptyList<NetworkStatsEntity>()
+		override suspend fun pruneTransfers(before: Long) {}
+		override suspend fun insertSyncRun(run: SyncRunEntity) {}
+		override suspend fun getSyncRuns(limit: Int) = emptyList<SyncRunEntity>()
+		override suspend fun pruneSyncRuns(before: Instant) {}
+	}
+
+	/** A SessionManager on the fake server with in-memory settings. */
+	fun sessionManager(engine: MockEngine = fakeServer()): SessionManager {
+		val settings = Settings()
+		val prefs = PreferenceManager(settings)
+		val conn = ConnectivityManager(prefs)
+		val stats = NetworkStatsManager(fakeNetworkStatsDao(), conn)
+		return SessionManager(settings, prefs, stats, engine)
+	}
+}
