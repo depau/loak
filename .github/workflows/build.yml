@@ -57,11 +57,16 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: loak
+          SENTRY_PROJECT: kotlin
+          SENTRY_URL: https://de.sentry.io/
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
           ./gradlew :loakApp:packageRelease --stacktrace
           mv loakApp/build/outputs/apk/**/*.apk ./
           rm release.keystore
+          .github/scripts/upload-sentry-mapping.sh "Lo'ak.apk"
 
       - name: Build with Gradle (nightly)
         id: build_nightly
@@ -71,6 +76,10 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: loak
+          SENTRY_PROJECT: kotlin
+          SENTRY_URL: https://de.sentry.io/
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
           version_code=$(( $(git show -s --format=%ct HEAD) / 60 ))
@@ -80,6 +89,7 @@ jobs:
           mkdir -p nightly
           mv loakApp/build/outputs/apk/**/*.apk "nightly/Lo'ak.nightly.apk"
           rm release.keystore
+          .github/scripts/upload-sentry-mapping.sh "nightly/Lo'ak.nightly.apk"
 
       - name: Build with Gradle (debug)
         id: build_debug

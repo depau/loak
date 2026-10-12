@@ -1,6 +1,7 @@
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import com.android.build.api.variant.impl.VariantOutputImpl
+import java.util.UUID
 
 plugins {
 	alias(libs.plugins.android.application)
@@ -123,6 +124,32 @@ extensions.configure<ApplicationAndroidComponentsExtension> {
 			add("/DebugProbesKt.bin")
 			add("/**/*.kotlin_builtins")
 		}
+		val meta = tasks.register<SentryDebugMeta>("generate${it.name.replaceFirstChar(Char::uppercase)}SentryDebugMeta") {
+			uuid.set(it.applicationId.zip(providers.environmentVariable("GITHUB_SHA").orElse("local")) { id, sha ->
+				UUID.nameUUIDFromBytes("$sha:$id".toByteArray()).toString()
+			})
+		}
+		it.sources.assets?.addGeneratedSourceDirectory(meta, SentryDebugMeta::outputDir)
+	}
+}
+
+/**
+ * Lets Sentry deobfuscate release stack traces. Names survive (-dontobfuscate), but R8 still
+ * inlines, merges classes and renumbers lines, so traces need this build's mapping.txt. The SDK
+ * sends the UUID from this asset with every event; CI uploads mapping.txt under the same UUID
+ * (see .github/workflows/build.yml). Derived from commit + app id: one per CI build kind.
+ */
+abstract class SentryDebugMeta : DefaultTask() {
+	@get:Input
+	abstract val uuid: Property<String>
+
+	@get:OutputDirectory
+	abstract val outputDir: DirectoryProperty
+
+	@TaskAction
+	fun write() {
+		outputDir.get().file("sentry-debug-meta.properties").asFile
+			.writeText("io.sentry.ProguardUuids=${uuid.get()}\n")
 	}
 }
 
