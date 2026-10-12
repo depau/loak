@@ -190,9 +190,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Run unit tests (commonTest on desktop JVM)
+      - name: Run unit + Compose UI tests (JVM)
         run: |
-          ./gradlew :loak:desktopTest --stacktrace
+          ./gradlew :loak:desktopTest :loakDesktop:desktopTest --stacktrace
 
   build-desktop:
     name: Desktop ${{ matrix.os }}
