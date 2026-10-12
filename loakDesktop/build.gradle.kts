@@ -63,7 +63,13 @@ kotlin {
 			}
 		}
 		val desktopTest by getting {
-			dependencies { implementation(kotlin("test")) }
+			dependencies {
+				implementation(kotlin("test"))
+				implementation(libs.ktor.client.mock)
+				implementation(libs.kotlinx.coroutines.test)
+				implementation(libs.subsonicKotlin)
+				implementation(libs.kotlinx.serialization.json)
+			}
 		}
 	}
 }
