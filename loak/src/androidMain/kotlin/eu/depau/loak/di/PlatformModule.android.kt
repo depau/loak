@@ -62,6 +62,7 @@ actual val platformModule = module {
 			queueSyncManager = get(),
 			snackBarManager = get(),
 			audioGainManager = get(),
+			audioFetcher = get(),
 		)
 	}
 
