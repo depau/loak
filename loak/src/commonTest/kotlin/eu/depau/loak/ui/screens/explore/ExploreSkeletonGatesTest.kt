@@ -84,4 +84,23 @@ class ExploreSkeletonGatesTest {
 			Dispatchers.resetMain()
 		}
 	}
+
+	@Test
+	fun aFailedLoadSurfacesAnErrorAndIsNotStuckLoading() = runTest {
+		Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+		try {
+			val vm = vm(
+				dao = fakeGenreDao(),
+				loader = { throw IllegalStateException("no library offline") },
+				dispatcher = StandardTestDispatcher(testScheduler)
+			)
+			testScheduler.advanceUntilIdle()
+
+			val state = vm.state.value
+			assertEquals(false, state.loadingLibrary, "a failed load must not leave skeletons stuck on")
+			assertEquals("no library offline", state.error?.message, "the failure is surfaced for the ErrorBox, not silently swallowed")
+		} finally {
+			Dispatchers.resetMain()
+		}
+	}
 }

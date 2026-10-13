@@ -15,6 +15,7 @@ import eu.depau.loak.domain.repositories.HomeLibrary
 import eu.depau.loak.domain.repositories.HomeRepository
 import eu.depau.loak.domain.repositories.SoundMapPoint
 import eu.depau.loak.util.IoDispatcher
+import eu.depau.loak.util.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +35,9 @@ data class ExploreUiState(
 	val deepCuts: List<DomainSong> = emptyList(),
 	val loadingLibrary: Boolean = true,
 	val loadingMoods: Boolean = false,
-	val loadingSoundMap: Boolean = false
+	val loadingSoundMap: Boolean = false,
+	/** What failed the last library-shelf load, if anything; shown with a retry action. */
+	val error: Exception? = null
 )
 
 /** Explore's shelves: the library's own, then AudioMuse-AI's when it's connected. */
@@ -54,7 +57,7 @@ class ExploreViewModel(
 	init { refresh() }
 
 	fun refresh() = viewModelScope.launch {
-		state.update { it.copy(loadingLibrary = true) }
+		state.update { it.copy(loadingLibrary = true, error = null) }
 		try {
 			val library = libraryLoader?.invoke() ?: checkNotNull(home).library()
 			val all = withContext(ioDispatcher) { genreDao.getGenresWithAlbums().map { it.toDomainModel() } }
@@ -73,6 +76,11 @@ class ExploreViewModel(
 					deepCuts = home?.deepCuts(library).orEmpty()
 				)
 			}
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			Logger.e("ExploreViewModel", "Failed to load the library shelves", e)
+			state.update { it.copy(error = e) }
 		} finally {
 			state.update { it.copy(loadingLibrary = false) }
 		}

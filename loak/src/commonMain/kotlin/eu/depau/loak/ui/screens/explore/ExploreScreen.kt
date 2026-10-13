@@ -64,12 +64,14 @@ import eu.depau.loak.icons.outlined.Flask
 import eu.depau.loak.icons.outlined.Search
 import eu.depau.loak.icons.outlined.SonicPath
 import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.layouts.ArtGridItem
 import eu.depau.loak.ui.components.layouts.ArtGridPlaceholder
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
+import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.genre.components.GenreListScreenCard
 import eu.depau.loak.ui.navigation.PersistentViewModelStoreOwner
@@ -158,6 +160,15 @@ fun ExploreScreen() {
 		) {
 			// a fixed first item: sections that load later are inserted below it, not above the view
 			item(key = "top", span = full) {}
+			state.error?.let { error ->
+				item(key = "error", span = full) {
+					ErrorBox(
+						error = UiState.Error<Unit>(error),
+						onRetry = { viewModel.refresh() },
+						bottomPadding = 8.dp
+					)
+				}
+			}
 			if (state.loadingLibrary || state.genres.isNotEmpty()) {
 				section(Res.string.title_genres)
 				// 3 a row on phones, 3 wider ones on tablets: long names wrap less
