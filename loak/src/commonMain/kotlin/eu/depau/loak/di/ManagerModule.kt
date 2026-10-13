@@ -4,6 +4,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import eu.depau.loak.util.IoDispatcher
 import org.koin.core.module.dsl.createdAtStart
+import org.koin.core.module.dsl.onClose
+import org.koin.core.module.dsl.onOptions
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import eu.depau.loak.domain.manager.AudioFetcher
@@ -36,9 +38,10 @@ val managerModule = module {
 		SyncManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()).apply {
 			startPeriodicSync()
 		}
-	}
+	}.onOptions { onClose { it?.close() } }
 	// eager: resumes queued downloads on startup
 	singleOf(::DownloadManager) { createdAtStart() }
+		.onOptions { onClose { it?.close() } }
 	// `singleOf` here would force `get<HttpClientEngine>()`: SessionManager's optional
 	// HTTP-engine test seam (`HttpClientEngine? = null`) isn't DI-registered, so eager
 	// resolution blew up LOAK-1Q. An explicit factory that omits the defaulted param
@@ -73,6 +76,6 @@ val managerModule = module {
 		AudioStore(
 			get<StorageManager>().audioStoreDir(), get(), get(), get<SessionManager>().serverKey
 		)
-	}
+	}.onOptions { onClose { it?.close() } }
 	singleOf(::AudioFetcher)
 }

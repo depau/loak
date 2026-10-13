@@ -42,6 +42,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -309,6 +310,16 @@ class DownloadManager(
 			manualDao.delete(songId)
 			cancel(listOf(songId)) { store.unpin(listOf(songId)) }
 		}
+	}
+
+	/**
+	 * Cancels the download workers (queue runner, per-song jobs) this manager owns.
+	 * Production keeps a single app-lifetime manager and never calls this; Koin calls it on
+	 * `koin.close()` so a test building the eager graph doesn't leak queued downloads onto
+	 * the real IO dispatcher and into the next test's coroutine-scheduler boundary.
+	 */
+	fun close() {
+		scope.cancel()
 	}
 
 	/** Forgets the collection (and its schedule); its songs become cache again. */

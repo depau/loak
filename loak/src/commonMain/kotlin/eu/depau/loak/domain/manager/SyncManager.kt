@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -121,6 +122,18 @@ class SyncManager(
 				delay(CHECK_INTERVAL)
 			}
 		}
+	}
+
+	/**
+	 * Cancels every background coroutine this manager owns (the periodic sync loop, the
+	 * connectivity observer, queued flushes, in-flight pulls). Production keeps a single
+	 * app-lifetime manager and never calls this; Koin calls it on `koin.close()` (and tests
+	 * that build the eager graph must, so a leaked periodic loop doesn't touch Compose
+	 * resources on the real IO dispatcher and poison the next test's scheduler).
+	 */
+	fun close() {
+		scope.cancel()
+		syncState.value = SyncState(isSyncing = false)
 	}
 
 	/** User-initiated: pulls even on metered networks. */
