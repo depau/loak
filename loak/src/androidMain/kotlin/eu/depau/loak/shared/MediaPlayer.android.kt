@@ -896,6 +896,7 @@ class AndroidMediaPlayerViewModel(
 	private val application: Application,
 	private val albumDao: AlbumDao,
 	private val sessionManager: SessionManager,
+	private val audioFetcher: AudioFetcher,
 	override val snackBarManager: SnackBarManager
 ) : MediaPlayerViewModel(
 	stateRepository = stateRepository,
@@ -916,13 +917,13 @@ class AndroidMediaPlayerViewModel(
 	/** The running progress poller; at most one is ever active. */
 	private var progressJob: Job? = null
 
-	/** Nudges the player when a song stalls silent in READY; see [stalled]. */
+	/** Nudges the player when a song fails to make progress; see [stalled]. */
 	private var stallJob: Job? = null
 
 	/** Looks up the songs of a queue another controller set; see [followQueue]. */
 	private var followJob: Job? = null
 
-	/** How long a song may sit READY-but-silent before the watchdog re-drives the source. */
+	/** How long a song may sit without progress before the watchdog re-drives the source. */
 	private val stallNudgeAfter = 5.seconds
 
 	init {
@@ -1272,23 +1273,33 @@ class AndroidMediaPlayerViewModel(
 	}
 
 	/**
-	 * "Playing" but silent: the store fetch feeding the decoder is trickling on a slow network
-	 * (see StoreDataSource), ExoPlayer sits READY with nothing buffered. Give it a moment to
-	 * catch up, then re-drive the source the same way pause+resume does by hand.
+	 * A song that should be playing but isn't: the store fetch feeding the decoder is trickling
+	 * on a slow network (see StoreDataSource), so ExoPlayer sits BUFFERING at 0:00 or READY and
+	 * silent — both with no position/buffer progress. Arm a recheck; after [stallNudgeAfter],
+	 * if playback still hasn't moved, kill the stale fetch on its own thread and re-drive the
+	 * source the same way pause+resume does by hand. ExoPlayer's error/retry path then opens a
+	 * fresh fetch on a new connection.
 	 */
 	private fun stalled() {
 		stallJob?.cancel()
 		val player = controller
 		if (player?.playWhenReady != true) return
-		if (player.playbackState != Player.STATE_READY || player.isPlaying) return
+		if (player.playbackState == Player.STATE_ENDED) return
+		val before = PlaybackProgress(player.currentPosition, player.bufferedPosition)
 		stallJob = viewModelScope.launch {
 			delay(stallNudgeAfter)
 			val controller = controller ?: return@launch
-			// still silent: ask the source for the next chunk again
-			if (controller.playWhenReady && controller.playbackState == Player.STATE_READY &&
-				!controller.isPlaying
+			// still silent: the fetch is stuck on its own thread (a join would never return) —
+			// cancel it so the next open starts fresh, then re-drive the loader
+			if (controller.playWhenReady && isStalled(
+					before,
+					PlaybackProgress(controller.currentPosition, controller.bufferedPosition),
+					controller.playbackState == Player.STATE_ENDED,
+				)
 			) {
-				controller.play()
+				Logger.w("MediaPlayer", "Playback stalled, nudging ${controller.currentMediaItem?.mediaId}")
+				_uiState.value.currentSong?.id?.let(audioFetcher::cancelStream)
+				controller.pause()
 				controller.seekTo(controller.currentPosition)
 				controller.play()
 			}

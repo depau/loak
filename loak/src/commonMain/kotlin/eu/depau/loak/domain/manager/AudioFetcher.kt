@@ -123,6 +123,11 @@ class AudioFetcher(
 	fun cancelExcept(keep: Set<String>) = active.value.values
 		.filter { !it.download && it.songId !in keep }.forEach { it.job.cancel() }
 
+	/** Cancels the in-flight stream (non-download) fetch of a song, e.g. to nudge a stall. */
+	fun cancelStream(songId: String) = active.value.values
+		.firstOrNull { !it.download && it.songId == songId }
+		?.let { it.job.cancel() }
+
 	private suspend fun run(fetch: Fetch, url: String) {
 		val writer = fetch.writer
 		val category = if (fetch.download) TransferCategory.DOWNLOAD else TransferCategory.STREAM

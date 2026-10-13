@@ -71,6 +71,27 @@ interface PlayerControl {
 	fun pause()
 }
 
+/** A point-in-time snapshot of playback progress, used to tell a stall from normal playback. */
+data class PlaybackProgress(
+	/** Current playback position in the media. */
+	val positionMs: Long,
+	/** How far ahead of the position playback may run, in ms. */
+	val bufferedMs: Long,
+)
+
+/**
+ * Whether playback has stalled: no audio progress ([PlaybackProgress.positionMs]) and nothing
+ * new being buffered between the [before]/[after] snapshots, and the track hasn't ended.
+ * Unlike ExoPlayer state checks this is state-free, so it also covers a BUFFERING player whose
+ * fetch is trickling nothing in and a READY player that reports isPlaying while frozen — the
+ * two faces of a slow network starving the decoder.
+ */
+internal fun isStalled(
+	before: PlaybackProgress,
+	after: PlaybackProgress,
+	ended: Boolean,
+): Boolean = !ended && after.positionMs == before.positionMs && after.bufferedMs == before.bufferedMs
+
 abstract class MediaPlayerViewModel(
 	private val stateRepository: PlayerStateRepository,
 	protected val songRepository: SongRepository,
