@@ -34,6 +34,8 @@ import androidx.compose.ui.input.pointer.isForwardPressed
 import androidx.compose.runtime.snapshotFlow
 import eu.depau.loak.ui.navigation.ForwardHistory
 import eu.depau.loak.ui.navigation.AppActions
+import eu.depau.loak.di.addSentryBreadcrumb
+import eu.depau.loak.ui.navigation.isOverlay
 import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.runtime.DisposableEffect
@@ -294,6 +296,15 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 		var old = backStack.toList()
 		snapshotFlow { backStack.toList() }.collect {
 			forwardHistory.onChange(old, it)
+			// navigation breadcrumb: only real page changes, not overlays, and not
+			// the initial entry (the login/home screen at boot isn't a "change").
+			val top = it.lastOrNull()
+			val oldTop = old.lastOrNull()
+			if (top != null && top != oldTop && !isOverlay(top) && oldTop != null) {
+				val screenName: String = (top as? Screen)?.let { it::class.simpleName }
+					?: top::class.simpleName ?: "unknown"
+				addSentryBreadcrumb("navigation", data = mapOf<String, Any>("to" to screenName))
+			}
 			old = it
 		}
 	}

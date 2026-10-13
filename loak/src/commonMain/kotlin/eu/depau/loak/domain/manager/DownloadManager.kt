@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.di.addSentryBreadcrumb
 import eu.depau.loak.di.COVER_ART_FULL
 import eu.depau.loak.di.COVER_ART_MEDIUM
 import eu.depau.loak.di.COVER_ART_SMALL
@@ -232,6 +233,7 @@ class DownloadManager(
 	}
 
 	fun downloadSong(song: DomainSong) {
+		addSentryBreadcrumb("downloads", "song_started")
 		scope.launch {
 			manualDao.upsert(ManualDownloadEntity(song.id))
 			enqueue(listOf(song))
@@ -244,6 +246,7 @@ class DownloadManager(
 
 	/** [downloadCollection] for each of [collections], carried on after the caller is gone. */
 	fun downloadCollections(collections: List<DomainSongCollection>) {
+		addSentryBreadcrumb("downloads", "collection_started", data = mapOf("count" to collections.size))
 		scope.launch { collections.forEach { downloadCollection(it) } }
 	}
 
@@ -269,6 +272,7 @@ class DownloadManager(
 
 	fun downloadEntireLibrary(songs: List<DomainSong>) {
 		if (isDownloadingLibrary.value) return
+		addSentryBreadcrumb("downloads", "library_started")
 		scope.launch {
 			val toDownload = songs.filter { it.id !in downloadedSongs.value }
 			libraryTotal.value = toDownload.size
@@ -278,6 +282,7 @@ class DownloadManager(
 	}
 
 	fun cancelAllActiveDownloads() {
+		addSentryBreadcrumb("downloads", "cancelled_all")
 		libraryTotal.value = 0
 		libraryPinned.value = false
 		scope.launch {
@@ -288,10 +293,12 @@ class DownloadManager(
 	}
 
 	fun cancelDownload(songId: String) {
+		addSentryBreadcrumb("downloads", "cancelled")
 		scope.launch { cancel(listOf(songId)) { store.dropPending(listOf(songId)) } }
 	}
 
 	fun cancelCollectionDownload(collection: DomainSongCollection) {
+		addSentryBreadcrumb("downloads", "collection_cancelled")
 		val ids = collection.songs.map { it.id }
 		scope.launch { cancel(ids) { store.dropPending(ids) } }
 	}
@@ -444,6 +451,7 @@ class DownloadManager(
 			if (attempt > 0) delay(RETRY_DELAY * (1 shl (attempt - 1)))
 			if (slots.withPermit { fetch(entry.songId, quality) }) return
 		}
+		addSentryBreadcrumb("downloads", "failed")
 		Logger.w(TAG, "giving up on downloading ${entry.songId} for now")
 		failed.update { it + entry.songId }
 	}

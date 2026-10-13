@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.manager
 
+import eu.depau.loak.di.addSentryBreadcrumb
 import eu.depau.loak.di.recordPii
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
@@ -107,6 +108,8 @@ class SessionManager(
 		username: String,
 		password: String
 	) {
+		addSentryBreadcrumb("login", "started")
+
 		val client = createClient(instanceUrl, username, password)
 
 		try {
@@ -114,6 +117,10 @@ class SessionManager(
 			fetchCurrentUser(username, client)
 		} catch (e: Exception) {
 			// TODO: custom exception instead of the generic "Exception"
+			// The message here is user-facing (shown in the login error box); a layer-1
+			// Sentry censor (LOGIN_CREDENTIAL_MESSAGE_REGEX) redacts it before it ever
+			// reaches Sentry, so keep the human-readable text in the app.
+			addSentryBreadcrumb("login", "failed", data = mapOf<String, Any>("error" to (e::class.simpleName ?: "unknown")))
 			throw Exception(
 				"Failed to connect to the instance. Please check your credentials and try again.",
 				e
@@ -131,9 +138,11 @@ class SessionManager(
 		api = client
 		isLoggedIn.value = true
 		updateServerKey()
+		addSentryBreadcrumb("login", "success")
 	}
 
 	fun logout() {
+		addSentryBreadcrumb("login", "logged_out")
 		settings["username"] = null
 		settings["password"] = null
 		isLoggedIn.value = false
@@ -147,6 +156,7 @@ class SessionManager(
 	}
 
 	fun refreshClient() {
+		addSentryBreadcrumb("login", "client_refreshed")
 		api = createClient(
 			instanceUrl = settings.getString("instanceUrl", ""),
 			username = settings.getString("username", ""),

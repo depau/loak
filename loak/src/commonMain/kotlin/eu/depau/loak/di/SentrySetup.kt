@@ -205,3 +205,29 @@ fun addTransferBreadcrumb(data: Map<String, Any>) {
 		Breadcrumb(level = SentryLevel.INFO, category = "transfer", data = data.toMutableMap())
 	)
 }
+
+/**
+ * Records a user-facing app action as a Sentry breadcrumb so a later crash /
+ * error shows how the user got there. [category] groups related crumbs (e.g.
+ * `navigation`, `player`, `login`, `downloads`, `sync`, `connectivity`).
+ *
+ * [message] and [data] go through `sanitizeBreadcrumb`, but **data is never
+ * scrubbed by the sanitizer** — keep it to fixed strings, ids and counts.
+ * Never pass URLs, hostnames, usernames, server addresses or song metadata.
+ */
+fun addSentryBreadcrumb(
+	category: String,
+	message: String? = null,
+	data: Map<String, Any> = emptyMap(),
+) {
+	if (!Sentry.isEnabled()) return
+	Sentry.addBreadcrumb(
+		Breadcrumb(
+			level = SentryLevel.INFO,
+			type = "default",
+			message = message,
+			category = category,
+			data = data.toMutableMap()
+		)
+	)
+}

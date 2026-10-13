@@ -2,6 +2,7 @@ package eu.depau.loak.shared
 
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import eu.depau.loak.di.addSentryBreadcrumb
 import eu.depau.loak.domain.manager.PlayLogManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -326,6 +327,7 @@ abstract class MediaPlayerViewModel(
 			return
 		}
 
+		addSentryBreadcrumb("player", if (next) "play_next" else "added_to_queue")
 		val ids = songs.mapTo(HashSet()) { it.id }
 		// the current song stays put: queuing it again adds a copy
 		val moved = state.queue.withIndex()
@@ -356,6 +358,7 @@ abstract class MediaPlayerViewModel(
 
 	fun removeFromQueueWithUndo(index: Int) {
 		val song = uiState.value.queue.getOrNull(index) ?: return
+		addSentryBreadcrumb("player", "removed_from_queue")
 		removeFromQueue(index)
 		snackBarManager.notifyWithUndo(Res.string.notice_removed_from_queue) {
 			insertIntoQueue(index, listOf(song))
@@ -365,6 +368,7 @@ abstract class MediaPlayerViewModel(
 	fun clearQueueWithUndo() {
 		val state = uiState.value
 		if (state.queue.isEmpty()) return
+		addSentryBreadcrumb("player", "queue_cleared")
 		clearQueue()
 		snackBarManager.notifyWithUndo(Res.string.notice_queue_cleared) {
 			if (uiState.value.queue.isNotEmpty()) return@notifyWithUndo
@@ -424,6 +428,10 @@ abstract class MediaPlayerViewModel(
 		// offline, songs that can't play are left out: start from the first one that can
 		val songs = playable(all).ifEmpty { return }
 		val start = all.take(startIndex).count(::canPlay).takeIf { it < songs.size } ?: 0
+		addSentryBreadcrumb(
+			"player", "queue_started",
+			data = mapOf("songs" to songs.size, "mix" to (mix != null))
+		)
 		// before clearQueue: platforms clear by copying the state, which keeps the mix
 		_uiState.update { it.copy(instantMix = mix) }
 		// the old queue's: auto-fill would otherwise pick one before the new ones arrive
@@ -446,6 +454,7 @@ abstract class MediaPlayerViewModel(
 	 */
 	fun playInstantMix(seedId: String, seedName: String, seed: DomainSong? = null) {
 		if (offline()) return
+		addSentryBreadcrumb("player", "instant_mix")
 		startInstantMix(seedName, seed) { songRepository.getSimilarSongs(seedId) }
 	}
 
@@ -455,6 +464,7 @@ abstract class MediaPlayerViewModel(
 	 */
 	fun playInstantMix(songs: List<DomainSong>, name: String) {
 		if (offline()) return
+		addSentryBreadcrumb("player", "instant_mix")
 		startInstantMix(name, null) { similarTo(songs) }
 	}
 
@@ -532,6 +542,7 @@ abstract class MediaPlayerViewModel(
 	}
 
 	fun togglePlay() {
+		addSentryBreadcrumb("player", "toggle_play", data = mapOf("paused" to uiState.value.isPaused))
 		if (!uiState.value.isPaused) {
 			pause()
 		} else {
@@ -644,6 +655,7 @@ abstract class MediaPlayerViewModel(
 		val all = autoplay.value
 		val songs = playable(all.take(all.indexOf(song) + 1)).ifEmpty { return }
 		val at = uiState.value.queue.size
+		addSentryBreadcrumb("player", "autoplay", data = mapOf("songs" to songs.size))
 		insertIntoQueue(at, songs)
 		playAt(at + songs.lastIndex)
 	}

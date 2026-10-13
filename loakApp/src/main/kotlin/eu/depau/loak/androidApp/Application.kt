@@ -11,6 +11,7 @@ import org.koin.android.ext.koin.androidLogger
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import eu.depau.loak.androidApp.di.AndroidResourceProvider
+import eu.depau.loak.di.addSentryBreadcrumb
 import eu.depau.loak.di.ActivityProvider
 import eu.depau.loak.di.ResourceProvider
 import eu.depau.loak.di.initKoin
@@ -60,6 +61,7 @@ class Application : android.app.Application() {
 			androidLogger()
 		}
 		scheduleDownloads(this)
+		addSentryBreadcrumb("startup", "koin_ready")
 
 		// Android Automotive draws media apps itself: there the icon opens the car's media app
 		// (library, queue, usable while driving), not this UI, which it blocks while driving; the

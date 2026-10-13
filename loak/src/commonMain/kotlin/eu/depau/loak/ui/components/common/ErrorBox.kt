@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.materialkolor.ktx.darken
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.info_error
+import eu.depau.loak.di.addSentryBreadcrumb
 import org.jetbrains.compose.resources.stringResource
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.KeyboardArrowDown
@@ -53,6 +54,10 @@ fun <T> ErrorBox(
 	)
 
 	LaunchedEffect(error.error) {
+		addSentryBreadcrumb(
+			"error", "ui_error",
+			data = mapOf("error" to (error.error::class.simpleName ?: "unknown"))
+		)
 		Logger.e("ErrorBox", "Printing stack trace for error", error.error)
 	}
 

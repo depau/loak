@@ -31,8 +31,13 @@ class ForwardHistory {
 	fun forward(backStack: MutableList<NavKey>) {
 		closed.lastOrNull()?.let { backStack.add(it) }
 	}
-
-	private fun isOverlay(key: NavKey) = key is Screen.NowPlaying ||
-		key is Screen.PlaybackSpeed || key is Screen.SongDetailSheet ||
-		key is Screen.ImageView
 }
+
+/**
+ * Whether a nav key is a transient overlay (sheet / full-screen player) rather than
+ * a real page. Used both by [ForwardHistory] (keep the history stable across the
+ * overlays) and by navigation breadcrumbs (don't record them as page changes).
+ */
+internal fun isOverlay(key: NavKey) = key is Screen.NowPlaying ||
+	key is Screen.PlaybackSpeed || key is Screen.SongDetailSheet ||
+	key is Screen.ImageView

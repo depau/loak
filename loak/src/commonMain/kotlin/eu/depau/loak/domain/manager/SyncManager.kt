@@ -2,6 +2,7 @@ package eu.depau.loak.domain.manager
 
 import eu.depau.loak.util.IoDispatcher
 
+import eu.depau.loak.di.addSentryBreadcrumb
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Deferred
@@ -82,7 +83,20 @@ class SyncManager(
 
 	init {
 		scope.launch {
-			connectivityManager.isOnline.collect { isOnline -> if (isOnline) flush() }
+			var wasOnline: Boolean? = null
+			connectivityManager.isOnline.collect { isOnline ->
+				if (wasOnline != null && isOnline != wasOnline) {
+					addSentryBreadcrumb(
+						"connectivity", if (isOnline) "online" else "offline",
+						data = mapOf(
+							"cellular" to connectivityManager.isCellular.value,
+							"roaming" to connectivityManager.isRoaming.value
+						)
+					)
+				}
+				wasOnline = isOnline
+				if (isOnline) flush()
+			}
 		}
 	}
 
@@ -223,6 +237,10 @@ class SyncManager(
 			// Discover's "In library" answers come from the fresh cache from now on
 			libraryMatcher.invalidate()
 		}.onFailure {
+			addSentryBreadcrumb(
+				"sync", "pull_failed",
+				data = mapOf<String, Any>("error" to (it::class.simpleName ?: "unknown"))
+			)
 			Logger.e("SyncManager", "couldn't sync library", it)
 		}
 

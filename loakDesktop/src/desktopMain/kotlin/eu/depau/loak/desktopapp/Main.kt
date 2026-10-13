@@ -39,6 +39,7 @@ import dev.nucleusframework.window.WindowControls
 import dev.nucleusframework.window.WindowScaffold
 import dev.nucleusframework.window.windowDragArea
 import eu.depau.loak.App
+import eu.depau.loak.di.addSentryBreadcrumb
 import eu.depau.loak.di.initKoin
 import eu.depau.loak.di.initializeSentry
 import org.jetbrains.skia.Image
@@ -75,6 +76,7 @@ fun main(args: Array<String>) {
 	initKoin()
 	// The packaged app's version (nucleus.app.properties); null under `./gradlew run`.
 	initializeSentry(release = NucleusApp.version ?: "desktop-dev")
+	addSentryBreadcrumb("startup", "koin_ready")
 	nucleusApplication(args) {
 		DecoratedWindow(
 			onCloseRequest = ::exitApplication,
