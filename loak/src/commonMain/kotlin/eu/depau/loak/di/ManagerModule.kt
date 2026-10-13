@@ -39,7 +39,12 @@ val managerModule = module {
 	}
 	// eager: resumes queued downloads on startup
 	singleOf(::DownloadManager) { createdAtStart() }
-	singleOf(::SessionManager)
+	// `singleOf` here would force `get<HttpClientEngine>()`: SessionManager's optional
+	// HTTP-engine test seam (`HttpClientEngine? = null`) isn't DI-registered, so eager
+	// resolution blew up LOAK-1Q. An explicit factory that omits the defaulted param
+	// resolves nothing extra — production uses Ktor's platform engine, and tests
+	// construct SessionManager directly with a MockEngine.
+	single { SessionManager(get(), get(), get()) }
 	singleOf(::NavidromeManager)
 	single(createdAtStart = true) {
 		AudioMuseManager(get()).also { manager -> CoroutineScope(IoDispatcher).launch { manager.start() } }

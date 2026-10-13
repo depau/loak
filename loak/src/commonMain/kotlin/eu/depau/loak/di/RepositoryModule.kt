@@ -22,7 +22,8 @@ val repositoryModule = module {
 	singleOf(::ArtistRepository)
 	singleOf(::DbRepository)
 	singleOf(::GenreRepository)
-	singleOf(::LyricsRepository)
+	// same engine-seam handling as SessionManager: omit the optional defaulted engine param.
+	single { LyricsRepository(get(), get(), get(), get()) }
 	singleOf(::SearchRepository)
 	singleOf(::ShareRepository)
 	singleOf(::CollectionRepository)

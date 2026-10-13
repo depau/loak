@@ -244,6 +244,9 @@ kotlin {
 				implementation(libs.nucleus.media.control)
 				implementation(libs.nucleus.system.color)
 				implementation(libs.jna)
+				// JVM HttpClient engine so the startup graph (AudioMuse et al.) can
+				// be exercised by desktopTest without Android's OkHttp.
+				implementation(libs.ktor.client.okhttp)
 			}
 		}
 	}
