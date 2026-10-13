@@ -2,6 +2,7 @@ package eu.depau.loak.domain.manager
 
 import eu.depau.loak.di.addSentryBreadcrumb
 import eu.depau.loak.di.recordPii
+import eu.depau.loak.di.recordPiiIdentifier
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
 import eu.depau.loak.util.systemDeviceName
@@ -134,6 +135,9 @@ class SessionManager(
 		// teach the layer-2 censor this account's real server identifiers ahead
 		// of any error the session may produce
 		recordPii(instanceUrl)
+		// same for the account name: a login error / session loop must never
+		// leave the username in Sentry (the bucket exact-matches it, breach-flagged)
+		recordPiiIdentifier(username)
 
 		api = client
 		isLoggedIn.value = true

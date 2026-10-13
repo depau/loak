@@ -89,6 +89,18 @@ private val SENSITIVE_PARAM_REGEX =
 	Regex("""\b($SENSITIVE_PARAM_KEYS\s*[=:]\s*)[^&\s,"']+""", RegexOption.IGNORE_CASE)
 
 /**
+ * The one user-facing message the session code throws on a failed login
+ * (LOAK-1J). It's a UI string, not a diagnostic — the reason is in the chained
+ * `SubsonicException`. Redact it so the human-readable hint never reaches
+ * Sentry's event value; the wrapped cause still carries the real error code.
+ */
+private val LOGIN_CREDENTIAL_MESSAGE =
+	"Failed to connect to the instance. Please check your credentials and try again."
+private val LOGIN_CREDENTIAL_MESSAGE_REGEX = Regex(
+	Regex.escape(LOGIN_CREDENTIAL_MESSAGE), RegexOption.IGNORE_CASE
+)
+
+/**
  * `UnknownHostException: navikek.puntokek.com` — the bare host is the whole
  * message. Require a full dotted hostname so `Unable` (no dot) can't match.
  */
@@ -130,6 +142,22 @@ internal fun recordPii(vararg values: String) {
 	piiSnapshot.store(next)
 }
 
+/**
+ * Seeds layer 2 with an arbitrary user identifier (username, account name…)
+ * that must never leave in an event. Unlike [recordPii] (server addresses)
+ * identifiers don't have to look like hosts, so the dot check is skipped —
+ * a short, dot-less username shouldn't be sendable just because it has no
+ * dot. The `>= 4` floor matches layer 2's own length gate below, which exists
+ * to stop a short substring from mangling unrelated words ("rob" vs "Robert").
+ */
+internal fun recordPiiIdentifier(value: String) {
+	val trimmed = value.trim().lowercase()
+	if (trimmed.length < 4) return
+	val next = piiSnapshot.load().toMutableSet()
+	next += trimmed
+	piiSnapshot.store(next)
+}
+
 internal fun clearPiiForTests() {
 	piiSnapshot.store(emptySet())
 	reportedSnapshot.store(emptySet())
@@ -156,6 +184,7 @@ internal fun censorSentryText(raw: String): Censored {
 			"resolve host " + m.groupValues[1] + "[REDACTED_HOST]" + m.groupValues[1]
 		} }
 		.let { SENSITIVE_PARAM_REGEX.replace(it, "$1[REDACTED]") }
+		.let { LOGIN_CREDENTIAL_MESSAGE_REGEX.replace(it, "[REDACTED_LOGIN_ERROR]") }
 	val breached = piiSnapshot.load().filter { p -> p.length >= 4 && l1.contains(p, ignoreCase = true) }
 	if (breached.isEmpty()) return Censored(l1, emptyList())
 	var censored = l1
