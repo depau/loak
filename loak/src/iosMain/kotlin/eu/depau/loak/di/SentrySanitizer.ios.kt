@@ -15,3 +15,7 @@ internal actual fun finishSentrySpan(span: Any, ok: Boolean, data: Map<String, A
 // The KMP Apple pipeline scrubs via beforeSend; a layer-2 alert needs a capture
 // path that isn't wired until Sentry Cocoa is linked, so this is a no-op.
 internal actual fun fireBreachAlert(message: String) {}
+
+internal actual fun captureWebSentryError(throwable: Throwable) {}
+
+internal actual fun addWebSentryBreadcrumb(category: String, message: String?, data: Map<String, Any>) {}

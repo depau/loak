@@ -109,3 +109,7 @@ private fun sanitizeJvmBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
 	if (breached.isNotEmpty()) reportCensorshipBreach(breached.distinct())
 	return breadcrumb
 }
+
+internal actual fun captureWebSentryError(throwable: Throwable) {}
+
+internal actual fun addWebSentryBreadcrumb(category: String, message: String?, data: Map<String, Any>) {}

@@ -19,7 +19,7 @@ required COOP/COEP headers for wasm.
 
 Output: `webApp/build/dist/wasmJs/productionExecutable/` — a self-contained
 static bundle (`index.html`, `webApp.js`, the app + skiko `.wasm`, `sqlite/`
-runtime and `sqlite-worker.js`). Serve it with any static server that sends
+runtime, `sqlite-worker.js` and `hang-watchdog.js`). Serve it with any static server that sends
 `application/wasm` for `.wasm` and the COOP/COEP headers
 (`Cross-Origin-Opener-Policy: same-origin`,
 `Cross-Origin-Embedder-Policy: credentialless`). Keep COEP `credentialless`,
@@ -37,6 +37,8 @@ breaking remote playback.
 - Room 3 (`CacheDatabase` / `DownloadDatabase`) through a custom sqlite worker
   (`wasmJsMain/resources/sqlite-worker.js`) implementing the
   `WebWorkerSQLiteDriver` message protocol.
+- Crash and hang reporting to Sentry through `@sentry/browser`; see the Sentry
+  section of `AGENTS.md`.
 
 ## Known web limitations (by design)
 

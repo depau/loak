@@ -17,7 +17,7 @@ import kotlin.coroutines.CoroutineContext
  * Sentry error reporting bootstrap. Call as early as possible in the native
  * host's startup (Android Application.onCreate, Swift App.init, Desktop main).
  */
-private const val SENTRY_DSN =
+internal const val SENTRY_DSN =
 	"https://37ad07c33d8dc6d5191b355a80f23945@o4512187976384512.ingest.de.sentry.io/4512187981889616"
 
 /**
@@ -91,6 +91,15 @@ fun initializeSentry(release: String? = null) {
  * `SentryOptions.beforeSend`/`beforeBreadcrumb` in their actuals.
  */
 internal expect fun registerJvmSentrySanitizer()
+
+/**
+ * The Sentry KMP SDK is a no-op stub on wasmJs, so the web actuals report
+ * through `@sentry/browser` instead (see `SentryWeb.kt`). No-ops elsewhere:
+ * the KMP calls next to them already report there.
+ */
+internal expect fun captureWebSentryError(throwable: Throwable)
+
+internal expect fun addWebSentryBreadcrumb(category: String, message: String?, data: Map<String, Any>)
 
 /**
  * True for exceptions that are expected at runtime and pollute Sentry: offline /
@@ -221,6 +230,7 @@ fun addSentryBreadcrumb(
 	message: String? = null,
 	data: Map<String, Any> = emptyMap(),
 ) {
+	addWebSentryBreadcrumb(category, message, data)
 	if (!Sentry.isEnabled()) return
 	Sentry.addBreadcrumb(
 		Breadcrumb(

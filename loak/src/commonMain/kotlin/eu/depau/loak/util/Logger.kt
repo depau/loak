@@ -1,5 +1,6 @@
 package eu.depau.loak.util
 
+import eu.depau.loak.di.captureWebSentryError
 import eu.depau.loak.di.isSentryEnabled
 import eu.depau.loak.di.isNoiseException
 import kotlin.coroutines.cancellation.CancellationException
@@ -18,6 +19,7 @@ fun captureSentryError(throwable: Throwable?) {
 	// drop at the source so they never reach the send boundary
 	if (isNoiseException(throwable)) return
 	io.sentry.kotlin.multiplatform.Sentry.captureException(throwable)
+	captureWebSentryError(throwable)
 }
 
 expect object Logger {

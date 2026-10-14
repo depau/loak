@@ -232,6 +232,7 @@ kotlin {
 		wasmJsMain.dependencies {
 			implementation(libs.androidx.sqlite.web.wasm.js)
 			implementation(libs.kotlinx.browser)
+			implementation(npm("@sentry/browser", libs.versions.sentryBrowser.get()))
 		}
 
 		val desktopMain by getting {
