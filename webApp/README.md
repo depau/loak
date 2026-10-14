@@ -42,11 +42,9 @@ breaking remote playback.
 
 - **GIF thumbnails, kmpalette, offline downloads and the equaliser are off** on
   web (Koin-excluded / stubs). No `@JsFun`/wasm source keeps them out.
-- **Room is in-memory on web** — databases won't persist across reloads. The
-  OPFS path blocks the worker on `BEGIN EXCLUSIVE` (needs the opfs-async-proxy
-  wiring); plain `oo1.DB` keeps the driver working. Room's "reader connection"
-  timeouts can appear during boot while the initial schema is created — they
-  are recoverable.
+- **Room persists in OPFS** (the sqlite "SAH pool" VFS, one pool per database).
+  A second tab can't open a pool another tab holds, so it falls back to an
+  in-memory database for that tab.
 - **No server CORS change is shipped** — like every subsonic web frontend, the
   instance must allow the origin (or you run your own proxy).
 

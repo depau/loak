@@ -8,8 +8,12 @@ import org.w3c.dom.Worker
  * Creates the [Worker] that backs
  * [androidx.sqlite.driver.web.WebWorkerSQLiteDriver]. `sqlite-worker.js` is a
  * static asset served next to the web app (see the webApp module).
+ *
+ * `sqlite3.dir` tells sqlite3.js where its `sqlite3.wasm` lives: inside a
+ * worker it ignores `locateFile` and otherwise looks next to the worker script,
+ * where a clean build has nothing (the page then never gets a database).
  */
-fun createSqliteWorker(): Worker = Worker("sqlite-worker.js")
+fun createSqliteWorker(): Worker = Worker("sqlite-worker.js?sqlite3.dir=sqlite")
 
 /**
  * Interop with the browser [MediaSession API](https://developer.mozilla.org/en-US/docs/Web/API/MediaSession)

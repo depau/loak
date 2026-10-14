@@ -62,9 +62,7 @@ function sqliteTypeOf(value) {
 
 function ensureSqlite() {
 	if (sqliteApi === null) {
-		sqliteApi = sqlite3InitModule({
-			locateFile: function (file) { return './sqlite/' + file; }
-		}).then(function (api) {
+		sqliteApi = sqlite3InitModule().then(function (api) {
 			sqliteApi = api;
 			return api;
 		}, function (err) {
