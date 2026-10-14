@@ -67,6 +67,7 @@ import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.layouts.ArtGridItem
 import eu.depau.loak.ui.components.layouts.ArtGridPlaceholder
+import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
 import eu.depau.loak.ui.components.layouts.NestedTopBar
@@ -146,134 +147,141 @@ fun ExploreScreen() {
 		},
 		bottomBar = { if (!nested) RootBottomBar(scrolled = LocalBottomBarScrollManager.current.isTriggered) }
 	) { innerPadding ->
-		LazyVerticalGrid(
-			columns = GridCells.Fixed(columns),
-			state = gridState,
-			modifier = Modifier.fillMaxSize(),
-			contentPadding = PaddingValues(
-				start = 16.dp, end = 16.dp,
-				top = innerPadding.calculateTopPadding(),
-				bottom = innerPadding.calculateBottomPadding() + 24.dp
-			),
-			horizontalArrangement = Arrangement.spacedBy(8.dp),
-			verticalArrangement = Arrangement.spacedBy(8.dp)
+		PullToRefreshBox(
+			onRefresh = { viewModel.refresh() },
+			finished = !state.loadingLibrary && !state.loadingMoods && !state.loadingSoundMap,
+			modifier = Modifier
+				.padding(top = innerPadding.calculateTopPadding())
+				.background(MaterialTheme.colorScheme.surface)
 		) {
-			// a fixed first item: sections that load later are inserted below it, not above the view
-			item(key = "top", span = full) {}
-			state.error?.let { error ->
-				item(key = "error", span = full) {
-					ErrorBox(
-						error = UiState.Error<Unit>(error),
-						onRetry = { viewModel.refresh() },
-						bottomPadding = 8.dp
-					)
-				}
-			}
-			if (state.loadingLibrary || state.genres.isNotEmpty()) {
-				section(Res.string.title_genres)
-				// 3 a row on phones, 3 wider ones on tablets: long names wrap less
-				val genreSpan = if (expanded) 4 else 2
-				if (state.loadingLibrary) {
-					items(6, key = { "genre-placeholder-$it" }, span = { GridItemSpan(genreSpan) }) {
-						ExploreTilePlaceholder(Modifier.height(88.dp))
-					}
-				} else {
-					items(state.genres, key = { "genre ${it.name}" }, span = { GridItemSpan(genreSpan) }) { genre ->
-						GenreListScreenCard(Modifier.height(88.dp), genre)
-					}
-					item(key = "all genres", span = { GridItemSpan(genreSpan) }) {
-						Surface(
-							onClick = dropUnlessResumed { backStack.add(Screen.GenreList(nested = true)) },
-							modifier = Modifier.height(88.dp),
-							shape = MaterialTheme.shapes.medium,
-							color = colors.surfaceContainerHigh
-						) {
-							Column(Modifier.padding(10.dp)) {
-								Text(stringResource(Res.string.action_all_genres_tile), style = MaterialTheme.typography.titleSmall)
-								Text(stringResource(Res.string.info_genres_count, state.genreCount), style = MaterialTheme.typography.bodySmall)
-								Spacer(Modifier.weight(1f))
-								Icon(Icons.Outlined.ChevronForward, null, Modifier.align(Alignment.End))
-							}
-						}
-					}
-				}
-			}
-
-			if (info != null && (state.loadingMoods || state.moods.isNotEmpty())) {
-				section(Res.string.title_moods, overline = Res.string.overline_audiomuse)
-				if (state.loadingMoods) {
-					items(6, key = { "mood-placeholder-$it" }, span = { GridItemSpan(2) }) {
-						ExploreTilePlaceholder(Modifier.height(72.dp))
-					}
-				} else {
-					items(state.moods, key = { "mood ${it.id}" }, span = { GridItemSpan(2) }) { mood ->
-						MoodTile(mood.label, Modifier.height(72.dp)) { backStack.add(Screen.Mood(mood)) }
-					}
-				}
-			}
-
-			if (tools.isNotEmpty()) {
-				section(Res.string.title_make_something_new)
-				items(tools, key = { "tool ${it.title.key}" }, span = { GridItemSpan(3) }) { tool ->
-					Surface(
-						onClick = dropUnlessResumed { backStack.add(tool.screen) },
-						shape = RoundedCornerShape(20.dp),
-						color = tool.container,
-						contentColor = tool.content
-					) {
-						Column(Modifier.padding(14.dp).height(96.dp), verticalArrangement = Arrangement.SpaceBetween) {
-							Icon(tool.icon, null, Modifier.size(24.dp))
-							Column {
-								Text(stringResource(tool.title), style = MaterialTheme.typography.titleSmall)
-								Text(stringResource(tool.subtitle), style = MaterialTheme.typography.bodySmall, maxLines = 2)
-							}
-						}
-					}
-				}
-			}
-
-			if (info != null && (state.loadingSoundMap || state.soundMap.isNotEmpty())) {
-				section(Res.string.title_sound_map, overline = Res.string.overline_audiomuse)
-				item(key = "sound map", span = full) {
-					if (state.loadingSoundMap) ExploreTilePlaceholder(Modifier.fillMaxWidth().height(224.dp))
-					else SoundMapCard(state.soundMap) { backStack.add(Screen.SoundMap) }
-				}
-			}
-
-			if (state.loadingLibrary ||
-				state.forgotten.isNotEmpty() || state.neverPlayed.isNotEmpty() || state.deepCuts.isNotEmpty()
+			LazyVerticalGrid(
+				columns = GridCells.Fixed(columns),
+				state = gridState,
+				modifier = Modifier.fillMaxSize(),
+				contentPadding = PaddingValues(
+					start = 16.dp, end = 16.dp,
+					bottom = innerPadding.calculateBottomPadding() + 24.dp
+				),
+				horizontalArrangement = Arrangement.spacedBy(8.dp),
+				verticalArrangement = Arrangement.spacedBy(8.dp)
 			) {
-				section(Res.string.title_off_beaten_path)
-				if (state.loadingLibrary) {
-					albumShelfPlaceholder(Res.string.title_forgotten_favourites, Res.string.info_forgotten_favourites)
-					albumShelfPlaceholder(Res.string.title_never_played, Res.string.info_never_played)
-					item(key = "deep cuts header", span = full) {
-						ShelfTitlePlaceholder()
+				// a fixed first item: sections that load later are inserted below it, not above the view
+				item(key = "top", span = full) {}
+				state.error?.let { error ->
+					item(key = "error", span = full) {
+						ErrorBox(
+							error = UiState.Error<Unit>(error),
+							onRetry = { viewModel.refresh() },
+							bottomPadding = 8.dp
+						)
 					}
-					item(key = "deep cuts", span = full) {
-						SongColumnsPlaceholder(songColumnWidth)
-					}
-				} else {
-					albumShelf(Res.string.title_forgotten_favourites, Res.string.info_forgotten_favourites, state.forgotten)
-					albumShelf(Res.string.title_never_played, Res.string.info_never_played, state.neverPlayed)
-					if (state.deepCuts.isNotEmpty()) {
-						item(key = "deep cuts header", span = full) {
-							ShelfTitle(Res.string.title_deep_cuts, Res.string.info_deep_cuts) {
-								TextButton(onClick = { player.playNow(state.deepCuts) }) {
-									Text(stringResource(Res.string.action_play_all))
+				}
+				if (state.loadingLibrary || state.genres.isNotEmpty()) {
+					section(Res.string.title_genres)
+					// 3 a row on phones, 3 wider ones on tablets: long names wrap less
+					val genreSpan = if (expanded) 4 else 2
+					if (state.loadingLibrary) {
+						items(6, key = { "genre-placeholder-$it" }, span = { GridItemSpan(genreSpan) }) {
+							ExploreTilePlaceholder(Modifier.height(88.dp))
+						}
+					} else {
+						items(state.genres, key = { "genre ${it.name}" }, span = { GridItemSpan(genreSpan) }) { genre ->
+							GenreListScreenCard(Modifier.height(88.dp), genre)
+						}
+						item(key = "all genres", span = { GridItemSpan(genreSpan) }) {
+							Surface(
+								onClick = dropUnlessResumed { backStack.add(Screen.GenreList(nested = true)) },
+								modifier = Modifier.height(88.dp),
+								shape = MaterialTheme.shapes.medium,
+								color = colors.surfaceContainerHigh
+							) {
+								Column(Modifier.padding(10.dp)) {
+									Text(stringResource(Res.string.action_all_genres_tile), style = MaterialTheme.typography.titleSmall)
+									Text(stringResource(Res.string.info_genres_count, state.genreCount), style = MaterialTheme.typography.bodySmall)
+									Spacer(Modifier.weight(1f))
+									Icon(Icons.Outlined.ChevronForward, null, Modifier.align(Alignment.End))
 								}
 							}
 						}
-						item(key = "deep cuts", span = full) {
-							SongColumns(
-								songs = state.deepCuts,
-								columnWidth = songColumnWidth,
-								onPlay = { player.playNow(state.deepCuts, it) }
-							)
+					}
+				}
+
+				if (info != null && (state.loadingMoods || state.moods.isNotEmpty())) {
+					section(Res.string.title_moods, overline = Res.string.overline_audiomuse)
+					if (state.loadingMoods) {
+						items(6, key = { "mood-placeholder-$it" }, span = { GridItemSpan(2) }) {
+							ExploreTilePlaceholder(Modifier.height(72.dp))
+						}
+					} else {
+						items(state.moods, key = { "mood ${it.id}" }, span = { GridItemSpan(2) }) { mood ->
+							MoodTile(mood.label, Modifier.height(72.dp)) { backStack.add(Screen.Mood(mood)) }
 						}
 					}
 				}
-			}
+
+				if (tools.isNotEmpty()) {
+					section(Res.string.title_make_something_new)
+					items(tools, key = { "tool ${it.title.key}" }, span = { GridItemSpan(3) }) { tool ->
+						Surface(
+							onClick = dropUnlessResumed { backStack.add(tool.screen) },
+							shape = RoundedCornerShape(20.dp),
+							color = tool.container,
+							contentColor = tool.content
+						) {
+							Column(Modifier.padding(14.dp).height(96.dp), verticalArrangement = Arrangement.SpaceBetween) {
+								Icon(tool.icon, null, Modifier.size(24.dp))
+								Column {
+									Text(stringResource(tool.title), style = MaterialTheme.typography.titleSmall)
+									Text(stringResource(tool.subtitle), style = MaterialTheme.typography.bodySmall, maxLines = 2)
+								}
+							}
+						}
+					}
+				}
+
+				if (info != null && (state.loadingSoundMap || state.soundMap.isNotEmpty())) {
+					section(Res.string.title_sound_map, overline = Res.string.overline_audiomuse)
+					item(key = "sound map", span = full) {
+						if (state.loadingSoundMap) ExploreTilePlaceholder(Modifier.fillMaxWidth().height(224.dp))
+						else SoundMapCard(state.soundMap) { backStack.add(Screen.SoundMap) }
+					}
+				}
+
+				if (state.loadingLibrary ||
+					state.forgotten.isNotEmpty() || state.neverPlayed.isNotEmpty() || state.deepCuts.isNotEmpty()
+				) {
+					section(Res.string.title_off_beaten_path)
+					if (state.loadingLibrary) {
+						albumShelfPlaceholder(Res.string.title_forgotten_favourites, Res.string.info_forgotten_favourites)
+						albumShelfPlaceholder(Res.string.title_never_played, Res.string.info_never_played)
+						item(key = "deep cuts header", span = full) {
+							ShelfTitlePlaceholder()
+						}
+						item(key = "deep cuts", span = full) {
+							SongColumnsPlaceholder(songColumnWidth)
+						}
+					} else {
+						albumShelf(Res.string.title_forgotten_favourites, Res.string.info_forgotten_favourites, state.forgotten)
+						albumShelf(Res.string.title_never_played, Res.string.info_never_played, state.neverPlayed)
+						if (state.deepCuts.isNotEmpty()) {
+							item(key = "deep cuts header", span = full) {
+								ShelfTitle(Res.string.title_deep_cuts, Res.string.info_deep_cuts) {
+									TextButton(onClick = { player.playNow(state.deepCuts) }) {
+										Text(stringResource(Res.string.action_play_all))
+									}
+								}
+							}
+							item(key = "deep cuts", span = full) {
+								SongColumns(
+									songs = state.deepCuts,
+									columnWidth = songColumnWidth,
+									onPlay = { player.playNow(state.deepCuts, it) }
+								)
+							}
+						}
+					}
+				}
+				}
 		}
 	}
 }
