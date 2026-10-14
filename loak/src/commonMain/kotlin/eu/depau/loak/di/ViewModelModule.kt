@@ -133,7 +133,11 @@ val viewModelModule = module {
 	viewModel { (key: Screen.DiscoverArtist) -> DiscoverArtistViewModel(key, get(), get(), get()) }
 	viewModelOf(::DiscoverHomeViewModel)
 	viewModel { (type: DiscoverListType) -> DiscoverListViewModel(type, get(), get(), get(), get(), get(), get()) }
-	viewModelOf(::ExploreViewModel)
+	// `viewModelOf` would resolve every constructor param, including the optional
+	// test seams (`ioDispatcher`, `libraryLoader`) that are never DI-registered,
+	// throwing NoDefinitionFoundException on the Explore screen (LOAK-1W). An
+	// explicit factory that omits the defaulted params resolves only real deps.
+	viewModel { ExploreViewModel(get(), get(), get(), get()) }
 	viewModelOf(::GenreListViewModel)
 	viewModelOf(::RadioListViewModel)
 	viewModelOf(::RadioCreateDialogViewModel)
