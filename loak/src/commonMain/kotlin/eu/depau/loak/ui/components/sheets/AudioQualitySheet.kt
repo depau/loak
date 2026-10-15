@@ -30,6 +30,7 @@ import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.NavidromeManager
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.domain.models.PlaybackSource
+import eu.depau.loak.domain.models.formatCodecName
 import eu.depau.loak.domain.models.formatSampleRate
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.label_cached_copy
@@ -90,7 +91,7 @@ fun AudioQualitySheet(
 
 			// 1. SOURCE
 			StageSection(label = stringResource(Res.string.label_stage_source)) {
-				val formatTitle = (song.fileExtension?.uppercase() ?: "AUDIO") + " original"
+				val formatTitle = (formatCodecName(song.mimeType, song.fileExtension) ?: "AUDIO") + " original"
 				val sampleRateStr = song.sampleRate?.let { formatSampleRate(it) }
 				val bitDepthStr = song.bitDepth?.takeIf { it > 0 }?.let { "$it-bit" }
 				val channelsStr = when (song.audioChannelCount) {
@@ -128,7 +129,7 @@ fun AudioQualitySheet(
 					}
 				}
 
-				val codecStr = details?.codec ?: song.fileExtension?.uppercase()
+				val codecStr = details?.codec ?: formatCodecName(song.mimeType, song.fileExtension)
 				val rateStr = details?.sampleRateHz?.let { formatSampleRate(it) }
 				val chStr = when (details?.channelCount) {
 					1 -> "Mono"

@@ -33,11 +33,11 @@ data class PlaybackDetails(
 
 /**
  * Normalizes an audio MIME type or file extension to a display-ready codec name (e.g. "FLAC", "Opus").
+ * Acronyms are upper-cased (FLAC, MP3, AAC, WAV, ALAC); codec names keep their proper spelling (Opus, Vorbis).
  */
 fun formatCodecName(mimeType: String?, fallback: String?): String? {
-	val raw = mimeType?.lowercase()
+	val raw = (mimeType ?: fallback)?.lowercase() ?: return null
 	return when {
-		raw == null -> fallback?.uppercase()
 		raw.contains("opus") -> "Opus"
 		raw.contains("flac") -> "FLAC"
 		raw.contains("mpeg") || raw.contains("mp3") -> "MP3"
@@ -45,7 +45,7 @@ fun formatCodecName(mimeType: String?, fallback: String?): String? {
 		raw.contains("ogg") || raw.contains("vorbis") -> "Vorbis"
 		raw.contains("wav") -> "WAV"
 		raw.contains("alac") -> "ALAC"
-		else -> (mimeType.substringAfterLast('/').substringAfterLast('-')).uppercase()
+		else -> raw.substringAfterLast('/').substringAfterLast('-').uppercase()
 	}
 }
 

@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.models.DomainSong
+import eu.depau.loak.domain.models.formatCodecName
 import eu.depau.loak.domain.models.formatSampleRate
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.sheets.AudioQualitySheet
@@ -74,7 +75,7 @@ fun NowPlayingTechnicalInfoRow(
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				val format = details?.codec
-					?: song?.fileExtension?.uppercase()
+					?: song?.let { formatCodecName(it.mimeType, it.fileExtension) }
 					?: "--"
 
 				val sampleRateFormatted = (details?.sampleRateHz ?: song?.sampleRate)
