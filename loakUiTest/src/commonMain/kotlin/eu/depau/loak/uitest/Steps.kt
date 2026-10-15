@@ -11,7 +11,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
@@ -68,8 +68,9 @@ suspend fun ComposeUiTest.await(
 	while (!condition()) {
 		if (deadline.hasPassedNow()) {
 			throw AssertionError(
+				// every root: an open popup or dialog is a root of its own
 				"${what()} after ${timeoutMillis / 1000} s. On screen:\n" +
-					onRoot(useUnmergedTree = false).printToString()
+					onAllNodes(isRoot()).printToString(maxDepth = Int.MAX_VALUE)
 			)
 		}
 		withContext(Dispatchers.Default) { delay(50) }
