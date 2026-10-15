@@ -12,6 +12,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.dropUnlessResumed
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import eu.depau.loak.di.LocalNavStack
@@ -60,6 +61,8 @@ fun SongActionsSheet(
 	var playlistDialogShown by rememberSaveable { mutableStateOf(false) }
 	var shareId by remember { mutableStateOf<String?>(null) }
 	var shareExpiry by remember { mutableStateOf<Duration?>(null) }
+	// starring closes the sheet: its write must outlive the sheet's composition
+	val scope = rememberCoroutineScope()
 
 	if (open) {
 		Sheet(
@@ -73,7 +76,8 @@ fun SongActionsSheet(
 			inPlayer = inPlayer,
 			onStarredChange = onStarredChange,
 			onAddToPlaylist = { playlistDialogShown = true },
-			onShare = { shareId = song.id }
+			onShare = { shareId = song.id },
+			scope = scope
 		)
 	}
 
@@ -107,14 +111,14 @@ private fun Sheet(
 	inPlayer: Boolean,
 	onStarredChange: (() -> Unit)?,
 	onAddToPlaylist: () -> Unit,
-	onShare: () -> Unit
+	onShare: () -> Unit,
+	scope: CoroutineScope
 ) {
 	val backStack = LocalNavStack.current
 	val player = koinInject<MediaPlayerViewModel>()
 	val songRepository = koinInject<SongRepository>()
 	val downloadManager = koinInject<DownloadManager>()
 	val snackBarManager = koinInject<SnackBarManager>()
-	val scope = rememberCoroutineScope()
 
 	val starred by remember(song.id) { songRepository.observeSongStarred(song.id) }
 		.collectAsState(song.starredAt != null)

@@ -6,6 +6,8 @@ import eu.depau.loak.util.IoDispatcher
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -157,7 +159,11 @@ class SongRepository(
 	suspend fun starSong(song: DomainSong) = setSongStarred(song.id, true)
 	suspend fun unstarSong(song: DomainSong) = setSongStarred(song.id, false)
 
-	suspend fun setSongStarred(songId: String, starred: Boolean) {
+	/**
+	 * Not cancellable: the caller's screen can close right after (the song sheet does), and
+	 * the cache and the server's queue must both get the change, not just the cache.
+	 */
+	suspend fun setSongStarred(songId: String, starred: Boolean) = withContext(NonCancellable) {
 		if (starred) {
 			songDao.updateSongStarredAt(songId, Clock.System.now())
 			syncManager.enqueueAction(SyncActionType.STAR, songId)
