@@ -72,6 +72,7 @@
 	<string name="option_auto_fill_queue">Autoplay</string>
 	<string name="subtitle_auto_fill_queue">Keep playing similar songs when the queue ends</string>
 	<string name="option_lyrics_keep_alive">Keep the screen on</string>
+	<string name="info_searching_more_lyrics">Looking for more…</string>
 	<string name="option_lyrics_blur">Fade out at the edges</string>
 	<string name="option_lyrics_bright_inactive">Brighter past and upcoming lines</string>
 	<string name="option_share_expires">Expires</string>

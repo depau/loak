@@ -75,6 +75,7 @@ fun LyricsScreen(
 	val selectedProviderIndex by viewModel.selectedProviderIndex.collectAsStateWithLifecycle()
 	val lyricOffset by viewModel.lyricOffset.collectAsStateWithLifecycle()
 	val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
+	val isSearching by viewModel.isSearching.collectAsStateWithLifecycle()
 
 	var isSelecting by rememberSaveable { mutableStateOf(false) }
 	val selectedIndices = rememberSaveable { mutableStateListOf<Int>() }
@@ -103,6 +104,8 @@ fun LyricsScreen(
 		} else {
 			wasPlayingBeforeSelection = !playerState.isPaused
 			player.pause()
+			// picked lines refer to these lyrics: keep them while other providers answer
+			viewModel.pinShown()
 			isSelecting = true
 		}
 	}
@@ -121,6 +124,8 @@ fun LyricsScreen(
 		AnimatedContent(
 			targetState = lyricsState,
 			modifier = Modifier.fillMaxSize(),
+			// loading, lyrics or error: not every provider joining the results
+			contentKey = { it::class },
 			transitionSpec = {
 				ContentTransform(
 					targetContentEnter = fadeIn(effectSpec) + scaleIn(spatialSpec, 0.8f),
@@ -195,6 +200,7 @@ fun LyricsScreen(
 			LyricsActions(
 				providerResults = providerResults,
 				selectedProviderIndex = selectedProviderIndex,
+				isSearching = isSearching,
 				isSelecting = isSelecting,
 				selectedIndicesSize = selectedIndices.size,
 				providerMenuOpen = providerMenuOpen,

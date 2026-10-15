@@ -2,12 +2,16 @@ package eu.depau.loak.ui.screens.lyrics.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import eu.depau.loak.domain.models.lyrics.LyricsResult
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel
@@ -15,6 +19,7 @@ import eu.depau.loak.generated.resources.action_change_lyrics_provider
 import eu.depau.loak.generated.resources.action_karaoke
 import eu.depau.loak.generated.resources.action_share_lyrics
 import eu.depau.loak.generated.resources.action_sync_lyrics
+import eu.depau.loak.generated.resources.info_searching_more_lyrics
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.Close
@@ -32,6 +37,8 @@ import org.jetbrains.compose.resources.stringResource
 fun LyricsActions(
 	providerResults: List<LyricsResult>,
 	selectedProviderIndex: Int,
+	/** More providers may still add lyrics to the menu. */
+	isSearching: Boolean,
 	isSelecting: Boolean,
 	selectedIndicesSize: Int,
 	providerMenuOpen: Boolean,
@@ -71,6 +78,12 @@ fun LyricsActions(
 							onClick = { onSelectProvider(index) }
 						)
 					}
+					if (isSearching) DropdownMenuItem(
+						text = { Text(stringResource(Res.string.info_searching_more_lyrics)) },
+						leadingIcon = { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) },
+						enabled = false,
+						onClick = {}
+					)
 				}
 			}
 		}

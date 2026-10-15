@@ -13,10 +13,16 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.lastOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -115,11 +121,12 @@ class LyricsRepository(
 	}
 
 	/**
-	 * Fetch lyrics for [song] from every enabled provider, in priority order.
-	 * Lyrics the user saved on this device (offset baked in) are pinned first so they keep
-	 * priority, and the auto-cache from the last run is returned when offline.
+	 * Lyrics for [song] from every enabled provider, asked all at once. Emits the results
+	 * found so far, in priority order, each time a provider finds some, and completes once
+	 * every provider has answered (without emitting if none found any). Lyrics the user saved
+	 * on this device (offset baked in) are pinned first; offline, only the last-known lyrics.
 	 */
-	suspend fun fetchAllLyrics(song: DomainSong): List<LyricsResult> {
+	fun lyricsFlow(song: DomainSong): Flow<List<LyricsResult>> = channelFlow {
 		val cached = getCached(song)
 		val saved = cached?.takeIf { it.providerName == LOCAL_PROVIDER }
 		val parse = { entity: LyricEntity ->
@@ -130,38 +137,65 @@ class LyricsRepository(
 
 		// offline: show the last-known lyrics only (saved copy, or the last provider cache)
 		if (!connectivityManager.isOnline.value) {
-			val entity = saved ?: cached ?: return emptyList()
-			return parse(entity)?.let { listOf(it) } ?: emptyList()
+			(saved ?: cached)?.let(parse)?.let { send(listOf(it)) }
+			return@channelFlow
 		}
 
 		val currentConfig = getConfig()
-		val results = mutableListOf<LyricsResult>()
-		saved?.let { s -> parse(s)?.let { results.add(it) } }
+		val savedResult = saved?.let(parse)
+		val providers = currentConfig.providers.filter { it.enabled }
+		val found = arrayOfNulls<LyricsResult>(providers.size)
+		val done = BooleanArray(providers.size)
+		var cachedTop = saved != null // a saved copy is never replaced by a provider's
+		val lock = Mutex()
+		if (savedResult != null) send(listOf(savedResult))
 
-		for (provider in currentConfig.providers.filter { it.enabled }) {
-			try {
-				val parsed = fetchFromProvider(provider, song, currentConfig) ?: continue
-				if (saved == null && results.isEmpty()) {
-					// cache the highest-priority provider only, as today
-					try {
-						lyricDao.insertLyrics(
-							LyricEntity(
-								songId = song.id,
-								providerName = provider.id.name,
-								rawContent = parsed.rawContent!!
-							)
-						)
-					} catch (e: Exception) {
-						Logger.e("LyricRepository", "Failed to cache lyrics for ${song.title}", e)
-					}
+		providers.forEachIndexed { index, provider ->
+			launch {
+				val parsed = try {
+					fetchFromProvider(provider, song, currentConfig)
+				} catch (e: CancellationException) {
+					throw e
+				} catch (e: Throwable) {
+					// not just Exceptions: on the web a failed request is a kotlin.Error
+					// ("Fail to fetch", e.g. a provider without CORS headers)
+					Logger.e("LyricRepository", "Provider ${provider.id.name} failed!", e)
+					null
 				}
-				results.add(parsed)
-			} catch (e: Exception) {
-				Logger.e("LyricRepository", "Provider ${provider.id.name} failed!", e)
+				lock.withLock {
+					found[index] = parsed
+					done[index] = true
+					// cache the highest-priority provider's lyrics, once every provider
+					// ranked above it has come back empty
+					val top = done.indexOfFirst { !it }.let { if (it < 0) providers.size else it }
+					val cacheIndex = (0 until top).firstOrNull { found[it] != null }
+					if (!cachedTop && cacheIndex != null) {
+						cachedTop = true
+						cache(song, providers[cacheIndex], found[cacheIndex]!!)
+					}
+					if (parsed != null) send(listOfNotNull(savedResult) + found.filterNotNull())
+				}
 			}
 		}
-		return results
 	}
+
+	private suspend fun cache(song: DomainSong, provider: LyricsProvider, result: LyricsResult) {
+		try {
+			lyricDao.insertLyrics(
+				LyricEntity(
+					songId = song.id,
+					providerName = provider.id.name,
+					rawContent = result.rawContent!!
+				)
+			)
+		} catch (e: Exception) {
+			Logger.e("LyricRepository", "Failed to cache lyrics for ${song.title}", e)
+		}
+	}
+
+	/** Every provider's lyrics for [song], once all have answered (see [lyricsFlow]). */
+	suspend fun fetchAllLyrics(song: DomainSong): List<LyricsResult> =
+		lyricsFlow(song).lastOrNull().orEmpty()
 
 	/** Convenience for single-result callers (downloads, the lyrics screen's current view). */
 	suspend fun fetchLyrics(song: DomainSong): LyricsResult? = fetchAllLyrics(song).firstOrNull()

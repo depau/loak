@@ -7,7 +7,6 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasAnyAncestor
-import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToNodeAction
@@ -64,10 +63,6 @@ fun inSheet(matcher: SemanticsMatcher) = matcher and hasAnyAncestor(
 
 /** A navigation bar / rail item. */
 fun tab(label: String) = hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
-
-/** The checkbox in the row labelled [label]. */
-fun checkbox(label: String) =
-	SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox) and hasAnySibling(hasText(label))
 
 /**
  * Waits until [condition] holds. Polls in real time, off the test's virtual clock, so

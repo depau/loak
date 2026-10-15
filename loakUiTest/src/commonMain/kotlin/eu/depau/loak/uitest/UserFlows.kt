@@ -115,18 +115,7 @@ abstract class UserFlows {
 	@Test
 	fun playerShowsLyricsAndQueue() = runApp {
 		logIn()
-		// the fixture server's lyrics only: the online providers would make the flow wait on
-		// the internet (lyrics show once every provider has answered)
-		openSettings()
-		click("Player")
-		click("Lyrics sources")
-		for (provider in listOf("Musixmatch", "LRCLIB", "LyricsPlus")) {
-			click(checkbox(provider))
-		}
-		click(description("Close sheet"))
-		navigateUp()
-		// phones stack settings over Home: up once more, back to the tabs
-		click(tab("Library") or description("Navigate up"))
+		// the fixture server's lyrics show without waiting for the online providers
 		openTab("Library")
 		click("Albums")
 		click("First Light")

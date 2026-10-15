@@ -26,6 +26,7 @@ class LyricsActionsOrderTest {
 				LyricsActions(
 					providerResults = listOf(lyrics("Source A"), lyrics("Source B")),
 					selectedProviderIndex = 0,
+					isSearching = false,
 					isSelecting = false,
 					selectedIndicesSize = 0,
 					providerMenuOpen = false,

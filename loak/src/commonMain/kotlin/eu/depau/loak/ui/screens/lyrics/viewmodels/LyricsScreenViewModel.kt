@@ -2,6 +2,8 @@ package eu.depau.loak.ui.screens.lyrics.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -29,6 +31,17 @@ class LyricsScreenViewModel(
 	/** Index into [lyricsState] data of the lyrics currently shown. */
 	val selectedProviderIndex: StateFlow<Int>
 		field = MutableStateFlow(0)
+
+	/** Providers are still being asked: more lyrics may join [lyricsState]. */
+	val isSearching: StateFlow<Boolean>
+		field = MutableStateFlow(false)
+
+	/**
+	 * The provider whose lyrics the user chose to keep on screen; until then, the
+	 * highest-priority lyrics found so far are shown.
+	 */
+	private var pinnedProvider: String? = null
+	private var refreshJob: Job? = null
 
 	/** User-adjustable sync offset in milliseconds; positive = lyrics appear earlier. */
 	val lyricOffset: StateFlow<Long>
@@ -58,32 +71,67 @@ class LyricsScreenViewModel(
 	}
 
 	fun refreshResults() {
-		viewModelScope.launch {
+		refreshJob?.cancel()
+		refreshJob = viewModelScope.launch {
 			if (song == null) {
 				lyricsState.value = UiState.Success(emptyList())
 				return@launch
 			}
-			lyricsState.value = UiState.Loading()
+			// a refresh keeps the lyrics on screen until new ones come
+			if (lyricsState.value !is UiState.Success) lyricsState.value = UiState.Loading()
+			pinnedProvider = null
+			isSearching.value = true
 			try {
-				lyricsState.value = UiState.Success(repository.fetchAllLyrics(song))
-				selectedProviderIndex.value = 0
-				lyricOffset.value = 0L
-				committedOffset.value = 0L
+				// each provider's lyrics show as they come, rather than after the slowest
+				var found = false
+				repository.lyricsFlow(song).collect {
+					found = true
+					show(it)
+				}
+				if (!found) lyricsState.value = UiState.Success(emptyList())
+			} catch (e: CancellationException) {
+				throw e
 			} catch (e: Exception) {
 				lyricsState.value = UiState.Error(e)
+			} finally {
+				isSearching.value = false
 			}
 		}
 	}
 
+	/** Shows [results], keeping the pinned provider's lyrics on screen if they're among them. */
+	private fun show(results: List<LyricsResult>) {
+		val shown = currentResult?.providerName
+		lyricsState.value = UiState.Success(results)
+		selectedProviderIndex.value = pinnedProvider
+			?.let { name -> results.indexOfFirst { it.providerName == name } }
+			?.takeIf { it >= 0 } ?: 0
+		if (currentResult?.providerName != shown) {
+			lyricOffset.value = 0L
+			committedOffset.value = 0L
+		}
+	}
+
 	fun selectProvider(index: Int) {
-		if (index == selectedProviderIndex.value) return
-		selectedProviderIndex.value = index
-		lyricOffset.value = 0L
-		committedOffset.value = 0L
+		if (index != selectedProviderIndex.value) {
+			selectedProviderIndex.value = index
+			lyricOffset.value = 0L
+			committedOffset.value = 0L
+		}
+		pinShown()
+	}
+
+	/**
+	 * Keeps the lyrics on screen while more arrive: the user is working with them
+	 * (picking lines to share, syncing), so they mustn't change underneath.
+	 */
+	fun pinShown() {
+		pinnedProvider = currentResult?.providerName
 	}
 
 	/** Remember where the preview started so Cancel can restore it. */
 	fun beginSyncAdjustment() {
+		pinShown()
 		committedOffset.value = lyricOffset.value
 	}
 
@@ -125,14 +173,11 @@ class LyricsScreenViewModel(
 			isSaving.value = true
 			try {
 				repository.saveLyrics(song!!, content)
-				// show the saved copy as the active provider
-				lyricsState.value = UiState.Success(repository.fetchAllLyrics(song!!))
-				selectedProviderIndex.value =
-					(lyricsState.value as UiState.Success).data.indexOfFirst {
-						it.providerName == LOCAL_PROVIDER
-					}.coerceAtLeast(0)
+				// saved lyrics come first, so the refresh shows them straight away; the
+				// offset is baked into them
 				lyricOffset.value = 0L
 				committedOffset.value = 0L
+				refreshResults()
 				snackBarManager.notify(Res.string.notice_lyrics_saved)
 			} catch (e: Exception) {
 				snackBarManager.notify(Res.string.notice_lyrics_save_failed)

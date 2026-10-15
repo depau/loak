@@ -21,6 +21,8 @@ import io.ktor.client.request.HttpRequestData
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
@@ -30,14 +32,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * CF-LYR (lyrics) at the logic layer: the real [LyricsRepository] against a fake [LyricDao]
  * and a fake LRC server (Ktor MockEngine — also pinned to the test scheduler — injected
  * through the repository's engine seam). No network, no Room. Locks the project invariants:
  * saved (LOCAL_PROVIDER) lyrics are pinned first, offline returns only the last-known copy
- * with zero network calls, providers run in config priority order, a failing provider is
- * skipped, and only the first non-saved result is auto-cached.
+ * with zero network calls, results come in config priority order as each provider answers,
+ * a failing provider is skipped, and only the highest-priority non-saved result is cached.
  */
 class LyricsFlowTest {
 
@@ -47,12 +50,14 @@ class LyricsFlowTest {
 	private fun fakeServer(
 		scheduler: TestCoroutineScheduler,
 		requests: MutableList<Pair<String, String?>>,
+		slow: (host: String) -> Boolean = { false },
 		failing: (host: String) -> Boolean = { false },
 	) = MockEngine(MockEngineConfig().apply {
 		dispatcher = StandardTestDispatcher(scheduler)
 		addHandler { request ->
 			val host = request.url.host
 			requests += host to request.url.parameters["q"]
+			if (slow(host)) delay(10.seconds)
 			if (failing(host)) {
 				respond(
 					content = "{}",
@@ -190,6 +195,26 @@ class LyricsFlowTest {
 		assertEquals(
 			listOf("lyrics from lrclib.example", "lyrics from musixmatch"),
 			results.map { it.lines.first().text },
+		)
+	}
+
+	@Test
+	fun lyricsShowAsEachProviderAnswersStillInPriorityOrder() = runTest {
+		val requests = mutableListOf<Pair<String, String?>>()
+		val engine = fakeServer(testScheduler, requests, slow = { it == "lrclib.example" })
+		val dao = fakeLyricDao()
+		val repo = repository(testScheduler, engine, dao, lrclibThenMusixmatch())
+
+		val emissions = repo.lyricsFlow(song()).toList()
+
+		assertEquals(
+			listOf(listOf("MUSIXMATCH"), listOf("LRCLIB", "MUSIXMATCH")),
+			emissions.map { results -> results.map { it.providerName } },
+			"the faster provider shows first; the slower, higher-priority one joins ahead of it",
+		)
+		assertEquals(
+			"LRCLIB", dao.inserts.single().providerName,
+			"the cache waits for the higher-priority provider rather than taking the first answer",
 		)
 	}
 
