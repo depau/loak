@@ -65,6 +65,9 @@ kotlin {
 		val desktopTest by getting {
 			dependencies {
 				implementation(kotlin("test"))
+				implementation(project(":loakUiTest"))
+				implementation(libs.androidx.room3.runtime)
+				implementation(libs.bundles.androidx.lifecycle)
 				implementation(libs.cmp.ui.test)
 				implementation(libs.cmp.ui.test.junit4)
 				implementation(libs.cmp.material3.windowSize)
@@ -77,6 +80,16 @@ kotlin {
 			}
 		}
 	}
+}
+
+tasks.named<Test>("desktopTest") {
+	// the UI flows run the real app, which keeps settings and databases under the
+	// user's home: give the test JVM a throwaway one so tests never touch real data
+	val home = layout.buildDirectory.dir("test-home").get().asFile
+	doFirst { home.deleteRecursively(); home.mkdirs() }
+	systemProperty("user.home", home.absolutePath)
+	systemProperty("loak.uitest.failures", layout.buildDirectory.dir("ui-test-failures").get().asFile.absolutePath)
+	usesNavidrome(this)
 }
 
 nucleus.application {

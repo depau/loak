@@ -183,12 +183,20 @@ Crash/error reporting uses the **Sentry Kotlin Multiplatform SDK** (`io.sentry:s
 
 ## Tests
 
-Unit tests live in `loak/src/commonTest/` (shared logic: models, managers, navigation helpers) and `loak/src/desktopTest/` (desktop player, cache database migrations), with `kotlin("test")` as the only test dependency (`commonTest.dependencies` in `loak/build.gradle.kts`). There is no UI test suite, and **CI runs no tests** — run them yourself:
+Unit tests live in `loak/src/commonTest/` (shared logic: models, managers, navigation helpers) and `loak/src/desktopTest/` (desktop player, cache database migrations), with `kotlin("test")` as the only test dependency (`commonTest.dependencies` in `loak/build.gradle.kts`).
 
 - `./gradlew :loak:desktopTest` — the quickest (JVM, runs both commonTest and desktopTest).
 - `./gradlew :loak:allTests` — every target, aggregated report; also `:loak:iosSimulatorArm64Test`, `:loak:wasmJsTest`.
 
-Add new tests to `commonTest` when the logic is shared, `desktopTest` when it needs the JVM. They don't cover UI: compile/assemble plus manual verification remain the gate for UI changes.
+Add new tests to `commonTest` when the logic is shared, `desktopTest` when it needs the JVM.
+
+### User flows (end-to-end UI tests)
+
+`loakUiTest` holds the **user flows**: `UserFlows` runs the real app (real Koin graph, database, HTTP client and player) through whole user journeys — log in, every tab and Library list, playback, search, every settings page, log out — finding nodes by their text and content descriptions (`Steps.kt`), never coordinates. Each platform subclasses it with a launcher that starts that platform's app as a fresh install, muted; on desktop that's `loakDesktop/src/desktopTest/.../DesktopUserFlows.kt`, at a wide and a phone-sized window. A flow fails on a crash, an assertion, or a screen that shows nothing within 30 s; desktop failures leave a screenshot in `loakDesktop/build/ui-test-failures/`.
+
+- `./gradlew :loakDesktop:desktopTest` — the desktop UI tests, user flows included.
+- They run against a real server: `NavidromeFixture` (`buildSrc`) downloads a pinned, checksummed Navidrome on first use and serves `loakUiTest/fixture/music` on `127.0.0.1:45330` for the duration of the build (one build at a time: the port is fixed). The library is committed; `loakUiTest/fixture/generate-music.sh` (ffmpeg) regenerates it.
+- **New screen or user-visible flow → add it to `UserFlows`.** Every screen should be reached by at least one flow: crashes on opening a screen (LOAK-1W) are exactly what they catch.
 
 For UI changes: **manually verify on different themes and form factors and include a screenshot.**
 
