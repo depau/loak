@@ -270,6 +270,17 @@ jobs:
 
       # The desktop UI tests, user flows included: the real app against a pinned Navidrome
       # (see loakUiTest), on every OS the installers are built for. A failure blocks the nightly.
+      # The user flows check playback actually starts wherever there's an audio output:
+      # give the runners a virtual one (no driver for Windows on ARM: its flows only
+      # check the player picks the song up)
+      - name: Set up a virtual audio output (Linux)
+        if: runner.os == 'Linux'
+        run: .github/scripts/setup-virtual-audio.sh
+
+      - name: Set up a virtual audio output (macOS, Windows x64)
+        if: runner.os == 'macOS' || matrix.os == 'windows-latest'
+        uses: LABSN/sound-ci-helpers@d08c889a7bba7d9b1b059f8f76dac4672ea3a9cf # v1.0.4
+
       - name: Run UI tests and user flows
         run: ./gradlew :loakDesktop:desktopTest --stacktrace
 

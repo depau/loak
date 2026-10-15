@@ -10,7 +10,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.AndroidJUnitRunner
 import eu.depau.loak.di.SENTRY_ENABLED_KEY
+import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.uitest.UserFlows
+import org.koin.mp.KoinPlatform
 import org.junit.runner.RunWith
 
 /**
@@ -29,6 +31,10 @@ class AndroidUserFlows : UserFlows() {
 			.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
 		flow()
 	}
+
+	// the emulator has an audio output
+	override fun playbackProgress() =
+		KoinPlatform.getKoin().get<MediaPlayerViewModel>().uiState.value.progress
 }
 
 /** Runs the flows with crash reporting off, so test crashes never reach the real Sentry project. */

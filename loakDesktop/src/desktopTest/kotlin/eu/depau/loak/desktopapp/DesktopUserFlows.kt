@@ -16,6 +16,7 @@ import eu.depau.loak.di.desktopDataDir
 import eu.depau.loak.di.initKoin
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.uitest.UserFlows
+import dev.nucleusframework.rodio.RodioPlayer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.test.resetMain
@@ -32,6 +33,11 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 	@get:Rule
 	val name = TestName()
 
+	private var player: MediaPlayerViewModel? = null
+
+	// CI runners get a virtual one (build.yml); Windows on ARM has none
+	override fun playbackProgress() = if (hasAudioOutput) player?.uiState?.value?.progress else null
+
 	// a hung event thread blocks the test API itself, so fail from outside it
 	@get:Rule
 	val timeout: Timeout = Timeout.seconds(180)
@@ -42,7 +48,7 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 		// it, from before the app starts until the test has disposed the composition
 		Dispatchers.setMain(Dispatchers.Swing)
 		val koin = initKoin()
-		val player = koin.koin.get<MediaPlayerViewModel>()
+		val player = koin.koin.get<MediaPlayerViewModel>().also { this.player = it }
 		player.setVolume(0f) // flows play songs: keep them silent
 		try {
 			runDesktopComposeUiTest(width, height) {
@@ -75,6 +81,8 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 		println("Screenshot of the failure: $file")
 	}
 }
+
+private val hasAudioOutput by lazy { runCatching { RodioPlayer().close() }.isSuccess }
 
 class DesktopUserFlowsWide : DesktopUserFlows(1280, 800)
 

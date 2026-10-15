@@ -18,6 +18,12 @@ abstract class UserFlows {
 	 */
 	abstract fun runApp(flow: suspend ComposeUiTest.() -> Unit): TestResult
 
+	/**
+	 * How far the current song has played (0–1), or null when this machine has no audio
+	 * output to play it on; then [albumPlays] only checks the player picked the song up.
+	 */
+	protected abstract fun playbackProgress(): Float?
+
 	@Test
 	fun logInLandsOnHome() = runApp {
 		logIn()
@@ -66,11 +72,12 @@ abstract class UserFlows {
 		click("Albums")
 		click("First Light")
 		click("Low Tide")
-		// the player picks it up: the title shows twice, in the list and the player.
-		// Not "Pause": CI machines have no audio device, so the stream can't start there
+		// the player picks it up: the title shows twice, in the list and the player
 		await({ "Low Tide never reached the player" }) {
 			onAllNodes(text("Low Tide")).fetchSemanticsNodes().size >= 2
 		}
+		if (playbackProgress() == null) return@runApp
+		await({ "Low Tide never started playing" }) { playbackProgress()!! > 0f }
 	}
 
 	@Test

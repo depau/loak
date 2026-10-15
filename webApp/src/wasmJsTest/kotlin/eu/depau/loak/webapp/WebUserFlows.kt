@@ -10,6 +10,7 @@ import eu.depau.loak.uitest.UserFlows
 import kotlinx.browser.localStorage
 import kotlinx.coroutines.test.TestResult
 import org.koin.core.context.stopKoin
+import org.koin.mp.KoinPlatform
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -30,4 +31,8 @@ class WebUserFlows : UserFlows() {
 		setContent { App() }
 		flow()
 	}
+
+	// the browsers may autoplay (karma.config.d) and play without an audio device
+	override fun playbackProgress() =
+		KoinPlatform.getKoin().get<MediaPlayerViewModel>().uiState.value.progress
 }

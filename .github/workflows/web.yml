@@ -45,6 +45,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      # The flows check playback starts: the browsers need an audio output to play to
+      - name: Set up a virtual audio output
+        run: .github/scripts/setup-virtual-audio.sh
+
       # The user flows in headless Chrome and Firefox (Karma), against the Navidrome fixture;
       # a failure stops the deploy
       - name: Run user flows

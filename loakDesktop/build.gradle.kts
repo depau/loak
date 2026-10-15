@@ -66,6 +66,7 @@ kotlin {
 			dependencies {
 				implementation(kotlin("test"))
 				implementation(project(":loakUiTest"))
+				implementation(libs.nucleus.rodio) // to tell whether the machine has audio output
 				implementation(libs.androidx.room3.runtime)
 				implementation(libs.bundles.androidx.lifecycle)
 				implementation(libs.cmp.ui.test)

@@ -14,3 +14,11 @@ config.browserNoActivityTimeout = 300000;
 
 // The fixture server's port (-Ploak.uitest.port), read by the tests (TestServer)
 config.client.loakUitestPort = process.env.LOAK_UITEST_PORT;
+
+// The flows start playback from test clicks, which browsers don't count as user
+// gestures: let them autoplay
+config.customLaunchers = Object.assign({}, config.customLaunchers, {
+	ChromeHeadlessAutoplay: { base: "ChromeHeadless", flags: ["--autoplay-policy=no-user-gesture-required"] },
+	FirefoxHeadlessAutoplay: { base: "FirefoxHeadless", prefs: { "media.autoplay.default": 0 } },
+});
+config.browsers = config.browsers.map((browser) => browser + "Autoplay");
