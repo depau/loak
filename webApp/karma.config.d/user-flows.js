@@ -11,6 +11,10 @@ for (const asset of ["sqlite-worker.js", "sqlite/", "composeResources/"]) {
 // A flow runs for up to a few minutes against a real server
 config.client.mocha = Object.assign({}, config.client.mocha, { timeout: 300000 });
 config.browserNoActivityTimeout = 300000;
+// A browser drawing on the CPU (CI has no GPU) can be too busy to answer Karma's pings
+// for a few seconds: wait, so a stuck flow fails on its own timeout, with its screen
+config.pingTimeout = 60000;
+config.browserDisconnectTimeout = 60000;
 
 // One browser at a time: both share the fixture server, and flows change its state (a
 // star, the saved play queue) that the other browser's flows would see mid-run
