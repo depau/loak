@@ -169,6 +169,9 @@ fun Project.navidromeFixture(): Provider<NavidromeFixture> =
 		parameters.musicDir.set(rootProject.layout.projectDirectory.dir("loakUiTest/fixture/music"))
 		parameters.workDir.set(rootProject.layout.buildDirectory.dir("navidrome-fixture"))
 		parameters.port.set(uiTestPort())
+		// one test task at a time: flows change the server's state (a star, the saved
+		// queue) that another platform's flows, running alongside, would see
+		maxParallelUsages.set(1)
 	}
 
 /** The fixture server's port; launchers hand it to the tests (see TestServer in :loakUiTest). */

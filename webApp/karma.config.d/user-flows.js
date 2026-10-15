@@ -12,6 +12,10 @@ for (const asset of ["sqlite-worker.js", "sqlite/", "composeResources/"]) {
 config.client.mocha = Object.assign({}, config.client.mocha, { timeout: 300000 });
 config.browserNoActivityTimeout = 300000;
 
+// One browser at a time: both share the fixture server, and flows change its state (a
+// star, the saved play queue) that the other browser's flows would see mid-run
+config.concurrency = 1;
+
 // The fixture server's port (-Ploak.uitest.port), read by the tests (TestServer)
 config.client.loakUitestPort = process.env.LOAK_UITEST_PORT;
 
