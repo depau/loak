@@ -1140,6 +1140,11 @@
 		<item quantity="one">You have %1$d of these songs. Lidarr downloads the whole album.</item>
 		<item quantity="other">You have %1$d of these songs. Lidarr downloads the whole album.</item>
 	</plurals>
+	<string name="title_missing_songs">Missing songs</string>
+	<plurals name="info_missing_album_songs">
+		<item quantity="one">Your library doesn't have %1$d of this album's songs. Lidarr downloads the whole album.</item>
+		<item quantity="other">Your library doesn't have %1$d of this album's songs. Lidarr downloads the whole album.</item>
+	</plurals>
 	<string name="title_lidarr_searching">Searching in Lidarr…</string>
 	<string name="info_lidarr_searching">Lidarr is looking for a release to download</string>
 	<string name="title_lidarr_downloading">Downloading in Lidarr</string>

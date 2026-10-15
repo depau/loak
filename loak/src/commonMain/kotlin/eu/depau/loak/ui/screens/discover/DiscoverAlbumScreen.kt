@@ -74,6 +74,8 @@ import eu.depau.loak.generated.resources.info_discover_album_unavailable
 import eu.depau.loak.generated.resources.info_lidarr_downloaded
 import eu.depau.loak.generated.resources.info_lidarr_searching
 import eu.depau.loak.generated.resources.info_own_album_songs
+import eu.depau.loak.generated.resources.info_missing_album_songs
+import eu.depau.loak.generated.resources.title_missing_songs
 import eu.depau.loak.generated.resources.label_size_of_total
 import eu.depau.loak.generated.resources.notice_lidarr_search_failed
 import eu.depau.loak.generated.resources.title_in_your_library
@@ -168,8 +170,13 @@ private fun AlbumPage(page: DiscoverAlbumPage, padding: PaddingValues, addFlow: 
 				AlbumSubtitle(album, tracks.size)
 				Spacer(Modifier.height(16.dp))
 				val inLibrary = libraryAlbum
+				// the songs the library doesn't have; its tracklist can hold more than the library's copy
+				val missing = tracks.size - librarySongs.size
 				when {
-					inLibrary != null -> InLibraryCard(inLibrary)
+					inLibrary != null && missing == 0 -> InLibraryCard(inLibrary)
+					// Lidarr is already on it: waiting fills the gaps
+					inLibrary != null && inLidarr != null -> LidarrStatus(inLidarr)
+					inLibrary != null -> MissingSongsCard(album, inLibrary, missing, addFlow)
 					inLidarr != null -> LidarrStatus(inLidarr)
 					else -> AddButtons(album, tracks, librarySongs.size, addFlow)
 				}
@@ -240,6 +247,27 @@ private fun InLibraryCard(albumId: String) {
 		onClick = dropUnlessResumed { backStack.add(Screen.CollectionDetail(albumId, "library")) },
 		modifier = Modifier.padding(top = 12.dp)
 	) { Text(stringResource(Res.string.action_view_album)) }
+}
+
+/** The library has part of it: what's missing, the way to it from Lidarr, and to its own page. */
+@Composable
+private fun MissingSongsCard(album: DiscoverAlbum, libraryAlbumId: String, missing: Int, addFlow: LidarrAddFlow) {
+	val backStack = LocalNavStack.current
+	StatusCard(
+		Icons.Outlined.Download,
+		stringResource(Res.string.title_missing_songs),
+		pluralStringResource(Res.plurals.info_missing_album_songs, missing, missing),
+		MaterialTheme.colorScheme.secondaryContainer
+	)
+	Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+		Button(onClick = { addFlow.addAlbum(album) }) {
+			Icon(Icons.Outlined.Add, null, Modifier.size(ButtonDefaults.IconSize))
+			Text(stringResource(Res.string.action_add_album), Modifier.padding(start = ButtonDefaults.IconSpacing))
+		}
+		OutlinedButton(onClick = dropUnlessResumed { backStack.add(Screen.CollectionDetail(libraryAlbumId, "library")) }) {
+			Text(stringResource(Res.string.action_view_album))
+		}
+	}
 }
 
 /**
