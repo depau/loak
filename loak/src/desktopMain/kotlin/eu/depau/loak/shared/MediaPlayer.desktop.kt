@@ -43,7 +43,6 @@ import eu.depau.loak.util.decibelsToLinear
 import eu.depau.loak.util.effectiveGain
 import dev.nucleusframework.rodio.PlaybackCallback
 import dev.nucleusframework.rodio.PlaybackEvent
-import dev.nucleusframework.rodio.RodioPlayer
 import org.koin.core.component.inject
 
 /** Original-file extensions nucleus' rodio build decodes (Symphonia flac/mp3/aac/vorbis/ogg/wav). */
@@ -82,15 +81,13 @@ class DesktopMediaPlayerViewModel(
 	private val audioFetcher: AudioFetcher by inject()
 	private val audioGainManager: AudioGainManager by inject()
 
-	private val rodio = RodioPlayer().apply {
-		setCallback(object : PlaybackCallback {
-			override fun onEvent(event: PlaybackEvent) {}
-			override fun onMetadata(key: String, value: String) {}
-			override fun onError(message: String) {
-				Logger.e("DesktopMediaPlayerViewModel", "rodio error: $message")
-			}
-		})
-	}
+	private val rodio = AudioOutput(object : PlaybackCallback {
+		override fun onEvent(event: PlaybackEvent) {}
+		override fun onMetadata(key: String, value: String) {}
+		override fun onError(message: String) {
+			Logger.e("DesktopMediaPlayerViewModel", "rodio error: $message")
+		}
+	})
 
 	/** A lossy fallback likely still streaming; cancelled before a new source takes over. */
 	private var swappedAwayJob: Job? = null
