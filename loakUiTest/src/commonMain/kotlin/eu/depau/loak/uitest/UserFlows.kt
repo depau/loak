@@ -113,6 +113,36 @@ abstract class UserFlows {
 	}
 
 	@Test
+	fun playerShowsLyricsAndQueue() = runApp {
+		logIn()
+		// the fixture server's lyrics only: the online providers would make the flow wait on
+		// the internet (lyrics show once every provider has answered)
+		openSettings()
+		click("Player")
+		click("Lyrics sources")
+		for (provider in listOf("Musixmatch", "LRCLIB", "LyricsPlus")) {
+			click(checkbox(provider))
+		}
+		click(description("Close sheet"))
+		navigateUp()
+		// phones stack settings over Home: up once more, back to the tabs
+		click(tab("Library") or description("Navigate up"))
+		openTab("Library")
+		click("Albums")
+		click("First Light")
+		click("Morning Static") // the album's first song, the one with (synced) lyrics
+		openPlayer("Morning Static")
+		click(description("Pause")) // the songs last 10 s: keep this one on
+		click(tab("Lyrics"))
+		waitForText("First line of the test lyrics")
+		click(tab("Up next"))
+		await({ "Up next never replaced the lyrics" }) {
+			onAllNodes(text("First line of the test lyrics")).fetchSemanticsNodes().isEmpty()
+		}
+		waitForText("Low Tide")
+	}
+
+	@Test
 	fun searchFindsSongs() = runApp {
 		logIn()
 		click(text("Search your library") or description("Search"))

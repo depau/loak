@@ -7,6 +7,7 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToNodeAction
@@ -63,6 +64,10 @@ fun inSheet(matcher: SemanticsMatcher) = matcher and hasAnyAncestor(
 
 /** A navigation bar / rail item. */
 fun tab(label: String) = hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+
+/** The checkbox in the row labelled [label]. */
+fun checkbox(label: String) =
+	SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox) and hasAnySibling(hasText(label))
 
 /**
  * Waits until [condition] holds. Polls in real time, off the test's virtual clock, so
@@ -165,5 +170,14 @@ suspend fun ComposeUiTest.openTab(label: String) = click(tab(label))
 
 /** Settings sit at the bottom of the navigation rail, or behind a top bar button on phones. */
 suspend fun ComposeUiTest.openSettings() = click(tab("Settings") or description("Settings"))
+
+/**
+ * Opens the full player: its button in the wide player bar, or the mini player (the row
+ * showing [song] outside any list).
+ */
+suspend fun ComposeUiTest.openPlayer(song: String) = click(
+	description("Now playing") or
+		(text(song) and hasClickAction() and !hasAnyAncestor(hasScrollToNodeAction()))
+)
 
 suspend fun ComposeUiTest.navigateUp() = click(description("Navigate up"))
