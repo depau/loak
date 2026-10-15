@@ -1,6 +1,5 @@
 package eu.depau.loak.ui.screens.settings.dialogs
 
-import androidx.compose.animation.core.snap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -33,9 +32,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import ir.mahozad.multiplatform.wavyslider.material3.Track
-import ir.mahozad.multiplatform.wavyslider.material3.WaveAnimationSpecs
-import ir.mahozad.multiplatform.wavyslider.material3.WaveLength
 import ir.mahozad.multiplatform.wavyslider.material3.WavySlider
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_ok
@@ -43,6 +39,7 @@ import eu.depau.loak.generated.resources.option_now_playing_slider_style
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.ui.components.common.WavyTrack
 import eu.depau.loak.domain.models.settings.NowPlayingSliderStyle
 import eu.depau.loak.ui.components.common.SlimSlider
 
@@ -97,14 +94,7 @@ fun NowPlayingSliderStyleDialog(
 										interactionSource = interactionSource,
 										modifier = Modifier.requiredWidth(200.dp).scale(.5f),
 										track = { sliderState ->
-											SliderDefaults.Track(
-												sliderState = sliderState,
-												thumbTrackGapSize = 0.dp,
-												waveLength = SliderDefaults.WaveLength,
-												animationSpecs = SliderDefaults.WaveAnimationSpecs.copy(
-													waveAppearanceAnimationSpec = snap()
-												),
-											)
+											WavyTrack(sliderState, waveLength = 20.dp, waveHeight = 6.dp, waveVelocity = 10.dp)
 										}
 									)
 								}
@@ -116,14 +106,7 @@ fun NowPlayingSliderStyleDialog(
 										interactionSource = interactionSource,
 										modifier = Modifier.requiredWidth(200.dp).scale(.5f),
 										track = { sliderState ->
-											SliderDefaults.Track(
-												sliderState = sliderState,
-												thumbTrackGapSize = 0.dp,
-												waveLength = 24.dp,
-												animationSpecs = SliderDefaults.WaveAnimationSpecs.copy(
-													waveAppearanceAnimationSpec = snap()
-												),
-											)
+											WavyTrack(sliderState, waveLength = 24.dp, waveHeight = 6.dp, waveVelocity = 10.dp)
 										},
 										thumb = { sliderState ->
 											SliderDefaults.Thumb(

@@ -1,7 +1,6 @@
 package eu.depau.loak.ui.screens.nowPlaying.components.controls
 
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -14,16 +13,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import ir.mahozad.multiplatform.wavyslider.WaveDirection
-import ir.mahozad.multiplatform.wavyslider.WaveVelocity
-import ir.mahozad.multiplatform.wavyslider.material3.Track
-import ir.mahozad.multiplatform.wavyslider.material3.WaveAnimationSpecs
-import ir.mahozad.multiplatform.wavyslider.material3.WaveVelocity
 import ir.mahozad.multiplatform.wavyslider.material3.WavySlider
 import org.koin.compose.koinInject
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.models.settings.NowPlayingSliderStyle
 import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.ui.components.common.WavyTrack
 import eu.depau.loak.ui.components.common.SlimSlider
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,17 +63,13 @@ fun NowPlayingProgressBar() {
 					)
 				},
 				track = { sliderState ->
-					SliderDefaults.Track(
+					WavyTrack(
 						sliderState = sliderState,
+						thumbWidth = 4.dp,
 						thumbTrackGapSize = if (isYoyo) 0.dp else 6.dp,
 						waveLength = if (isYoyo) 32.dp else 26.dp,
 						waveHeight = waveHeight,
-						animationSpecs = SliderDefaults.WaveAnimationSpecs.copy(
-							waveAppearanceAnimationSpec = snap()
-						),
-						waveVelocity = if (isYoyo)
-							WaveVelocity(14.dp, WaveDirection.TAIL)
-						else SliderDefaults.WaveVelocity
+						waveVelocity = if (isYoyo) 14.dp else 10.dp
 					)
 				},
 				enabled = enabled
