@@ -9,8 +9,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -19,6 +22,7 @@ import eu.depau.loak.data.database.entities.DownloadStatus
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
+import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainArtist
@@ -51,6 +55,7 @@ class ArtistDetailViewModel(
 	private val artistDao: ArtistDao,
 	private val downloadManager: DownloadManager,
 	private val snackBarManager: SnackBarManager,
+	syncManager: SyncManager,
 	connectivityManager: ConnectivityManager
 ) : ViewModel() {
 	val artistState: StateFlow<UiState<ArtistState>>
@@ -81,6 +86,12 @@ class ArtistDetailViewModel(
 
 	init {
 		loadArtistData()
+		// the artists list fetches artists ahead of the library sync: an artist opened
+		// before the sync has written its albums gets them once it's done
+		viewModelScope.launch {
+			syncManager.syncState.map { it.isSyncing }.distinctUntilChanged().drop(1)
+				.collect { syncing -> if (!syncing) loadArtistData() }
+		}
 	}
 
 	private fun loadArtistData() {
