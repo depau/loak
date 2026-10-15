@@ -6,6 +6,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToNodeAction
@@ -50,6 +51,15 @@ expect val testServerHost: String
 fun text(value: String, substring: Boolean = false) = hasText(value, substring = substring)
 
 fun description(value: String) = hasContentDescription(value)
+
+/**
+ * [matcher] inside an item's open sheet, not the screen behind it: a bottom sheet on
+ * touch screens, a popup menu where a mouse is in use.
+ */
+fun inSheet(matcher: SemanticsMatcher) = matcher and hasAnyAncestor(
+	SemanticsMatcher.keyIsDefined(SemanticsProperties.PaneTitle) or
+		SemanticsMatcher.keyIsDefined(SemanticsProperties.IsPopup)
+)
 
 /** A navigation bar / rail item. */
 fun tab(label: String) = hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
@@ -128,6 +138,14 @@ suspend fun ComposeUiTest.click(matcher: SemanticsMatcher) {
 }
 
 suspend fun ComposeUiTest.click(label: String) = click(text(label))
+
+/** A long press, the way rows open their item's sheet. */
+suspend fun ComposeUiTest.longClick(label: String) {
+	val node = waitFor(text(label) and SemanticsMatcher.keyIsDefined(SemanticsActions.OnLongClick))
+	runCatching { node.performScrollTo() }
+	node.performSemanticsAction(SemanticsActions.OnLongClick)
+	waitForIdle()
+}
 
 suspend fun ComposeUiTest.type(field: SemanticsMatcher, value: String) {
 	waitFor(field and hasSetTextAction()).performTextInput(value)

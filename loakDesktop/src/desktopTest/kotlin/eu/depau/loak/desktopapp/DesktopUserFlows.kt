@@ -47,6 +47,7 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 		// thread outside a Tao window); the test drives Compose on the EDT, so Main must be
 		// it, from before the app starts until the test has disposed the composition
 		Dispatchers.setMain(Dispatchers.Swing)
+		stopKoin() // after a flow that timed out, its app is still around
 		val koin = initKoin()
 		val player = koin.koin.get<MediaPlayerViewModel>().also { this.player = it }
 		player.setVolume(0f) // flows play songs: keep them silent

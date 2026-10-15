@@ -81,6 +81,38 @@ abstract class UserFlows {
 	}
 
 	@Test
+	fun collectionsOpen() = runApp {
+		logIn()
+		openTab("Library")
+		click("Artists")
+		click("Aurora Test")
+		waitForText("Second Wind")
+		openTab("Library")
+		click("Genres")
+		click("Rock")
+		waitForText("Fourth Wall")
+		openTab("Playlists")
+		click("UI Test Mix")
+		waitForText("Copper Lines")
+	}
+
+	@Test
+	fun songSheetStarsAndUnstars() = runApp {
+		logIn()
+		openTab("Library")
+		click("Songs")
+		longClick("Signal Fire")
+		click(inSheet(description("Star")))
+		openTab("Library")
+		click("Starred")
+		waitForText("Signal Fire")
+		// the star lives on the shared fixture server: take it back for the other flows
+		longClick("Signal Fire")
+		click(inSheet(description("Unstar")))
+		waitForText("Nothing's starred")
+	}
+
+	@Test
 	fun searchFindsSongs() = runApp {
 		logIn()
 		click(text("Search your library") or description("Search"))
