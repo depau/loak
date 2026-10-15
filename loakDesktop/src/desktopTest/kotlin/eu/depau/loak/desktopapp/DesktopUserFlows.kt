@@ -36,7 +36,7 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 	@get:Rule
 	val timeout: Timeout = Timeout.seconds(180)
 
-	override fun runApp(flow: ComposeUiTest.() -> Unit) {
+	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) {
 		// Nucleus registers its own Main dispatcher (the Tao main thread, or a fallback
 		// thread outside a Tao window); the test drives Compose on the EDT, so Main must be
 		// it, from before the app starts until the test has disposed the composition

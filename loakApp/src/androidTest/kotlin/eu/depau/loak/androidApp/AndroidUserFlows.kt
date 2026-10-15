@@ -22,7 +22,7 @@ import org.junit.runner.RunWith
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 class AndroidUserFlows : UserFlows() {
-	override fun runApp(flow: ComposeUiTest.() -> Unit) = runAndroidComposeUiTest<MainActivity> {
+	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runAndroidComposeUiTest<MainActivity> {
 		// flows play songs: keep them silent
 		InstrumentationRegistry.getInstrumentation().targetContext
 			.getSystemService(AudioManager::class.java)

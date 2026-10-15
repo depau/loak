@@ -8,8 +8,14 @@ kotlin {
 	wasmJs {
 		binaries.executable()
 		browser {
+			// the user flows (src/wasmJsTest) in headless Chrome and Firefox, against the
+			// Navidrome fixture; karma.config.d serves the app's static assets to them.
+			// ponytail: Karma, since the new test {} DSL doesn't support wasmJs yet
 			testTask {
-				enabled = false
+				useKarma {
+					useChromeHeadless()
+					useFirefoxHeadless()
+				}
 			}
 		}
 	}
@@ -22,5 +28,12 @@ kotlin {
 			implementation(compose.ui)
 			implementation(libs.koin.core)
 		}
+		wasmJsTest.dependencies {
+			implementation(project(":loakUiTest"))
+			implementation(libs.kotlinx.browser)
+			implementation(libs.bundles.androidx.lifecycle)
+		}
 	}
 }
+
+tasks.named("wasmJsBrowserTest") { usesNavidrome(this) }

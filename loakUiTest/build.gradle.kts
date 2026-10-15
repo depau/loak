@@ -25,6 +25,10 @@ kotlin {
 		}
 	}
 
+	wasmJs {
+		browser()
+	}
+
 	compilerOptions {
 		optIn.add("androidx.compose.ui.test.ExperimentalTestApi")
 	}
@@ -33,6 +37,7 @@ kotlin {
 		commonMain.dependencies {
 			api(libs.cmp.ui.test)
 			api(kotlin("test"))
+			api(libs.kotlinx.coroutines.test)
 		}
 		// kotlin-test only picks its framework for test source sets: name it here
 		named("desktopMain").dependencies {

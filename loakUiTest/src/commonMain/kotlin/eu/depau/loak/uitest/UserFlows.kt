@@ -1,6 +1,7 @@
 package eu.depau.loak.uitest
 
 import androidx.compose.ui.test.ComposeUiTest
+import kotlinx.coroutines.test.TestResult
 import kotlin.test.Test
 
 /**
@@ -12,9 +13,10 @@ import kotlin.test.Test
 abstract class UserFlows {
 	/**
 	 * Starts the real app, as a fresh install, runs [flow] against it, then tears
-	 * it down so the next flow starts fresh too.
+	 * it down so the next flow starts fresh too. Returns the platform's async test
+	 * result (a Promise on the web, Unit elsewhere).
 	 */
-	abstract fun runApp(flow: ComposeUiTest.() -> Unit)
+	abstract fun runApp(flow: suspend ComposeUiTest.() -> Unit): TestResult
 
 	@Test
 	fun logInLandsOnHome() = runApp {
@@ -66,7 +68,7 @@ abstract class UserFlows {
 		click("Low Tide")
 		// the player picks it up: the title shows twice, in the list and the player.
 		// Not "Pause": CI machines have no audio device, so the stream can't start there
-		waitUntil(timeoutMillis = SCREEN_TIMEOUT_MS) {
+		await({ "Low Tide never reached the player" }) {
 			onAllNodes(text("Low Tide")).fetchSemanticsNodes().size >= 2
 		}
 	}

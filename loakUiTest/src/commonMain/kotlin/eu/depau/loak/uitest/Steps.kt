@@ -3,7 +3,6 @@ package eu.depau.loak.uitest
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -15,15 +14,24 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * How long a screen gets to show its content. Generous for slow CI emulators,
  * and short enough that a frozen screen fails the flow instead of the job.
  */
 const val SCREEN_TIMEOUT_MS = 30_000L
+
+private val REVEAL_AFTER = 2.seconds
 
 /** The fixture server (NavidromeFixture in buildSrc): keep these in sync with it. */
 object TestServer {
@@ -44,21 +52,40 @@ fun description(value: String) = hasContentDescription(value)
 fun tab(label: String) = hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
 
 /**
+ * Waits until [condition] holds. Polls in real time, off the test's virtual clock, so
+ * the app's network and database work progresses meanwhile: on the web's single thread
+ * Compose's own `waitUntil` spins without ever yielding to them.
+ */
+suspend fun ComposeUiTest.await(
+	what: () -> String,
+	timeoutMillis: Long = SCREEN_TIMEOUT_MS,
+	condition: () -> Boolean,
+) {
+	val deadline = TimeSource.Monotonic.markNow() + timeoutMillis.milliseconds
+	while (!condition()) {
+		if (deadline.hasPassedNow()) {
+			throw AssertionError(
+				"${what()} after ${timeoutMillis / 1000} s. On screen:\n" +
+					onRoot(useUnmergedTree = false).printToString()
+			)
+		}
+		withContext(Dispatchers.Default) { delay(50) }
+	}
+}
+
+/**
  * Waits until a node matching [matcher] is on screen and returns the first. On
  * timeout the failure carries the whole semantics tree, i.e. what was on screen.
  */
-fun ComposeUiTest.waitFor(
+suspend fun ComposeUiTest.waitFor(
 	matcher: SemanticsMatcher,
 	timeoutMillis: Long = SCREEN_TIMEOUT_MS,
 ): SemanticsNodeInteraction {
-	try {
-		waitUntil(timeoutMillis = timeoutMillis) { isShown(matcher) || reveal(matcher) }
-	} catch (e: ComposeTimeoutException) {
-		throw AssertionError(
-			"Nothing matching ${matcher.description} after ${timeoutMillis / 1000} s. On screen:\n" +
-				onRoot(useUnmergedTree = false).printToString(),
-			e,
-		)
+	val start = TimeSource.Monotonic.markNow()
+	await({ "Nothing matching ${matcher.description}" }, timeoutMillis) {
+		// scroll lists for it only once the screen had time to settle: right after a
+		// click the old screen, mid-transition, can still be the one on screen
+		isShown(matcher) || (start.elapsedNow() > REVEAL_AFTER && reveal(matcher))
 	}
 	return onAllNodes(matcher)[0]
 }
@@ -66,18 +93,26 @@ fun ComposeUiTest.waitFor(
 private fun ComposeUiTest.isShown(matcher: SemanticsMatcher) =
 	onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
 
-/** Lazy lists only compose what's on screen: scroll each one looking for [matcher]. */
+/**
+ * Lazy lists only compose what's on screen: search each one for [matcher], from its
+ * top (scrolling to a node only searches forwards from where the list is).
+ */
 private fun ComposeUiTest.reveal(matcher: SemanticsMatcher): Boolean {
 	val lists = onAllNodes(hasScrollToNodeAction())
 	for (i in lists.fetchSemanticsNodes().indices) {
-		if (runCatching { lists[i].performScrollToNode(matcher) }.isSuccess) return true
+		val found = runCatching {
+			lists[i].performScrollToIndex(0)
+			lists[i].performScrollToNode(matcher)
+		}.isSuccess
+		if (found) return true
+		runCatching { lists[i].performScrollToIndex(0) } // not there: leave the list as found
 	}
 	return false
 }
 
-fun ComposeUiTest.waitForText(value: String, substring: Boolean = false) = waitFor(text(value, substring))
+suspend fun ComposeUiTest.waitForText(value: String, substring: Boolean = false) = waitFor(text(value, substring))
 
-fun ComposeUiTest.click(matcher: SemanticsMatcher) {
+suspend fun ComposeUiTest.click(matcher: SemanticsMatcher) {
 	val node = waitFor(matcher)
 	// lazy lists compose rows past the window's edge; nodes outside a scrollable
 	// container just can't (and needn't) scroll
@@ -88,14 +123,14 @@ fun ComposeUiTest.click(matcher: SemanticsMatcher) {
 	waitForIdle()
 }
 
-fun ComposeUiTest.click(label: String) = click(text(label))
+suspend fun ComposeUiTest.click(label: String) = click(text(label))
 
-fun ComposeUiTest.type(field: SemanticsMatcher, value: String) {
+suspend fun ComposeUiTest.type(field: SemanticsMatcher, value: String) {
 	waitFor(field and hasSetTextAction()).performTextInput(value)
 }
 
 /** Logs into the fixture server from the login screen and dismisses the setup page. */
-fun ComposeUiTest.logIn() {
+suspend fun ComposeUiTest.logIn() {
 	type(text("Instance URL"), TestServer.url)
 	type(text("Username"), TestServer.USER)
 	type(text("Password"), TestServer.PASSWORD)
@@ -104,9 +139,9 @@ fun ComposeUiTest.logIn() {
 	click("Done")
 }
 
-fun ComposeUiTest.openTab(label: String) = click(tab(label))
+suspend fun ComposeUiTest.openTab(label: String) = click(tab(label))
 
 /** Settings sit at the bottom of the navigation rail, or behind a top bar button on phones. */
-fun ComposeUiTest.openSettings() = click(tab("Settings") or description("Settings"))
+suspend fun ComposeUiTest.openSettings() = click(tab("Settings") or description("Settings"))
 
-fun ComposeUiTest.navigateUp() = click(description("Navigate up"))
+suspend fun ComposeUiTest.navigateUp() = click(description("Navigate up"))
