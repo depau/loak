@@ -1,5 +1,6 @@
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -12,7 +13,7 @@ import java.util.zip.ZipInputStream
 
 /**
  * The real Subsonic server the UI flows run against: a pinned Navidrome on
- * 127.0.0.1:[PORT] serving the committed library in `loakUiTest/fixture/music`,
+ * 127.0.0.1 (port [DEFAULT_PORT], or -Ploak.uitest.port) serving the committed library in `loakUiTest/fixture/music`,
  * with one admin user. Started on first use by any test task that needs it
  * (Android emulators reach it as 10.0.2.2), stopped when the build ends.
  * Every build starts from an empty Navidrome database.
@@ -21,12 +22,12 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 	interface Params : BuildServiceParameters {
 		val musicDir: DirectoryProperty
 		val workDir: DirectoryProperty
+		val port: Property<Int>
 	}
 
 	companion object {
-		// ponytail: one fixed port, so two builds running UI tests at once collide
-		// (the second fails to start); make it a property when that matters
-		const val PORT = 45330
+		/** Builds running UI tests at the same time need their own: -Ploak.uitest.port=… */
+		const val DEFAULT_PORT = 45330
 		const val USER = "loak"
 		const val PASSWORD = "loak-ui-test"
 
@@ -41,7 +42,8 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 		)
 	}
 
-	private val base = "http://127.0.0.1:$PORT"
+	private val port get() = parameters.port.get()
+	private val base get() = "http://127.0.0.1:$port"
 	private val auth = "u=$USER&p=$PASSWORD&v=1.16.1&c=loak-ui-test&f=json"
 	private var process: Process? = null
 
@@ -51,7 +53,7 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 		val work = parameters.workDir.get().asFile
 		val data = File(work, "data").apply { deleteRecursively(); mkdirs() }
 		check(runCatching { get("/ping") }.isFailure) {
-			"Port $PORT is already in use: is another build running UI tests?"
+			"Port $port is already in use: is another build running UI tests? Pick another with -Ploak.uitest.port"
 		}
 		process = ProcessBuilder(binary(work).absolutePath)
 			.redirectErrorStream(true)
@@ -61,7 +63,7 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 					mapOf(
 						"ND_MUSICFOLDER" to parameters.musicDir.get().asFile.absolutePath,
 						"ND_DATAFOLDER" to data.absolutePath,
-						"ND_PORT" to "$PORT",
+						"ND_PORT" to "$port",
 						"ND_LOGLEVEL" to "warn",
 						// hermetic: no telemetry, no Last.fm/Spotify/Deezer lookups
 						"ND_ENABLEINSIGHTSCOLLECTOR" to "false",
@@ -166,11 +168,20 @@ fun Project.navidromeFixture(): Provider<NavidromeFixture> =
 	gradle.sharedServices.registerIfAbsent("navidromeFixture", NavidromeFixture::class.java) {
 		parameters.musicDir.set(rootProject.layout.projectDirectory.dir("loakUiTest/fixture/music"))
 		parameters.workDir.set(rootProject.layout.buildDirectory.dir("navidrome-fixture"))
+		parameters.port.set(uiTestPort())
 	}
 
-/** Starts the fixture server before [task] runs (if this build hasn't yet). */
+/** The fixture server's port; launchers hand it to the tests (see TestServer in :loakUiTest). */
+fun Project.uiTestPort(): Int =
+	providers.gradleProperty("loak.uitest.port").map { it.toInt() }.getOrElse(NavidromeFixture.DEFAULT_PORT)
+
+/**
+ * Starts the fixture server before [task] runs (if this build hasn't yet) and tells JVM
+ * tests its port; Android and browser tests get it from their modules' build files.
+ */
 fun Project.usesNavidrome(task: org.gradle.api.Task) {
 	val fixture = navidromeFixture()
 	task.usesService(fixture)
 	task.doFirst { fixture.get().start() }
+	if (task is org.gradle.api.tasks.testing.Test) task.systemProperty("loak.uitest.port", uiTestPort())
 }

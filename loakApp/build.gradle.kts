@@ -38,6 +38,7 @@ extensions.configure<ApplicationExtension> {
 		// the user flows (src/androidTest): crash reporting off, a fresh install per flow
 		testInstrumentationRunner = "eu.depau.loak.androidApp.UserFlowsRunner"
 		testInstrumentationRunnerArguments["clearPackageData"] = "true"
+		testInstrumentationRunnerArguments["loakUitestPort"] = uiTestPort().toString()
 
 		if (nightly) {
 			applicationIdSuffix = ".nightly"

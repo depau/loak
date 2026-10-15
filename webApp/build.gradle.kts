@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
+
 plugins {
 	alias(libs.plugins.kotlinMultiplatform)
 	alias(libs.plugins.composeMultiplatform)
@@ -36,4 +38,8 @@ kotlin {
 	}
 }
 
-tasks.named("wasmJsBrowserTest") { usesNavidrome(this) }
+tasks.named<KotlinJsTest>("wasmJsBrowserTest") {
+	usesNavidrome(this)
+	// for karma.config.d, which hands it to the tests
+	environment("LOAK_UITEST_PORT", uiTestPort().toString())
+}

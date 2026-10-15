@@ -45,6 +45,7 @@ kotlin {
 		}
 		androidMain.dependencies {
 			api(kotlin("test-junit"))
+			implementation(libs.androidx.test.runner)
 		}
 	}
 }

@@ -35,11 +35,14 @@ private val REVEAL_AFTER = 2.seconds
 
 /** The fixture server (NavidromeFixture in buildSrc): keep these in sync with it. */
 object TestServer {
-	const val PORT = 45330
+	const val DEFAULT_PORT = 45330
 	const val USER = "loak"
 	const val PASSWORD = "loak-ui-test"
-	val url get() = "http://$testServerHost:$PORT"
+	val url get() = "http://$testServerHost:${testServerPort ?: DEFAULT_PORT}"
 }
+
+/** The port the build started the fixture server on (-Ploak.uitest.port), if not the default. */
+internal expect val testServerPort: Int?
 
 /** The host the app reaches the fixture server's machine at (10.0.2.2 from an Android emulator). */
 expect val testServerHost: String
