@@ -85,13 +85,17 @@ class MusicBrainzClient {
 
 	/** The earliest release group with an exact title+artist match (score >= 90). */
 	suspend fun searchReleaseGroup(title: String, artist: String): MusicBrainzReleaseGroup? {
-		val query = "releasegroup:\"$title\" AND artist:\"$artist\""
-		val result = getJson("/release-group", mapOf("query" to query)) ?: return null
-		return result["release-groups"]?.jsonArray.orEmpty()
+		suspend fun search(query: String) = getJson("/release-group", mapOf("query" to query))
+			?.get("release-groups")?.jsonArray.orEmpty()
 			.map { it.jsonObject.toReleaseGroup() }
+
+		// MusicBrainz's index misses some albums on the title+artist query its title alone answers
+		// ("Shaking The Habitual" by The Knife), so that is the fallback: releaseGroupOf checks the
+		// artist the query no longer does.
+		return search("releasegroup:\"$title\" AND artist:\"$artist\"")
 			.filter { (it.score ?: 0) >= 90 }
-			.sortedBy { it.firstReleaseDate }
-			.firstOrNull()
+			.minByOrNull { it.firstReleaseDate.orEmpty() }
+			?: search("releasegroup:\"$title\"").releaseGroupOf(title, artist)
 	}
 
 	/**
@@ -230,6 +234,27 @@ class MusicBrainzClient {
 	}
 }
 
+/**
+ * The earliest release group of [title] credited to [artist], among results scoring 90+: the check
+ * [MusicBrainzClient.searchReleaseGroup]'s title-only fallback does because its query dropped the
+ * artist. An album credited to someone else is no album at all: the caller would rather show none.
+ * The credit is compared under both spellings MusicBrainz gives it, so that a page passing the
+ * credited name (which its data may spell wrong) and a library passing the canonical one both fit.
+ */
+internal fun List<MusicBrainzReleaseGroup>.releaseGroupOf(
+	title: String,
+	artist: String
+): MusicBrainzReleaseGroup? {
+	val wantedTitle = normalizeTitle(title)
+	val wantedArtist = normalizeArtist(artist)
+	return filter { (it.score ?: 0) >= 90 && normalizeTitle(it.title) == wantedTitle }
+		.filter { group ->
+			wantedArtist.isEmpty() || listOfNotNull(group.artistName, group.creditName)
+				.any { normalizeArtist(it) == wantedArtist }
+		}
+		.minByOrNull { it.firstReleaseDate.orEmpty() }
+}
+
 private fun JsonObject.toReleaseGroup() = MusicBrainzReleaseGroup(
 	id = this["id"]?.jsonPrimitive?.contentOrNull.orEmpty(),
 	title = this["title"]?.jsonPrimitive?.contentOrNull.orEmpty(),
@@ -238,7 +263,8 @@ private fun JsonObject.toReleaseGroup() = MusicBrainzReleaseGroup(
 	secondaryTypes = this["secondary-types"]?.jsonArray?.map { it.jsonPrimitive.content },
 	firstReleaseDate = this["first-release-date"]?.jsonPrimitive?.contentOrNull,
 	artistName = this["artist-credit"]?.jsonArray?.firstOrNull()?.jsonObject
-		?.get("artist")?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull
+		?.get("artist")?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull,
+	creditName = this.creditName()
 )
 
 private fun JsonObject.toRelease(): MusicBrainzRelease? {
@@ -263,6 +289,8 @@ data class MusicBrainzReleaseGroup(
 	val secondaryTypes: List<String>?,
 	val firstReleaseDate: String?,
 	val artistName: String?,
+	/** The name MusicBrainz credits the group under, which its data may spell differently. */
+	val creditName: String? = null,
 	/** Tracks on its earliest release, when known (recording search answers carry it). */
 	val trackCount: Int? = null
 )

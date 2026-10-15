@@ -162,4 +162,38 @@ class DiscoverPagesTest {
 		// no results at all: nothing to show above the sections
 		assertNull(DiscoverSearchResults(emptyList(), emptyList(), emptyList()).topResult("anything"))
 	}
+
+	// ---------------- resolving an album on MusicBrainz ----------------
+
+	private fun releaseGroup(id: String, title: String, score: Int, date: String, artist: String) =
+		MusicBrainzReleaseGroup(id, title, score, "Album", null, date, artist)
+
+	@Test
+	fun keepsTheReleaseGroupCreditedToTheArtist() {
+		val groups = listOf(
+			releaseGroup("g1", "Silent Shout", 100, "2006-01-01", "Signmark"),
+			releaseGroup("g2", "Silent Shout", 100, "2006-02-17", "The Knife"),
+			releaseGroup("g3", "Silent Shout", 75, "2006-01-01", "The Knife")
+		)
+		// the title alone answers several artists: only the credited one is the album
+		assertEquals("g2", groups.releaseGroupOf("Silent Shout", "the knife")?.id)
+		// edition markers in the library's title don't stand in the way
+		assertEquals("g2", groups.releaseGroupOf("Silent Shout (Deluxe Edition)", "The Knife")?.id)
+		// another artist's album of the same name is no album at all
+		assertNull(groups.releaseGroupOf("Silent Shout", "Someone Else"))
+		// a blank artist matches any credit, earliest release first
+		assertEquals("g1", groups.releaseGroupOf("Silent Shout", "")?.id)
+	}
+
+	@Test
+	fun keepsTheReleaseGroupWhoseCreditIsSpeltDifferently() {
+		// MusicBrainz credits "Shaking the Habitual" to "The Kniфe" (a typo in its own data):
+		// the album page passes that spelling on, the library passes the canonical one
+		val group = releaseGroup("g4", "Shaking the Habitual", 100, "2013-04-08", "The Knife")
+			.copy(creditName = "The Kniфe")
+		val groups = listOf(group)
+		assertEquals("g4", groups.releaseGroupOf("Shaking the Habitual", "The Kniфe")?.id)
+		assertEquals("g4", groups.releaseGroupOf("Shaking the Habitual", "The Knife")?.id)
+		assertNull(groups.releaseGroupOf("Shaking the Habitual", "The Kni"))
+	}
 }
