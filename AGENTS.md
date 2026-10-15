@@ -43,7 +43,7 @@ This file gives an agent (or any new contributor) everything needed to navigate 
 | DI | Koin `4.2.2` (`koin-core`, `koin-compose`, `koin-compose-viewmodel`, `koin-android`) |
 | Networking | Ktor client `3.5.2` (OkHttp on Android, Darwin on iOS), kotlinx-serialization |
 | Images | Coil `3.6.2` (ktor3 network, gif) |
-| Local DB | Room 3 (KMP) `androidx.room3:3.0.3` + bundled SQLite driver, KSP |
+| Local DB | Room 3 (KMP) `androidx.room3:3.1.0-alpha01` (alpha for the web pool timeout, see `PlatformModule.wasmJs.kt`) + bundled SQLite driver, KSP |
 | Settings | `androidx.datastore:datastore-preferences` + `multiplatform-settings` |
 | Subsonic API | `dev.zt64.subsonic:subsonic-client:1.0.0-SNAPSHOT` — **binary from a custom Maven repo** (see gotchas) |
 | Icons | Valkyrie icon code-gen from SVG (see below) |

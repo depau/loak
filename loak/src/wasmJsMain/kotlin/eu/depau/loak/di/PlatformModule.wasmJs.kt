@@ -5,6 +5,7 @@ import androidx.room3.RoomDatabase
 import androidx.sqlite.driver.web.WebWorkerSQLiteDriver
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
+import kotlin.time.Duration
 import org.w3c.dom.Worker
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.data.database.DownloadDatabase
@@ -68,4 +69,10 @@ private inline fun <reified T : RoomDatabase> webDatabase(
 	Room.databaseBuilder<T>(name)
 		.setDriver(WebWorkerSQLiteDriver(createSqliteWorker()))
 		.migrationPolicy(firstMigratedVersion)
+		// On the web every query shares one connection, so any wait over Room's 30 s pool
+		// timeout (a slow sqlite wasm download, a long sync) times waiters out. A
+		// connection handed over just as a waiter's timeout fires is then dropped without
+		// being returned: its permit is gone and every later query waits forever (the
+		// screens stay empty). Without the timeout the waiters just wait their turn.
+		.setConnectionPoolTimeout(Duration.INFINITE)
 		.build()
