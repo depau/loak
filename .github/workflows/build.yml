@@ -193,6 +193,50 @@ jobs:
         run: |
           ./gradlew :loak:desktopTest --stacktrace
 
+  ui-flows-android:
+    name: User flows (Android)
+    runs-on: ubuntu-latest
+    # The user flows on the real Android app, R8-minified like the nightly (the `minified`
+    # build type), in a Gradle-managed headless emulator, against the Navidrome fixture on
+    # the host. Gates nightlies + releases.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      # the emulator needs hardware acceleration
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run user flows
+        run: |
+          ./gradlew :loakApp:uiFlowsPhoneMinifiedAndroidTest --stacktrace \
+            -Ploak.uiTestBuildType=minified \
+            -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
+
+      - name: Upload failures
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ui-test-failures-android
+          path: |
+            loakApp/build/reports/androidTests/
+            loakApp/build/outputs/androidTest-results/
+            build/navidrome-fixture/navidrome.log
+          if-no-files-found: ignore
+
   build-desktop:
     name: Desktop ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -321,7 +365,7 @@ jobs:
   publish-nightly:
     name: Publish Nightly Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
-    needs: [ test, build-android, build-desktop ]
+    needs: [ test, ui-flows-android, build-android, build-desktop ]
     runs-on: ubuntu-latest
     concurrency:
       group: nightly-publish
@@ -370,7 +414,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [ test, build-android, build-desktop ]
+    needs: [ test, ui-flows-android, build-android, build-desktop ]
     runs-on: ubuntu-latest
     permissions:
       contents: write

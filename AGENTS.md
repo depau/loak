@@ -204,7 +204,7 @@ For UI changes: **manually verify on different themes and form factors and inclu
 ## CI/CD (`.github/workflows/`)
 
 - **`build.yml`** — on push/PR/tags: builds Android (signed release on push/tags via `SIGNING_*` env vars, debug on PRs, plus a `.nightly` variant on `main`), desktop installers for Ubuntu/macOS/Windows, and (disabled) an iOS IPA. Publishes a `nightly` GitHub Release on every `main` push and a v-tag GitHub Release with desktop update manifests.
-  - **Tests gate the nightly and releases**: the `test` job runs the unit tests (`:loak:desktopTest`), and every desktop matrix OS runs the desktop UI tests and user flows (`:loakDesktop:desktopTest`) before packaging, uploading screenshots, reports and the Navidrome log when they fail.
+  - **Tests gate the nightly and releases**: the `test` job runs the unit tests (`:loak:desktopTest`), and every desktop matrix OS runs the desktop UI tests and user flows (`:loakDesktop:desktopTest`) before packaging, and `ui-flows-android` runs the Android user flows on the `minified` build in a managed emulator; failures upload their screenshots, reports and the Navidrome log.
 - **`checks.yml`** — Gradle wrapper integrity validation.
 - **`web.yml`** — builds the Kotlin/Wasm web bundle and deploys the web demo.
 
