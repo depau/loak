@@ -220,9 +220,21 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # Build first, then free the build's memory before the emulator boots: Gradle (8 GB
+      # heap), the Kotlin daemon and R8 next to the emulator exhaust the runner, which
+      # then shuts down mid-run
+      - name: Build the app and its user flows
+        run: |
+          ./gradlew :loakApp:assembleMinified :loakApp:assembleMinifiedAndroidTest --stacktrace \
+            -Ploak.uiTestBuildType=minified
+          ./gradlew --stop
+          pkill -f KotlinCompileDaemon || true
+          free -h
+
       - name: Run user flows
         run: |
           ./gradlew :loakApp:uiFlowsPhoneMinifiedAndroidTest --stacktrace \
+            -Dorg.gradle.jvmargs=-Xmx2g \
             -Ploak.uiTestBuildType=minified \
             -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect
 
