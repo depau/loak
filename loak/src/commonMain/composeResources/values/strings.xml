@@ -1149,6 +1149,7 @@
 	<string name="title_in_your_library">In your library</string>
 	<string name="action_search_again">Search again</string>
 	<string name="action_open_in_lidarr">Open in Lidarr</string>
+	<string name="action_open_in_discover">Open in Discover</string>
 	<string name="notice_lidarr_search_failed">Couldn't search in Lidarr: %1$s</string>
 	<string name="title_popular">Popular</string>
 	<string name="title_albums_eps">Albums &amp; EPs</string>

@@ -26,6 +26,7 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_playlist
 import eu.depau.loak.generated.resources.action_add_to_queue
 import eu.depau.loak.generated.resources.action_instant_mix
+import eu.depau.loak.generated.resources.action_open_in_discover
 import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_star
 import eu.depau.loak.generated.resources.action_star
@@ -57,6 +58,9 @@ import eu.depau.loak.icons.outlined.PlaylistAdd
 import eu.depau.loak.icons.outlined.Queue
 import eu.depau.loak.icons.outlined.QueuePlayNext
 import eu.depau.loak.icons.outlined.Star
+import eu.depau.loak.icons.outlined.TravelExplore
+import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.LocalAvailability
 import eu.depau.loak.ui.components.common.MarqueeText
@@ -96,6 +100,7 @@ fun ArtistSheet(
 	// offline, what needs the server is greyed out; adding to playlists is queued
 	val online = LocalAvailability.current.online
 	val playable = LocalAvailability.current.collection(artist.id)
+	val backStack = LocalNavStack.current
 
 	// the download confirmation replaces the sheet rather than stacking on top
 	if (!confirmDownload) ModalBottomSheet(
@@ -191,7 +196,18 @@ fun ArtistSheet(
 						onDismissRequest()
 					},
 					enabled = online
-				)
+				),
+				// Discover's artist page lists the discography the library lacks, and adds it
+				if (lidarr.discoverShown) SheetRow(
+					stringResource(Res.string.action_open_in_discover),
+					Icons.Outlined.TravelExplore,
+					{
+						onDismissRequest()
+						// leaving the sheet for a screen underneath closes the player, if it's up
+						backStack.remove(Screen.NowPlaying)
+						backStack.add(Screen.DiscoverArtist(mbid = artist.musicBrainzId, name = artist.name))
+					}
+				) else null
 			))
 
 			SheetLinks(

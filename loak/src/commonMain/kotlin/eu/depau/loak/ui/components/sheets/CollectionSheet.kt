@@ -44,6 +44,7 @@ import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_playlist
 import eu.depau.loak.generated.resources.action_add_to_queue
 import eu.depau.loak.generated.resources.action_instant_mix
+import eu.depau.loak.generated.resources.action_open_in_discover
 import eu.depau.loak.generated.resources.action_play_next
 import eu.depau.loak.generated.resources.action_remove_star
 import eu.depau.loak.generated.resources.action_share
@@ -79,6 +80,7 @@ import eu.depau.loak.generated.resources.action_delete_radio
 import eu.depau.loak.generated.resources.info_delete_audiomuse_rebuilt
 import eu.depau.loak.icons.filled.Star
 import eu.depau.loak.icons.outlined.InstantMix
+import eu.depau.loak.icons.outlined.TravelExplore
 import eu.depau.loak.icons.outlined.PlaylistAdd
 import eu.depau.loak.icons.outlined.Queue
 import eu.depau.loak.icons.outlined.QueuePlayNext
@@ -267,6 +269,20 @@ fun CollectionSheet(
 						onDismissRequest()
 					},
 					enabled = online
+				) else null,
+				// Discover's album page lists the songs the library lacks, and adds them
+				if (album != null && lidarr.discoverShown && (album.name != null || releaseGroup != null)) SheetRow(
+					stringResource(Res.string.action_open_in_discover),
+					Icons.Outlined.TravelExplore,
+					{
+						onDismissRequest()
+						// leaving the sheet for a screen underneath closes the player, if it's up
+						backStack.remove(Screen.NowPlaying)
+						// Lidarr's albums are release groups: the one already resolved, else title+artist
+						backStack.add(
+							Screen.DiscoverAlbum(mbid = releaseGroup, title = album.name, artist = album.artistName)
+						)
+					}
 				) else null,
 				if (collection is DomainPlaylist && audioMuseInfo != null) SheetRow(
 					stringResource(Res.string.action_use_in_alchemy),
