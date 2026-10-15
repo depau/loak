@@ -37,6 +37,10 @@ class DiscoverSearchViewModel(
 	val results: StateFlow<UiState<DiscoverSearchResults>?>
 		field = MutableStateFlow<UiState<DiscoverSearchResults>?>(null)
 
+	/** The query [results] answer: the top-result card prefers the album this one names. */
+	val resultQuery: StateFlow<String>
+		field = MutableStateFlow("")
+
 	/** Newest first; backed by a preference, so Compose sees changes. */
 	val recentSearches: List<String>
 		get() = preferenceManager.discoverRecentSearches.lines().filter { it.isNotBlank() }
@@ -51,6 +55,7 @@ class DiscoverSearchViewModel(
 	}
 
 	private suspend fun search(query: String) {
+		resultQuery.value = query
 		if (query.isEmpty()) {
 			results.value = null
 			return

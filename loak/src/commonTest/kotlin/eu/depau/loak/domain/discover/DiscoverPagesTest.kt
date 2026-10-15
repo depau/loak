@@ -118,4 +118,48 @@ class DiscoverPagesTest {
 		assertTrue(catalog.monitors(DiscoverArtist("", "deadmau5")))
 		assertFalse(catalog.monitors(DiscoverArtist("", "Mangoo")))
 	}
+
+	// ---------------- the search's top-result card ----------------
+
+	private val searchResults = DiscoverSearchResults(
+		songs = listOf(DiscoverSong("s1", "I Remember", "deadmau5", album = "Random Album Title")),
+		albums = listOf(
+			DiscoverAlbum("a1", "Random Album Title", "Deadmau5"),
+			DiscoverAlbum("a2", "Random Album Title (Unmixed Extended Versions)", "Deadmau5")
+		),
+		artists = listOf(DiscoverArtist("r1", "Random"))
+	)
+
+	@Test
+	fun theTopResultIsTheAlbumTheQueryNames() {
+		// searching for an album must not answer with one of its tracks
+		assertEquals(searchResults.albums.first(), searchResults.topResult("Random Album Title"))
+		// punctuation, case and accents don't matter
+		assertEquals(searchResults.albums.first(), searchResults.topResult("random album title!"))
+	}
+
+	@Test
+	fun anExactlyNamedSongStillWins() {
+		// "Monophobia" is both a single and a track: the track is the one you can preview
+		val both = searchResults.copy(
+			albums = listOf(DiscoverAlbum("a3", "I Remember", "Kaskade"))
+		)
+		assertEquals(both.songs.first(), both.topResult("I Remember"))
+	}
+
+	@Test
+	fun theTopResultFallsBackToTheFirstSong() {
+		// nothing is named by the query: the first song wins, then the album, then the artist
+		val noSongs = searchResults.copy(songs = emptyList())
+		assertEquals(searchResults.songs.first(), searchResults.topResult("Something Else"))
+		assertEquals(searchResults.albums.first(), noSongs.topResult("Something Else"))
+		assertEquals(
+			searchResults.artists.first(),
+			noSongs.copy(albums = emptyList()).topResult("Something Else")
+		)
+		// a blank query names nothing either
+		assertEquals(searchResults.songs.first(), searchResults.topResult(" "))
+		// no results at all: nothing to show above the sections
+		assertNull(DiscoverSearchResults(emptyList(), emptyList(), emptyList()).topResult("anything"))
+	}
 }

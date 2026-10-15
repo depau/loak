@@ -76,6 +76,23 @@ data class DiscoverSearchResults(
 	val artists: List<DiscoverArtist>
 )
 
+/**
+ * The card above the sections: the song or album [query] names, if there is one, else the first
+ * song, album or artist, in that order. Searching for an album by its title must not answer with
+ * one of its tracks, whose card only looks like the album because it prints the album's name.
+ */
+fun DiscoverSearchResults.topResult(query: String): Any? {
+	val wanted = normalizeTitle(query)
+	fun <T> List<T>.named(title: (T) -> String) =
+		firstOrNull { wanted.isNotEmpty() && normalizeTitle(title(it)) == wanted }
+
+	return songs.named { it.title }
+		?: albums.named { it.title }
+		?: songs.firstOrNull()
+		?: albums.firstOrNull()
+		?: artists.firstOrNull()
+}
+
 private fun JsonObject.str(key: String) = this[key]?.jsonPrimitive?.contentOrNull
 private fun JsonObject.deezerId(key: String = "id"): Long? =
 	this[key]?.jsonPrimitive?.longOrNull?.takeIf { it != 0L }

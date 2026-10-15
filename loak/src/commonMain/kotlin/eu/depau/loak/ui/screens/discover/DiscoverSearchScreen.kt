@@ -50,6 +50,7 @@ import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSearchResults
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.PreviewManager
+import eu.depau.loak.domain.discover.topResult
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.generated.resources.Res
@@ -116,6 +117,7 @@ fun DiscoverSearchScreen() {
 	val viewModel = koinViewModel<DiscoverSearchViewModel>()
 	val state by viewModel.results.collectAsState()
 	val category by viewModel.category.collectAsState()
+	val resultQuery by viewModel.resultQuery.collectAsState()
 	val lidarr = koinInject<LidarrManager>()
 	// fresh Lidarr state for the status badges
 	LaunchedEffect(Unit) { lidarr.refreshCatalog() }
@@ -159,7 +161,7 @@ fun DiscoverSearchScreen() {
 					icon = Icons.Outlined.NoSearchResults,
 					label = stringResource(Res.string.info_no_search_results)
 				)
-			else -> Results(results, category, padding)
+			else -> Results(results, resultQuery, category, padding)
 		}
 	}
 }
@@ -229,10 +231,15 @@ private fun DeezerNotice(onDismiss: () -> Unit, onSettings: () -> Unit) {
 }
 
 @Composable
-private fun Results(results: DiscoverSearchResults, category: SearchCategory, padding: PaddingValues) {
+private fun Results(
+	results: DiscoverSearchResults,
+	query: String,
+	category: SearchCategory,
+	padding: PaddingValues
+) {
 	val all = category == SearchCategory.ALL
 	val limit = if (all) 5 else Int.MAX_VALUE
-	val top: Any? = if (all) results.songs.firstOrNull() ?: results.albums.firstOrNull() ?: results.artists.firstOrNull() else null
+	val top: Any? = if (all) results.topResult(query) else null
 	val songs = if (all || category == SearchCategory.SONGS) results.songs.filter { it != top }.take(limit) else emptyList()
 	val artists = if (all || category == SearchCategory.ARTISTS) results.artists.filter { it != top }.take(limit) else emptyList()
 	val albums = if (all || category == SearchCategory.ALBUMS) results.albums.filter { it != top }.take(limit) else emptyList()
