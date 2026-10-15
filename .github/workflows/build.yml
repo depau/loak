@@ -173,9 +173,8 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
-    # Unit + desktop E2E (the fast, hermetic loop through the injectable
-    # SessionManager engine seam). Runs on every PR/push and gates nightlies +
-    # releases; kept off the mobile matrix for now (see visual-QA backlog).
+    # Shared-logic unit tests. Runs on every PR/push and gates nightlies + releases;
+    # the UI tests and user flows run per OS in build-desktop.
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -190,9 +189,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Run unit + Compose UI tests (JVM)
+      - name: Run unit tests (JVM)
         run: |
-          ./gradlew :loak:desktopTest :loakDesktop:desktopTest --stacktrace
+          ./gradlew :loak:desktopTest --stacktrace
 
   build-desktop:
     name: Desktop ${{ matrix.os }}
@@ -224,6 +223,22 @@ jobs:
       - name: Install AppImage dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get install -y libfuse2t64
+
+      # The desktop UI tests, user flows included: the real app against a pinned Navidrome
+      # (see loakUiTest), on every OS the installers are built for. A failure blocks the nightly.
+      - name: Run UI tests and user flows
+        run: ./gradlew :loakDesktop:desktopTest --stacktrace
+
+      - name: Upload UI test failures
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ui-test-failures-desktop-${{ matrix.os }}
+          path: |
+            loakDesktop/build/ui-test-failures/
+            loakDesktop/build/reports/tests/desktopTest/
+            build/navidrome-fixture/navidrome.log
+          if-no-files-found: ignore
 
       # The Nucleus updater compares the app version (nucleus.app.version) against the
       # release manifest, so on a v* tag the packaged version must be the tag with the v
