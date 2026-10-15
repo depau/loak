@@ -45,6 +45,21 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      # The user flows in headless Chrome and Firefox (Karma), against the Navidrome fixture;
+      # a failure stops the deploy
+      - name: Run user flows
+        run: ./gradlew :webApp:wasmJsBrowserTest --no-daemon
+
+      - name: Upload user flow failures
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ui-test-failures-web
+          path: |
+            webApp/build/reports/tests/wasmJsBrowserTest/
+            build/navidrome-fixture/navidrome.log
+          if-no-files-found: ignore
+
       - name: Build web distribution
         run: ./gradlew :webApp:wasmJsBrowserDistribution --no-daemon
 
