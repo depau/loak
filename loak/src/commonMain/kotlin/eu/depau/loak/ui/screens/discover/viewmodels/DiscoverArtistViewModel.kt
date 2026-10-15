@@ -52,6 +52,8 @@ class DiscoverArtistViewModel(
 	private suspend fun load() = coroutineScope {
 		// Deezer is opt-out: it alone holds the picture, the popular songs and its discography
 		val useDeezer = preferenceManager.deezerEnabled
+		// Subsonic reports an artist without a MusicBrainz id as empty, not as absent
+		val keyMbid = key.mbid?.takeIf { it.isNotBlank() }
 		val found = if (useDeezer) {
 			key.deezerId?.let { deezer.getArtist(it) } ?: key.name?.let { deezer.findArtist(it) }
 		} else {
@@ -69,15 +71,15 @@ class DiscoverArtistViewModel(
 			deezerId?.let { deezer.getArtistAlbums(it) }.orEmpty().map { it.copy(artist = name, artistDeezerId = deezerId) }
 		}
 		var page = DiscoverArtistPage(
-			artist = DiscoverArtist(found?.id ?: key.mbid.orEmpty(), name, found?.pictureUrl, deezerId, key.mbid),
+			artist = DiscoverArtist(found?.id ?: keyMbid.orEmpty(), name, found?.pictureUrl, deezerId, keyMbid),
 			topTracks = top.await(),
 			albums = albums.await()
 		)
 		state.value = UiState.Success(page)
 
 		// MusicBrainz is rate-limited and ListenBrainz slow: their parts fill in afterwards
-		val about = musicBrainz.searchArtist(name)?.takeIf { key.mbid == null || it.id == key.mbid }
-		val mbid = key.mbid ?: about?.id?.takeIf { it.isNotEmpty() }
+		val about = musicBrainz.searchArtist(name)?.takeIf { keyMbid == null || it.id == keyMbid }
+		val mbid = keyMbid ?: about?.id?.takeIf { it.isNotEmpty() }
 		page = page.copy(artist = page.artist.copy(mbid = mbid), genre = about?.genre, area = about?.area)
 		state.value = UiState.Success(page)
 		if (mbid == null) return@coroutineScope

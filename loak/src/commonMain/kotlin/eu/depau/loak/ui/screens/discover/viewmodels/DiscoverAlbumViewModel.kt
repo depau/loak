@@ -29,6 +29,9 @@ class DiscoverAlbumViewModel(
 	val state: StateFlow<UiState<DiscoverAlbumPage?>>
 		field = MutableStateFlow<UiState<DiscoverAlbumPage?>>(UiState.Loading())
 
+	// Subsonic reports an album without a MusicBrainz id as empty, not as absent
+	private val keyMbid get() = key.mbid?.takeIf { it.isNotBlank() }
+
 	init {
 		viewModelScope.launch {
 			val page = fromDeezer() ?: fromMusicBrainz()
@@ -54,11 +57,12 @@ class DiscoverAlbumViewModel(
 		if (key.deezerId == null && !preferenceManager.deezerEnabled) return null
 		val id = key.deezerId ?: key.title?.let { deezer.findAlbum(it, key.artist.orEmpty()) }?.deezerId
 		val (album, tracks) = id?.let { deezer.getAlbum(it) } ?: return null
-		return DiscoverAlbumPage(album.copy(mbid = key.mbid ?: album.mbid), tracks)
+		// Subsonic reports an album without a MusicBrainz id as empty, not as absent
+		return DiscoverAlbumPage(album.copy(mbid = keyMbid ?: album.mbid), tracks)
 	}
 
 	private suspend fun fromMusicBrainz(): DiscoverAlbumPage? {
-		val mbid = key.mbid
+		val mbid = keyMbid
 			?: key.title?.let { musicBrainz.searchReleaseGroup(it, key.artist.orEmpty())?.id?.takeIf(String::isNotEmpty) }
 			?: return null
 		val (album, tracks) = musicBrainz.getAlbum(mbid) ?: return null
