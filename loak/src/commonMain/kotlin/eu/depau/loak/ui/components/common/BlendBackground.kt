@@ -46,6 +46,7 @@ import eu.depau.loak.di.CoverArtInterceptor
 import eu.depau.loak.di.getStaticImageLoader
 import eu.depau.loak.ui.util.blurArgb
 import eu.depau.loak.ui.util.imageBitmapOf
+import eu.depau.loak.ui.util.softwareBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
@@ -93,6 +94,7 @@ fun BlendBackground(
 					.data(CoverArtId(it, COVER_ART_SMALL))
 					.diskCachePolicy(CachePolicy.ENABLED)
 					.memoryCachePolicy(CachePolicy.ENABLED)
+					.softwareBitmap() // blurred() draws it on a software canvas
 					.build()
 			).image?.asPainter(coilPlatformContext)
 		}

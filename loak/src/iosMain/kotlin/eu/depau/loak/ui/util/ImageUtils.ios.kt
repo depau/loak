@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asComposeImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import coil3.Image
+import coil3.request.ImageRequest
 import coil3.toBitmap
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
@@ -26,3 +27,5 @@ actual fun imageBitmapOf(argb: IntArray, width: Int, height: Int): ImageBitmap {
 	val info = ImageInfo(width, height, ColorType.BGRA_8888, ColorAlphaType.UNPREMUL)
 	return SkiaImage.makeRaster(info, bytes, width * 4).toComposeImageBitmap()
 }
+
+actual fun ImageRequest.Builder.softwareBitmap() = this
