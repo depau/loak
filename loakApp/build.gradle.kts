@@ -35,6 +35,10 @@ extensions.configure<ApplicationExtension> {
 		versionCode = versionCodeOverride ?: 58
 		versionName = versionNameOverride ?: "v1.0.0-alpha58"
 
+		// the user flows (src/androidTest): crash reporting off, a fresh install per flow
+		testInstrumentationRunner = "eu.depau.loak.androidApp.UserFlowsRunner"
+		testInstrumentationRunnerArguments["clearPackageData"] = "true"
+
 		if (nightly) {
 			applicationIdSuffix = ".nightly"
 			resValue("string", "app_name", "Loak (Nightly)")
@@ -75,7 +79,20 @@ extensions.configure<ApplicationExtension> {
 			applicationIdSuffix = ".debug"
 			resValue("string", "app_name", "Loak (Dev)")
 		}
+
+		// The release build (R8 and all) installable next to the others, for running the
+		// user flows against what nightlies ship: -Ploak.uiTestBuildType=minified
+		create("minified") {
+			initWith(getByName("release"))
+			applicationIdSuffix = ".minified"
+			signingConfig = signingConfigs.getByName("debug")
+			matchingFallbacks += "release"
+			proguardFile("proguard-ui-test-rules.pro")
+			// R8 shrinks the test APK too when the tested app is
+			testProguardFiles("proguard-test-rules.pro")
+		}
 	}
+	testBuildType = providers.gradleProperty("loak.uiTestBuildType").getOrElse("debug")
 
 	packaging {
 		resources {
@@ -91,6 +108,23 @@ extensions.configure<ApplicationExtension> {
 
 		jniLibs {
 			keepDebugSymbols.add("**/*.so")
+		}
+	}
+
+	testOptions {
+		// each test in its own instrumentation run, so clearPackageData resets the app between flows
+		execution = "ANDROIDX_TEST_ORCHESTRATOR"
+		animationsDisabled = true
+		// `./gradlew :loakApp:uiFlowsPhoneDebugAndroidTest` boots its own headless emulator,
+		// runs the user flows on it and shuts it down; CI runs the same task
+		managedDevices {
+			localDevices {
+				create("uiFlowsPhone") {
+					device = "Pixel 6"
+					apiLevel = 35
+					systemImageSource = "aosp-atd"
+				}
+			}
 		}
 	}
 
@@ -162,4 +196,14 @@ dependencies {
 	implementation(libs.bundles.glance)
 	implementation(libs.bundles.coil)
 	implementation(libs.bundles.media3)
+
+	androidTestImplementation(projects.loakUiTest)
+	androidTestImplementation(libs.androidx.test.runner)
+	androidTestImplementation(libs.androidx.test.ext.junit)
+	androidTestUtil(libs.androidx.test.orchestrator)
+}
+
+// the user flows run against the Navidrome fixture on the host (10.0.2.2 from the emulator)
+tasks.configureEach {
+	if (name.matches(Regex("(connected|uiFlowsPhone)\\w*AndroidTest"))) usesNavidrome(this)
 }
