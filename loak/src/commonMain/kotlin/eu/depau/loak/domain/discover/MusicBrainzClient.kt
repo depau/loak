@@ -130,6 +130,18 @@ class MusicBrainzClient {
 			?.let(::musicBrainzArtistOf)
 	}
 
+	/**
+	 * An artist's discography as album pages, for when Deezer is off: albums, EPs and singles, up
+	 * to 100. No tracklists — an album page fetches its own.
+	 */
+	suspend fun getArtistDiscography(artistMbid: String): List<DiscoverAlbum> {
+		val result = getJson(
+			"/release-group",
+			mapOf("artist" to artistMbid, "type" to "album|ep|single", "limit" to "100")
+		) ?: return emptyList()
+		return result["release-groups"]?.jsonArray.orEmpty().map { it.jsonObject.discographyAlbumOfMusicBrainz() }
+	}
+
 	/** An artist's discography: albums, EPs and singles, up to 100. */
 	suspend fun getArtistReleaseGroups(artistMbid: String): List<MusicBrainzReleaseGroup> {
 		val result = getJson(
@@ -378,6 +390,23 @@ internal fun JsonObject.discoverAlbumOfMusicBrainz() = DiscoverAlbum(
 		?.get("artist")?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull.orEmpty(),
 	recordType = this["primary-type"]?.jsonPrimitive?.contentOrNull
 )
+
+/**
+ * Maps a release group of an artist's discography to a Discover album, Deezer-shaped: the type is
+ * lowercased like Deezer's, which is what the artist page's rail filters albums and EPs by.
+ */
+internal fun JsonObject.discographyAlbumOfMusicBrainz(): DiscoverAlbum {
+	val id = this["id"]?.jsonPrimitive?.contentOrNull.orEmpty()
+	return DiscoverAlbum(
+		id = id,
+		title = this["title"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+		artist = creditName().orEmpty(),
+		coverUrl = "https://coverartarchive.org/release-group/$id/front-250",
+		year = this["first-release-date"]?.jsonPrimitive?.contentOrNull?.take(4)?.toIntOrNull(),
+		recordType = this["primary-type"]?.jsonPrimitive?.contentOrNull?.lowercase(),
+		mbid = id.takeIf { it.isNotEmpty() }
+	)
+}
 
 /** Maps one `/artist` search answer to a Discover artist. */
 internal fun JsonObject.discoverArtistOfMusicBrainz() = DiscoverArtist(

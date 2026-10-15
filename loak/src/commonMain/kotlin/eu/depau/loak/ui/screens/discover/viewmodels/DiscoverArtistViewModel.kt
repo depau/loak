@@ -8,6 +8,7 @@ import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.ListenBrainzClient
 import eu.depau.loak.domain.discover.MusicBrainzClient
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
 import kotlinx.coroutines.async
@@ -37,7 +38,8 @@ class DiscoverArtistViewModel(
 	private val key: Screen.DiscoverArtist,
 	private val deezer: DeezerClient,
 	private val musicBrainz: MusicBrainzClient,
-	private val listenBrainz: ListenBrainzClient
+	private val listenBrainz: ListenBrainzClient,
+	private val preferenceManager: PreferenceManager
 ) : ViewModel() {
 	/** Success(null) when neither Deezer nor the page's key name the artist. */
 	val state: StateFlow<UiState<DiscoverArtistPage?>>
@@ -48,7 +50,13 @@ class DiscoverArtistViewModel(
 	}
 
 	private suspend fun load() = coroutineScope {
-		val found = key.deezerId?.let { deezer.getArtist(it) } ?: key.name?.let { deezer.findArtist(it) }
+		// Deezer is opt-out: it alone holds the picture, the popular songs and its discography
+		val useDeezer = preferenceManager.deezerEnabled
+		val found = if (useDeezer) {
+			key.deezerId?.let { deezer.getArtist(it) } ?: key.name?.let { deezer.findArtist(it) }
+		} else {
+			null
+		}
 		val name = found?.name ?: key.name
 		if (name == null) {
 			state.value = UiState.Success(null)
@@ -74,9 +82,19 @@ class DiscoverArtistViewModel(
 		state.value = UiState.Success(page)
 		if (mbid == null) return@coroutineScope
 
+		// Deezer has no albums (it's off, or doesn't know the artist): MusicBrainz's discography
+		if (page.albums.isEmpty()) {
+			page = page.copy(
+				albums = musicBrainz.getArtistDiscography(mbid)
+					.map { it.copy(artist = name, artistDeezerId = deezerId) }
+			)
+			state.value = UiState.Success(page)
+		}
+
 		val similar = listenBrainz.getSimilarArtists(mbid).take(SIMILAR_ARTISTS).map { artist ->
 			async {
-				deezer.findArtist(artist.name)
+				if (!useDeezer) artist
+				else deezer.findArtist(artist.name)
 					?.let { artist.copy(pictureUrl = it.pictureUrl, deezerId = it.deezerId) }
 					?: artist
 			}

@@ -84,6 +84,22 @@ class DiscoverPagesTest {
 	}
 
 	@Test
+	fun mapsDiscographyReleaseGroupsToDiscoverAlbums() {
+		val item = Json.parseToJsonElement("""{
+			"id": "rg-9", "title": "Mangoo", "primary-type": "EP", "first-release-date": "2020-03-01",
+			"artist-credit": [{"name": "Glass Beams", "artist": {"id": "a-1", "name": "Glass Beams"}}]
+		}""").jsonObject
+		// the type is lowercased like Deezer's, which the artist page's rail filters by
+		assertEquals(
+			DiscoverAlbum(
+				"rg-9", "Mangoo", "Glass Beams", year = 2020, recordType = "ep", mbid = "rg-9",
+				coverUrl = "https://coverartarchive.org/release-group/rg-9/front-250"
+			),
+			item.discographyAlbumOfMusicBrainz()
+		)
+	}
+
+	@Test
 	fun mapsMusicBrainzArtistSearchToDiscoverArtist() {
 		val item = Json.parseToJsonElement("""{"id": "a-1", "name": "Glass Beams", "score": 100}""").jsonObject
 		assertEquals(DiscoverArtist("a-1", "Glass Beams", mbid = "a-1"), item.discoverArtistOfMusicBrainz())
