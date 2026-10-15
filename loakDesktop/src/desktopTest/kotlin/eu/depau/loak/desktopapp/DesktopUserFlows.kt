@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.lifecycle.ViewModelStore
 import eu.depau.loak.App
@@ -75,11 +75,16 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 		}
 	}
 
+	// one picture per window: the screen, then any open popup or dialog
 	private fun ComposeUiTest.screenshot() = runCatching {
 		val dir = File(System.getProperty("loak.uitest.failures") ?: "build/ui-test-failures").apply { mkdirs() }
-		val file = File(dir, "${this@DesktopUserFlows::class.simpleName}.${name.methodName}.png")
-		ImageIO.write(onRoot().captureToImage().toAwtImage(), "png", file)
-		println("Screenshot of the failure: $file")
+		val roots = onAllNodes(isRoot())
+		for (i in roots.fetchSemanticsNodes().indices) {
+			val suffix = if (i == 0) "" else ".$i"
+			val file = File(dir, "${this@DesktopUserFlows::class.simpleName}.${name.methodName}$suffix.png")
+			ImageIO.write(roots[i].captureToImage().toAwtImage(), "png", file)
+			println("Screenshot of the failure: $file")
+		}
 	}
 }
 
