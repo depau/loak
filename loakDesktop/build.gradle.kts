@@ -60,6 +60,7 @@ kotlin {
 				implementation(libs.nucleus.darkmode.detector)
 				implementation(libs.nucleus.menu.macos)
 				implementation(libs.cmp.resources)
+				implementation(libs.androidx.navigation3.ui) // the back input for trackpad swipes
 			}
 		}
 		val desktopTest by getting {

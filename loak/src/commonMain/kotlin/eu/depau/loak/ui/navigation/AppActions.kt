@@ -11,7 +11,8 @@ import eu.depau.loak.ui.components.layouts.refreshSlots
  */
 class AppActions(
 	private val backStack: MutableList<NavKey>,
-	private val backInput: DirectNavigationEventInput,
+	/** Esc, the mouse's back button and the trackpad's back swipe: one path for all of them. */
+	val backInput: DirectNavigationEventInput,
 	private val forwardHistory: ForwardHistory,
 	private val player: MediaPlayerViewModel,
 	/** Past the login screen: the screens below exist. */

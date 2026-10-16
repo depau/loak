@@ -225,11 +225,12 @@ private val config = SavedStateConfiguration {
 }
 
 /**
- * @param menuBar the platform's menu bar, given the app's actions (the macOS one on desktop).
+ * @param platform the platform's own parts, given the app's actions: on desktop, the macOS
+ * menu bar and the trackpad's swipes.
  */
 @OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalComposeUiApi::class)
 @Composable
-fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
+fun App(platform: @Composable (AppActions) -> Unit = {}) {
 	val platformContext = rememberPlatformContext()
 	val sessionManager = koinInject<SessionManager>()
 	val preferenceManager = koinInject<PreferenceManager>()
@@ -333,7 +334,7 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 	val actions = AppActions(backStack, backInput, forwardHistory, mediaPlayer, inApp)
 	val playerScope = rememberCoroutineScope()
 	val playerSheet = remember(backStack) { PlayerSheetState(playerScope, backStack) }
-	menuBar(actions)
+	platform(actions)
 	var mouseInUse by remember {
 		mutableStateOf(platformContext.platformType.let { it == PlatformType.Desktop || it == PlatformType.Web })
 	}

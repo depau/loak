@@ -182,7 +182,13 @@ fun main(args: Array<String>) {
 						if (quit) exitApplication()
 						quit
 					}) {
-						ProvideSystemTheme { App(menuBar = { LoakMenuBar(it, ::exitApplication) }) }
+						ProvideSystemTheme {
+							App { actions ->
+								LoakMenuBar(actions, ::exitApplication)
+								// only macOS reports the phases of a swipe
+								if (isMac) TrackpadTouchEffect(taoWindow, actions.backInput)
+							}
+						}
 					}
 				}
 			}
