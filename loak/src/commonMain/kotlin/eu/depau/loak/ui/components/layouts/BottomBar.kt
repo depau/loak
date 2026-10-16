@@ -47,6 +47,7 @@ import eu.depau.loak.generated.resources.title_artists
 import eu.depau.loak.generated.resources.title_genres
 import eu.depau.loak.generated.resources.title_home
 import eu.depau.loak.generated.resources.title_playlists
+import eu.depau.loak.generated.resources.title_recap
 import eu.depau.loak.generated.resources.title_radios
 import eu.depau.loak.generated.resources.title_search
 import eu.depau.loak.generated.resources.title_songs
@@ -65,6 +66,7 @@ import eu.depau.loak.icons.filled.Genre
 import eu.depau.loak.icons.filled.Home
 import eu.depau.loak.icons.filled.Radio
 import eu.depau.loak.icons.outlined.Album
+import eu.depau.loak.icons.outlined.BarChart
 import eu.depau.loak.icons.outlined.Artist
 import eu.depau.loak.icons.outlined.Genre
 import eu.depau.loak.icons.outlined.Home
@@ -143,6 +145,11 @@ private enum class NavItem(
 		icon = Icons.Filled.Radio,
 		iconUnselected = Icons.Outlined.Radio,
 		label = Res.string.title_radios
+	),
+	RECAP(
+		destination = Screen.Recap,
+		icon = Icons.Outlined.BarChart,
+		label = Res.string.title_recap
 	),
 
 	/** Always there, last: the catch-all for everything not on the bar. */
@@ -231,6 +238,7 @@ private fun NavbarTab.Id.navItem() = when (this) {
 	NavbarTab.Id.RADIOS -> NavItem.RADIOS
 	NavbarTab.Id.EXPLORE -> NavItem.EXPLORE
 	NavbarTab.Id.DISCOVER -> NavItem.DISCOVER
+	NavbarTab.Id.RECAP -> NavItem.RECAP
 }
 
 @Composable

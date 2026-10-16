@@ -19,7 +19,7 @@ data class NavbarConfig(
 
 	companion object {
 		const val KEY = "navbarConfig"
-		const val VERSION = 10
+		const val VERSION = 11
 
 		/** Tabs that can be on at once; Library always comes after them. */
 		const val MAX_VISIBLE = 4
@@ -35,7 +35,8 @@ data class NavbarConfig(
 				NavbarTab(NavbarTab.Id.GENRES, false),
 				NavbarTab(NavbarTab.Id.SEARCH, false),
 				NavbarTab(NavbarTab.Id.RADIOS, false),
-				NavbarTab(NavbarTab.Id.DISCOVER, false)
+				NavbarTab(NavbarTab.Id.DISCOVER, false),
+				NavbarTab(NavbarTab.Id.RECAP, false)
 			),
 			version = VERSION
 		)
@@ -54,14 +55,22 @@ data class NavbarConfig(
 
 		/**
 		 * A saved config in today's shape: version 8 untouched gets the new default, a
-		 * customised one keeps its tabs and gets Explore and Discover, off; version 9 gets
-		 * Discover, off. Older ones start over.
+		 * customised one keeps its tabs and gets Explore, Discover and Recap, off; version 9
+		 * gets Discover, version 10 Recap, all off. Older ones start over.
 		 */
 		fun migrate(config: NavbarConfig): NavbarConfig = when (config.version) {
 			VERSION -> config
-			9 -> NavbarConfig(config.tabs + NavbarTab(NavbarTab.Id.DISCOVER, false), VERSION)
+			10 -> NavbarConfig(config.tabs + NavbarTab(NavbarTab.Id.RECAP, false), VERSION)
+			9 -> NavbarConfig(
+				config.tabs + NavbarTab(NavbarTab.Id.DISCOVER, false) + NavbarTab(NavbarTab.Id.RECAP, false),
+				VERSION
+			)
 			8 -> if (config.tabs == defaultV8) default
-			else NavbarConfig(config.tabs + NavbarTab(NavbarTab.Id.EXPLORE, false) + NavbarTab(NavbarTab.Id.DISCOVER, false), VERSION)
+			else NavbarConfig(
+				config.tabs + NavbarTab(NavbarTab.Id.EXPLORE, false) +
+					NavbarTab(NavbarTab.Id.DISCOVER, false) + NavbarTab(NavbarTab.Id.RECAP, false),
+				VERSION
+			)
 			else -> default
 		}
 	}

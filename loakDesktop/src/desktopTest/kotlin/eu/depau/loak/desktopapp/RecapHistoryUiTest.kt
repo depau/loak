@@ -61,8 +61,8 @@ class RecapHistoryUiTest {
 				val playLog = koin.koin.get<PlayLogManager>()
 				songs.take(6).forEach { song -> repeat(2) { playLog.recordSong(song.songId) } }
 
-				openTab("Home")
-				click(description("Recap"))
+				openTab("Library")
+				click("Recap")
 				waitForText("Top artists")
 				waitForText("Top albums")
 				waitForText("Top tracks")

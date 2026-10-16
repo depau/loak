@@ -1,6 +1,12 @@
 package eu.depau.loak.uitest
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isToggleable
 import kotlinx.coroutines.test.TestResult
 import kotlin.test.Test
 
@@ -33,11 +39,31 @@ abstract class UserFlows {
 	@Test
 	fun recapOpens() = runApp {
 		logIn()
-		click(description("Recap"))
+		// it lives in the Library's lower section, and on the tab bar if it is picked
+		openTab("Library")
+		click("Recap")
 		// a fresh install has played nothing: the picker, the hero and the notice are it
 		waitForText("Nothing has been played in this period yet.")
 		// every period answers, not just the one the screen opens on
 		click("All")
+		waitForText("Nothing has been played in this period yet.")
+	}
+
+	@Test
+	fun recapIsATabOncePicked() = runApp {
+		logIn()
+		openSettings()
+		click("Tabs")
+		// the row is not clickable: its switch is, and the row's label is its ancestor
+		val recap = isToggleable() and hasAnyAncestor(hasText("Recap"))
+		// the config is process-wide: a flow that already picked the tab must not unpick it
+		val state = waitFor(recap).fetchSemanticsNode().config.getOrNull(SemanticsProperties.ToggleableState)
+		if (state == ToggleableState.Off) click(recap)
+		navigateUp()
+		waitForText("Appearance")
+		// a wide window keeps its rail inside Settings, a phone only has the bar on a root
+		if (onAllNodes(tab("Home")).fetchSemanticsNodes().isEmpty()) navigateUp()
+		openTab("Recap")
 		waitForText("Nothing has been played in this period yet.")
 	}
 
@@ -67,6 +93,7 @@ abstract class UserFlows {
 			"Recently added" to "Fourth Wall",
 			"Random" to "Third Rail",
 			"Starred" to "Nothing's starred",
+			"Recap" to "Nothing has been played in this period yet.",
 			"Playlists" to "UI Test Mix",
 			"Shares" to "No shares",
 		)) {

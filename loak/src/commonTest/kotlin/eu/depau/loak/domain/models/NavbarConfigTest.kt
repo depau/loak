@@ -20,7 +20,10 @@ class NavbarConfigTest {
 	fun customisedKeepsItsTabsAndGetsExploreOff() {
 		val custom = v8Default.copy(tabs = v8Default.tabs.reversed())
 		val migrated = NavbarConfig.migrate(custom)
-		assertEquals(custom.tabs + NavbarTab(Id.EXPLORE, false) + NavbarTab(Id.DISCOVER, false), migrated.tabs)
+		assertEquals(
+			custom.tabs + NavbarTab(Id.EXPLORE, false) + NavbarTab(Id.DISCOVER, false) + NavbarTab(Id.RECAP, false),
+			migrated.tabs
+		)
 		assertEquals(NavbarConfig.VERSION, migrated.version)
 	}
 
@@ -42,7 +45,7 @@ class NavbarConfigTest {
 	fun v9CustomisedKeepsItsTabsAndGetsDiscoverOff() {
 		val custom = v8Default.copy(version = 9, tabs = v8Default.tabs.reversed())
 		val migrated = NavbarConfig.migrate(custom)
-		assertEquals(custom.tabs + NavbarTab(Id.DISCOVER, false), migrated.tabs)
+		assertEquals(custom.tabs + NavbarTab(Id.DISCOVER, false) + NavbarTab(Id.RECAP, false), migrated.tabs)
 		assertEquals(NavbarConfig.VERSION, migrated.version)
 	}
 
@@ -50,6 +53,14 @@ class NavbarConfigTest {
 	fun v10StaysUnchanged() {
 		val current = NavbarConfig.default
 		assertEquals(current, NavbarConfig.migrate(current))
+	}
+
+	@Test
+	fun v10CustomisedKeepsItsTabsAndGetsRecapOff() {
+		val custom = NavbarConfig(v8Default.tabs.reversed(), 10)
+		val migrated = NavbarConfig.migrate(custom)
+		assertEquals(custom.tabs + NavbarTab(Id.RECAP, false), migrated.tabs)
+		assertEquals(NavbarConfig.VERSION, migrated.version)
 	}
 
 	@Test

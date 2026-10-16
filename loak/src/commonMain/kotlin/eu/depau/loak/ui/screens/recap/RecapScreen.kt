@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,12 +39,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.history.RecapData
 import eu.depau.loak.domain.history.RecapDay
@@ -80,9 +84,12 @@ import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.layouts.NestedTopBar
-import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
+import eu.depau.loak.ui.components.layouts.RootBottomBar
+import eu.depau.loak.ui.components.layouts.RootTopBar
+import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.sheets.SongActionsSheet
 import eu.depau.loak.ui.util.onSecondaryClick
+import eu.depau.loak.ui.util.withoutTop
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.core.UiState
 import eu.depau.loak.ui.navigation.Screen
@@ -113,29 +120,36 @@ fun RecapScreen() {
 	val period by viewModel.period.collectAsStateWithLifecycle()
 	val shareManager = koinInject<ShareManager>()
 	val scope = rememberCoroutineScope()
+	val backStack = LocalNavStack.current
+	val scrollBehavior = rootTopBarScrollBehavior()
+	// a tab of its own, or a page pushed over the Library
+	val nested = backStack.firstOrNull() != Screen.Recap
 	val recap = state.data
 	// hoisted: the share button's lambda is not a composable scope
 	val shareText = recap?.shareText()
 
 	Scaffold(
+		modifier = if (nested) Modifier else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
 		topBar = {
-			NestedTopBar(
-				{ Text(stringResource(Res.string.title_recap)) },
-				navigationAction = NestedTopBarDefaults::NavigationAction,
-				actions = {
-					// nothing to share until there is something on screen
-					if (shareText != null) {
-						IconButton(onClick = { scope.launch { shareManager.shareString(shareText) } }) {
-							Icon(Icons.Outlined.Share, stringResource(Res.string.action_share))
-						}
+			val share: @Composable RowScope.() -> Unit = {
+				// nothing to share until there is something on screen
+				if (shareText != null) {
+					IconButton(onClick = { scope.launch { shareManager.shareString(shareText) } }) {
+						Icon(Icons.Outlined.Share, stringResource(Res.string.action_share))
 					}
 				}
-			)
-		}
+			}
+			val title: @Composable () -> Unit = { Text(stringResource(Res.string.title_recap)) }
+			// in the tab bar it is a root of its own; opened from Library it is a page on top
+			if (nested) NestedTopBar(title, actions = share)
+			else RootTopBar(title, scrollBehavior, actions = share)
+		},
+		// like the other scrolling screens, the bar stays: it is how the flow leaves the page
+		bottomBar = { RootBottomBar(scrolled = LocalBottomBarScrollManager.current.isTriggered) }
 	) { innerPadding ->
 		LazyColumn(
-			modifier = Modifier.fillMaxWidth().padding(innerPadding),
-			contentPadding = PaddingValues(bottom = 24.dp)
+			modifier = Modifier.fillMaxWidth(),
+			contentPadding = innerPadding.withoutTop() + PaddingValues(bottom = 24.dp)
 		) {
 			item { PeriodPicker(period, viewModel::select) }
 			if (state is UiState.Error) {

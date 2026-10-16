@@ -18,6 +18,7 @@ data class NavbarTab(
 		SONGS,
 		RADIOS,
 		EXPLORE,
-		DISCOVER
+		DISCOVER,
+		RECAP
 	}
 }

@@ -153,7 +153,8 @@ fun LibraryScreen() {
 			LibraryRow(Icons.Outlined.Trophy, Res.string.lens_highest_rated, null, Screen.AlbumList(true, DomainAlbumListType.Highest)),
 			LibraryRow(Icons.Outlined.Shuffle, Res.string.lens_random, null, Screen.AlbumList(true, DomainAlbumListType.Random)),
 			LibraryRow(Icons.Outlined.Calendar, Res.string.lens_by_year, null, Screen.AlbumList(true, DomainAlbumListType.Year)),
-			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, counts.starred, Screen.Starred(nested = true))
+			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, counts.starred, Screen.Starred(nested = true)),
+			LibraryRow(Icons.Outlined.BarChart, Res.string.title_recap, null, Screen.Recap)
 		),
 		listOfNotNull(
 			LibraryRow(Icons.Outlined.PlaylistPlay, Res.string.title_playlists, counts.playlists, Screen.PlaylistList(nested = true)),
