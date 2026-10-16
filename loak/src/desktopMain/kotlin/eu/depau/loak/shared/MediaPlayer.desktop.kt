@@ -24,7 +24,9 @@ import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.domain.manager.audioExtension
+import eu.depau.loak.data.database.entities.AudioFileEntity
 import eu.depau.loak.domain.models.AudioQuality
+import eu.depau.loak.domain.models.PlaybackDetails
 import eu.depau.loak.domain.models.PlaybackSource
 import eu.depau.loak.domain.models.formatCodecName
 import eu.depau.loak.domain.models.formatSampleRate
@@ -284,26 +286,47 @@ class DesktopMediaPlayerViewModel(
 
 	override fun requestedQuality(): AudioQuality = qualityRequested()
 
-	// a stored original rodio can't decode (a download kept as is) streams transcoded instead
-	private suspend fun storedPath(song: DomainSong): String? =
-		audioStore.bestComplete(song.id)?.let { audioStore.pathOf(it) }
-			?.takeIf { it.substringAfterLast('.').lowercase() in RODIO_FORMATS }
+	// the shared guess from the store can't know about the mp3 fallback or the hot-swap:
+	// setDecoderInfo reports what rodio actually plays once a source starts
+	override fun updateDeliveryDetails(song: DomainSong?) {
+		if (song == null) super.updateDeliveryDetails(null)
+	}
 
-	private fun setDecoderInfo(song: DomainSong, source: PlaybackSource, filePath: String?) {
+	// a stored original rodio can't decode (a download kept as is) streams transcoded instead
+	private suspend fun storedFile(song: DomainSong): AudioFileEntity? =
+		audioStore.bestComplete(song.id)
+			?.takeIf { it.fileName.substringAfterLast('.').lowercase() in RODIO_FORMATS }
+
+	/** Reports what rodio decodes: the store [file], or the HTTP stream when null. */
+	private fun setDecoderInfo(song: DomainSong, file: AudioFileEntity?) {
+		val quality = file?.let { AudioQuality.parse(it.quality) }
+			?: AudioQuality.of(currentContainer(), maxBitrate())
+		val raw = quality == AudioQuality.Raw
+		val stereo = song.audioChannelCount != 1
+		val details = PlaybackDetails(
+			songId = song.id,
+			source = when {
+				file == null -> PlaybackSource.Stream
+				file.pinned -> PlaybackSource.Download
+				else -> PlaybackSource.Cache
+			},
+			codec = formatCodecName(
+				null,
+				file?.fileName?.substringAfterLast('.') ?: quality.format ?: song.fileExtension
+			),
+			bitrateKbps = quality.kbps.takeIf { it > 0 } ?: song.bitRate,
+			sampleRateHz = song.sampleRate,
+			channelCount = song.audioChannelCount,
+			bitDepth = song.bitDepth.takeIf { raw },
+			isTranscoded = !raw,
+			decoder = "rodio (Symphonia)",
+			pcmFormat = "PCM",
+			outputFormat = formatSampleRate(song.sampleRate ?: 44_100) +
+				if (stereo) " · Stereo" else " · Mono",
+			outputDevice = "Default audio device"
+		)
 		_uiState.update { state ->
-			val current = state.playbackDetails?.takeIf { it.songId == song.id } ?: return@update state
-			val codec = if (filePath != null) "FLAC" else
-				formatCodecName(song.mimeType, song.fileExtension)
-			val stereo = (current.channelCount ?: song.audioChannelCount) != 1
-			val sampleRate = current.sampleRateHz ?: song.sampleRate ?: 44_100
-			state.copy(playbackDetails = current.copy(
-				source = source,
-				decoder = "rodio (Symphonia)",
-				codec = codec,
-				pcmFormat = "PCM",
-				outputFormat = "${formatSampleRate(sampleRate)} · ${if (stereo) "Stereo" else "Mono"}",
-				outputDevice = "Default audio device"
-			))
+			if (state.currentSong?.id != song.id) state else state.copy(playbackDetails = details)
 		}
 	}
 
@@ -348,8 +371,9 @@ class DesktopMediaPlayerViewModel(
 	 *  stomp the flag of the start that replaced it and re-expose the skip race. */
 	private var sourceStartToken = 0
 
-	/** Plays [song]: a complete store file if present; else for lossless it starts the mp3 fallback
-	 *  now and hot-swaps to the FLAC file once fetched; else it streams in the selected container.
+	/** Plays [song]: a complete store file if present; else for lossless it starts the mp3
+	 *  fallback now and hot-swaps to the original file once fetched; else it streams in the
+	 *  selected container.
 	 *  [isTransitioningBetweenTracks] stays true until rodio has actually been handed a source
 	 *  (for lossless: until the hot-swap starts), so the end-detection loop can't skip the new
 	 *  track while its stream is still connecting. */
@@ -362,7 +386,7 @@ class DesktopMediaPlayerViewModel(
 			try {
 				swappedAwayJob?.cancel()
 				swappedAwayJob = null
-				val stored = storedPath(song)
+				val stored = storedFile(song)
 				if (stored != null) {
 					playFileSource(song, stored, startPosMs)
 					return@launch
@@ -389,9 +413,9 @@ class DesktopMediaPlayerViewModel(
 					return@launch
 				}
 				if (_uiState.value.currentSong?.id != song.id) return@launch
-				val donePath = audioStore.bestComplete(song.id)?.let { audioStore.pathOf(it) }
+				val done = audioStore.bestComplete(song.id)
 					?: run { Logger.w("DesktopMediaPlayerViewModel", "lossless file for ${song.id} vanished"); return@launch }
-				// mp3 was playing; swap to the FLAC file at the same position.
+				// mp3 was playing; swap to the original file at the same position.
 				// playFileSource resets isPaused=false, so the button stays correct even if the
 				// fallback had briefly reported a failure.
 				val positionMs = rodio.getPositionMs()?.coerceAtLeast(0L) ?: 0L
@@ -400,7 +424,7 @@ class DesktopMediaPlayerViewModel(
 				swappedAwayJob = viewModelScope.launch(Dispatchers.IO) {
 					try {
 						if (sourceStartToken != myToken) return@launch
-						if (!playFileSource(song, donePath, startPosMs = positionMs)) return@launch
+						if (!playFileSource(song, done, startPosMs = positionMs)) return@launch
 						if (wasPaused) pause()
 					} finally {
 						if (sourceStartToken == myToken) isTransitioningBetweenTracks = false
@@ -421,7 +445,7 @@ class DesktopMediaPlayerViewModel(
 			applyVolume()
 			streamFailed = false
 			_uiState.update { it.copy(isPaused = false, isLoading = false) }
-			setDecoderInfo(song, PlaybackSource.Stream, filePath = null)
+			setDecoderInfo(song, file = null)
 			scrobbleManager.onPlayStateChanged(true)
 			return true
 		} catch (e: Exception) {
@@ -433,15 +457,16 @@ class DesktopMediaPlayerViewModel(
 		}
 	}
 
-	/** Plays a local file. Returns true if playback started. */
-	private suspend fun playFileSource(song: DomainSong, path: String, startPosMs: Long = 0L): Boolean {
+	/** Plays a complete store [file]. Returns true if playback started. */
+	private suspend fun playFileSource(song: DomainSong, file: AudioFileEntity, startPosMs: Long = 0L): Boolean {
+		val path = audioStore.pathOf(file)
 		try {
 			rodio.playFile(path, loop = false)
 			if (startPosMs > 0) runCatching { rodio.seekToMs(startPosMs) }
 			applyVolume()
 			streamFailed = false
 			_uiState.update { it.copy(isPaused = false, isLoading = false) }
-			setDecoderInfo(song, PlaybackSource.Download, filePath = path)
+			setDecoderInfo(song, file)
 			scrobbleManager.onPlayStateChanged(true)
 			return true
 		} catch (e: Exception) {

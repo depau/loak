@@ -215,7 +215,7 @@ abstract class MediaPlayerViewModel(
 		}
 	}
 
-	protected fun updateDeliveryDetails(song: DomainSong?) {
+	protected open fun updateDeliveryDetails(song: DomainSong?) {
 		if (song == null) {
 			_uiState.update { it.copy(playbackDetails = null) }
 			return
