@@ -147,14 +147,14 @@ fun LibraryScreen() {
 			LibraryRow(Icons.Outlined.Download, Res.string.label_downloaded, downloaded.size, Screen.Downloads())
 		),
 		listOf(
+			LibraryRow(Icons.Outlined.BarChart, Res.string.title_recap, null, Screen.Recap),
 			LibraryRow(Icons.Outlined.RecentlyAdded, Res.string.lens_recently_added, null, Screen.AlbumList(true, DomainAlbumListType.Newest)),
 			LibraryRow(Icons.Outlined.History, Res.string.title_recently_played, null, Screen.AlbumList(true, DomainAlbumListType.Recent)),
 			LibraryRow(Icons.Outlined.BarChart, Res.string.lens_most_played, null, Screen.AlbumList(true, DomainAlbumListType.Frequent)),
 			LibraryRow(Icons.Outlined.Trophy, Res.string.lens_highest_rated, null, Screen.AlbumList(true, DomainAlbumListType.Highest)),
 			LibraryRow(Icons.Outlined.Shuffle, Res.string.lens_random, null, Screen.AlbumList(true, DomainAlbumListType.Random)),
 			LibraryRow(Icons.Outlined.Calendar, Res.string.lens_by_year, null, Screen.AlbumList(true, DomainAlbumListType.Year)),
-			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, counts.starred, Screen.Starred(nested = true)),
-			LibraryRow(Icons.Outlined.BarChart, Res.string.title_recap, null, Screen.Recap)
+			LibraryRow(Icons.Outlined.Star, Res.string.title_starred, counts.starred, Screen.Starred(nested = true))
 		),
 		listOfNotNull(
 			LibraryRow(Icons.Outlined.PlaylistPlay, Res.string.title_playlists, counts.playlists, Screen.PlaylistList(nested = true)),
