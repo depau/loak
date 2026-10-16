@@ -23,6 +23,7 @@ import eu.depau.loak.ui.screens.settings.LidarrConnectScreen
 import eu.depau.loak.ui.screens.settings.LidarrSettingsScreen
 import eu.depau.loak.ui.screens.settings.SettingsLidarrCustomHeadersScreen
 import eu.depau.loak.ui.screens.settings.ListenBrainzSettingsScreen
+import eu.depau.loak.ui.screens.settings.ListeningHistorySettingsScreen
 import eu.depau.loak.ui.screens.settings.DiscoverSearchSettingsScreen
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onKeyEvent
@@ -783,6 +784,9 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.ListenBrainz>(metadata = detailPane("settings")) {
 			ListenBrainzSettingsScreen()
+		}
+		entry<Screen.Settings.ListeningHistory>(metadata = detailPane("settings")) {
+			ListeningHistorySettingsScreen()
 		}
 		entry<Screen.Settings.DiscoverSearch>(metadata = detailPane("settings")) {
 			DiscoverSearchSettingsScreen()

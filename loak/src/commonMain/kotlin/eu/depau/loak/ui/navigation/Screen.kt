@@ -301,6 +301,10 @@ sealed interface Screen : NavKey {
 
 		@Immutable
 		@Serializable
+		data object ListeningHistory : Settings
+
+		@Immutable
+		@Serializable
 		data object DiscoverSearch : Settings
 	}
 }

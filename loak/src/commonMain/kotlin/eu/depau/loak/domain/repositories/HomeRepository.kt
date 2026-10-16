@@ -12,6 +12,7 @@ import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.history.ListeningHistory
 import eu.depau.loak.domain.history.QUICK_PICKS_SIZE
 import eu.depau.loak.domain.history.pickQuickPicks
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.PlayLogManager
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.QueueSyncManager
@@ -87,6 +88,7 @@ class HomeRepository(
 	private val queueSyncManager: QueueSyncManager,
 	private val playLog: PlayLogManager,
 	private val listeningHistory: ListeningHistory,
+	private val preferenceManager: PreferenceManager,
 	private val settings: Settings,
 	private val audioMuse: AudioMuseManager
 ) {
@@ -208,7 +210,10 @@ class HomeRepository(
 		genre: String?,
 		rebuild: Boolean
 	): List<DomainSong> = withContext(IoDispatcher) {
-		val key = genre ?: ""
+		// the knobs are part of the key: switching source or decay rebuilds instead of
+		// showing half an hour of picks ranked by the way it was
+		val key = "${preferenceManager.listeningHistorySource}|${preferenceManager.quickPicksDecay}" +
+			"|${genre ?: ""}"
 		val now = Clock.System.now()
 		snapshots[key]?.takeIf { !rebuild && now.epochSeconds - it.builtAt < PICKS_TTL.inWholeSeconds }
 			?.ids?.mapNotNull { library.songsById[it] }
@@ -216,13 +221,15 @@ class HomeRepository(
 			?.let { return@withContext it }
 
 		val picks = buildQuickPicks(library, genre)
+		// drop what has expired rather than keeping one stale list per genre forever
+		snapshots.entries.removeAll { now.epochSeconds - it.value.builtAt >= PICKS_TTL.inWholeSeconds }
 		snapshots[key] = Snapshot(now.epochSeconds, picks.map { it.id })
 		settings[PICKS_KEY] = json.encodeToString(snapshots.toMap())
 		picks
 	}
 
 	private suspend fun buildQuickPicks(library: HomeLibrary, genre: String?): List<DomainSong> {
-		val heat = listeningHistory.heat(HEAT_WINDOW, HEAT_HALF_LIFE)
+		val heat = listeningHistory.heat(HEAT_WINDOW, preferenceManager.quickPicksDecay.halfLife)
 		val recentAlbumIds = library.albums
 			.filter { (it.lastPlayedAt ?: return@filter false) >= Clock.System.now() - 30.days }
 			.mapTo(HashSet()) { it.id }
@@ -377,11 +384,12 @@ class HomeRepository(
 		const val SPEED_DIAL_SIZE = 26 // 3 pages of 9, less the dice
 		private const val SHELF_SIZE = 20
 		/**
-		 * Heat is summed over this window, and each play is worth half as much every
-		 * [HEAT_HALF_LIFE] — a few days of heavy rotation leads Quick picks, then fades.
+		 * Heat is summed over this window; each play is worth half as much every
+		 * `quickPicksDecay` half-life, so recent heavy rotation leads Quick picks and then
+		 * fades. The window is what a remote source can be asked about in one page, so it
+		 * stays fixed while the decay is the knob.
 		 */
 		private val HEAT_WINDOW = 30.days
-		private val HEAT_HALF_LIFE = 3.days
 		private val PICKS_TTL = 30.minutes
 
 		fun keyOf(collection: DomainSongCollection) = when (collection) {

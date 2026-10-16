@@ -20,6 +20,7 @@ import eu.depau.loak.generated.resources.info_listenbrainz_optional
 import eu.depau.loak.generated.resources.info_listenbrainz_connected
 import eu.depau.loak.generated.resources.title_discover_settings
 import eu.depau.loak.generated.resources.title_discover_sources
+import eu.depau.loak.generated.resources.title_listening_history
 import eu.depau.loak.generated.resources.title_lidarr
 import eu.depau.loak.generated.resources.title_listenbrainz
 import androidx.compose.material3.FilledTonalButton
@@ -203,6 +204,7 @@ fun SettingsServerScreen() {
 
 			IntegrationsGroup()
 			DiscoverGroup()
+			ListeningHistoryGroup()
 
 			SettingsGroup(title = { Text(stringResource(Res.string.title_advanced)) }) {
 				CustomHeadersItem()
@@ -336,6 +338,27 @@ fun DiscoverGroup() {
 				color = MaterialTheme.colorScheme.onSurfaceVariant
 			)
 		}
+	}
+}
+
+/**
+ * Which scrobbler, if any, Lo'ak reads plays from beyond this device. Not on the web: the
+ * sources are read straight from the browser, where neither Koito nor Last.fm sends the CORS
+ * headers this needs.
+ */
+@Composable
+fun ListeningHistoryGroup() {
+	if (LocalPlatformContext.current.platformType == PlatformType.Web) return
+	val preferenceManager = koinInject<PreferenceManager>()
+	val backStack = LocalNavStack.current
+	SettingsGroup(title = { Text(stringResource(Res.string.title_listening_history)) }) {
+		val source = preferenceManager.listeningHistorySource
+		SettingsNavItem(
+			onClick = dropUnlessResumed { backStack.add(Screen.Settings.ListeningHistory) },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1),
+			content = { Text(stringResource(historySourceLabel(source))) },
+			supportingContent = { Text(stringResource(historySourceInfo(source))) }
+		)
 	}
 }
 

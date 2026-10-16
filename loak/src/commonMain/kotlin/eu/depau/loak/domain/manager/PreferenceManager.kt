@@ -14,6 +14,7 @@ import eu.depau.loak.domain.models.settings.NowPlayingBackgroundStyle
 import eu.depau.loak.domain.models.settings.NowPlayingSliderStyle
 import eu.depau.loak.domain.models.settings.OfflineMode
 import eu.depau.loak.domain.models.settings.QueueInfoType
+import eu.depau.loak.domain.models.settings.QuickPicksDecay
 import eu.depau.loak.domain.models.settings.ReplayGainMode
 import eu.depau.loak.domain.models.settings.StartupQueue
 import eu.depau.loak.domain.models.settings.StreamingQuality
@@ -158,6 +159,12 @@ class PreferenceManager(
 
 	/** Last.fm username to read scrobbles from; "" = not set. */
 	var lastFmUsername by preference("")
+
+	/**
+	 * How long it takes a song's weight in Quick picks to halve: the "cooling" knob. A long
+	 * half-life keeps recently played songs on the list, a short one gets them out of the way.
+	 */
+	var quickPicksDecay by preference(QuickPicksDecay.Medium)
 
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
