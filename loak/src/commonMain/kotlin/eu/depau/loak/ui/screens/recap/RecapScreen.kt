@@ -1,8 +1,6 @@
 package eu.depau.loak.ui.screens.recap
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -24,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -79,16 +77,23 @@ import eu.depau.loak.generated.resources.title_recap_top_albums
 import eu.depau.loak.generated.resources.title_recap_top_artists
 import eu.depau.loak.generated.resources.title_recap_top_tracks
 import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.outlined.Note
+import eu.depau.loak.icons.outlined.BarChart
 import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.ui.components.common.CoverArt
+import eu.depau.loak.ui.components.common.MarqueeText
+import eu.depau.loak.ui.components.common.ContentUnavailable
+import eu.depau.loak.ui.components.common.SegmentedListItem
+import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.common.ErrorBox
+import eu.depau.loak.ui.components.layouts.ArtCarousel
+import eu.depau.loak.ui.components.layouts.ArtCarouselItem
 import eu.depau.loak.ui.components.layouts.NestedTopBar
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.sheets.SongActionsSheet
-import eu.depau.loak.ui.util.onSecondaryClick
+import eu.depau.loak.ui.screens.home.components.ShelfHeader
+import eu.depau.loak.ui.theme.SmallCoverArtShape
 import eu.depau.loak.ui.util.withoutTop
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.core.UiState
@@ -96,6 +101,7 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.home.components.TAB
 import eu.depau.loak.ui.screens.recap.viewmodels.RecapViewModel
 import eu.depau.loak.ui.theme.defaultFont
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 import kotlin.math.log2
 import kotlin.math.roundToInt
@@ -148,7 +154,9 @@ fun RecapScreen() {
 		bottomBar = { RootBottomBar(scrolled = LocalBottomBarScrollManager.current.isTriggered) }
 	) { innerPadding ->
 		LazyColumn(
-			modifier = Modifier.fillMaxWidth(),
+			// the top inset pads the feed, not its content: the period picker is its first
+			// line, and with the inset spent on content it sat under the top bar
+			modifier = Modifier.fillMaxWidth().padding(top = innerPadding.calculateTopPadding()),
 			contentPadding = innerPadding.withoutTop() + PaddingValues(bottom = 24.dp)
 		) {
 			item { PeriodPicker(period, viewModel::select) }
@@ -285,86 +293,63 @@ private fun Comparison(plays: Int, previousPlays: Int) {
 @Composable
 private fun Activity(recap: RecapData) {
 	val primary = MaterialTheme.colorScheme.primary
-	val empty = MaterialTheme.colorScheme.surfaceVariant
-	Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-		SectionTitle(Res.string.title_recap_activity)
-		// one weight per week, so the grid is as wide as the card is and the squares grow with it
-		Row(
-			Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-			horizontalArrangement = Arrangement.spacedBy(2.dp)
+	// a day with nothing played is the card, not a filled square: the grid stays a grid
+	val empty = MaterialTheme.colorScheme.onSurface.copy(alpha = .06f)
+	// the app's block, not a floating diagram: a card like the Library's rows hold
+	Surface(
+		shape = MaterialTheme.shapes.large,
+		color = MaterialTheme.colorScheme.surfaceContainer,
+		modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+	) {
+		Column(
+			Modifier.padding(SegmentedListItemDefaults.ContentPadding),
+			verticalArrangement = Arrangement.spacedBy(12.dp)
 		) {
-			recap.activity.toWeeks().forEach { week ->
-				Column(
-					Modifier.weight(1f),
-					verticalArrangement = Arrangement.spacedBy(2.dp)
-				) {
-					week.forEach { day ->
-						Box(
-							Modifier.fillMaxWidth()
-								.aspectRatio(1f)
-								.clip(RoundedCornerShape(2.dp))
-								.background(if (day == null) Color.Transparent else day.cellColor(primary, empty))
-						)
+			Text(
+				stringResource(Res.string.title_recap_activity),
+				style = MaterialTheme.typography.titleMediumEmphasized,
+				fontWeight = FontWeight(600)
+			)
+			// one weight per week, so the grid is as wide as the card is and the squares grow
+			Row(
+				Modifier.fillMaxWidth(),
+				horizontalArrangement = Arrangement.spacedBy(2.dp)
+			) {
+				recap.activity.toWeeks().forEach { week ->
+					Column(
+						Modifier.weight(1f),
+						verticalArrangement = Arrangement.spacedBy(2.dp)
+					) {
+						week.forEach { day ->
+							Box(
+								Modifier.fillMaxWidth()
+									.aspectRatio(1f)
+									.clip(RoundedCornerShape(2.dp))
+									.background(if (day == null) Color.Transparent else day.cellColor(primary, empty))
+							)
+						}
 					}
 				}
 			}
-		}
-		Row(
-			Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-			horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
-			verticalAlignment = Alignment.CenterVertically
-		) {
-			Text(
-				stringResource(Res.string.label_recap_heatmap_less),
-				style = MaterialTheme.typography.labelSmall,
-				color = MaterialTheme.colorScheme.onSurfaceVariant
-			)
-			for (level in 1..4) {
-				Box(
-					Modifier.size(10.dp).clip(RoundedCornerShape(2.dp))
-						.background(lerp(empty, primary, level / 4f))
-				)
-			}
-			Text(
-				stringResource(Res.string.label_recap_heatmap_more),
-				style = MaterialTheme.typography.labelSmall,
-				color = MaterialTheme.colorScheme.onSurfaceVariant
-			)
-		}
-	}
-}
-
-@Composable
-private fun TopArtists(artists: List<RecapEntry>) {
-	val backStack = LocalNavStack.current
-	SectionTitle(Res.string.title_recap_top_artists)
-	LazyRow(
-		contentPadding = PaddingValues(horizontal = 16.dp),
-		horizontalArrangement = Arrangement.spacedBy(12.dp)
-	) {
-		items(artists, key = { it.id }) { artist ->
-			Column(
-				Modifier.width(84.dp).clickable(
-					onClick = dropUnlessResumed { backStack.add(Screen.ArtistDetail(artist.id)) }
-				),
-				verticalArrangement = Arrangement.spacedBy(6.dp)
+			Row(
+				Modifier.fillMaxWidth(),
+				horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+				verticalAlignment = Alignment.CenterVertically
 			) {
-				// artists have no artwork of their own: a tinted disc, coloured by the id
-				Box(
-					Modifier.size(72.dp).clip(CircleShape).background(artistColor(artist.id)),
-					contentAlignment = Alignment.Center
-				) {
-					Icon(Icons.Outlined.Note, null, Modifier.size(28.dp), tint = Color.White.copy(alpha = 0.85f))
+				Text(
+					stringResource(Res.string.label_recap_heatmap_less),
+					style = MaterialTheme.typography.labelSmall,
+					color = MaterialTheme.colorScheme.onSurfaceVariant
+				)
+				for (level in 1..4) {
+					Box(
+						Modifier.size(10.dp).clip(RoundedCornerShape(2.dp))
+							.background(lerp(empty, primary, level / 4f))
+					)
 				}
 				Text(
-					artist.title,
-					style = MaterialTheme.typography.bodyMedium,
-					maxLines = 1,
-					overflow = TextOverflow.Ellipsis
-				)
-				Text(
-					pluralStringResource(Res.plurals.info_recap_plays_count, artist.plays, artist.plays),
-					style = MaterialTheme.typography.bodySmall,
+					stringResource(Res.string.label_recap_heatmap_more),
+					style = MaterialTheme.typography.labelSmall,
 					color = MaterialTheme.colorScheme.onSurfaceVariant
 				)
 			}
@@ -372,49 +357,40 @@ private fun TopArtists(artists: List<RecapEntry>) {
 	}
 }
 
+/** The app's cover shelf: the same cards Starred's artists and albums are shown in. */
 @Composable
-private fun TopAlbums(albums: List<RecapEntry>) {
+private fun TopArtists(artists: List<RecapEntry>) {
 	val backStack = LocalNavStack.current
-	SectionTitle(Res.string.title_recap_top_albums)
-	LazyRow(
-		contentPadding = PaddingValues(horizontal = 16.dp),
-		horizontalArrangement = Arrangement.spacedBy(12.dp)
-	) {
-		items(albums, key = { it.id }) { album ->
-			Column(
-				Modifier.width(120.dp).clickable(
-					onClick = dropUnlessResumed { backStack.add(Screen.CollectionDetail(album.id, TAB)) }
-				),
-				verticalArrangement = Arrangement.spacedBy(6.dp)
-			) {
-				CoverArt(
-					modifier = Modifier.size(120.dp),
-					coverArtId = album.coverArtId,
-					shape = RoundedCornerShape(12.dp)
-				)
-				Text(
-					album.title,
-					style = MaterialTheme.typography.bodyMedium,
-					maxLines = 1,
-					overflow = TextOverflow.Ellipsis
-				)
-				album.subtitle?.let {
-					Text(
-						it,
-						style = MaterialTheme.typography.bodySmall,
-						color = MaterialTheme.colorScheme.onSurfaceVariant,
-						maxLines = 1,
-						overflow = TextOverflow.Ellipsis
-					)
-				}
-			}
-		}
+	ArtCarousel(stringResource(Res.string.title_recap_top_artists), artists.toImmutableList()) { artist ->
+		ArtCarouselItem(
+			coverArtId = artist.coverArtId,
+			title = artist.title,
+			subtitle = pluralStringResource(Res.plurals.info_recap_plays_count, artist.plays, artist.plays),
+			contentDescription = null,
+			id = artist.id,
+			onClick = dropUnlessResumed { backStack.add(Screen.ArtistDetail(artist.id)) }
+		)
 	}
 }
 
 @Composable
-private fun TopTracks(tracks: List<RecapEntry>) {
+private fun TopAlbums(albums: List<RecapEntry>) {
 	val backStack = LocalNavStack.current
+	ArtCarousel(stringResource(Res.string.title_recap_top_albums), albums.toImmutableList()) { album ->
+		ArtCarouselItem(
+			coverArtId = album.coverArtId,
+			title = album.title,
+			subtitle = album.subtitle,
+			contentDescription = null,
+			id = album.id,
+			onClick = dropUnlessResumed { backStack.add(Screen.CollectionDetail(album.id, TAB)) }
+		)
+	}
+}
+
+/** The ranked songs as the app's own rows, with the play count where a count belongs. */
+@Composable
+private fun TopTracks(tracks: List<RecapEntry>) {
 	val player = koinInject<MediaPlayerViewModel>()
 	// the songs, in the order the sheet and the queue want them: the same list a tap plays
 	val queue = tracks.mapNotNull { it.song }
@@ -424,80 +400,47 @@ private fun TopTracks(tracks: List<RecapEntry>) {
 		SongActionsSheet(song = song, open = true, onDismissRequest = { sheetSong = null })
 	}
 
+	ShelfHeader(stringResource(Res.string.title_recap_top_tracks))
 	Column(
 		Modifier.padding(horizontal = 16.dp),
-		verticalArrangement = Arrangement.spacedBy(4.dp)
+		verticalArrangement = Arrangement.spacedBy(SegmentedListItemDefaults.SegmentedGap)
 	) {
-		SectionTitle(Res.string.title_recap_top_tracks)
 		tracks.forEachIndexed { index, track ->
 			val song = track.song ?: return@forEachIndexed
-			val onLongClick = { sheetSong = song }
-			Row(
-				Modifier.fillMaxWidth()
-					.clip(RoundedCornerShape(12.dp))
-					.onSecondaryClick(onLongClick)
-					.combinedClickable(
-						onClick = { player.playNow(queue, queue.indexOf(song)) },
-						onLongClick = onLongClick
+			SegmentedListItem(
+				onClick = { player.playNow(queue, queue.indexOf(song)) },
+				onLongClick = { sheetSong = song },
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = index, count = tracks.size),
+				leadingContent = {
+					CoverArt(
+						modifier = Modifier.size(50.dp),
+						coverArtId = track.coverArtId,
+						shape = SmallCoverArtShape
 					)
-					.padding(vertical = 6.dp),
-				horizontalArrangement = Arrangement.spacedBy(12.dp),
-				verticalAlignment = Alignment.CenterVertically
-			) {
-				Text(
-					(index + 1).toString().padStart(2, '0'),
-					style = MaterialTheme.typography.labelLarge.copy(fontFamily = defaultFont(100)),
-					color = MaterialTheme.colorScheme.onSurfaceVariant
-				)
-				CoverArt(
-					modifier = Modifier.size(44.dp),
-					coverArtId = track.coverArtId,
-					shape = RoundedCornerShape(8.dp)
-				)
-				Column(Modifier.weight(1f)) {
+				},
+				content = { MarqueeText(track.title) },
+				supportingContent = track.subtitle?.let { info -> { MarqueeText(info) } },
+				trailingContent = {
 					Text(
-						track.title,
-						style = MaterialTheme.typography.bodyLarge,
-						maxLines = 1,
-						overflow = TextOverflow.Ellipsis
+						pluralStringResource(
+							Res.plurals.info_recap_plays_count,
+							track.plays,
+							track.plays
+						),
+						color = MaterialTheme.colorScheme.onSurfaceVariant
 					)
-					track.subtitle?.let {
-						Text(
-							it,
-							style = MaterialTheme.typography.bodySmall,
-							color = MaterialTheme.colorScheme.onSurfaceVariant,
-							maxLines = 1,
-							overflow = TextOverflow.Ellipsis
-						)
-					}
 				}
-				Text(
-					pluralStringResource(Res.plurals.info_recap_plays_count, track.plays, track.plays),
-					style = MaterialTheme.typography.bodyMedium,
-					color = MaterialTheme.colorScheme.onSurfaceVariant
-				)
-			}
+			)
 		}
 	}
 }
 
 @Composable
-private fun SectionTitle(title: StringResource) {
-	Text(
-		stringResource(title),
-		style = MaterialTheme.typography.titleMediumEmphasized,
-		fontWeight = FontWeight(600),
-		modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-	)
-}
-
-@Composable
 private fun EmptyNotice() {
-	Text(
-		stringResource(Res.string.info_recap_empty),
-		style = MaterialTheme.typography.bodyMedium,
-		color = MaterialTheme.colorScheme.onSurfaceVariant,
-		modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
+	ContentUnavailable(
+		icon = Icons.Outlined.BarChart,
+		label = stringResource(Res.string.info_recap_empty),
+		modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp)
 	)
 }
 
@@ -564,16 +507,3 @@ private fun RecapDay.cellColor(primary: Color, empty: Color): Color {
 }
 
 private const val OUTSIDE = 0.4f
-
-/**
- * A stable colour per artist id, so the discs stay recognisable between openings. Fixed hues
- * rather than theme roles: five artists in a row should look like five artists, not like five
- * shades of the accent.
- */
-private fun artistColor(id: String): Color {
-	val palette = listOf(
-		Color(0xFF3B6FD4), Color(0xFF3E8E6E), Color(0xFF7B4FA8),
-		Color(0xFFC9A227), Color(0xFFB4553F)
-	)
-	return palette[id.hashCode().mod(palette.size)]
-}
