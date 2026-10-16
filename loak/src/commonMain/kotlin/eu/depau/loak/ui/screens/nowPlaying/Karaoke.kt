@@ -90,7 +90,7 @@ fun Karaoke(state: PlayerSheetState) {
 		val playerState by player.uiState.collectAsStateWithLifecycle()
 		val song = playerState.currentSong
 
-		Immersive()
+		Immersive { state.karaoke = false }
 		KeepScreenOn()
 		NavigationBackHandler(
 			state = rememberNavigationEventState(NavigationEventInfo.None),

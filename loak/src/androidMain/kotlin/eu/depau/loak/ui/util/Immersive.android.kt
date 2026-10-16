@@ -11,7 +11,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 @Composable
-actual fun Immersive() {
+actual fun Immersive(onFullscreenExit: () -> Unit) {
 	val view = LocalView.current
 	DisposableEffect(view) {
 		val window = view.context.activity()?.window

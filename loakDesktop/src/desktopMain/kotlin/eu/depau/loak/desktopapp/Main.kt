@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import dev.nucleusframework.core.runtime.NucleusApp
 import dev.nucleusframework.window.DecoratedWindowScope
 import dev.nucleusframework.window.WindowControlType
 import dev.nucleusframework.window.WindowControlsRenderer
+import dev.nucleusframework.application.NucleusDecoratedWindowScope
 import dev.nucleusframework.window.tao.TaoDecoratedWindowScope
 import dev.nucleusframework.window.utils.linux.LinuxTitleBarButton
 import androidx.compose.foundation.layout.Row
@@ -100,9 +102,10 @@ fun main(args: Array<String>) {
 						content()
 					}
 				}
-				val window = (this@DecoratedWindow as TaoDecoratedWindowScope).window
-				val setFullscreen: (Boolean) -> Unit = { window.setFullscreen(it) }
-				val chrome = when {
+				val window = (this@DecoratedWindow as NucleusDecoratedWindowScope).nucleusWindow
+				val fullscreen by window.fullscreenFlow.collectAsState()
+				val setFullscreen = remember(window) { window::setFullscreen }
+				val decoratedChrome = when {
 					isMac -> WindowChrome(
 						barHeight = titleBarHeight,
 						dragArea = Modifier.windowDragArea(),
@@ -139,6 +142,17 @@ fun main(args: Array<String>) {
 							setFullscreen = setFullscreen,
 						)
 					}
+				}
+				val chrome = if (fullscreen) {
+					decoratedChrome.copy(
+						barHeight = 0.dp,
+						dragArea = Modifier,
+						leftControls = null,
+						rightControls = null,
+						fullscreen = true,
+					)
+				} else {
+					decoratedChrome
 				}
 				val updateController = remember { DesktopUpdaterManager() }
 				CompositionLocalProvider(
