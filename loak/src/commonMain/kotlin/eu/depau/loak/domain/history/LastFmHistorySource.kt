@@ -83,32 +83,49 @@ class LastFmHistorySource(
 
 	override val isConfigured get() = preferenceManager.lastFmUsername.isNotBlank()
 
-	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen> =
+	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen>? =
 		withContext(IoDispatcher) {
-			if (!isConfigured) return@withContext emptyList()
-			val listens = mutableListOf<RemoteListen>()
-			var page = 1
-			while (listens.size < limit && page <= MAX_PAGES) {
-				val body = try {
+			val username = preferenceManager.lastFmUsername.trim()
+			if (username.isBlank()) return@withContext null
+
+			/** Null on anything that stops the page: logged here, so the reason is not lost. */
+			suspend fun fetchPage(number: Int): JsonObject? {
+				val response = try {
 					client.get(ENDPOINT) {
 						parameter("method", "user.getrecenttracks")
-						parameter("user", preferenceManager.lastFmUsername.trim())
+						parameter("user", username)
 						parameter("api_key", API_KEY)
 						parameter("format", "json")
 						parameter("limit", PAGE_SIZE)
 						parameter("from", from)
 						parameter("to", to)
-						parameter("page", page)
-					}.takeIf { it.status.isSuccess() }
-						?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
+						parameter("page", number)
+					}
 				} catch (e: CancellationException) {
 					throw e
 				} catch (e: Exception) {
 					Logger.w(TAG, "could not read scrobbles from Last.fm", e)
-					null
+					return null
 				}
+				if (!response.status.isSuccess()) {
+					Logger.w(TAG, "Last.fm answered ${response.status} for recent tracks")
+					return null
+				}
+				return runCatching { json.parseToJsonElement(response.bodyAsText()) }
+					.getOrNull() as? JsonObject
+					?: run {
+						Logger.w(TAG, "Last.fm answered something that is not a recent tracks page")
+						null
+					}
+			}
 
-				val recent = body?.get("recenttracks") as? JsonObject
+			val listens = mutableListOf<RemoteListen>()
+			var page = 1
+			while (listens.size < limit && page <= MAX_PAGES) {
+				// the first page never arrived: the source cannot be read at all. A later one
+				// failing still leaves the pages before it.
+				val body = fetchPage(page) ?: return@withContext if (page == 1) null else listens.take(limit)
+				val recent = body["recenttracks"] as? JsonObject
 				// a single scrobble comes back as an object rather than a one-element array
 				val items = when (val tracks = recent?.get("track")) {
 					is JsonArray -> tracks.mapNotNull { (it as? JsonObject)?.let(::lastFmListenOf) }

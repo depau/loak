@@ -1074,6 +1074,7 @@
 	<string name="info_recap_from">From %1$s</string>
 	<string name="info_recap_source_local">this device</string>
 	<string name="info_recap_source_local_and">this device and %1$s</string>
+	<string name="info_recap_source_unreadable">Couldn\'t read %1$s</string>
 	<string name="info_recap_plays_more">%1$d%% more than the previous period</string>
 	<string name="info_recap_plays_fewer">%1$d%% fewer than the previous period</string>
 	<string name="info_recap_plays_same">About as much as the previous period</string>

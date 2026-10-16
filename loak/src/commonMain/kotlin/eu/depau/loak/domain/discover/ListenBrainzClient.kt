@@ -2,6 +2,7 @@ package eu.depau.loak.domain.discover
 
 import eu.depau.loak.domain.history.RemoteListen
 import eu.depau.loak.util.IoDispatcher
+import eu.depau.loak.util.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
@@ -253,26 +254,34 @@ class ListenBrainzClient(engine: HttpClientEngine? = null) {
 	/**
 	 * The listens [username] submitted in `[from, to)` (epoch seconds), newest first, up to
 	 * [count]. Public listens need no token, and reading a bounded recent window is exactly
-	 * what ListenBrainz's API policy asks for. A failure yields an empty list.
+	 * what ListenBrainz's API policy asks for.
+	 *
+	 * Null when they could not be read at all — no username, a bad answer, the network — so the
+	 * listening history can tell "nothing was played" from "ListenBrainz is not answering".
 	 */
-	suspend fun getListens(username: String, from: Long, to: Long, count: Int): List<RemoteListen> =
+	suspend fun getListens(username: String, from: Long, to: Long, count: Int): List<RemoteListen>? =
 		withContext(IoDispatcher) {
-			if (username.isBlank()) return@withContext emptyList()
+			if (username.isBlank()) return@withContext null
 			try {
-				val root = client.get("$baseUrl/user/$username/listens") {
+				val response = client.get("$baseUrl/user/$username/listens") {
 					parameter("count", count.coerceIn(1, MAX_LISTENS))
 					parameter("min_ts", from)
 					parameter("max_ts", to)
-				}.takeIf { it.status.isSuccess() }
-					?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
-					?: return@withContext emptyList()
+				}
+				if (!response.status.isSuccess()) {
+					Logger.w(TAG, "ListenBrainz answered ${response.status} for listens")
+					return@withContext null
+				}
+				val root = json.parseToJsonElement(response.bodyAsText()) as? JsonObject
+					?: return@withContext null
 				((root["payload"] as? JsonObject)?.get("listens") as? JsonArray)
 					?.mapNotNull { (it as? JsonObject)?.let(::listenOf) }
 					.orEmpty()
 			} catch (e: CancellationException) {
 				throw e
-			} catch (_: Exception) {
-				emptyList()
+			} catch (e: Exception) {
+				Logger.w(TAG, "could not read listens from ListenBrainz", e)
+				null
 			}
 		}
 
@@ -300,5 +309,9 @@ class ListenBrainzClient(engine: HttpClientEngine? = null) {
 		}
 		if (!body.status.isSuccess()) throw RuntimeException("ListenBrainz HTTP ${body.status.value}")
 		return json.parseToJsonElement(body.bodyAsText()).jsonArray
+	}
+
+	private companion object {
+		const val TAG = "ListenBrainzClient"
 	}
 }

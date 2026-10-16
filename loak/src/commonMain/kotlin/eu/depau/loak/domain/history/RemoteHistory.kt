@@ -31,11 +31,28 @@ interface RemoteHistorySource {
 	val isConfigured: Boolean
 
 	/**
-	 * The listens in `[from, to)` (epoch seconds), newest first, at most [limit]. Anything the
-	 * source cannot answer is an empty list.
+	 * The listens in `[from, to)` (epoch seconds), newest first, at most [limit]. Never throws:
+	 * a source that cannot be read at all — not configured, offline, refused, not an API at that
+	 * address — answers null.
+	 *
+	 * Null and "no listens in this window" are different answers, and both are worth keeping:
+	 * the first says the figures on screen are missing a source the user turned on (which the
+	 * Recap says out loud), the second that the source had nothing to contribute.
 	 */
-	suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen>
+	suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen>?
 }
+
+/**
+ * What a history contributed to a window: the plays by library song id, and the ids of the
+ * sources that could not be read at all.
+ *
+ * Empty [plays] with no [unreadable] is a real answer — nothing was played — while every id in
+ * [unreadable] is a source the figures are missing.
+ */
+data class HistoryRead(
+	val plays: Map<String, List<Long>> = emptyMap(),
+	val unreadable: List<String> = emptyList()
+)
 
 /**
  * A remote source's listens, matched into library songs and handed on as plays: the same
@@ -52,16 +69,16 @@ class RemoteHistory(
 ) : ListeningHistory {
 	override val id get() = source.id
 
-	override suspend fun listens(from: Long, to: Long): Map<String, List<Long>> {
+	override suspend fun reads(from: Long, to: Long): HistoryRead {
 		val listens = try {
 			source.recentListens(from, to, MAX_LISTENS)
 		} catch (e: CancellationException) {
 			throw e
 		} catch (e: Exception) {
 			Logger.w(TAG, "the ${source.id} listening history could not be read", e)
-			return emptyMap()
-		}
-		if (listens.isEmpty()) return emptyMap()
+			null
+		} ?: return HistoryRead(unreadable = listOf(source.id))
+		if (listens.isEmpty()) return HistoryRead()
 		val bySong = listens
 			.mapNotNull { listen ->
 				// the source may have listened past [to] since the window it was asked about
@@ -71,7 +88,7 @@ class RemoteHistory(
 			}
 			.groupBy({ it.first }, { it.second })
 		if (bySong.isEmpty()) Logger.w(TAG, "nothing from ${source.id} matched the library")
-		return bySong
+		return HistoryRead(bySong)
 	}
 
 	companion object {
@@ -87,25 +104,28 @@ class RemoteHistory(
  * resolved on every call, so switching one on in settings takes effect at once.
  *
  * A source that fails contributes nothing instead of breaking the sum, so an unreachable
- * integration degrades the list to what the other sources know.
+ * integration degrades the list to what the other sources know — and is named in
+ * [HistoryRead.unreadable] rather than passed off as a source that had nothing to say.
  */
 class CombinedHistory(private val sources: () -> List<ListeningHistory>) : ListeningHistory {
 	override val id get() = sources().joinToString("+") { it.id }
 
-	override suspend fun listens(from: Long, to: Long): Map<String, List<Long>> {
+	override suspend fun reads(from: Long, to: Long): HistoryRead {
 		val total = HashMap<String, MutableList<Long>>()
+		val unreadable = mutableListOf<String>()
 		for (source in sources()) {
-			val listens = try {
-				source.listens(from, to)
+			val read = try {
+				source.reads(from, to)
 			} catch (e: CancellationException) {
 				throw e
 			} catch (e: Exception) {
 				Logger.w(TAG, "the ${source.id} listening history is unavailable", e)
-				continue
+				HistoryRead(unreadable = listOf(source.id))
 			}
-			listens.forEach { (songId, at) -> total.getOrPut(songId) { mutableListOf() } += at }
+			read.plays.forEach { (songId, at) -> total.getOrPut(songId) { mutableListOf() } += at }
+			unreadable += read.unreadable
 		}
-		return total
+		return HistoryRead(total, unreadable.distinct())
 	}
 
 	private companion object {

@@ -61,6 +61,7 @@ import eu.depau.loak.generated.resources.info_recap_plays_same
 import eu.depau.loak.generated.resources.info_recap_share
 import eu.depau.loak.generated.resources.info_recap_source_local
 import eu.depau.loak.generated.resources.info_recap_source_local_and
+import eu.depau.loak.generated.resources.info_recap_source_unreadable
 import eu.depau.loak.generated.resources.info_recap_plays_count
 import eu.depau.loak.generated.resources.label_recap_artists
 import eu.depau.loak.generated.resources.label_recap_heatmap_less
@@ -185,6 +186,17 @@ private fun Hero(recap: RecapData) {
 			style = MaterialTheme.typography.labelLarge.copy(fontFamily = defaultFont(grade = 100)),
 			color = MaterialTheme.colorScheme.primary
 		)
+		if (recap.unreadable.isNotEmpty()) {
+			// the eyebrow above names only what answered: say what is missing from the figures
+			Text(
+				stringResource(
+					Res.string.info_recap_source_unreadable,
+					recap.unreadable.joinToString { it.sourceName() }
+				),
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.error
+			)
+		}
 		Row(verticalAlignment = Alignment.Bottom) {
 			Text(
 				recap.totals.plays.toString(),
@@ -471,13 +483,17 @@ private fun EmptyNotice() {
 	)
 }
 
-/** "this device", or "this device and Koito": the eyebrow names the sources, once. */
+/** "this device", or "this device and Koito": the eyebrow names the sources that answered. */
 @Composable
 private fun RecapData.sourceLabel(): String {
-	val remote = sourceId.substringAfter('+', "").takeIf { it.isNotBlank() }
+	val answered = sourceId.split('+').filterNot { it in unreadable }
+	val remote = answered.firstOrNull { it != "local" }
 	return if (remote == null) stringResource(Res.string.info_recap_source_local)
-	else stringResource(Res.string.info_recap_source_local_and, remote.replaceFirstChar { it.uppercase() })
+	else stringResource(Res.string.info_recap_source_local_and, remote.sourceName())
 }
+
+/** "koito" → "Koito": the ids are the products' own names. */
+private fun String.sourceName() = replaceFirstChar { it.uppercase() }
 
 /** The whole recap as one shareable paragraph, in the labels the screen itself uses. */
 @Composable

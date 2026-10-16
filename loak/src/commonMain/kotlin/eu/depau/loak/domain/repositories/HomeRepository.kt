@@ -133,11 +133,11 @@ class HomeRepository(
 		val oldest = playLog.oldestPlay() ?: now
 		val spans = recapSpans(period, now, zone, oldest)
 		val fetch = spans.fetch
-		val listens = listeningHistory.listens(fetch.start, fetch.end)
-		val songs = if (listens.isEmpty()) emptyMap() else {
-			songDao.getSongsByIds(listens.keys.toList()).associate { it.songId to it.toDomainModel() }
+		val read = listeningHistory.reads(fetch.start, fetch.end)
+		val songs = if (read.plays.isEmpty()) emptyMap() else {
+			songDao.getSongsByIds(read.plays.keys.toList()).associate { it.songId to it.toDomainModel() }
 		}
-		buildRecap(listens, songs, spans, zone, listeningHistory.id)
+		buildRecap(read.plays, songs, spans, zone, listeningHistory.id, read.unreadable)
 	}
 
 	// endregion

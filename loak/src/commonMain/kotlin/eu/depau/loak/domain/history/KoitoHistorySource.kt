@@ -74,30 +74,48 @@ class KoitoHistorySource(
 	override val isConfigured get() = preferenceManager.koitoUrl.isNotBlank() &&
 		preferenceManager.koitoApiKey.isNotBlank()
 
-	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen> =
+	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen>? =
 		withContext(IoDispatcher) {
-			if (!isConfigured) return@withContext emptyList()
 			val base = preferenceManager.koitoUrl.trim().trimEnd('/')
 			val key = preferenceManager.koitoApiKey.trim()
-			val listens = mutableListOf<RemoteListen>()
-			var page = 1
-			while (listens.size < limit && page <= MAX_PAGES) {
-				val body = try {
+			if (base.isBlank() || key.isBlank()) return@withContext null
+
+			/** Null on anything that stops the page: logged here, so the reason is not lost. */
+			suspend fun fetchPage(number: Int): JsonObject? {
+				val response = try {
 					client.get("$base/apis/web/v1/listens") {
 						header(HttpHeaders.Authorization, "Token $key")
 						parameter("limit", minOf(limit, PAGE_SIZE))
-						parameter("page", page)
+						parameter("page", number)
 						parameter("from", from)
 						parameter("to", to)
-					}.takeIf { it.status.isSuccess() }
-						?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
+					}
 				} catch (e: CancellationException) {
 					throw e
 				} catch (e: Exception) {
 					Logger.w(TAG, "could not read listens from Koito", e)
-					null
-				} ?: break
+					return null
+				}
+				// Koito is behind whatever the user put in front of it: a wrong URL, a reverse
+				// proxy that does not know the host, a key it will not take
+				if (!response.status.isSuccess()) {
+					Logger.w(TAG, "Koito answered ${response.status} for listens")
+					return null
+				}
+				return runCatching { json.parseToJsonElement(response.bodyAsText()) }
+					.getOrNull() as? JsonObject
+					?: run {
+						Logger.w(TAG, "Koito answered something that is not a listens page")
+						null
+					}
+			}
 
+			val listens = mutableListOf<RemoteListen>()
+			var page = 1
+			while (listens.size < limit && page <= MAX_PAGES) {
+				// the first page never arrived: the source cannot be read at all. A later one
+				// failing still leaves the pages before it.
+				val body = fetchPage(page) ?: return@withContext if (page == 1) null else listens.take(limit)
 				val items = (body["items"] as? JsonArray)
 					?.mapNotNull { (it as? JsonObject)?.let(::koitoListenOf) }
 					.orEmpty()

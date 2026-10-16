@@ -70,6 +70,11 @@ data class RecapData(
 	val period: RecapPeriod,
 	/** The id of the source the history came from, e.g. "local" or "local+koito". */
 	val sourceId: String,
+	/**
+	 * Sources the user turned on that could not be read at all, by id. The figures are missing
+	 * them, so the screen says so rather than quietly narrowing to what answered.
+	 */
+	val unreadable: List<String>,
 	val totals: RecapTotals,
 	val previous: RecapTotals?,
 	/** Plays per day, oldest first, for the activity grid. */
@@ -145,7 +150,8 @@ fun buildRecap(
 	songs: Map<String, DomainSong>,
 	spans: RecapSpans,
 	zone: TimeZone,
-	sourceId: String
+	sourceId: String,
+	unreadable: List<String> = emptyList()
 ): RecapData {
 	fun playsIn(span: RecapSpan?) = span?.let { s ->
 		listens.asSequence()
@@ -193,6 +199,7 @@ fun buildRecap(
 	return RecapData(
 		period = spans.period,
 		sourceId = sourceId,
+		unreadable = unreadable,
 		totals = totals(current, withNewArtists = true),
 		previous = previousTotals,
 		activity = activityGrid(current, spans, zone),

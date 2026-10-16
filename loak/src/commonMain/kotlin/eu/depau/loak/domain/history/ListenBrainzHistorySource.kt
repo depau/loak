@@ -17,6 +17,6 @@ class ListenBrainzHistorySource(
 
 	override val isConfigured get() = preferenceManager.listenBrainzUsername.isNotBlank()
 
-	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen> =
+	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen>? =
 		client.getListens(preferenceManager.listenBrainzUsername, from, to, limit)
 }

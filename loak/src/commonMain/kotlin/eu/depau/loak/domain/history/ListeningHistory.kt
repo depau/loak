@@ -17,11 +17,14 @@ interface ListeningHistory {
 	val id: String
 
 	/**
-	 * Song id to the epoch seconds of each play in `[from, to)`. Empty (never an error) when the
-	 * source is not configured, is unreachable, or matched nothing: a source with nothing to say
-	 * must leave the app working on the sources below it.
+	 * What this history knows about `[from, to)`: the plays by library song id, and which
+	 * sources could not be read. Never an error — a source with nothing to say, or none to ask,
+	 * leaves the app working on the sources below it.
 	 */
-	suspend fun listens(from: Long, to: Long): Map<String, List<Long>>
+	suspend fun reads(from: Long, to: Long): HistoryRead
+
+	/** Just the plays: what a caller that only ranks on them wants. */
+	suspend fun listens(from: Long, to: Long): Map<String, List<Long>> = reads(from, to).plays
 
 	/**
 	 * Each play in the [window] ending now, halved every [halfLife], by song id. This is what
@@ -38,8 +41,8 @@ interface ListeningHistory {
 class LocalHistory(private val playLog: PlayLogManager) : ListeningHistory {
 	override val id = "local"
 
-	override suspend fun listens(from: Long, to: Long): Map<String, List<Long>> =
-		playLog.listens(from, to)
+	override suspend fun reads(from: Long, to: Long): HistoryRead =
+		HistoryRead(playLog.listens(from, to))
 }
 
 /**
