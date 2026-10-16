@@ -2,7 +2,11 @@ package eu.depau.loak.domain.discover
 
 import eu.depau.loak.util.IoDispatcher
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
@@ -118,12 +122,19 @@ fun createdForPlaylistOf(item: JsonObject): ListenBrainzPlaylist? {
 /**
  * ListenBrainz API client (no auth needed for what Discover uses): fresh releases off the
  * main API and similar artists off the Labs API, keyed on the "session based" algorithm.
+ * Both APIs receive the descriptive [USER_AGENT] required by their API policy.
+ * [engine] defaults to Ktor's platform engine; tests can inject a MockEngine.
  */
-class ListenBrainzClient {
+class ListenBrainzClient(engine: HttpClientEngine? = null) {
 	private val json = Json { ignoreUnknownKeys = true }
-	private val client = HttpClient()
+	private val client = engine?.let { HttpClient(it) { userAgentConfig() } }
+		?: HttpClient { userAgentConfig() }
 	private val baseUrl = "https://api.listenbrainz.org/1"
 	private val labsBaseUrl = "https://labs.api.listenbrainz.org"
+
+	private fun HttpClientConfig<*>.userAgentConfig() {
+		defaultRequest { header("User-Agent", USER_AGENT) }
+	}
 
 	/**
 	 * Albums released in the last two weeks, newest first. A failure (network, non-200,

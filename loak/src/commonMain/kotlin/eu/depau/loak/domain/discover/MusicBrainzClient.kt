@@ -21,6 +21,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.concurrent.Volatile
 import kotlin.time.Clock
 
+/** Descriptive identity and contact shared by MusicBrainz and ListenBrainz API requests. */
+internal const val USER_AGENT = "Lo'ak/1.0.0 ( https://github.com/depau/loak )"
+
 /**
  * MusicBrainz identity lookup for Discover (Milestone M6): maps Deezer tracks
  * (by ISRC) and albums (by UPC) to MusicBrainz release groups, and artist names
@@ -50,7 +53,6 @@ class MusicBrainzClient {
 	private val cache = LinkedHashMap<String, JsonObject>()
 
 	companion object {
-		private const val USER_AGENT = "Lo'ak/1.0.0 ( https://github.com/depau/loak )"
 		private const val MIN_INTERVAL_MS = 1_000L
 		private const val RETRY_DELAY_MS = 1_500L
 	}

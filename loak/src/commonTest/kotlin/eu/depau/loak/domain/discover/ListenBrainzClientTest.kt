@@ -1,5 +1,8 @@
 package eu.depau.loak.domain.discover
 
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -11,6 +14,34 @@ import kotlin.test.assertTrue
 
 class ListenBrainzClientTest {
 	private val json = Json { ignoreUnknownKeys = true }
+
+	@Test
+	fun sendsUserAgentToMainAndLabsApis() = runTest {
+		val engine = MockEngine { request ->
+			respond(
+				if (request.url.host == "labs.api.listenbrainz.org") "[]"
+				else """{"payload":{"releases":[]}}"""
+			)
+		}
+		try {
+			val client = ListenBrainzClient(engine)
+			client.getFreshReleases()
+			client.getSimilarArtists("e2ef1279-ee73-4b6c-9f47-4b4c05cc06da")
+
+			assertEquals(
+				listOf("api.listenbrainz.org", "labs.api.listenbrainz.org"),
+				engine.requestHistory.map { it.url.host }
+			)
+			for (request in engine.requestHistory) {
+				val userAgent = request.headers["User-Agent"]
+				assertNotNull(userAgent)
+				assertTrue(userAgent.isNotBlank())
+				assertEquals(USER_AGENT, userAgent)
+			}
+		} finally {
+			engine.close()
+		}
+	}
 
 	@Test
 	fun parsesSimilarArtists() {
