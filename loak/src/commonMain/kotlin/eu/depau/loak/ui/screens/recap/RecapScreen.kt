@@ -3,13 +3,12 @@ package eu.depau.loak.ui.screens.recap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -275,26 +274,22 @@ private fun Activity(recap: RecapData) {
 	val empty = MaterialTheme.colorScheme.surfaceVariant
 	Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
 		SectionTitle(Res.string.title_recap_activity)
-		// 27 columns fit a phone at this size; a wider font scale scrolls, opened at the newest
-		// days rather than at the oldest, mostly empty, ones
+		// one weight per week, so the grid is as wide as the card is and the squares grow with it
 		Row(
-			Modifier.horizontalScroll(rememberScrollState(initial = Int.MAX_VALUE))
-				.padding(horizontal = 16.dp),
+			Modifier.fillMaxWidth().padding(horizontal = 16.dp),
 			horizontalArrangement = Arrangement.spacedBy(2.dp)
 		) {
 			recap.activity.toWeeks().forEach { week ->
-				Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+				Column(
+					Modifier.weight(1f),
+					verticalArrangement = Arrangement.spacedBy(2.dp)
+				) {
 					week.forEach { day ->
-						val color = when {
-							day == null -> Color.Transparent
-							// the rest of the grid stays readable, just quieter
-							day.inPeriod -> day.cellColor(primary, empty)
-							else -> day.cellColor(primary, empty).copy(alpha = 0.3f)
-						}
 						Box(
-							Modifier.size(10.dp)
+							Modifier.fillMaxWidth()
+								.aspectRatio(1f)
 								.clip(RoundedCornerShape(2.dp))
-								.background(color)
+								.background(if (day == null) Color.Transparent else day.cellColor(primary, empty))
 						)
 					}
 				}
@@ -544,13 +539,17 @@ private fun List<RecapDay>.toWeeks(): List<List<RecapDay?>> {
 
 /**
  * How dark a day's square is: nothing for a day with no plays, then one step per doubling of
- * the plays. A log ramp, so one enormous day does not wash every other day out.
+ * the plays. A log ramp, so one enormous day does not wash every other day out. A day outside
+ * the picked period keeps the ramp at [OUTSIDE] of its depth: the rest of the grid still reads
+ * as activity, at half the contrast, rather than as one flat block.
  */
 private fun RecapDay.cellColor(primary: Color, empty: Color): Color {
 	if (plays <= 0) return empty
 	val level = (1 + log2(plays.toDouble())).toInt().coerceIn(1, 4)
-	return lerp(empty, primary, level / 4f)
+	return lerp(empty, primary, level / 4f * (if (inPeriod) 1f else OUTSIDE))
 }
+
+private const val OUTSIDE = 0.4f
 
 /**
  * A stable colour per artist id, so the discs stay recognisable between openings. Fixed hues
