@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,7 @@ import dev.nucleusframework.window.utils.linux.rememberLinuxButtonLayout
 import eu.depau.loak.ui.util.LocalUpdateController
 import eu.depau.loak.ui.util.LocalWindowChrome
 import eu.depau.loak.ui.util.WindowChrome
+import eu.depau.loak.ui.util.setMacOsClientSideDecorations
 import eu.depau.loak.domain.manager.DesktopUpdaterManager
 
 private val os = System.getProperty("os.name")
@@ -102,9 +104,15 @@ fun main(args: Array<String>) {
 						content()
 					}
 				}
+				val taoWindow = (this@DecoratedWindow as TaoDecoratedWindowScope).window
 				val window = (this@DecoratedWindow as NucleusDecoratedWindowScope).nucleusWindow
 				val fullscreen by window.fullscreenFlow.collectAsState()
 				val setFullscreen = remember(window) { window::setFullscreen }
+				// full screen (lyrics or the green button) drops the client-side chrome, whose
+				// traffic lights would otherwise sit over the content
+				LaunchedEffect(fullscreen, taoWindow) {
+					setMacOsClientSideDecorations(taoWindow.nativeHandle, enabled = !fullscreen)
+				}
 				val decoratedChrome = when {
 					isMac -> WindowChrome(
 						barHeight = titleBarHeight,
