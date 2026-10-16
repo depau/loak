@@ -241,12 +241,16 @@ class DesktopMediaPlayerViewModel(
 	 *  estimateContentLength=false: with it true, Navidrome may send a mismatched Content-Length
 	 *  for transcoded streams and rodio's strict reader errors out
 	 *  ("end of file before message length reached") — DownloadManager hits the same issue
-	 *  and explicitly disables it. */
-	private fun streamSource(song: DomainSong): String =
+	 *  and explicitly disables it.
+	 *  [startPosMs] asks the server to start the stream there: rodio can't seek a remote stream
+	 *  (its HTTP source reports itself unseekable), so this is the only way to resume a streamed
+	 *  song mid-way. A server that doesn't know the parameter streams it from the beginning. */
+	private fun streamSource(song: DomainSong, startPosMs: Long = 0L): String =
 		sessionManager.api.getStreamUrl(
 			id = song.id,
 			maxBitRate = maxBitrate(),
 			format = currentContainer(),
+			timeOffset = (startPosMs / 1000).toInt().takeIf { it > 0 },
 			estimateContentLength = false
 		)
 
@@ -305,7 +309,14 @@ class DesktopMediaPlayerViewModel(
 
 	// --- playback ---
 
-	override fun playAt(index: Int) {
+	override fun playAt(index: Int) = playAt(index, startPosMs = 0L)
+
+	/**
+	 * Starts the queue entry at [index], [startPosMs] into the song. A normal start begins at the
+	 * beginning; a rebuilt output (see [rebuildOutput]) resumes where the old one stopped, so a
+	 * stalled output costs the listener a moment instead of their place in the song.
+	 */
+	private fun playAt(index: Int, startPosMs: Long) {
 		if (isTransitioningBetweenTracks) return
 		val songToPlay = _uiState.value.queue.getOrNull(index) ?: return
 
@@ -316,17 +327,20 @@ class DesktopMediaPlayerViewModel(
 		isTransitioningBetweenTracks = true
 		streamFailed = false
 		stallDetector.reset()
+		// the engine has no position yet: this is what the scrobbler and a resume read until
+		// the first tick of the new source
+		lastPositionMs = startPosMs
 		_uiState.update {
 			it.copy(
 				currentIndex = index,
 				currentSong = songToPlay,
 				isPaused = false,
 				isLoading = false,
-				progress = 0f
+				progress = progress(startPosMs, songToPlay)
 			)
 		}
 		scrobbleManager.onMediaChanged(songToPlay.id)
-		transferTo(songToPlay, startToken)
+		transferTo(songToPlay, startToken, startPosMs)
 	}
 
 	/** Monotonic token identifying the current source-start. The end-detection flag is only
@@ -339,7 +353,7 @@ class DesktopMediaPlayerViewModel(
 	 *  [isTransitioningBetweenTracks] stays true until rodio has actually been handed a source
 	 *  (for lossless: until the hot-swap starts), so the end-detection loop can't skip the new
 	 *  track while its stream is still connecting. */
-	private fun transferTo(song: DomainSong, startToken: Int) {
+	private fun transferTo(song: DomainSong, startToken: Int, startPosMs: Long) {
 		viewModelScope.launch(Dispatchers.IO) {
 			val myToken = startToken
 			// set by the swap job when it takes over starting the FLAC source; if it is, the
@@ -350,17 +364,17 @@ class DesktopMediaPlayerViewModel(
 				swappedAwayJob = null
 				val stored = storedPath(song)
 				if (stored != null) {
-					playFileSource(song, stored)
+					playFileSource(song, stored, startPosMs)
 					return@launch
 				}
 				if (!wantsLossless(song)) {
-					playStreamingFallback(song)
+					playStreamingFallback(song, startPosMs)
 					return@launch
 				}
 				// lossless wanted but no file yet: start mp3 now, fetch Raw, swap on ready.
 				// if the mp3 fallback can't start, there's no point spooling: abort and keep
 				// the (correctly paused) error state — never swap into a broken half-state.
-				if (!playStreamingFallback(song)) return@launch
+				if (!playStreamingFallback(song, startPosMs)) return@launch
 				val fetch = audioFetcher.fetch(
 					songId = song.id,
 					quality = AudioQuality.Raw,
@@ -398,12 +412,12 @@ class DesktopMediaPlayerViewModel(
 		}
 	}
 
-	/** Starts the lossy HTTP stream for [song]. Returns true if the stream was accepted by rodio.
-	 *  On failure the UI is paused, the error is logged and toasted, and [streamFailed] is set so
-	 *  the progress loop doesn't auto-skip the broken track. */
-	private suspend fun playStreamingFallback(song: DomainSong): Boolean {
+	/** Starts the lossy HTTP stream for [song], from [startPosMs] into it. Returns true if the
+	 *  stream was accepted by rodio. On failure the UI is paused, the error is logged and toasted,
+	 *  and [streamFailed] is set so the progress loop doesn't auto-skip the broken track. */
+	private suspend fun playStreamingFallback(song: DomainSong, startPosMs: Long = 0L): Boolean {
 		try {
-			rodio.playUrl(streamSource(song), loop = false)
+			rodio.playUrl(streamSource(song, startPosMs), loop = false, startAtMs = startPosMs)
 			applyVolume()
 			streamFailed = false
 			_uiState.update { it.copy(isPaused = false, isLoading = false) }
@@ -660,15 +674,18 @@ class DesktopMediaPlayerViewModel(
 
 	/**
 	 * The output stopped consuming the source (see [OutputStallDetector]): drop it so the next
-	 * source start opens a fresh one, and start this song on it. rodio can't be told to let go of
-	 * a device that went away — it goes on reporting a playing, non-empty source — but closing
-	 * doesn't wait for a parked callback, and the start decides for itself whether the new output
-	 * takes the source (reporting it through the usual stream-failure path if it doesn't).
+	 * source start opens a fresh one, and start this song on it from where the old output had got
+	 * to. rodio can't be told to let go of a device that went away — it goes on reporting a
+	 * playing, non-empty source — but closing doesn't wait for a parked callback, and the start
+	 * decides for itself whether the new output takes the source (reporting it through the usual
+	 * stream-failure path if it doesn't).
 	 */
 	private fun rebuildOutput() {
 		Logger.w("DesktopMediaPlayerViewModel", "No audio progress; rebuilding the audio output")
+		// the last position the engine reported: the new output would start the song over
+		val resumeFrom = lastPositionMs
 		rodio.close()
-		playAt(_uiState.value.currentIndex)
+		playAt(_uiState.value.currentIndex, startPosMs = resumeFrom)
 	}
 
 	/** A rebuild didn't get audio going again: stop pretending to play, and say so. */
@@ -679,8 +696,8 @@ class DesktopMediaPlayerViewModel(
 		snackBarManager.notify(Res.string.notice_stream_failed, "the audio output stopped responding")
 	}
 
-	private fun progress(positionMs: Long): Float {
-		val durationMs = _uiState.value.currentSong?.duration?.inWholeMilliseconds ?: 0L
+	private fun progress(positionMs: Long, song: DomainSong? = _uiState.value.currentSong): Float {
+		val durationMs = song?.duration?.inWholeMilliseconds ?: 0L
 		if (durationMs <= 0) return 0f
 		val pos = positionMs.coerceIn(0L, durationMs)
 		return (pos.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)

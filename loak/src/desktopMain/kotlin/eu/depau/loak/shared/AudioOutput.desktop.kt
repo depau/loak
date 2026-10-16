@@ -47,6 +47,15 @@ internal class AudioOutput(private val callback: PlaybackCallback) {
 	private var volume = 1f
 
 	/**
+	 * Where the source now playing starts in its song. A remote stream rodio can't seek is taken
+	 * from the server at an offset instead, so rodio's own position starts at 0 there; the offset
+	 * is added back to every position this class reports, and taken off every seek, to keep
+	 * "position" meaning "position in the song" for the player above.
+	 */
+	@Volatile
+	private var startOffsetMs = 0L
+
+	/**
 	 * Creates the player outside the lock: a `RodioPlayer()` that parks (a device being torn
 	 * down makes it wait for the native lock, for tens of seconds) must not hold the monitor
 	 * that [close] needs — the player drops a dead output from its watchdog, and the UI thread
@@ -82,16 +91,21 @@ internal class AudioOutput(private val callback: PlaybackCallback) {
 	private suspend fun <T> callWithin(timeoutMs: Long, block: () -> T): T? =
 		withTimeoutOrNull(timeoutMs) { calls.async { block() }.await() }
 
-	suspend fun playUrl(url: String, loop: Boolean) {
+	/** Takes a remote stream, optionally asked of the server [startAtMs] into the song. */
+	suspend fun playUrl(url: String, loop: Boolean, startAtMs: Long = 0L) {
 		startSource { open().playUrl(url, loop) }
+		startOffsetMs = startAtMs
 	}
 
+	/** Takes a local file: it is seekable, so it starts at the beginning and [seekToMs] moves it. */
 	suspend fun playFile(path: String, loop: Boolean) {
 		startSource { open().playFile(path, loop) }
+		startOffsetMs = 0L
 	}
 
 	suspend fun playRadio(url: String) {
 		startSource { open().playRadio(url) }
+		startOffsetMs = 0L
 	}
 
 	/**
@@ -115,16 +129,26 @@ internal class AudioOutput(private val callback: PlaybackCallback) {
 
 	suspend fun pause() = withContext(dispatcher) { player?.pause() }
 
-	suspend fun clear() = withContext(dispatcher) { player?.clear() }
+	suspend fun clear(): Unit = withContext(dispatcher) {
+		startOffsetMs = 0L
+		player?.clear()
+	}
 
-	suspend fun seekToMs(ms: Long) = withContext(dispatcher) { player?.seekToMs(ms) }
+	suspend fun seekToMs(ms: Long) {
+		// the caller speaks in song positions; rodio's own source may have started at an offset
+		val target = (ms - startOffsetMs).coerceAtLeast(0L)
+		// bounded like a read: a seek takes the engine's lock, and one parked in it must not
+		// hold the coroutine that owns the load (the source still gets the seek when it unparks)
+		callWithin(ENGINE_TIMEOUT_MS, { player?.seekToMs(target) })
+	}
 
 	suspend fun setVolume(value: Float) {
 		volume = value
 		withContext(dispatcher) { player?.setVolume(value) }
 	}
 
-	suspend fun getPositionMs(): Long? = read { player?.getPositionMs() ?: 0L }
+	/** The song's position, not rodio's: a source that started at an offset counts from there. */
+	suspend fun getPositionMs(): Long? = read { player?.getPositionMs()?.plus(startOffsetMs) ?: 0L }
 
 	suspend fun isSeekable(): Boolean = read { player?.isSeekable() ?: false } ?: false
 
@@ -142,7 +166,7 @@ internal class AudioOutput(private val callback: PlaybackCallback) {
 		pendingRead?.let { if (it.isActive) return null }
 		val call = calls.async { block() }
 		pendingRead = call
-		return withTimeoutOrNull(READ_TIMEOUT_MS) { call.await() }
+		return withTimeoutOrNull(ENGINE_TIMEOUT_MS) { call.await() }
 	}
 
 	/** Drops the output. Doesn't wait for a wedged callback, so it is safe to call from anywhere. */
@@ -150,11 +174,12 @@ internal class AudioOutput(private val callback: PlaybackCallback) {
 	fun close() {
 		player?.close()
 		player = null
+		startOffsetMs = 0L
 	}
 
 	private companion object {
-		/** Reads take a lock; a healthy engine answers in microseconds. */
-		const val READ_TIMEOUT_MS = 2_000L
+		/** Reads, and the seek, wait on the engine's lock; a healthy engine answers in microseconds. */
+		const val ENGINE_TIMEOUT_MS = 2_000L
 
 		/** A start opens a file or a connection, but a healthy one never takes this long. */
 		const val START_TIMEOUT_MS = 10_000L
