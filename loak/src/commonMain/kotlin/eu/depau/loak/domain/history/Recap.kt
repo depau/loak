@@ -182,7 +182,7 @@ fun buildRecap(
 			val song = songs.getValue(songId)
 			val k = key(song) ?: continue
 			counts[k] = (counts[k] ?: 0) + 1
-			byKey.putIfAbsent(k, song)
+			byKey.getOrPut(k) { song }
 		}
 		return counts.entries
 			.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
