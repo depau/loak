@@ -11,7 +11,6 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
@@ -34,10 +33,17 @@ data class RecapSpan(val start: Long, val end: Long) {
 }
 
 /**
- * The spans a Recap is built from: the one on screen, and the one before it to compare against.
- * [previous] is null for [RecapPeriod.All], which has nothing before it.
+ * The spans a Recap is built from: the one on screen, the one before it to compare against, and
+ * [activity], the fixed window the activity grid shows. [previous] is null for [RecapPeriod.All],
+ * which has nothing before it.
  */
-data class RecapSpans(val period: RecapPeriod, val current: RecapSpan, val previous: RecapSpan?)
+data class RecapSpans(
+	val period: RecapPeriod,
+	val current: RecapSpan,
+	val previous: RecapSpan?,
+	/** Always the same [ACTIVITY_DAYS] days ending with [current]: the grid does not resize. */
+	val activity: RecapSpan
+)
 
 /** What a Recap adds up to, over a span. */
 data class RecapTotals(
@@ -62,8 +68,8 @@ data class RecapEntry(
 	val song: DomainSong? = null
 )
 
-/** One day of the activity grid. */
-data class RecapDay(val date: LocalDate, val plays: Int)
+/** One day of the activity grid. [inPeriod] marks the days the Recap's own span covers. */
+data class RecapDay(val date: LocalDate, val plays: Int, val inPeriod: Boolean)
 
 /** Everything the Recap screen shows. */
 data class RecapData(
@@ -77,7 +83,10 @@ data class RecapData(
 	val unreadable: List<String>,
 	val totals: RecapTotals,
 	val previous: RecapTotals?,
-	/** Plays per day, oldest first, for the activity grid. */
+	/**
+	 * Plays per day over [ACTIVITY_DAYS] days, oldest first, ending today: the same grid whatever
+	 * the period is, with the period's own days marked rather than the grid resized to it.
+	 */
 	val activity: List<RecapDay>,
 	val topArtists: List<RecapEntry>,
 	val topAlbums: List<RecapEntry>,
@@ -88,7 +97,7 @@ private const val TOP_ARTISTS = 5
 private const val TOP_ALBUMS = 5
 private const val TOP_TRACKS = 6
 
-/** The most days the activity grid ever shows, whatever the period: 27 weeks, as the design has it. */
+/** The days the activity grid always shows: 27 weeks, as the design has it. */
 private const val ACTIVITY_DAYS = 27 * 7
 
 /**
@@ -127,15 +136,22 @@ fun recapSpans(period: RecapPeriod, now: Instant, zone: TimeZone, oldest: Instan
 		}
 		RecapPeriod.All -> null
 	}
-	return RecapSpans(period, current, previous)
+	return RecapSpans(
+		period = period,
+		current = current,
+		previous = previous,
+		// the grid is the same width whatever the period picked; only the period's own days
+		// are picked out of it, so it always asks for the whole window
+		activity = RecapSpan(at(date.minus(ACTIVITY_DAYS - 1, DateTimeUnit.DAY)), end)
+	)
 }
 
 /**
- * The span every source has to be asked about to answer both halves of a Recap: one call per
- * source, split afterwards, rather than one per half.
+ * The span every source has to be asked about to answer every part of a Recap: one call per
+ * source, split afterwards, rather than one per part.
  */
 val RecapSpans.fetch: RecapSpan
-	get() = previous?.let { RecapSpan(it.start, current.end) } ?: current
+	get() = RecapSpan(minOf(current.start, activity.start, previous?.start ?: current.start), current.end)
 
 /**
  * A Recap, as a pure function of the plays and the library — testable without a database, a
@@ -162,6 +178,7 @@ fun buildRecap(
 
 	val current = playsIn(spans.current)
 	val previous = playsIn(spans.previous)
+	val activity = playsIn(spans.activity)
 
 	fun totals(plays: List<Pair<String, Long>>, withNewArtists: Boolean): RecapTotals {
 		val duration = plays.fold(Duration.ZERO) { sum, play -> sum + songs.getValue(play.first).duration }
@@ -202,7 +219,7 @@ fun buildRecap(
 		unreadable = unreadable,
 		totals = totals(current, withNewArtists = true),
 		previous = previousTotals,
-		activity = activityGrid(current, spans, zone),
+		activity = activityGrid(activity, spans, zone),
 		topArtists = top(TOP_ARTISTS, key = { it.artistId }) { song, plays ->
 			RecapEntry(song.artistId, song.artistName ?: song.artistId, subtitle = null, coverArtId = null, plays = plays)
 		},
@@ -229,27 +246,24 @@ fun buildRecap(
 }
 
 /**
- * Plays per day over the span, oldest first. A day the grid cannot reach — long before the
- * play log's retention, or between two of a remote source's listens — is a zero, so the grid
- * is as wide as the span rather than as wide as the data.
+ * Plays per day over [RecapSpans.activity], oldest first. Every period gets the same grid — a
+ * Day or a Week Recap would otherwise be a handful of squares floating at the left edge — and the
+ * days of the period itself come back flagged. A day with no play — long before the play log's
+ * retention, or between two of a remote source's listens — is a zero.
  */
 private fun activityGrid(
 	plays: List<Pair<String, Long>>,
 	spans: RecapSpans,
 	zone: TimeZone
 ): List<RecapDay> {
-	val start = Instant.fromEpochSeconds(spans.current.start)
-	val end = Instant.fromEpochSeconds(spans.current.end)
-	val startDate = start.toLocalDateTime(zone).date
-	val endDate = end.toLocalDateTime(zone).date
-	val days = start.daysUntil(end, zone) + 1
-	if (days <= 0) return emptyList()
-	val first = if (days > ACTIVITY_DAYS) endDate.minus(ACTIVITY_DAYS - 1, DateTimeUnit.DAY) else startDate
+	val first = Instant.fromEpochSeconds(spans.activity.start).toLocalDateTime(zone).date
+	val startDate = Instant.fromEpochSeconds(spans.current.start).toLocalDateTime(zone).date
+	val endDate = Instant.fromEpochSeconds(spans.current.end).toLocalDateTime(zone).date
 	val byDate = plays.groupingBy { Instant.fromEpochSeconds(it.second).toLocalDateTime(zone).date }
 		.eachCount()
-	return (0 until minOf(days, ACTIVITY_DAYS)).map { offset ->
+	return (0 until ACTIVITY_DAYS).map { offset ->
 		val date = first.plus(offset, DateTimeUnit.DAY)
-		RecapDay(date, byDate[date] ?: 0)
+		RecapDay(date, byDate[date] ?: 0, inPeriod = date >= startDate && date <= endDate)
 	}
 }
 

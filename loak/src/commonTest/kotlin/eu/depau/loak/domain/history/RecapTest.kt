@@ -7,6 +7,7 @@ import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -93,8 +94,9 @@ class RecapTest {
 		assertEquals(now.epochSeconds + 1, spans.current.end)
 		// the Monday before it
 		assertEquals(Instant.parse("2024-02-26T00:00:00Z").epochSeconds, spans.previous?.start)
-		// one call covers both halves
-		assertEquals(spans.previous!!.start, spans.fetch.start)
+		// one call covers every part: the grid reaches further back than either week does
+		assertEquals(spans.activity.start, spans.fetch.start)
+		assertEquals(Instant.parse("2023-09-04T00:00:00Z").epochSeconds, spans.activity.start)
 		assertEquals(spans.current.end, spans.fetch.end)
 	}
 
@@ -163,12 +165,14 @@ class RecapTest {
 	}
 
 	@Test
-	fun `the activity grid is one square per day of the span`() {
+	fun `the activity grid is the same 27 weeks for every period and marks the period`() {
 		val spans = recapSpans(RecapPeriod.Week, now, zone, oldest = now)
 		val recap = buildRecap(
 			listens = mapOf(
 				"s1" to listOf(epoch("2024-03-05T10:00:00Z"), epoch("2024-03-05T18:00:00Z")),
-				"s2" to listOf(epoch("2024-03-09T11:00:00Z"))
+				"s2" to listOf(epoch("2024-03-09T11:00:00Z")),
+				// the week before, still on the grid, outside the period
+				"s3" to listOf(epoch("2024-02-28T11:00:00Z"))
 			),
 			songs = songs,
 			spans = spans,
@@ -176,10 +180,17 @@ class RecapTest {
 			sourceId = "local"
 		)
 
-		// Monday 2024-03-04 to Sunday 2024-03-10
-		assertEquals(7, recap.activity.size)
-		assertEquals(LocalDate(2024, 3, 4), recap.activity.first().date)
-		assertEquals(listOf(0, 2, 0, 0, 0, 1, 0), recap.activity.map { it.plays })
+		// Monday 2024-03-04 to Sunday 2024-03-10, at the end of a grid of 27 weeks either way
+		assertEquals(27 * 7, recap.activity.size)
+		assertEquals(LocalDate(2024, 3, 10), recap.activity.last().date)
+		assertEquals(listOf(0, 2, 0, 0, 0, 1, 0), recap.activity.takeLast(7).map { it.plays })
+		assertEquals(
+			(recap.activity.size - 7 until recap.activity.size).toList(),
+			recap.activity.indices.filter { recap.activity[it].inPeriod }
+		)
+		// a play outside the period is still on the grid, just not picked out
+		assertEquals(1, recap.activity.last { it.date == LocalDate(2024, 2, 28) }.plays)
+		assertTrue(recap.activity.none { it.date == LocalDate(2024, 2, 28) && it.inPeriod })
 	}
 
 	@Test
@@ -197,6 +208,8 @@ class RecapTest {
 		assertEquals(LocalDate(2024, 3, 10), recap.activity.last().date)
 		// the single play falls on 2024-03-05, five squares from the end
 		assertEquals(1, recap.activity[recap.activity.lastIndex - 5].plays)
+		// all-time reaches back past the grid, so every square on it is inside the period
+		assertTrue(recap.activity.all { it.inPeriod })
 	}
 
 	private fun epoch(at: String) = Instant.parse(at).epochSeconds

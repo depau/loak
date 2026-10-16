@@ -145,10 +145,12 @@ fun RecapScreen() {
 				// loading: the period picker is the only thing that is already true
 			} else {
 				item { Hero(recap) }
+				// the grid is always the same 27 weeks, so a period with nothing played still
+				// shows what was played around it
+				item { Activity(recap) }
 				if (recap.totals.plays == 0) {
 					item { EmptyNotice() }
 				} else {
-					item { Activity(recap) }
 					if (recap.topArtists.isNotEmpty()) item { TopArtists(recap.topArtists) }
 					if (recap.topAlbums.isNotEmpty()) item { TopAlbums(recap.topAlbums) }
 					if (recap.topTracks.isNotEmpty()) item { TopTracks(recap.topTracks) }
@@ -266,26 +268,33 @@ private fun Comparison(plays: Int, previousPlays: Int) {
 	) { Text(text, style = MaterialTheme.typography.labelMedium, color = colors.second) }
 }
 
-/** Plays per day, one square each, in week columns. */
+/** Plays per day, one square each, in week columns: the picked period stands out of the rest. */
 @Composable
 private fun Activity(recap: RecapData) {
 	val primary = MaterialTheme.colorScheme.primary
 	val empty = MaterialTheme.colorScheme.surfaceVariant
 	Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
 		SectionTitle(Res.string.title_recap_activity)
-		// a year or an all-time Recap is 27 columns: scroll sideways rather than clip the grid
+		// 27 columns fit a phone at this size; a wider font scale scrolls, opened at the newest
+		// days rather than at the oldest, mostly empty, ones
 		Row(
-			Modifier.horizontalScroll(rememberScrollState())
+			Modifier.horizontalScroll(rememberScrollState(initial = Int.MAX_VALUE))
 				.padding(horizontal = 16.dp),
-			horizontalArrangement = Arrangement.spacedBy(3.dp)
+			horizontalArrangement = Arrangement.spacedBy(2.dp)
 		) {
 			recap.activity.toWeeks().forEach { week ->
-				Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+				Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
 					week.forEach { day ->
+						val color = when {
+							day == null -> Color.Transparent
+							// the rest of the grid stays readable, just quieter
+							day.inPeriod -> day.cellColor(primary, empty)
+							else -> day.cellColor(primary, empty).copy(alpha = 0.3f)
+						}
 						Box(
-							Modifier.size(11.dp)
+							Modifier.size(10.dp)
 								.clip(RoundedCornerShape(2.dp))
-								.background(if (day == null) Color.Transparent else day.cellColor(primary, empty))
+								.background(color)
 						)
 					}
 				}
