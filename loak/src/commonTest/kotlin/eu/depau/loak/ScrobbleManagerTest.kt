@@ -120,7 +120,7 @@ class ScrobbleManagerTest {
 		// Resolve the injected `playLog` before the manager can touch it: Koin's
 		// factory lambda runs at first resolution, which happens in `checkProgress` —
 		// after `playLog` is assigned. Each test starts fresh.
-		playLog = PlayLogManager(settings)
+		playLog = PlayLogManager(settings, TestFakes.fakePlayLogDao())
 		startKoin { modules(module { single<PlayLogManager> { playLog } }) }
 		return manager to prefs
 	}

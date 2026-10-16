@@ -96,7 +96,7 @@ class ScrobbleManager(
 		}
 	}
 
-	private fun checkProgress() {
+	private suspend fun checkProgress() {
 		if (hasScrobbledCurrent) return
 
 		val duration = playerSource.duration

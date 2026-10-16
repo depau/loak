@@ -2,6 +2,8 @@ package eu.depau.loak.domain.manager
 
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
+import eu.depau.loak.data.database.dao.PlayLogDao
+import eu.depau.loak.data.database.entities.PlayLogEntity
 import eu.depau.loak.domain.history.decayedHeat
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainPlaylist
@@ -15,63 +17,75 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 /**
- * What this device played, for Home: recent song plays (the server only keeps a count per song)
- * and how often each playlist or album was started (the server keeps no count for playlists).
+ * What this device played, for Home and the recap: one row per counted play (the server only
+ * keeps a running count per song, with no way to ask when), and how often each playlist or
+ * album was started (the server keeps no count for playlists at all).
  *
- * ponytail: JSON in the settings, rewritten on every play; the song list is pruned to
- * [KEEP] so it stays a few hundred entries. Move it to a Room table if it ever needs more.
+ * Plays go to a Room table and are kept for [KEEP] — months, because the heat Quick picks rank
+ * on decays over weeks and the recap counts back over them. The collection counters stay in the
+ * settings: they are a few dozen numbers, and they are not per-play.
+ *
+ * The old JSON log's plays are not carried over; at most [KEEP] of them existed, and losing a
+ * few days of device-local history beats writing a migration to keep it.
  */
-class PlayLogManager(private val settings: Settings) {
+class PlayLogManager(private val settings: Settings, private val playLogDao: PlayLogDao) {
 	@Serializable
-	private data class Log(
-		/** Song id to the epoch seconds of each play, oldest first. */
-		val songs: Map<String, List<Long>> = emptyMap(),
+	private data class Counters(
 		/** "playlist:<id>" or "album:<id>" to how many times it was started. */
 		val collections: Map<String, Int> = emptyMap()
 	)
 
 	private val json = Json { ignoreUnknownKeys = true }
 
-	private var log: Log = settings.getStringOrNull(KEY)
-		?.let { runCatching { json.decodeFromString<Log>(it) }.getOrNull() }
-		?: Log()
+	private var counters: Counters = settings.getStringOrNull(KEY)
+		?.let { runCatching { json.decodeFromString<Counters>(it) }.getOrNull() }
+		?: Counters()
+
+	/** The day the log was last pruned, so a play doesn't run a delete every time. */
+	private var prunedDay = -1L
+
+	/** How long plays are kept, and so the longest window anything can ask about. */
+	val keep = KEEP
 
 	/** Records a song as played, once it counts as listened to (the scrobble threshold). */
-	fun recordSong(songId: String) = update {
-		val cutoff = (Clock.System.now() - KEEP).epochSeconds
+	suspend fun recordSong(songId: String) {
 		val now = Clock.System.now().epochSeconds
-		val songs = (it.songs + (songId to (it.songs[songId].orEmpty() + now)))
-			.mapValues { (_, plays) -> plays.filter { at -> at >= cutoff } }
-			.filterValues { plays -> plays.isNotEmpty() }
-		it.copy(songs = songs)
+		playLogDao.insert(PlayLogEntity(songId = songId, playedAt = now))
+		prune(now)
 	}
 
 	/** Records a playlist or album as started. */
 	fun recordCollection(collection: DomainSongCollection) {
 		val key = collection.key() ?: return
-		update { it.copy(collections = it.collections + (key to (it.collections[key] ?: 0) + 1)) }
+		counters = counters.copy(
+			collections = counters.collections + (key to (counters.collections[key] ?: 0) + 1)
+		)
+		try {
+			settings[KEY] = json.encodeToString(counters)
+		} catch (e: Exception) {
+			Logger.w(TAG, "could not save the collection counters", e)
+		}
 	}
 
-	/** How many times each song was played in the last [window] (at most [KEEP]). */
-	fun songPlays(window: Duration): Map<String, Int> {
-		val cutoff = (Clock.System.now() - window).epochSeconds
-		return log.songs.mapValues { (_, plays) -> plays.count { it >= cutoff } }
-			.filterValues { it > 0 }
-	}
+	/** How many times each song was played in the last [window]. */
+	suspend fun songPlays(window: Duration): Map<String, Int> =
+		playLogDao.playCountsSince(cutoff(window)).associate { it.songId to it.count }
 
 	/**
 	 * Each play inside [window], halved every [halfLife], by song id. This is what Quick picks
 	 * rank on: a burst of plays counts for a lot while it is fresh and fades over days rather
 	 * than disappearing the moment the raw count drops.
 	 */
-	fun heat(window: Duration, halfLife: Duration): Map<String, Double> =
-		decayedHeat(log.songs, Clock.System.now().epochSeconds, window, halfLife)
+	suspend fun heat(window: Duration, halfLife: Duration): Map<String, Double> {
+		val now = Clock.System.now().epochSeconds
+		val bySong = playLogDao.playsSince(now - window.inWholeSeconds)
+			.groupBy({ it.songId }, { it.playedAt })
+		return decayedHeat(bySong, now, window, halfLife)
+	}
 
 	/** The song played last, with when. */
-	fun lastSong(): Pair<String, Instant>? = log.songs
-		.mapValues { (_, plays) -> plays.last() }
-		.maxByOrNull { it.value }
-		?.let { it.key to Instant.fromEpochSeconds(it.value) }
+	suspend fun lastSong(): Pair<String, Instant>? =
+		playLogDao.lastPlay()?.let { it.songId to Instant.fromEpochSeconds(it.playedAt) }
 
 	/** How many times each playlist was started, by playlist id. */
 	fun playlistStarts(): Map<String, Int> = starts("playlist:")
@@ -79,9 +93,24 @@ class PlayLogManager(private val settings: Settings) {
 	/** How many times each album was started, by album id. */
 	fun albumStarts(): Map<String, Int> = starts("album:")
 
-	private fun starts(prefix: String) = log.collections
+	private fun starts(prefix: String) = counters.collections
 		.filterKeys { it.startsWith(prefix) }
 		.mapKeys { it.key.removePrefix(prefix) }
+
+	/** Epoch seconds before which a play is outside a [window] ending now. */
+	private fun cutoff(window: Duration) = Clock.System.now().epochSeconds - window.inWholeSeconds
+
+	/** Drops plays past [KEEP], at most once a day. */
+	private suspend fun prune(now: Long) {
+		val day = now / SECONDS_PER_DAY
+		if (day == prunedDay) return
+		prunedDay = day
+		try {
+			playLogDao.prune(now - KEEP.inWholeSeconds)
+		} catch (e: Exception) {
+			Logger.w(TAG, "could not prune the play log", e)
+		}
+	}
 
 	private fun DomainSongCollection.key() = when (this) {
 		is DomainPlaylist -> "playlist:$id"
@@ -89,18 +118,10 @@ class PlayLogManager(private val settings: Settings) {
 		else -> null
 	}
 
-	private fun update(change: (Log) -> Log) {
-		log = change(log)
-		try {
-			settings[KEY] = json.encodeToString(log)
-		} catch (e: Exception) {
-			Logger.w(TAG, "could not save the play log", e)
-		}
-	}
-
 	companion object {
 		private const val TAG = "PlayLogManager"
 		private const val KEY = "playLog"
-		val KEEP = 5.days
+		private const val SECONDS_PER_DAY = 86_400
+		val KEEP = 90.days
 	}
 }

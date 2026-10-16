@@ -14,6 +14,7 @@ import eu.depau.loak.data.database.dao.ArtistDao
 import eu.depau.loak.data.database.dao.GenreDao
 import eu.depau.loak.data.database.dao.NetworkStatsDao
 import eu.depau.loak.data.database.dao.LyricDao
+import eu.depau.loak.data.database.dao.PlayLogDao
 import eu.depau.loak.data.database.dao.PlaylistDao
 import eu.depau.loak.data.database.dao.RadioDao
 import eu.depau.loak.data.database.dao.SongDao
@@ -24,6 +25,7 @@ import eu.depau.loak.data.database.entities.AudioFileEntity
 import eu.depau.loak.data.database.entities.GenreEntity
 import eu.depau.loak.data.database.entities.LyricEntity
 import eu.depau.loak.data.database.entities.NetworkStatsEntity
+import eu.depau.loak.data.database.entities.PlayLogEntity
 import eu.depau.loak.data.database.entities.PlaylistEntity
 import eu.depau.loak.data.database.entities.PlaylistSongCrossRef
 import eu.depau.loak.data.database.entities.RadioEntity
@@ -32,7 +34,7 @@ import eu.depau.loak.data.database.entities.SyncActionEntity
 import eu.depau.loak.data.database.entities.SyncRunEntity
 
 @Database(
-	version = 26,
+	version = 27,
 	entities = [
 		AlbumEntity::class,
 		GenreEntity::class,
@@ -45,14 +47,16 @@ import eu.depau.loak.data.database.entities.SyncRunEntity
 		SyncActionEntity::class,
 		NetworkStatsEntity::class,
 		SyncRunEntity::class,
-		AudioFileEntity::class
+		AudioFileEntity::class,
+		PlayLogEntity::class
 	],
 	autoMigrations = [
 		AutoMigration(from = 21, to = 22, spec = CacheDatabase.DropDownloads::class),
 		AutoMigration(from = 22, to = 23),
 		AutoMigration(from = 23, to = 24),
 		AutoMigration(from = 24, to = 25),
-		AutoMigration(from = 25, to = 26)
+		AutoMigration(from = 25, to = 26),
+		AutoMigration(from = 26, to = 27)
 	]
 )
 @ColumnTypeConverters(Converters::class)
@@ -61,6 +65,7 @@ abstract class CacheDatabase : RoomDatabase() {
 	abstract fun albumDao(): AlbumDao
 	abstract fun genreDao(): GenreDao
 	abstract fun playlistDao(): PlaylistDao
+	abstract fun playLogDao(): PlayLogDao
 	abstract fun songDao(): SongDao
 	abstract fun artistDao(): ArtistDao
 	abstract fun radioDao(): RadioDao

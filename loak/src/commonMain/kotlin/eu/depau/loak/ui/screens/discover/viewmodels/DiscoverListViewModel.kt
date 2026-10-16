@@ -16,6 +16,7 @@ import eu.depau.loak.domain.discover.activeChart
 import eu.depau.loak.domain.discover.genrePlayCounts
 import eu.depau.loak.domain.manager.PlayLogManager
 import eu.depau.loak.domain.manager.PreferenceManager
+import kotlin.time.Duration.Companion.days
 import eu.depau.loak.ui.screens.discover.DiscoverListType
 import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.entities.SongEntity
@@ -132,7 +133,8 @@ class DiscoverListViewModel(
 
 	/** The user's local plays per genre name: song plays in the play log, summed over each song's genres. */
 	private suspend fun localPlayCountsByGenre(): Map<String, Int> = withContext(IoDispatcher) {
-		val plays = playLog.songPlays(PlayLogManager.KEEP)
+		// a month of plays: long enough that the genre ordering doesn't turn over on a quiet week
+		val plays = playLog.songPlays(30.days)
 		if (plays.isEmpty()) return@withContext emptyMap()
 		genrePlayCounts(plays, songDao.getSongsByIds(plays.keys.toList()))
 	}

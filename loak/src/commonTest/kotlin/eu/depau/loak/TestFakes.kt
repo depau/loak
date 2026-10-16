@@ -2,7 +2,10 @@ package eu.depau.loak
 
 import com.russhwolf.settings.Settings
 import eu.depau.loak.data.database.dao.NetworkStatsDao
+import eu.depau.loak.data.database.dao.PlayLogDao
 import eu.depau.loak.data.database.entities.NetworkStatsEntity
+import eu.depau.loak.data.database.entities.PlayLogEntity
+import eu.depau.loak.data.database.entities.SongPlayCount
 import eu.depau.loak.data.database.entities.SyncRunEntity
 import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.domain.manager.ConnectivityManager
@@ -59,6 +62,29 @@ object TestFakes {
 		override suspend fun insertSyncRun(run: SyncRunEntity) {}
 		override suspend fun getSyncRuns(limit: Int) = emptyList<SyncRunEntity>()
 		override suspend fun pruneSyncRuns(before: Instant) {}
+	}
+
+	/** An in-memory [PlayLogDao], so tests of what reads the play log need no Room DB. */
+	fun fakePlayLogDao(): PlayLogDao = object : PlayLogDao {
+		private val plays = mutableListOf<PlayLogEntity>()
+
+		override suspend fun insert(play: PlayLogEntity) {
+			plays += play.copy(id = plays.size + 1L)
+		}
+
+		override suspend fun playsSince(since: Long) =
+			plays.filter { it.playedAt >= since }.sortedBy { it.playedAt }
+
+		override suspend fun playCountsSince(since: Long) = plays
+			.filter { it.playedAt >= since }
+			.groupingBy { it.songId }.eachCount()
+			.map { SongPlayCount(it.key, it.value) }
+
+		override suspend fun lastPlay() = plays.maxByOrNull { it.playedAt }
+
+		override suspend fun prune(before: Long) {
+			plays.removeAll { it.playedAt < before }
+		}
 	}
 
 	/**
