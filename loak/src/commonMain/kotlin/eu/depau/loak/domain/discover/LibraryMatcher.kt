@@ -138,6 +138,25 @@ class LibraryMatcher(
 		return hit?.toDomainModel()
 	}
 
+	/**
+	 * The id of the library song this title and artist are, if any — for the listening
+	 * history sources, which describe a track with a name and sometimes an identifier
+	 * rather than as a [DiscoverSong]. Same indexes, same normalisation, same order:
+	 * ISRC, then MusicBrainz id, then the name index with the artist checked.
+	 */
+	suspend fun songIdOf(
+		title: String,
+		artist: String,
+		mbid: String? = null,
+		isrc: String? = null
+	): String? {
+		val idx = ensureIndex()
+		val byIsrc = isrc?.let { idx.songByIsrc[it] }
+		val byMbid = mbid?.let { idx.songByMbid[it] }
+		val hit = byIsrc ?: byMbid ?: idx.songByName[normalizeTitle(title)]?.byName(title, artist)
+		return hit?.songId
+	}
+
 	/** The library album matching [album], if any — mapped (relation loaded) so it can be played. */
 	suspend fun albumInLibrary(album: DiscoverAlbum): DomainAlbum? {
 		val idx = ensureIndex()

@@ -146,6 +146,19 @@ class PreferenceManager(
 	/** ListenBrainz username for "Made for you" playlists; "" = not set. */
 	var listenBrainzUsername by preference("")
 
+	/**
+	 * Where Lo'ak reads listening history from beyond this device: "listenbrainz", "koito",
+	 * "lastfm", or "" for nothing but its own play log.
+	 */
+	var listeningHistorySource by preference("")
+
+	/** Koito instance base URL (e.g. `https://koito.example.org`) and its API key; "" = not set. */
+	var koitoUrl by preference("")
+	var koitoApiKey by preference("")
+
+	/** Last.fm username to read scrobbles from; "" = not set. */
+	var lastFmUsername by preference("")
+
 	/** In-app volume, where the platform has no hardware volume keys (web). */
 	var playerVolume by preference(1f)
 

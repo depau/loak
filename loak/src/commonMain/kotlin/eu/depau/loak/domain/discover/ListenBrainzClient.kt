@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.discover
 
+import eu.depau.loak.domain.history.RemoteListen
 import eu.depau.loak.util.IoDispatcher
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
@@ -20,10 +21,37 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 
 /** The algorithm the labs similar-artists endpoint scores with (no auth needed). */
 private const val SIMILAR_ARTIST_ALGORITHM =
 	"session_based_days_7500_session_300_contribution_5_threshold_10_limit_100_filter_True_skip_30"
+
+/** The most listens one `/user/<u>/listens` page can hold. */
+private const val MAX_LISTENS = 1000
+
+/**
+ * Maps one ListenBrainz listen to a [RemoteListen]. Null without a timestamp, a title or an
+ * artist: an entry the API is still filling in (the track being played right now) has no
+ * `listened_at`, and a nameless one cannot be matched to anything anyway. Pure, so it can be
+ * tested without the network.
+ */
+fun listenOf(item: JsonObject): RemoteListen? {
+	val at = item["listened_at"]?.jsonPrimitive?.longOrNull ?: return null
+	val metadata = item["track_metadata"] as? JsonObject ?: return null
+	val title = metadata["track_name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+		?: return null
+	val artist = metadata["artist_name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+		?: return null
+	val additional = metadata["additional_info"] as? JsonObject
+	return RemoteListen(
+		title = title,
+		artist = artist,
+		at = at,
+		mbid = additional?.get("recording_mbid")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() },
+		isrc = additional?.get("isrc")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+	)
+}
 
 /** Maps one ListenBrainz similar-artists entry. Null when either identity field is missing. */
 fun similarArtistOf(item: JsonObject): DiscoverArtist? {
@@ -214,6 +242,31 @@ class ListenBrainzClient(engine: HttpClientEngine? = null) {
 					?: return@withContext emptyList()
 				((root["playlist"] as? JsonObject)?.get("track") as? JsonArray)
 					?.mapNotNull { (it as? JsonObject)?.let(::listenBrainzTrackOf) }
+					.orEmpty()
+			} catch (e: CancellationException) {
+				throw e
+			} catch (_: Exception) {
+				emptyList()
+			}
+		}
+
+	/**
+	 * The listens [username] submitted since [minTs] (epoch seconds), newest first, up to
+	 * [count]. Public listens need no token, and reading a bounded recent window is exactly
+	 * what ListenBrainz's API policy asks for. A failure yields an empty list.
+	 */
+	suspend fun getListens(username: String, minTs: Long, count: Int): List<RemoteListen> =
+		withContext(IoDispatcher) {
+			if (username.isBlank()) return@withContext emptyList()
+			try {
+				val root = client.get("$baseUrl/user/$username/listens") {
+					parameter("count", count.coerceIn(1, MAX_LISTENS))
+					parameter("min_ts", minTs)
+				}.takeIf { it.status.isSuccess() }
+					?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
+					?: return@withContext emptyList()
+				((root["payload"] as? JsonObject)?.get("listens") as? JsonArray)
+					?.mapNotNull { (it as? JsonObject)?.let(::listenOf) }
 					.orEmpty()
 			} catch (e: CancellationException) {
 				throw e

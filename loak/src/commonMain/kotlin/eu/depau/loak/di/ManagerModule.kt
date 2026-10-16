@@ -11,9 +11,15 @@ import org.koin.dsl.module
 import eu.depau.loak.domain.manager.AudioFetcher
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.DownloadManager
-import eu.depau.loak.domain.manager.EqualiserManager
+import eu.depau.loak.domain.history.CombinedHistory
+import eu.depau.loak.domain.history.HistorySourceRegistry
+import eu.depau.loak.domain.history.KoitoHistorySource
+import eu.depau.loak.domain.history.LastFmHistorySource
+import eu.depau.loak.domain.history.ListenBrainzHistorySource
 import eu.depau.loak.domain.history.ListeningHistory
 import eu.depau.loak.domain.history.LocalHistory
+import eu.depau.loak.domain.history.RemoteHistory
+import eu.depau.loak.domain.manager.EqualiserManager
 import eu.depau.loak.domain.manager.LoginManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.PlayLogManager
@@ -72,8 +78,27 @@ val managerModule = module {
 	singleOf(::EqualiserManager)
 	singleOf(::QueueSyncManager)
 	singleOf(::PlayLogManager)
-	// What Quick picks rank on; the remote sources (ListenBrainz, Koito, Last.fm) add to it
-	single<ListeningHistory> { LocalHistory(get()) }
+	// What Quick picks rank on: the local play log, plus whichever remote source is on. The
+	// registry resolves the choice per call, so a settings change applies to the next rebuild.
+	singleOf(::ListenBrainzHistorySource)
+	// engine-seam: the optional engine parameter is defaulted, so it is not resolved by Koin
+	single { KoitoHistorySource(get()) }
+	single { LastFmHistorySource(get()) }
+	single {
+		HistorySourceRegistry(
+			get(),
+			listOf(
+				get<ListenBrainzHistorySource>(),
+				get<KoitoHistorySource>(),
+				get<LastFmHistorySource>()
+			)
+		)
+	}
+	single<ListeningHistory> {
+		val local = LocalHistory(get())
+		val registry = get<HistorySourceRegistry>()
+		CombinedHistory { listOfNotNull(local, registry.current()?.let { RemoteHistory(it, get()) }) }
+	}
 	singleOf(::NetworkStatsManager)
 	// eager: sweeps leftovers and evicts on startup
 	single(createdAtStart = true) {
