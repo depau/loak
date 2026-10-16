@@ -185,8 +185,9 @@ fun main(args: Array<String>) {
 						ProvideSystemTheme {
 							App { actions ->
 								LoakMenuBar(actions, ::exitApplication)
-								// only macOS reports the phases of a swipe
-								if (isMac) TrackpadTouchEffect(taoWindow, actions.backInput)
+								// Nucleus reports a swipe's phases on macOS and Linux Wayland: elsewhere
+								// swipes come without and scroll as before
+								TrackpadTouchEffect(taoWindow, actions.backInput)
 							}
 						}
 					}
