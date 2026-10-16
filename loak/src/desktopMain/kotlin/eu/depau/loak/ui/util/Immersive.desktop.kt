@@ -14,6 +14,10 @@ actual fun Immersive(onFullscreenExit: () -> Unit) {
 	val setFullscreen = chrome.setFullscreen ?: return
 	var wasFullscreen by remember { mutableStateOf(chrome.fullscreen) }
 
+	DisposableEffect(chrome.setImmersive) {
+		chrome.setImmersive?.invoke(true)
+		onDispose { chrome.setImmersive?.invoke(false) }
+	}
 	DisposableEffect(setFullscreen) {
 		val restoreWindowed = !chrome.fullscreen
 		if (restoreWindowed) setFullscreen(true)

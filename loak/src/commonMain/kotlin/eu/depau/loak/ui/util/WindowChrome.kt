@@ -65,6 +65,11 @@ data class WindowChrome(
 	val fullscreen: Boolean = false,
 	/** Puts the window in or out of full screen (karaoke). */
 	val setFullscreen: ((Boolean) -> Unit)? = null,
+	/**
+	 * Marks immersive content (karaoke) as showing: while it shows in full screen, the window
+	 * controls go, so they don't sit over it. A plain full-screen window keeps them as its way out.
+	 */
+	val setImmersive: ((Boolean) -> Unit)? = null,
 ) {
 	val hasLeftControls get() = leftControls != null
 	val hasRightControls get() = rightControls != null

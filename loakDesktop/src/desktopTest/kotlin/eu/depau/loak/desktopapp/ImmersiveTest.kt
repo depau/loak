@@ -50,4 +50,36 @@ class ImmersiveTest {
 
 		assertEquals(1, exits)
 	}
+
+	/** A window the user put in full screen stays there, and gets its controls back, after karaoke. */
+	@Test
+	fun karaokeInAUserFullscreenWindowOnlyMarksItselfImmersiveWhileShown() = runComposeUiTest {
+		val fullscreenRequests = mutableListOf<Boolean>()
+		val immersive = mutableListOf<Boolean>()
+		var shown by mutableStateOf(true)
+
+		setContent {
+			CompositionLocalProvider(
+				LocalWindowChrome provides WindowChrome(
+					barHeight = 0.dp,
+					dragArea = Modifier,
+					leftControls = null,
+					rightControls = null,
+					fullscreen = true,
+					setFullscreen = { fullscreenRequests += it },
+					setImmersive = { immersive += it },
+				)
+			) {
+				if (shown) Immersive {}
+			}
+		}
+
+		waitForIdle()
+		assertEquals(listOf(true), immersive)
+		shown = false
+		waitForIdle()
+
+		assertEquals(listOf(true, false), immersive)
+		assertEquals(emptyList(), fullscreenRequests)
+	}
 }

@@ -54,7 +54,7 @@ import dev.nucleusframework.window.utils.linux.rememberLinuxButtonLayout
 import eu.depau.loak.ui.util.LocalUpdateController
 import eu.depau.loak.ui.util.LocalWindowChrome
 import eu.depau.loak.ui.util.WindowChrome
-import eu.depau.loak.ui.util.setMacOsClientSideDecorations
+import eu.depau.loak.ui.util.setMacOsFullscreenControlsHidden
 import eu.depau.loak.domain.manager.DesktopUpdaterManager
 
 private val os = System.getProperty("os.name")
@@ -89,11 +89,18 @@ fun main(args: Array<String>) {
 			state = rememberWindowState(width = 1400.dp, height = 900.dp),
 			minimumSize = DpSize(width = 380.dp, height = 300.dp),
 		) {
+			// karaoke showing; in full screen it drops the window chrome, which would sit over it,
+			// while a plain full-screen window keeps its controls, its only way out
+			var immersive by remember { mutableStateOf(false) }
+			val setImmersive = remember { { on: Boolean -> immersive = on } }
 			// the bar slot only reports the title bar height to the OS (macOS centres the
 			// traffic lights in it, Windows sizes its caption zone); the app draws the bar
 			WindowScaffold(
 				titleBar = { Spacer(Modifier.fillMaxWidth().height(titleBarHeight)) },
-				titleBarPlacement = TitleBarPlacement.Overlay(passThroughToContent = true),
+				titleBarPlacement = TitleBarPlacement.Overlay(
+					autoHideInFullscreen = immersive,
+					passThroughToContent = true,
+				),
 			) {
 				// the controls follow the app theme, not the OS: the native parts through
 				// WindowAppearance (traffic lights on macOS), the drawn ones (GNOME/KDE, Windows
@@ -108,10 +115,9 @@ fun main(args: Array<String>) {
 				val window = (this@DecoratedWindow as NucleusDecoratedWindowScope).nucleusWindow
 				val fullscreen by window.fullscreenFlow.collectAsState()
 				val setFullscreen = remember(window) { window::setFullscreen }
-				// full screen (lyrics or the green button) drops the client-side chrome, whose
-				// traffic lights would otherwise sit over the content
-				LaunchedEffect(fullscreen, taoWindow) {
-					setMacOsClientSideDecorations(taoWindow.nativeHandle, enabled = !fullscreen)
+				val chromeHidden = fullscreen && immersive
+				LaunchedEffect(chromeHidden, taoWindow) {
+					setMacOsFullscreenControlsHidden(taoWindow.nativeHandle, hidden = chromeHidden)
 				}
 				val decoratedChrome = when {
 					isMac -> WindowChrome(
@@ -120,6 +126,7 @@ fun main(args: Array<String>) {
 						leftControls = { dark -> themed(dark) { WindowControls() } },
 						rightControls = null,
 						setFullscreen = setFullscreen,
+						setImmersive = setImmersive,
 					)
 					// Windows caption buttons keep their native 32dp height, flush in the corner
 					isWindows -> WindowChrome(
@@ -129,6 +136,7 @@ fun main(args: Array<String>) {
 						rightControls = { dark -> themed(dark) { WindowControls(Modifier.height(32.dp)) } },
 						controlsInCorner = true,
 						setFullscreen = setFullscreen,
+						setImmersive = setImmersive,
 					)
 					else -> {
 						// Linux: the buttons can sit on both sides at once (close:minimize,maximize),
@@ -148,10 +156,11 @@ fun main(args: Array<String>) {
 							// as far from the side edge as from the top: (64 - 24) / 2, less Nucleus' own 8
 							edgeInset = 12.dp,
 							setFullscreen = setFullscreen,
+							setImmersive = setImmersive,
 						)
 					}
 				}
-				val chrome = if (fullscreen) {
+				val chrome = if (chromeHidden) {
 					decoratedChrome.copy(
 						barHeight = 0.dp,
 						dragArea = Modifier,
@@ -160,7 +169,7 @@ fun main(args: Array<String>) {
 						fullscreen = true,
 					)
 				} else {
-					decoratedChrome
+					decoratedChrome.copy(fullscreen = fullscreen)
 				}
 				val updateController = remember { DesktopUpdaterManager() }
 				CompositionLocalProvider(
