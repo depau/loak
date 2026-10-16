@@ -12,6 +12,8 @@ import eu.depau.loak.domain.manager.AudioFetcher
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.EqualiserManager
+import eu.depau.loak.domain.history.ListeningHistory
+import eu.depau.loak.domain.history.LocalHistory
 import eu.depau.loak.domain.manager.LoginManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.PlayLogManager
@@ -70,6 +72,8 @@ val managerModule = module {
 	singleOf(::EqualiserManager)
 	singleOf(::QueueSyncManager)
 	singleOf(::PlayLogManager)
+	// What Quick picks rank on; the remote sources (ListenBrainz, Koito, Last.fm) add to it
+	single<ListeningHistory> { LocalHistory(get()) }
 	singleOf(::NetworkStatsManager)
 	// eager: sweeps leftovers and evicts on startup
 	single(createdAtStart = true) {

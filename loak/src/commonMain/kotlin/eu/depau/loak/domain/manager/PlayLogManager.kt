@@ -2,6 +2,7 @@ package eu.depau.loak.domain.manager
 
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
+import eu.depau.loak.domain.history.decayedHeat
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainPlaylist
 import eu.depau.loak.domain.models.DomainSongCollection
@@ -57,6 +58,14 @@ class PlayLogManager(private val settings: Settings) {
 		return log.songs.mapValues { (_, plays) -> plays.count { it >= cutoff } }
 			.filterValues { it > 0 }
 	}
+
+	/**
+	 * Each play inside [window], halved every [halfLife], by song id. This is what Quick picks
+	 * rank on: a burst of plays counts for a lot while it is fresh and fades over days rather
+	 * than disappearing the moment the raw count drops.
+	 */
+	fun heat(window: Duration, halfLife: Duration): Map<String, Double> =
+		decayedHeat(log.songs, Clock.System.now().epochSeconds, window, halfLife)
 
 	/** The song played last, with when. */
 	fun lastSong(): Pair<String, Instant>? = log.songs
