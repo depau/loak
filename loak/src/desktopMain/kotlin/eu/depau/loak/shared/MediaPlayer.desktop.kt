@@ -101,11 +101,22 @@ class DesktopMediaPlayerViewModel(
 	 *  broken track). Cleared when a new track is attempted or a source actually starts. */
 	private var streamFailed = false
 
+	/** Watches the progress loop's position samples for an output that stopped consuming them. */
+	private val stallDetector = OutputStallDetector()
+
+	/** The engine's last reported position, for the scrobble source to read without touching it. */
+	@Volatile
+	private var lastPositionMs = 0L
+
 	private val scrobbleManager = ScrobbleManager(
 		playerSource = object : ScrobblePlayerSource {
-			override val currentPosition: Long get() = rodio.getPositionMs()
-			override val duration: Long get() = rodio.getDurationMs() ?: 0L
-			override val isPlaying: Boolean get() = !rodio.isPaused() && !rodio.isEmpty()
+			// Read the player's own state, never the engine: ScrobbleManager ticks on the
+			// main dispatcher, and a native read that parks there freezes the whole window.
+			override val currentPosition: Long get() = lastPositionMs
+			override val duration: Long
+				get() = _uiState.value.currentSong?.duration?.inWholeMilliseconds ?: 0L
+			override val isPlaying: Boolean
+				get() = _uiState.value.currentSong != null && !_uiState.value.isPaused
 		},
 		connectivityManager = connectivityManager,
 		syncManager = syncManager,
@@ -120,11 +131,27 @@ class DesktopMediaPlayerViewModel(
 		progressJob = viewModelScope.launch(Dispatchers.IO) {
 			while (true) {
 				delay(250)
-				_uiState.update { state ->
-					state.copy(progress = progress())
+				val positionMs = rodio.getPositionMs()
+				// unanswered reads mean a call is parked in the engine; assume the source is
+				// still there (the stall watchdog owns deciding the output is gone)
+				val isEmpty = rodio.isEmpty() ?: false
+				val isPaused = rodio.isPaused() ?: false
+				positionMs?.let { ms ->
+					lastPositionMs = ms
+					_uiState.update { state ->
+						state.copy(progress = progress(ms))
+					}
 				}
-				if (rodio.isEmpty() && !isTransitioningBetweenTracks && !streamFailed && !rodio.isPaused()) {
-					onTrackEnded()
+				when {
+					isEmpty && !isTransitioningBetweenTracks && !streamFailed && !isPaused ->
+						onTrackEnded()
+					// a source that should be playing but isn't moving: see OutputStallDetector
+					isPaused || isEmpty || isTransitioningBetweenTracks || streamFailed -> Unit
+					else -> when (stallDetector.onTick(positionMs)) {
+						OutputStallDetector.Action.Rebuild -> rebuildOutput()
+						OutputStallDetector.Action.GiveUp -> giveUpOnOutput()
+						OutputStallDetector.Action.None -> Unit
+					}
 				}
 			}
 		}
@@ -134,7 +161,7 @@ class DesktopMediaPlayerViewModel(
 
 		// ReplayGain: when settings change (SoundScreen sliders/segmented control) the manager
 		// tells us to recompute the effective volume and reapply it to rodio.
-		audioGainManager.setOnGainChanged { applyVolume() }
+		audioGainManager.setOnGainChanged { viewModelScope.launch { applyVolume() } }
 	}
 
 	/** rodio's Sink gain: the user volume folded with the ReplayGain multiplier. */
@@ -154,7 +181,7 @@ class DesktopMediaPlayerViewModel(
 		return gainDb.decibelsToLinear()
 	}
 
-	private fun applyVolume() {
+	private suspend fun applyVolume() {
 		rodio.setVolume(volume.value * replayGainMultiplier())
 	}
 
@@ -288,6 +315,7 @@ class DesktopMediaPlayerViewModel(
 		val startToken = ++sourceStartToken
 		isTransitioningBetweenTracks = true
 		streamFailed = false
+		stallDetector.reset()
 		_uiState.update {
 			it.copy(
 				currentIndex = index,
@@ -352,8 +380,8 @@ class DesktopMediaPlayerViewModel(
 				// mp3 was playing; swap to the FLAC file at the same position.
 				// playFileSource resets isPaused=false, so the button stays correct even if the
 				// fallback had briefly reported a failure.
-				val positionMs = rodio.getPositionMs().coerceAtLeast(0L)
-				val wasPaused = rodio.isPaused()
+				val positionMs = rodio.getPositionMs()?.coerceAtLeast(0L) ?: 0L
+				val wasPaused = rodio.isPaused() ?: false
 				swapOwnsFlag = true
 				swappedAwayJob = viewModelScope.launch(Dispatchers.IO) {
 					try {
@@ -373,7 +401,7 @@ class DesktopMediaPlayerViewModel(
 	/** Starts the lossy HTTP stream for [song]. Returns true if the stream was accepted by rodio.
 	 *  On failure the UI is paused, the error is logged and toasted, and [streamFailed] is set so
 	 *  the progress loop doesn't auto-skip the broken track. */
-	private fun playStreamingFallback(song: DomainSong): Boolean {
+	private suspend fun playStreamingFallback(song: DomainSong): Boolean {
 		try {
 			rodio.playUrl(streamSource(song), loop = false)
 			applyVolume()
@@ -392,7 +420,7 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	/** Plays a local file. Returns true if playback started. */
-	private fun playFileSource(song: DomainSong, path: String, startPosMs: Long = 0L): Boolean {
+	private suspend fun playFileSource(song: DomainSong, path: String, startPosMs: Long = 0L): Boolean {
 		try {
 			rodio.playFile(path, loop = false)
 			if (startPosMs > 0) runCatching { rodio.seekToMs(startPosMs) }
@@ -462,26 +490,29 @@ class DesktopMediaPlayerViewModel(
 			isExternal = false
 		)
 
-		try {
-			rodio.playRadio(radio.streamUrl)
-			applyVolume()
-			streamFailed = false
-			_uiState.update { state ->
-				state.copy(
-					queue = listOf(dummyRadioSong),
-					currentIndex = 0,
-					currentSong = dummyRadioSong,
-					isLoading = false,
-					isPaused = false
-				)
+		stallDetector.reset()
+		_uiState.update { state ->
+			state.copy(
+				queue = listOf(dummyRadioSong),
+				currentIndex = 0,
+				currentSong = dummyRadioSong,
+				isLoading = false,
+				isPaused = false
+			)
+		}
+		viewModelScope.launch {
+			try {
+				rodio.playRadio(radio.streamUrl)
+				applyVolume()
+				streamFailed = false
+				scrobbleManager.onMediaChanged(radioId)
+				scrobbleManager.onPlayStateChanged(true)
+			} catch (e: Exception) {
+				Logger.e("DesktopMediaPlayerViewModel", "Failed to start radio stream", e)
+				streamFailed = true
+				_uiState.update { it.copy(isPaused = true, isLoading = false) }
+				snackBarManager.notify(Res.string.notice_stream_failed, streamFailureReason(e))
 			}
-			scrobbleManager.onMediaChanged(radioId)
-			scrobbleManager.onPlayStateChanged(true)
-		} catch (e: Exception) {
-			Logger.e("DesktopMediaPlayerViewModel", "Failed to start radio stream", e)
-			streamFailed = true
-			_uiState.update { it.copy(isPaused = true, isLoading = false) }
-			snackBarManager.notify(Res.string.notice_stream_failed, streamFailureReason(e))
 		}
 	}
 
@@ -505,7 +536,8 @@ class DesktopMediaPlayerViewModel(
 		sourceStartToken++
 		isTransitioningBetweenTracks = false
 		streamFailed = false
-		rodio.clear()
+		stallDetector.reset()
+		viewModelScope.launch { rodio.clear() }
 		_uiState.update {
 			it.copy(
 				queue = emptyList(),
@@ -519,27 +551,30 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	override fun resume() {
-		if (rodio.isEmpty()) {
-			// Empty (e.g. restored but not yet playing — syncPlayerWithState clears rodio):
-			// rodio.play() on an empty source would only flip the native paused flag while
-			// staying empty, which the progress loop then reads as a natural end and skips
-			// the visible song. Start it properly instead.
-			playAt(_uiState.value.currentIndex)
-		} else if (rodio.isPaused()) {
-			rodio.play()
-			streamFailed = false
-			_uiState.update { it.copy(isPaused = false) }
-			scrobbleManager.onPlayStateChanged(true)
-		} else {
-			// rodio is playing but our state says paused (e.g. a failed source briefly
-			// marked us paused): resync the button instead of doing nothing.
-			streamFailed = false
-			_uiState.update { it.copy(isPaused = false) }
+		stallDetector.reset()
+		viewModelScope.launch {
+			if (rodio.isEmpty() ?: false) {
+				// Empty (e.g. restored but not yet playing — syncPlayerWithState clears rodio):
+				// rodio.play() on an empty source would only flip the native paused flag while
+				// staying empty, which the progress loop then reads as a natural end and skips
+				// the visible song. Start it properly instead.
+				playAt(_uiState.value.currentIndex)
+			} else if (rodio.isPaused() ?: true) {
+				rodio.play()
+				streamFailed = false
+				_uiState.update { it.copy(isPaused = false) }
+				scrobbleManager.onPlayStateChanged(true)
+			} else {
+				// rodio is playing but our state says paused (e.g. a failed source briefly
+				// marked us paused): resync the button instead of doing nothing.
+				streamFailed = false
+				_uiState.update { it.copy(isPaused = false) }
+			}
 		}
 	}
 
 	override fun pause() {
-		rodio.pause()
+		viewModelScope.launch { rodio.pause() }
 		_uiState.update { it.copy(isPaused = true) }
 		scrobbleManager.onPlayStateChanged(false)
 	}
@@ -586,7 +621,8 @@ class DesktopMediaPlayerViewModel(
 	}
 
 	override fun seek(normalized: Float) {
-		val durationMs = rodio.getDurationMs() ?: _uiState.value.currentSong?.duration?.inWholeMilliseconds ?: 0L
+		// the song's own duration, the same one the progress bar divides by
+		val durationMs = _uiState.value.currentSong?.duration?.inWholeMilliseconds ?: 0L
 		if (durationMs <= 0) return
 		val targetMs = (durationMs * normalized).toLong().coerceIn(0L, durationMs)
 		_uiState.update { it.copy(progress = normalized) }
@@ -596,7 +632,7 @@ class DesktopMediaPlayerViewModel(
 			} else {
 				// HTTP/stream: rodio can't seek remote streams — restart the stream, no re-spool
 				val song = _uiState.value.currentSong ?: return@launch
-				val wasPaused = rodio.isPaused()
+				val wasPaused = rodio.isPaused() ?: _uiState.value.isPaused
 				playStreamingFallback(song)
 				if (wasPaused) pause()
 			}
@@ -606,7 +642,7 @@ class DesktopMediaPlayerViewModel(
 	override fun setVolume(value: Float) {
 		val v = value.coerceIn(0f, 1f)
 		volume.value = v
-		applyVolume()
+		viewModelScope.launch { applyVolume() }
 		preferenceManager.playerVolume = v
 	}
 
@@ -618,13 +654,35 @@ class DesktopMediaPlayerViewModel(
 		sourceStartToken++
 		isTransitioningBetweenTracks = false
 		streamFailed = false
-		rodio.clear()
+		stallDetector.reset()
+		viewModelScope.launch { rodio.clear() }
 	}
 
-	private fun progress(): Float {
+	/**
+	 * The output stopped consuming the source (see [OutputStallDetector]): drop it so the next
+	 * source start opens a fresh one, and start this song on it. rodio can't be told to let go of
+	 * a device that went away — it goes on reporting a playing, non-empty source — but closing
+	 * doesn't wait for a parked callback, and the start decides for itself whether the new output
+	 * takes the source (reporting it through the usual stream-failure path if it doesn't).
+	 */
+	private fun rebuildOutput() {
+		Logger.w("DesktopMediaPlayerViewModel", "No audio progress; rebuilding the audio output")
+		rodio.close()
+		playAt(_uiState.value.currentIndex)
+	}
+
+	/** A rebuild didn't get audio going again: stop pretending to play, and say so. */
+	private fun giveUpOnOutput() {
+		Logger.w("DesktopMediaPlayerViewModel", "Audio output still dead after rebuilding; pausing")
+		streamFailed = true
+		pause()
+		snackBarManager.notify(Res.string.notice_stream_failed, "the audio output stopped responding")
+	}
+
+	private fun progress(positionMs: Long): Float {
 		val durationMs = _uiState.value.currentSong?.duration?.inWholeMilliseconds ?: 0L
 		if (durationMs <= 0) return 0f
-		val pos = rodio.getPositionMs().coerceIn(0L, durationMs)
+		val pos = positionMs.coerceIn(0L, durationMs)
 		return (pos.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
 	}
 
