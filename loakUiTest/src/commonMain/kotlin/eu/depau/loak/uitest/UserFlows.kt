@@ -122,7 +122,7 @@ abstract class UserFlows {
 		click("Morning Static") // the album's first song, the one with (synced) lyrics
 		openPlayer("Morning Static")
 		// the songs last 10 s: keep this one on (without an audio output it never starts)
-		if (playbackProgress() != null) click(description("Pause"))
+		if (playbackProgress() != null) pauseIfPlaying()
 		click(tab("Lyrics"))
 		waitForText("First line of the test lyrics")
 		click(tab("Up next"))

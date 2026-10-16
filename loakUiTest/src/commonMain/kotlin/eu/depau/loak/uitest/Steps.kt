@@ -163,6 +163,20 @@ suspend fun ComposeUiTest.logIn() {
 
 suspend fun ComposeUiTest.openTab(label: String) = click(tab(label))
 
+/**
+ * Stops the current song, so a short fixture song can't end under the flow, and waits for the
+ * player to settle into one of its two transport buttons first. A player that is already paused
+ * is left alone: the OS media session can pause the app on its own, and the flow only needs this
+ * song to still be the current one.
+ */
+suspend fun ComposeUiTest.pauseIfPlaying() {
+	val pause = description("Pause")
+	await({ "The player never showed a play or pause button" }) {
+		isShown(pause) || isShown(description("Play"))
+	}
+	if (isShown(pause)) click(pause)
+}
+
 /** Settings sit at the bottom of the navigation rail, or behind a top bar button on phones. */
 suspend fun ComposeUiTest.openSettings() = click(tab("Settings") or description("Settings"))
 
