@@ -128,12 +128,19 @@ class HomeViewModel(
 					madeForYou = if (genre == null) repository.madeForYou() else emptyList(),
 					recentlyAdded = repository.recentlyAdded(library, genre),
 					forgotten = repository.forgottenFavourites(library, genre),
-					// Quick picks may wait on the server: they come in below the top
-					ready = true
+					// the shelves built from the local library are on screen: the rest, which
+					// waits on the server, fills in below them
+					ready = true,
+					loading = false
 				)
 			}
-			state.update {
-				it.copy(quickPicks = UiState.Success(repository.quickPicks(library, genre, rebuildPicks)), loading = false)
+
+			// Quick picks ask the server for their discoveries, so they take as long as the
+			// other remote shelves and hold nothing up: a skeleton sits in their place until
+			// they land, rather than a list that changes under the finger.
+			launchRemote(onError = { state.update { it.copy(quickPicks = UiState.Success(emptyList())) } }) {
+				val picks = repository.quickPicks(library, genre, rebuildPicks)
+				state.update { it.copy(quickPicks = UiState.Success(picks)) }
 			}
 
 			// the server's answers come last, each on its own; a failure shows nothing, not a skeleton
