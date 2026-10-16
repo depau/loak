@@ -55,7 +55,6 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusTarget
-import androidx.compose.ui.focus.onFocusChanged
 import eu.depau.loak.ui.screens.queue.QueuePane
 import eu.depau.loak.di.isExpanded
 import eu.depau.loak.di.LocalQueuePaneOpen
@@ -283,7 +282,6 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 		onStopOrDispose { mediaPlayer.onUiVisibilityChanged(false) }
 	}
 	val rootFocus = remember { FocusRequester() }
-	var rootHasFocus by remember { mutableStateOf(true) }
 	// text fields being typed in. The key-downs of what's typed reach the shortcuts unconsumed
 	var textInputs by remember { mutableIntStateOf(0) }
 	val countTextInputs = remember {
@@ -393,7 +391,6 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 						// unless a text field or a focused button takes precedence. Media keys
 						// are consumed on key-down so a key held down doesn't repeat-toggle.
 					.focusRequester(rootFocus)
-					.onFocusChanged { rootHasFocus = it.isFocused }
 					// Esc is back, before focus handling gets it: otherwise it only clears focus and
 					// nothing closes (the player, karaoke, the queue sheet). Popups (menus, sheets,
 					// dialogs) get their own key events and close themselves.
@@ -420,7 +417,7 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 									shortcut && key == Key.F -> actions::search
 								shortcut && key == Key.Comma -> actions::settings
 								mediaPlayer.uiState.value.currentSong == null -> null
-							key == Key.Spacebar && rootHasFocus ||
+							key == Key.Spacebar && textInputs == 0 ||
 								key == Key.MediaPlayPause -> actions::playPause
 								key == Key.MediaPlay -> actions::play
 								key == Key.MediaPause || key == Key.MediaStop -> actions::pause
