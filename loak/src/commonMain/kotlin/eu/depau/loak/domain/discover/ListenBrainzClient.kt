@@ -251,17 +251,18 @@ class ListenBrainzClient(engine: HttpClientEngine? = null) {
 		}
 
 	/**
-	 * The listens [username] submitted since [minTs] (epoch seconds), newest first, up to
+	 * The listens [username] submitted in `[from, to)` (epoch seconds), newest first, up to
 	 * [count]. Public listens need no token, and reading a bounded recent window is exactly
 	 * what ListenBrainz's API policy asks for. A failure yields an empty list.
 	 */
-	suspend fun getListens(username: String, minTs: Long, count: Int): List<RemoteListen> =
+	suspend fun getListens(username: String, from: Long, to: Long, count: Int): List<RemoteListen> =
 		withContext(IoDispatcher) {
 			if (username.isBlank()) return@withContext emptyList()
 			try {
 				val root = client.get("$baseUrl/user/$username/listens") {
 					parameter("count", count.coerceIn(1, MAX_LISTENS))
-					parameter("min_ts", minTs)
+					parameter("min_ts", from)
+					parameter("max_ts", to)
 				}.takeIf { it.status.isSuccess() }
 					?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
 					?: return@withContext emptyList()

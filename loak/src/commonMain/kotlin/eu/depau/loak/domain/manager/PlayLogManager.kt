@@ -67,25 +67,27 @@ class PlayLogManager(private val settings: Settings, private val playLogDao: Pla
 		}
 	}
 
+	/**
+	 * Every play in `[from, to)`, by song id, oldest first. The window the Recap counts over and
+	 * the one Quick picks decay are both this, asked for different spans.
+	 */
+	suspend fun listens(from: Long, to: Long): Map<String, List<Long>> =
+		playLogDao.playsBetween(from, to).groupBy({ it.songId }, { it.playedAt })
+
 	/** How many times each song was played in the last [window]. */
 	suspend fun songPlays(window: Duration): Map<String, Int> =
 		playLogDao.playCountsSince(cutoff(window)).associate { it.songId to it.count }
 
-	/**
-	 * Each play inside [window], halved every [halfLife], by song id. This is what Quick picks
-	 * rank on: a burst of plays counts for a lot while it is fresh and fades over days rather
-	 * than disappearing the moment the raw count drops.
-	 */
-	suspend fun heat(window: Duration, halfLife: Duration): Map<String, Double> {
-		val now = Clock.System.now().epochSeconds
-		val bySong = playLogDao.playsSince(now - window.inWholeSeconds)
-			.groupBy({ it.songId }, { it.playedAt })
-		return decayedHeat(bySong, now, window, halfLife)
-	}
-
 	/** The song played last, with when. */
 	suspend fun lastSong(): Pair<String, Instant>? =
 		playLogDao.lastPlay()?.let { it.songId to Instant.fromEpochSeconds(it.playedAt) }
+
+	/**
+	 * When the oldest play still in the log was, or null with none. What an all-time Recap runs
+	 * back to, rather than the epoch.
+	 */
+	suspend fun oldestPlay(): Instant? =
+		playLogDao.firstPlay()?.let { Instant.fromEpochSeconds(it.playedAt) }
 
 	/** How many times each playlist was started, by playlist id. */
 	fun playlistStarts(): Map<String, Int> = starts("playlist:")

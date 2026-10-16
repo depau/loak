@@ -11,6 +11,11 @@ import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.domain.history.ListeningHistory
 import eu.depau.loak.domain.history.QUICK_PICKS_SIZE
+import eu.depau.loak.domain.history.RecapData
+import eu.depau.loak.domain.history.RecapPeriod
+import eu.depau.loak.domain.history.buildRecap
+import eu.depau.loak.domain.history.fetch
+import eu.depau.loak.domain.history.recapSpans
 import eu.depau.loak.domain.history.pickQuickPicks
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.PlayLogManager
@@ -45,6 +50,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
+import kotlinx.datetime.TimeZone
 import kotlin.time.Duration.Companion.minutes
 
 /** A Speed dial tile: a playlist or album opens, a song plays its radio. */
@@ -110,6 +116,31 @@ class HomeRepository(
 		.filterValues { it > 0 }
 		.entries.sortedByDescending { it.value }
 		.take(count).map { it.key }
+
+	// region recap
+
+	/**
+	 * What was listened to over [period]: plays, hours, artists, the activity grid and the top
+	 * three lists, plus the same figures for the period before it to compare against.
+	 *
+	 * Every source is asked once, for one span covering both halves. Only the songs that were
+	 * actually played are read back out of the library, so a Recap of a quiet day does not pull
+	 * the whole catalogue for it.
+	 */
+	suspend fun recap(period: RecapPeriod): RecapData = withContext(IoDispatcher) {
+		val zone = TimeZone.currentSystemDefault()
+		val now = Clock.System.now()
+		val oldest = playLog.oldestPlay() ?: now
+		val spans = recapSpans(period, now, zone, oldest)
+		val fetch = spans.fetch
+		val listens = listeningHistory.listens(fetch.start, fetch.end)
+		val songs = if (listens.isEmpty()) emptyMap() else {
+			songDao.getSongsByIds(listens.keys.toList()).associate { it.songId to it.toDomainModel() }
+		}
+		buildRecap(listens, songs, spans, zone, listeningHistory.id)
+	}
+
+	// endregion
 
 	// region speed dial
 

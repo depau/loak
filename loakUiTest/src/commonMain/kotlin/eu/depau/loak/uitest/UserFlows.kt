@@ -31,6 +31,17 @@ abstract class UserFlows {
 	}
 
 	@Test
+	fun recapOpens() = runApp {
+		logIn()
+		click(description("Recap"))
+		// a fresh install has played nothing: the picker, the hero and the notice are it
+		waitForText("Nothing has been played in this period yet.")
+		// every period answers, not just the one the screen opens on
+		click("All")
+		waitForText("Nothing has been played in this period yet.")
+	}
+
+	@Test
 	fun everyTabOpens() = runApp {
 		logIn()
 		openTab("Playlists")
@@ -152,6 +163,22 @@ abstract class UserFlows {
 			navigateUp()
 			waitForText("Appearance")
 		}
+	}
+
+	@Test
+	fun listeningHistorySourceCanBePicked() = runApp {
+		logIn()
+		openSettings()
+		// the row on the Server & account page is labelled with the source that is on
+		click(text(TestServer.USER, substring = true))
+		click("This device only")
+		waitForText("History source")
+		click("Last.fm")
+		type(text("Last.fm username"), "a-scrobbler-user")
+		navigateUp()
+		waitForText("Server & account")
+		// back on the account page the row now says what was picked
+		waitForText("Last.fm")
 	}
 
 	@Test

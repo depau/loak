@@ -22,6 +22,7 @@ import eu.depau.loak.ui.screens.settings.AudioMuseConnectScreen
 import eu.depau.loak.ui.screens.settings.LidarrConnectScreen
 import eu.depau.loak.ui.screens.settings.LidarrSettingsScreen
 import eu.depau.loak.ui.screens.settings.SettingsLidarrCustomHeadersScreen
+import eu.depau.loak.ui.screens.recap.RecapScreen
 import eu.depau.loak.ui.screens.settings.ListenBrainzSettingsScreen
 import eu.depau.loak.ui.screens.settings.ListeningHistorySettingsScreen
 import eu.depau.loak.ui.screens.settings.DiscoverSearchSettingsScreen
@@ -781,6 +782,9 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.LidarrCustomHeaders>(metadata = detailPane("settings")) {
 			SettingsLidarrCustomHeadersScreen()
+		}
+		entry<Screen.Recap> {
+			RecapScreen()
 		}
 		entry<Screen.Settings.ListenBrainz>(metadata = detailPane("settings")) {
 			ListenBrainzSettingsScreen()

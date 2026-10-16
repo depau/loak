@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -75,6 +76,8 @@ import eu.depau.loak.ui.components.dialogs.DeletionEndpoint
 import eu.depau.loak.ui.components.layouts.PullToRefreshBox
 import eu.depau.loak.ui.components.layouts.RootBottomBar
 import eu.depau.loak.ui.components.layouts.RootTopBar
+import eu.depau.loak.generated.resources.title_recap
+import eu.depau.loak.icons.outlined.BarChart
 import eu.depau.loak.ui.components.layouts.rootTopBarScrollBehavior
 import eu.depau.loak.ui.components.layouts.horizontalSection
 import eu.depau.loak.ui.components.layouts.ArtGridPlaceholder
@@ -126,7 +129,18 @@ fun HomeScreen() {
 	}
 
 	Scaffold(
-		topBar = { RootTopBar({ Text(stringResource(Res.string.title_home)) }, scrollBehavior) },
+		topBar = {
+			val backStack = LocalNavStack.current
+			RootTopBar(
+				{ Text(stringResource(Res.string.title_home)) },
+				scrollBehavior,
+				actions = {
+					IconButton(onClick = dropUnlessResumed { backStack.add(Screen.Recap) }) {
+						Icon(Icons.Outlined.BarChart, stringResource(Res.string.title_recap))
+					}
+				}
+			)
+		},
 		bottomBar = {
 			val scrollManager = LocalBottomBarScrollManager.current
 			RootBottomBar(scrolled = scrollManager.isTriggered)

@@ -72,8 +72,8 @@ object TestFakes {
 			plays += play.copy(id = plays.size + 1L)
 		}
 
-		override suspend fun playsSince(since: Long) =
-			plays.filter { it.playedAt >= since }.sortedBy { it.playedAt }
+		override suspend fun playsBetween(from: Long, to: Long) =
+			plays.filter { it.playedAt in from until to }.sortedBy { it.playedAt }
 
 		override suspend fun playCountsSince(since: Long) = plays
 			.filter { it.playedAt >= since }
@@ -81,6 +81,8 @@ object TestFakes {
 			.map { SongPlayCount(it.key, it.value) }
 
 		override suspend fun lastPlay() = plays.maxByOrNull { it.playedAt }
+
+		override suspend fun firstPlay() = plays.minByOrNull { it.playedAt }
 
 		override suspend fun prune(before: Long) {
 			plays.removeAll { it.playedAt < before }

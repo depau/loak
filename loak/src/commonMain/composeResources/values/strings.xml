@@ -1041,6 +1041,47 @@
 	<string name="info_decay_medium">A song played daily for a fortnight stays near the top.</string>
 	<string name="option_decay_long">A month</string>
 	<string name="info_decay_long">Anything you played this month keeps its lead.</string>
+	<string name="title_recap">Recap</string>
+	<string name="option_recap_day">Day</string>
+	<string name="option_recap_week">Week</string>
+	<string name="option_recap_month">Month</string>
+	<string name="option_recap_year">Year</string>
+	<string name="option_recap_all">All</string>
+	<plurals name="label_recap_plays">
+		<item quantity="one">play</item>
+		<item quantity="other">plays</item>
+	</plurals>
+	<string name="label_recap_listened">listened</string>
+	<plurals name="label_recap_tracks">
+		<item quantity="one">track</item>
+		<item quantity="other">tracks</item>
+	</plurals>
+	<plurals name="label_recap_artists">
+		<item quantity="one">artist</item>
+		<item quantity="other">artists</item>
+	</plurals>
+	<plurals name="label_recap_new_artists">
+		<item quantity="one">new artist</item>
+		<item quantity="other">new artists</item>
+	</plurals>
+	<string name="title_recap_activity">Activity</string>
+	<string name="label_recap_heatmap_less">Less</string>
+	<string name="label_recap_heatmap_more">More</string>
+	<string name="title_recap_top_artists">Top artists</string>
+	<string name="title_recap_top_albums">Top albums</string>
+	<string name="title_recap_top_tracks">Top tracks</string>
+	<string name="info_recap_empty">Nothing has been played in this period yet.</string>
+	<string name="info_recap_from">From %1$s</string>
+	<string name="info_recap_source_local">this device</string>
+	<string name="info_recap_source_local_and">this device and %1$s</string>
+	<string name="info_recap_plays_more">%1$d%% more than the previous period</string>
+	<string name="info_recap_plays_fewer">%1$d%% fewer than the previous period</string>
+	<string name="info_recap_plays_same">About as much as the previous period</string>
+	<plurals name="info_recap_plays_count">
+		<item quantity="one">%1$d play</item>
+		<item quantity="other">%1$d plays</item>
+	</plurals>
+	<string name="info_recap_share">My %1$s in Lo'ak</string>
 	<string name="title_discover_sources">Search, previews &amp; charts</string>
 	<string name="info_deezer_on">Deezer · on</string>
 	<string name="info_deezer_off">Deezer · off</string>

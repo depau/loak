@@ -12,9 +12,9 @@ interface PlayLogDao {
 	@Insert
 	suspend fun insert(play: PlayLogEntity)
 
-	/** Every play since [since], oldest first. */
-	@Query("SELECT * FROM PlayLogEntity WHERE playedAt >= :since ORDER BY playedAt")
-	suspend fun playsSince(since: Long): List<PlayLogEntity>
+	/** Every play in `[from, to)`, oldest first. */
+	@Query("SELECT * FROM PlayLogEntity WHERE playedAt >= :from AND playedAt < :to ORDER BY playedAt")
+	suspend fun playsBetween(from: Long, to: Long): List<PlayLogEntity>
 
 	/** How many times each song was played since [since]. */
 	@Query(
@@ -24,6 +24,9 @@ interface PlayLogDao {
 
 	@Query("SELECT * FROM PlayLogEntity ORDER BY playedAt DESC LIMIT 1")
 	suspend fun lastPlay(): PlayLogEntity?
+
+	@Query("SELECT * FROM PlayLogEntity ORDER BY playedAt LIMIT 1")
+	suspend fun firstPlay(): PlayLogEntity?
 
 	@Query("DELETE FROM PlayLogEntity WHERE playedAt < :before")
 	suspend fun prune(before: Long)

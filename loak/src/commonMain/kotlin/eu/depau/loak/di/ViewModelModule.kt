@@ -15,6 +15,7 @@ import eu.depau.loak.ui.components.dialogs.DeletionViewModel
 import eu.depau.loak.ui.components.sheets.ChangelogViewModel
 import eu.depau.loak.ui.screens.album.viewmodels.AlbumListViewModel
 import eu.depau.loak.ui.screens.home.viewmodels.HomeViewModel
+import eu.depau.loak.ui.screens.recap.viewmodels.RecapViewModel
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistDetailViewModel
 import eu.depau.loak.ui.screens.artist.viewmodels.ArtistListViewModel
 import eu.depau.loak.ui.screens.collection.viewmodels.CollectionDetailViewModel
@@ -133,6 +134,7 @@ val viewModelModule = module {
 	viewModel { (key: Screen.DiscoverAlbum) -> DiscoverAlbumViewModel(key, get(), get(), get()) }
 	viewModel { (key: Screen.DiscoverArtist) -> DiscoverArtistViewModel(key, get(), get(), get(), get()) }
 	viewModelOf(::DiscoverHomeViewModel)
+	viewModelOf(::RecapViewModel)
 	viewModel { (type: DiscoverListType) -> DiscoverListViewModel(type, get(), get(), get(), get(), get(), get()) }
 	// `viewModelOf` would resolve every constructor param, including the optional
 	// test seams (`ioDispatcher`, `libraryLoader`) that are never DI-registered,

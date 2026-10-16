@@ -74,7 +74,7 @@ class KoitoHistorySource(
 	override val isConfigured get() = preferenceManager.koitoUrl.isNotBlank() &&
 		preferenceManager.koitoApiKey.isNotBlank()
 
-	override suspend fun recentListens(since: Long, limit: Int): List<RemoteListen> =
+	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen> =
 		withContext(IoDispatcher) {
 			if (!isConfigured) return@withContext emptyList()
 			val base = preferenceManager.koitoUrl.trim().trimEnd('/')
@@ -87,7 +87,8 @@ class KoitoHistorySource(
 						header(HttpHeaders.Authorization, "Token $key")
 						parameter("limit", minOf(limit, PAGE_SIZE))
 						parameter("page", page)
-						parameter("from", since)
+						parameter("from", from)
+						parameter("to", to)
 					}.takeIf { it.status.isSuccess() }
 						?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
 				} catch (e: CancellationException) {

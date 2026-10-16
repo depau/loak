@@ -173,6 +173,11 @@ sealed interface Screen : NavKey {
 	@Serializable
 	data object NowPlaying : Screen
 
+	/** What was listened to lately, over a day, week, month, year or all of it. */
+	@Immutable
+	@Serializable
+	data object Recap : Screen
+
 	@Immutable
 	@Serializable
 	data object PlaybackSpeed : Screen

@@ -83,7 +83,7 @@ class LastFmHistorySource(
 
 	override val isConfigured get() = preferenceManager.lastFmUsername.isNotBlank()
 
-	override suspend fun recentListens(since: Long, limit: Int): List<RemoteListen> =
+	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen> =
 		withContext(IoDispatcher) {
 			if (!isConfigured) return@withContext emptyList()
 			val listens = mutableListOf<RemoteListen>()
@@ -96,7 +96,8 @@ class LastFmHistorySource(
 						parameter("api_key", API_KEY)
 						parameter("format", "json")
 						parameter("limit", PAGE_SIZE)
-						parameter("from", since)
+						parameter("from", from)
+						parameter("to", to)
 						parameter("page", page)
 					}.takeIf { it.status.isSuccess() }
 						?.let { json.parseToJsonElement(it.bodyAsText()) as? JsonObject }
