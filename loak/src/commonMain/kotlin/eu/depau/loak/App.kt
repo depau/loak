@@ -99,15 +99,19 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.InterceptPlatformTextInput
+import androidx.compose.ui.platform.PlatformTextInputInterceptor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -221,10 +225,10 @@ private val config = SavedStateConfiguration {
 	}
 }
 
-@OptIn(ExperimentalMaterial3AdaptiveApi::class)
 /**
  * @param menuBar the platform's menu bar, given the app's actions (the macOS one on desktop).
  */
+@OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 	val platformContext = rememberPlatformContext()
@@ -280,6 +284,14 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 	}
 	val rootFocus = remember { FocusRequester() }
 	var rootHasFocus by remember { mutableStateOf(true) }
+	// text fields being typed in. The key-downs of what's typed reach the shortcuts unconsumed
+	var textInputs by remember { mutableIntStateOf(0) }
+	val countTextInputs = remember {
+		PlatformTextInputInterceptor { request, next ->
+			textInputs++
+			try { next.startInputMethod(request) } finally { textInputs-- }
+		}
+	}
 	// keyboard and mouse back: the same path as Esc and the system back gesture
 	val backInput = remember { DirectNavigationEventInput() }
 	// the platform's dispatcher, or one of our own where there's none. Ours is provided only
@@ -351,7 +363,7 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 		}
 	}
 
-	SharedTransitionLayout {
+	InterceptPlatformTextInput(countTextInputs) { SharedTransitionLayout {
 		CompositionLocalProvider(
 			*listOfNotNull(ownOwner?.let { LocalNavigationEventDispatcherOwner provides it })
 				.toTypedArray(),
@@ -404,7 +416,7 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 									key == Key.Forward -> actions::forward
 								!inApp -> null
 								// '/' by character: it's shifted on many layouts
-								event.utf16CodePoint == '/'.code ||
+								event.utf16CodePoint == '/'.code && textInputs == 0 ||
 									shortcut && key == Key.F -> actions::search
 								shortcut && key == Key.Comma -> actions::settings
 								mediaPlayer.uiState.value.currentSong == null -> null
@@ -610,7 +622,7 @@ fun App(menuBar: @Composable (AppActions) -> Unit = {}) {
 				}
 			}
 		}
-	}
+	} }
 }
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class, ExperimentalMaterial3Api::class)
