@@ -135,11 +135,15 @@ class TrackpadTouchTest {
 			}
 		}
 	}
+}
 
-	private fun ComposeUiTest.trackpad(back: DirectNavigationEventInput = DirectNavigationEventInput()) =
-		TrackpadTouch(
+	@OptIn(ExperimentalTestApi::class, InternalComposeUiApi::class)
+	internal fun ComposeUiTest.trackpad(
+		back: DirectNavigationEventInput = DirectNavigationEventInput(),
+		pointer: Offset = Offset(200f, 300f)
+	) = TrackpadTouch(
 			scene = { (this as SkikoComposeUiTest).scene },
-			pointer = { Offset(200f, 300f) },
+			pointer = { pointer },
 			back = back,
 			touchSlop = 18f,
 			backDirection = 1f,
@@ -150,7 +154,8 @@ class TrackpadTouchTest {
 	 * Fingers down, each of [moves] in ten steps, then lifted unless not [end]: one event a
 	 * frame, as the OS sends them, so what they set going runs in between.
 	 */
-	private fun ComposeUiTest.swipe(touch: TrackpadTouch, moves: List<Offset>, end: Boolean = true) {
+	@OptIn(ExperimentalTestApi::class, InternalComposeUiApi::class)
+	internal fun ComposeUiTest.swipe(touch: TrackpadTouch, moves: List<Offset>, end: Boolean = true) {
 		fun send(delta: Offset, phase: TrackpadTouch.Phase) {
 			runOnUiThread { touch.onScroll(delta, phase) }
 			mainClock.advanceTimeByFrame()
@@ -159,4 +164,3 @@ class TrackpadTouchTest {
 		for (move in moves) repeat(10) { send(move / 10f, Changed) }
 		if (end) send(Offset.Zero, Ended)
 	}
-}

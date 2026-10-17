@@ -83,6 +83,7 @@ import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.MarqueeText
 import eu.depau.loak.ui.components.common.ContentUnavailable
 import eu.depau.loak.ui.components.common.SegmentedListItem
+import eu.depau.loak.ui.components.common.SongSwipeBox
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.components.layouts.ArtCarousel
@@ -392,8 +393,9 @@ private fun TopAlbums(albums: List<RecapEntry>) {
 @Composable
 private fun TopTracks(tracks: List<RecapEntry>) {
 	val player = koinInject<MediaPlayerViewModel>()
-	// the songs, in the order the sheet and the queue want them: the same list a tap plays
-	val queue = tracks.mapNotNull { it.song }
+	// the entries that can be played, in the order the sheet and the queue want them
+	val rows = tracks.mapNotNull { entry -> entry.song?.let { entry to it } }
+	val queue = rows.map { it.second }
 	var sheetSong by remember { mutableStateOf<DomainSong?>(null) }
 
 	sheetSong?.let { song ->
@@ -401,36 +403,45 @@ private fun TopTracks(tracks: List<RecapEntry>) {
 	}
 
 	ShelfHeader(stringResource(Res.string.title_recap_top_tracks))
-	Column(
-		Modifier.padding(horizontal = 16.dp),
-		verticalArrangement = Arrangement.spacedBy(SegmentedListItemDefaults.SegmentedGap)
-	) {
-		tracks.forEachIndexed { index, track ->
-			val song = track.song ?: return@forEachIndexed
-			SegmentedListItem(
-				onClick = { player.playNow(queue, queue.indexOf(song)) },
-				onLongClick = { sheetSong = song },
-				shapes = SegmentedListItemDefaults.segmentedShapes(index = index, count = tracks.size),
-				leadingContent = {
-					CoverArt(
-						modifier = Modifier.size(50.dp),
-						coverArtId = track.coverArtId,
-						shape = SmallCoverArtShape
-					)
-				},
-				content = { MarqueeText(track.title) },
-				supportingContent = track.subtitle?.let { info -> { MarqueeText(info) } },
-				trailingContent = {
-					Text(
-						pluralStringResource(
-							Res.plurals.info_recap_plays_count,
-							track.plays,
-							track.plays
-						),
-						color = MaterialTheme.colorScheme.onSurfaceVariant
-					)
-				}
-			)
+	Column {
+		rows.forEachIndexed { index, (track, song) ->
+			// a song row swipes like every other one: towards the end queues, towards the start
+			// plays next (the album page's rows)
+			SongSwipeBox(
+				onAddToQueue = { player.addToQueueSingle(song) },
+				onPlayNext = { player.playNextSingle(song) },
+				modifier = Modifier.padding(horizontal = 16.dp, vertical = 1.5.dp),
+				shape = MaterialTheme.shapes.largeIncreased
+			) { direction ->
+				SegmentedListItem(
+					onClick = { player.playNow(queue, index) },
+					onLongClick = { sheetSong = song },
+					shapes = SegmentedListItemDefaults.segmentedShapes(
+						index = index,
+						count = rows.size,
+						dismissDirection = direction
+					),
+					leadingContent = {
+						CoverArt(
+							modifier = Modifier.size(50.dp),
+							coverArtId = track.coverArtId,
+							shape = SmallCoverArtShape
+						)
+					},
+					content = { MarqueeText(track.title) },
+					supportingContent = track.subtitle?.let { info -> { MarqueeText(info) } },
+					trailingContent = {
+						Text(
+							pluralStringResource(
+								Res.plurals.info_recap_plays_count,
+								track.plays,
+								track.plays
+							),
+							color = MaterialTheme.colorScheme.onSurfaceVariant
+						)
+					}
+				)
+			}
 		}
 	}
 }
