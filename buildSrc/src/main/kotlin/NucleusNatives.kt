@@ -119,7 +119,8 @@ abstract class BuildPatchedNative @Inject constructor(
 					"--manifest-path", File(dir, "Cargo.toml").path,
 					"--target-dir", File(work, "target").path,
 				)
-				listOf("--config", "patch.crates-io.$name.path=\"${dir.invariantSeparatorsPath}\"")
+				// a TOML literal string: Windows' command line drops the double quotes of a basic one
+				listOf("--config", "patch.crates-io.$name.path='${dir.invariantSeparatorsPath}'")
 			}
 			run(
 				"cargo", "build", "--release",
