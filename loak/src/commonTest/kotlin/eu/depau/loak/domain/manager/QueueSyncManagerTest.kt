@@ -54,6 +54,9 @@ class QueueSyncManagerTest {
 		override suspend fun updateSongs(songs: List<SongEntity>) {}
 		override suspend fun getAllSongs(): List<SongEntity> = byId.values.toList()
 		override suspend fun getSongsByAlbumId(albumId: String): List<SongEntity> = emptyList()
+		override suspend fun getSongsByAlbumIds(albumIds: List<String>): List<SongEntity> =
+			emptyList()
+		override suspend fun getLibrarySongIds(): List<String> = emptyList()
 		override suspend fun deleteSong(songId: String) {}
 		override suspend fun isSongStarred(songId: String): Boolean = false
 		override fun observeSongStarred(songId: String): Flow<Boolean> = flowOf(false)

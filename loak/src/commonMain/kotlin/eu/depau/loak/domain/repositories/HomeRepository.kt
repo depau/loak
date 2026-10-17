@@ -74,6 +74,21 @@ sealed interface SpeedDialItem {
 /** Someone else playing a song on the server right now. */
 data class ServerListener(val song: DomainSong, val username: String, val minutesAgo: Int)
 
+/**
+ * The ids [HomeLibrary] carries: everything the shelves can act on, plus a [size]-sized sample of
+ * the rest, stable for a whole [day] so a shelf that shuffles does not shuffle a different
+ * catalogue every refresh.
+ */
+internal fun sampledSongIds(
+	all: List<String>,
+	wanted: Collection<String>,
+	day: Int,
+	size: Int
+): List<String> {
+	val known = wanted.toSet()
+	return known.toList() + all.filterNot { it in known }.shuffled(Random(day)).take(size)
+}
+
 /** The library as Home reads it, loaded once per refresh. */
 class HomeLibrary(val songs: List<DomainSong>, val albums: List<DomainAlbum>) {
 	val songsById = songs.associateBy { it.id }
@@ -100,13 +115,75 @@ class HomeRepository(
 ) {
 	private val json = Json { ignoreUnknownKeys = true }
 
-	// ponytail: the whole library in memory per refresh, like the library's sorting does
+	/**
+	 * The library as the shelves read it: the songs they can act on, and every album's metadata.
+	 *
+	 * ponytail: Room on Native pays per column x row, so reading all 11,690 songs of a big
+	 * library costs ~6 s on iOS and reading every album's songs again as much (the shelves act on
+	 * ~200 of them). Hence: songs are [SAMPLED_SONGS] + everything played/starred/rated, albums
+	 * arrive without their songs, and the albums a shelf shows get theirs back through
+	 * [withSongs]. A shelf that needs a different slice wants its own SQL query, not a bigger
+	 * [HomeLibrary].
+	 */
 	suspend fun library(): HomeLibrary = withContext(IoDispatcher) {
 		HomeLibrary(
-			songs = songDao.getAllSongs().map { it.toDomainModel() },
-			albums = albumDao.getAllAlbumsList().map { it.toDomainModel() }
+			songs = homeSongs(),
+			albums = albumDao.getAllAlbumEntities().map { it.toDomainModel() }
 		)
 	}
+
+	/** The songs [library] carries: see its docs. */
+	private suspend fun homeSongs(): List<DomainSong> {
+		// what the player is on and what the user pinned is acted on even when never played
+		val recent = listeningHistory.heat(
+			HEAT_WINDOW,
+			preferenceManager.quickPicksDecay.halfLife
+		).keys
+		val pinned = pins.value.filter { it.startsWith("song:") }.map { it.removePrefix("song:") }
+		// the song played last may be older than the heat window, and Sonic journey starts there
+		val lastPlayed = listOfNotNull(playLog.lastSong()?.first)
+		val ids = sampledSongIds(
+			all = songDao.getAllSongIds(),
+			wanted = songDao.getLibrarySongIds().toSet() + recent + pinned + lastPlayed,
+			day = (Clock.System.now().epochSeconds / 86_400).toInt(),
+			size = SAMPLED_SONGS
+		)
+		return ids.chunked(MAX_QUERY_IDS)
+			.flatMap { songDao.getSongsByIds(it) }
+			.map { it.toDomainModel() }
+	}
+
+	/**
+	 * Fills in the songs of the albums a shelf is showing — the only ones a play action can
+	 * reach, since nothing else ever sees them. Albums read this way are the ones without songs,
+	 * so an album kept out of a shelf must be enriched before it is played.
+	 */
+	suspend fun withSongs(
+		albums: List<DomainAlbum>
+	): List<DomainAlbum> = withContext(IoDispatcher) {
+		if (albums.isEmpty()) return@withContext albums
+		val byAlbum = albums.map { it.id }
+			.distinct()
+			.chunked(MAX_QUERY_IDS)
+			.flatMap { songDao.getSongsByAlbumIds(it) }
+			.map { it.toDomainModel() }
+			.groupBy { it.albumId }
+		albums.map { album ->
+			album.copy(songs = byAlbum[album.id].orEmpty().sortedBy { song -> song.trackNumber })
+		}
+	}
+
+	/**
+	 * Songs by id, wherever they are: the shelves only carry a slice of the library, so anything
+	 * named by an id from outside it (the server's now-playing list, similar songs) is read back
+	 * from the database.
+	 */
+	private suspend fun songsById(ids: List<String>): Map<String, DomainSong> = ids
+		.distinct()
+		.chunked(MAX_QUERY_IDS)
+		.flatMap { songDao.getSongsByIds(it) }
+		.map { it.toDomainModel() }
+		.associateBy { it.id }
 
 	/** The genres listened to most: song play counts summed per genre. */
 	fun topGenres(library: HomeLibrary, count: Int = 10): List<String> = library.songs
@@ -214,7 +291,21 @@ class HomeRepository(
 		// a new account has played nothing yet
 		if (items.isEmpty()) library.albums.sortedByDescending { it.createdAt }
 			.take(SPEED_DIAL_SIZE).mapTo(items) { SpeedDialItem.Album(it, false) }
-		items
+		withAlbumSongs(items)
+	}
+
+	/** [withSongs], for the speed dial's album tiles. */
+	private suspend fun withAlbumSongs(items: List<SpeedDialItem>): List<SpeedDialItem> {
+		val albumItems = items.filterIsInstance<SpeedDialItem.Album>()
+		if (albumItems.isEmpty()) return items
+		val playable = withSongs(albumItems.map { it.album }).associateBy { it.id }
+		return items.map { item ->
+			if (item is SpeedDialItem.Album) {
+				item.copy(album = playable.getValue(item.album.id))
+			} else {
+				item
+			}
+		}
 	}
 
 	private suspend fun resolve(
@@ -258,10 +349,13 @@ class HomeRepository(
 		val key = "${preferenceManager.listeningHistorySource}|${preferenceManager.quickPicksDecay}" +
 			"|${genre ?: ""}"
 		val now = Clock.System.now()
-		snapshots[key]?.takeIf { !rebuild && now.epochSeconds - it.builtAt < PICKS_TTL.inWholeSeconds }
-			?.ids?.mapNotNull { library.songsById[it] }
-			?.takeIf { it.size >= QUICK_PICKS_SIZE / 2 }
-			?.let { return@withContext it }
+		val snapshot = snapshots[key]
+			?.takeIf { !rebuild && now.epochSeconds - it.builtAt < PICKS_TTL.inWholeSeconds }
+		if (snapshot != null) {
+			val byId = songsById(snapshot.ids)
+			val restored = snapshot.ids.mapNotNull { byId[it] }
+			if (restored.size >= QUICK_PICKS_SIZE / 2) return@withContext restored
+		}
 
 		val picks = buildQuickPicks(library, genre)
 		// drop what has expired rather than keeping one stale list per genre forever
@@ -278,7 +372,7 @@ class HomeRepository(
 			.mapTo(HashSet()) { it.id }
 
 		return pickQuickPicks(library.songs, heat, recentAlbumIds, genre) { seeds ->
-			similarSongsFor(library, seeds)
+			similarSongsFor(seeds)
 		}
 	}
 
@@ -287,8 +381,8 @@ class HomeRepository(
 	 * seeds are asked for at once — this is the one part of Home that waits on the server.
 	 * A failure is not worth an empty list's worth of noise: it just means no curve balls.
 	 */
-	private suspend fun similarSongsFor(library: HomeLibrary, seeds: List<DomainSong>): List<DomainSong> =
-		coroutineScope {
+	private suspend fun similarSongsFor(seeds: List<DomainSong>): List<DomainSong> {
+		val similar = coroutineScope {
 			seeds.map { seed ->
 				async {
 					try {
@@ -299,11 +393,11 @@ class HomeRepository(
 						emptyList()
 					}
 				}
-			}.awaitAll()
-				.flatten()
-				.mapNotNull { library.songsById[it.id] }
-				.distinctBy { it.id }
+			}.awaitAll().flatten()
 		}
+		val byId = songsById(similar.map { it.id })
+		return similar.mapNotNull { byId[it.id] }.distinctBy { it.id }
+	}
 
 	// endregion
 
@@ -396,13 +490,16 @@ class HomeRepository(
 	 */
 	suspend fun nowPlaying(library: HomeLibrary): List<ServerListener> = withContext(IoDispatcher) {
 		val body = sessionManager.api.httpClient.get("getNowPlaying.view").bodyAsText()
-		val entries = json.parseToJsonElement(body).jsonObject["subsonic-response"]
+		val rawEntries = json.parseToJsonElement(body).jsonObject["subsonic-response"]
 			?.jsonObject?.get("nowPlaying")?.jsonObject?.get("entry")?.jsonArray.orEmpty()
-		entries.mapNotNull { element ->
-			val entry = element.jsonObject
+		val entries = rawEntries.map { it.jsonObject }.filter { entry ->
+			val username = entry["username"]?.jsonPrimitive?.content ?: return@filter false
+			!username.equals(sessionManager.username, ignoreCase = true)
+		}
+		val byId = songsById(entries.mapNotNull { it["id"]?.jsonPrimitive?.content })
+		entries.mapNotNull { entry ->
 			val username = entry["username"]?.jsonPrimitive?.content ?: return@mapNotNull null
-			if (username.equals(sessionManager.username, ignoreCase = true)) return@mapNotNull null
-			val song = library.songsById[entry["id"]?.jsonPrimitive?.content] ?: return@mapNotNull null
+			val song = byId[entry["id"]?.jsonPrimitive?.content] ?: return@mapNotNull null
 			ServerListener(song, username, entry["minutesAgo"]?.jsonPrimitive?.int ?: 0)
 		}
 	}
@@ -425,6 +522,10 @@ class HomeRepository(
 		private const val PINS_KEY = "speedDialPins"
 		private const val PICKS_KEY = "quickPicks"
 		const val SPEED_DIAL_SIZE = 26 // 3 pages of 9, less the dice
+		/** Songs besides the played/starred/rated ones [HomeLibrary] carries; see [library]. */
+		private const val SAMPLED_SONGS = 1500
+		/** Room binds one parameter per id, so long id lists are asked for in batches. */
+		private const val MAX_QUERY_IDS = 900
 		private const val SHELF_SIZE = 20
 		/**
 		 * Heat is summed over this window; each play is worth half as much every

@@ -1,5 +1,6 @@
 package eu.depau.loak.data.database.dao
 
+
 import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
@@ -42,8 +43,20 @@ interface SongDao {
 	@Query("SELECT * FROM SongEntity")
 	suspend fun getAllSongs(): List<SongEntity>
 
+	/**
+	 * Ids of the songs a shelf can act on: anything played, starred or rated. Reading only the
+	 * ids keeps this cheap on a big library — a shelf that needs the songs themselves asks for
+	 * these ids back (see `HomeRepository.homeSongs`).
+	 */
+	@Query("SELECT songId FROM SongEntity WHERE playCount > 0 OR starredAt IS NOT NULL OR userRating >= 4")
+	suspend fun getLibrarySongIds(): List<String>
+
 	@Query("SELECT * FROM SongEntity WHERE belongsToAlbumId = :albumId")
 	suspend fun getSongsByAlbumId(albumId: String): List<SongEntity>
+
+	/** The songs of several albums, for the album shelves Home and Explore show. */
+	@Query("SELECT * FROM SongEntity WHERE belongsToAlbumId IN (:albumIds)")
+	suspend fun getSongsByAlbumIds(albumIds: List<String>): List<SongEntity>
 
 	@Query("DELETE FROM SongEntity WHERE songId = :songId")
 	suspend fun deleteSong(songId: String)

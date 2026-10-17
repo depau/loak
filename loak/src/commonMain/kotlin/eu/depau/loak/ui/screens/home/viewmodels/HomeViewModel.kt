@@ -92,7 +92,10 @@ class HomeViewModel(
 		viewModelScope.launch {
 			repository.pins.drop(1).collect {
 				val library = library ?: return@collect
-				if (genre == null) state.update { it.copy(speedDial = repository.speedDial(library)) }
+				if (genre == null) {
+					val speedDial = repository.speedDial(library)
+					state.update { it.copy(speedDial = speedDial) }
+				}
 			}
 		}
 	}
@@ -119,15 +122,20 @@ class HomeViewModel(
 			this@HomeViewModel.library = library
 			val genre = genre
 			val topArtists = repository.topArtists(library, genre)
+			// the library's albums carry no songs: the ones a shelf shows get theirs here,
+			// because those are the ones a play action can reach
+			val speedDial = if (genre == null) repository.speedDial(library) else emptyList()
+			val recentlyAdded = repository.withSongs(repository.recentlyAdded(library, genre))
+			val forgotten = repository.withSongs(repository.forgottenFavourites(library, genre))
 
 			state.update {
 				it.copy(
 					genres = if (fixedGenre == null) repository.topGenres(library) else emptyList(),
-					speedDial = if (genre == null) repository.speedDial(library) else emptyList(),
+					speedDial = speedDial,
 					mixArtists = topArtists,
 					madeForYou = if (genre == null) repository.madeForYou() else emptyList(),
-					recentlyAdded = repository.recentlyAdded(library, genre),
-					forgotten = repository.forgottenFavourites(library, genre),
+					recentlyAdded = recentlyAdded,
+					forgotten = forgotten,
 					// the shelves built from the local library are on screen: the rest, which
 					// waits on the server, fills in below them
 					ready = true,

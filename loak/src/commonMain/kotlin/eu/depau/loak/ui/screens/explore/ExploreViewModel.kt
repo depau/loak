@@ -67,12 +67,19 @@ class ExploreViewModel(
 				(it.topGenres(library, 5).mapNotNull { byName[it] } + all.sortedByDescending { it.albumCount })
 					.distinctBy { it.name }.take(5)
 			}.orEmpty()
+			// the albums a shelf shows need their songs back before a play action can use them
+			val forgotten = home?.let { repository ->
+				repository.withSongs(repository.forgottenFavourites(library, null))
+			}
+			val neverPlayed = home?.let { repository ->
+				repository.withSongs(repository.neverPlayed(library))
+			}
 			state.update {
 				it.copy(
 					genres = genres,
 					genreCount = all.size,
-					forgotten = home?.forgottenFavourites(library, null).orEmpty(),
-					neverPlayed = home?.neverPlayed(library).orEmpty(),
+					forgotten = forgotten.orEmpty(),
+					neverPlayed = neverPlayed.orEmpty(),
 					deepCuts = home?.deepCuts(library).orEmpty()
 				)
 			}
