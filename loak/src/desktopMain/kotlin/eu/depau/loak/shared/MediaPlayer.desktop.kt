@@ -539,19 +539,23 @@ class DesktopMediaPlayerViewModel(
 				isPaused = false
 			)
 		}
-		viewModelScope.launch {
-			try {
-				rodio.playRadio(radio.streamUrl)
-				applyVolume()
-				streamFailed = false
-				scrobbleManager.onMediaChanged(radioId)
-				scrobbleManager.onPlayStateChanged(true)
-			} catch (e: Exception) {
-				Logger.e("DesktopMediaPlayerViewModel", "Failed to start radio stream", e)
-				streamFailed = true
-				_uiState.update { it.copy(isPaused = true, isLoading = false) }
-				snackBarManager.notify(Res.string.notice_stream_failed, streamFailureReason(e))
-			}
+		viewModelScope.launch { startRadioStream(radio.streamUrl, radioId) }
+	}
+
+	/** Starts [url] as the live radio stream for [radioId]. A live stream has no position to
+	 *  resume, so this is also the whole recovery for a radio whose output died. */
+	private suspend fun startRadioStream(url: String, radioId: String) {
+		try {
+			rodio.playRadio(url)
+			applyVolume()
+			streamFailed = false
+			scrobbleManager.onMediaChanged(radioId)
+			scrobbleManager.onPlayStateChanged(true)
+		} catch (e: Exception) {
+			Logger.e("DesktopMediaPlayerViewModel", "Failed to start radio stream", e)
+			streamFailed = true
+			_uiState.update { it.copy(isPaused = true, isLoading = false) }
+			snackBarManager.notify(Res.string.notice_stream_failed, streamFailureReason(e))
 		}
 	}
 
@@ -709,7 +713,15 @@ class DesktopMediaPlayerViewModel(
 		Logger.w("DesktopMediaPlayerViewModel", "No audio progress; rebuilding the audio output")
 		// the last position the engine reported: the new output would start the song over
 		val resumeFrom = lastPositionMs
+		val song = _uiState.value.currentSong
+		val radioUrl = song?.filePath?.takeIf { song.id.startsWith("radio_") }
 		rodio.close()
+		if (radioUrl != null) {
+			// a live stream has neither a position nor a Subsonic id: restart its own URL
+			// (playAt would stream it as if it were a song and fail)
+			viewModelScope.launch { startRadioStream(radioUrl, song.id) }
+			return
+		}
 		playAt(_uiState.value.currentIndex, startPosMs = resumeFrom)
 	}
 
