@@ -148,6 +148,15 @@ The debug variant gets applicationId suffix `.debug` and label *"Loak (Dev)"*; b
 # Build just the Kotlin framework to sanity-check iOS code
 ./gradlew :loak:linkDebugFrameworkIosSimulatorArm64
 
+# Run on a simulator (no signing needed). Keep the *default* DerivedData: the Sentry
+# plugin looks for the package's framework there (see the Sentry section).
+xcrun simctl boot "iPhone 16 Pro"
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build
+xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/iosApp-*/Build/Products/Debug-iphonesimulator/Lo\'ak.app
+xcrun simctl launch booted eu.depau.loak
+xcrun simctl io booted screenshot /tmp/loak.png   # the only way to look at a headless run
+
 # Full app: open iosApp/iosApp.xcodeproj in Xcode, set your team, run the iosApp scheme
 # (or replicate the CI command):
 #   xcodebuild archive -project iosApp/iosApp.xcodeproj -scheme iosApp \
@@ -155,6 +164,7 @@ The debug variant gets applicationId suffix `.debug` and label *"Loak (Dev)"*; b
 #     CODE_SIGN_ENTITLEMENTS="iosApp/entitlements.xml" CODE_SIGN_IDENTITY="-" \
 #     CODE_SIGN_STYLE=Manual AD_HOC_CODE_SIGNING_ALLOWED=YES
 ```
+On Xcode 27 the simulator UI is `/Applications/Xcode.app/Contents/Applications/DeviceHub.app` (there is no `Simulator.app` anymore); `simctl` drives a booted device fine without it.
 `iosApp/Configuration/Config.xcconfig` derives the bundle identifier from `LOAK_DISAMBIGUATOR` (set to your `DEVELOPMENT_TEAM`), the bundle *filename* `Lo'ak.app` from `LOAK_PRODUCT_NAME`, and the home-screen/Spotlight display name `Loak` from `LOAK_DISPLAY_NAME` (apostrophe-free so Spotlight searches for "loak" match — same reason as the Android launcher label), so you can build without clobbering the real `eu.depau.loak`. The in-app brand is the shared Compose `app_name` (`Lo'ak`).
 
 **Icons only (no full build):** `./gradlew :loak:generateValkyrieImageVector`
@@ -178,7 +188,7 @@ Crash/error reporting uses the **Sentry Kotlin Multiplatform SDK** (`io.sentry:s
 - **Init** lives in `loak/src/commonMain/kotlin/eu/depau/loak/di/SentrySetup.kt` — `initializeSentry()`. It is called from the Android `Application.onCreate`, the iOS `AppDelegate.swift` (`SentrySetupKt.initializeSentry()`), and the desktop `main()`. The **DSN is a real project key** (a custom `de`-region `SentrySetup.kt` constant): reporting is live. If it ever needs toggling off (e.g. dev builds), blanking or marking the DSN breaks `Sentry.init` URI parsing — gate the call at the platform entry points instead.
 - **What's reported:** `Logger.e(tag, msg, tr)` forwards non-null `Throwable`s to Sentry on all platforms (`captureSentryError` in `util/Logger.kt`); Sentry's own integrations capture unhandled crashes. **No user data:** `sendDefaultPii` is off (no IP address or city) and no user is set (no username); URLs, hosts, paths and credentials are scrubbed from every event by `SentrySanitizer*.kt`. Keep it that way — never attach usernames, server addresses or song metadata.
 - **Android release traces:** R8 keeps names (`-dontobfuscate`) but still inlines, merges classes and renumbers lines. Each release build embeds a ProGuard UUID (`assets/sentry-debug-meta.properties`, generated in `loakApp/build.gradle.kts`) and CI uploads that build's `mapping.txt` under it (`.github/scripts/upload-sentry-mapping.sh`, needs the `SENTRY_AUTH_TOKEN` secret; skipped without it).
-- **iOS caveat:** the Swift side compiles and the SDK init runs via the framework, but the app is built with plain `embedAndSignAppleFrameworkForXcode` (no SPM/CocoaPods) so **Sentry Cocoa must be linked into the Xcode project** for iOS crash capture to work. Wire it (add Sentry Cocoa via SPM in Xcode, then – if needed – point `sentryKmp { linker { frameworkPath.set(...) } }` at the resolved `Sentry.xcframework`), or Sentry calls become no-ops on iOS. Sentry Cocoa version must be compatible with the KMP SDK version (see the compat table in the sentry-kotlin-multiplatform README).
+- **iOS:** Sentry Cocoa is linked into `iosApp.xcodeproj` as a Swift package (product `Sentry`, pinned to **8.58.2** — the version the KMP SDK `0.27.0` is compiled against, per the compat table in its README; `Package.resolved` is committed, since another Cocoa version breaks the SDK's interop). The app is still built with plain `embedAndSignAppleFrameworkForXcode`: the Gradle plugin links the Kotlin framework against the `Sentry.xcframework` it finds under Xcode's **default** `~/Library/Developer/Xcode/DerivedData`, and **fails iOS target configuration** when it finds none — so build without `-derivedDataPath` (or set `sentryKmp { linker { frameworkPath.set(...) } }` to a framework you keep elsewhere).
 - **Web (Wasm)**: the KMP SDK is a no-op stub for `wasmJs`, so the web reports through `@sentry/browser` (npm, `sentryBrowser` in the catalog) instead: `initializeWebSentry()` in `wasmJsMain/.../di/SentryWeb.kt`, called from the web `main()`. `Logger.e` and `addSentryBreadcrumb` reach it through the `captureWebSentryError`/`addWebSentryBreadcrumb` expects (no-ops elsewhere). Its `beforeSend` runs the same censor, strips the page origin from stack frames, and only the app's own breadcrumbs pass (`beforeBreadcrumb`), never the SDK's console/fetch ones. No PII: v11 replaced `sendDefaultPii` with `dataCollection` (`userInfo: false`). A frozen page can't report itself, so `webApp/.../hang-watchdog.js` runs in a worker, gets a heartbeat every second plus every breadcrumb, and posts an "App Hanging" event (fingerprinted by the last screen) after 5 s without one. It only sees a blocked main thread, not a coroutine waiting forever.
 
 ## Tests

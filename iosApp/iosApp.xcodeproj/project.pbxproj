@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5E17C0DE8B1A4F3A9D2B7C43 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 5E17C0DE8B1A4F3A9D2B7C42 /* Sentry */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		0D27DB70D5FA6738EA57803B /* Lo'ak.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Lo'ak.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5E17C0DE8B1A4F3A9D2B7C43 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,6 +102,7 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				5E17C0DE8B1A4F3A9D2B7C42 /* Sentry */,
 			);
 			productName = iosApp;
 			productReference = 0D27DB70D5FA6738EA57803B /* Lo'ak.app */;
@@ -126,6 +132,9 @@
 			);
 			mainGroup = D3DE8BEB2A547012E65276FD;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5E17C0DE8B1A4F3A9D2B7C41 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1C5EFF8CA22D5AFA7EE3FD12 /* Products */;
 			projectDirPath = "";
@@ -412,6 +421,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5E17C0DE8B1A4F3A9D2B7C41 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = exactVersion;
+				version = 8.58.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5E17C0DE8B1A4F3A9D2B7C42 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E17C0DE8B1A4F3A9D2B7C41 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EF65F46D3114E024100DD71B /* Project object */;
 }
