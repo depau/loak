@@ -13,7 +13,6 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.inject
 import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.domain.manager.AudioFetcher
-import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.IOSScrobbleManager
@@ -37,6 +36,8 @@ import eu.depau.loak.util.Logger
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionPortDescription
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.currentRoute
+import platform.AVFAudio.sampleRate
 import platform.AVFAudio.setActive
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
@@ -117,7 +118,6 @@ class IOSMediaPlayerViewModel(
 			sessionManager,
 			preferenceManager
 		)
-	private val audioStore: AudioStore by inject()
 	private val audioFetcher: AudioFetcher by inject()
 	private val stats: NetworkStatsManager by inject()
 	private var pendingSyncState: PlayerUiState? = null

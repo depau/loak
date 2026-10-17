@@ -29,8 +29,7 @@ import platform.Network.nw_path_uses_interface_type
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.UIKit.UIDevice
-import platform.UIKit.UIDeviceBatteryStateCharging
-import platform.UIKit.UIDeviceBatteryStateFull
+import platform.UIKit.UIDeviceBatteryState
 import platform.UIKit.UIDeviceBatteryStateDidChangeNotification
 import platform.darwin.dispatch_get_main_queue
 
@@ -42,7 +41,8 @@ private data class NetworkStatus(
 
 /** True while the device is plugged in (charging or full). */
 private fun chargingState(uid: UIDevice = UIDevice.currentDevice): Boolean =
-	uid.batteryState == UIDeviceBatteryStateCharging || uid.batteryState == UIDeviceBatteryStateFull
+	uid.batteryState == UIDeviceBatteryState.UIDeviceBatteryStateCharging ||
+		uid.batteryState == UIDeviceBatteryState.UIDeviceBatteryStateFull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 actual class ConnectivityManager(
