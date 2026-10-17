@@ -30,6 +30,13 @@ abstract class UserFlows {
 	 */
 	protected abstract fun playbackProgress(): Float?
 
+	/**
+	 * Whether the listening-history source picker is on screen (the Server &amp; account page).
+	 * True everywhere but the web build, where neither Koito nor Last.fm sends the CORS
+	 * headers the sources need, so the app hides the whole group there.
+	 */
+	protected open fun listeningHistorySourceReachable(): Boolean = true
+
 	@Test
 	fun logInLandsOnHome() = runApp {
 		logIn()
@@ -194,6 +201,10 @@ abstract class UserFlows {
 
 	@Test
 	fun listeningHistorySourceCanBePicked() = runApp {
+		// the web build has no such picker: neither Koito nor Last.fm sends the CORS
+		// headers a browser needs, so the sources cannot work there anyway (the group is
+		// hidden, and this flow would time out waiting for a row that can't be shown)
+		if (!listeningHistorySourceReachable()) return@runApp
 		logIn()
 		openSettings()
 		// the row on the Server & account page is labelled with the source that is on

@@ -35,4 +35,7 @@ class WebUserFlows : UserFlows() {
 	// the browsers may autoplay (karma.config.d) and play without an audio device
 	override fun playbackProgress() =
 		KoinPlatform.getKoin().get<MediaPlayerViewModel>().uiState.value.progress
+
+	// no listening-history sources on the web build (see UserFlows)
+	override fun listeningHistorySourceReachable() = false
 }
