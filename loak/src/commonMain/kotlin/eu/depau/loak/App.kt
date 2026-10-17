@@ -385,20 +385,34 @@ fun App(platform: @Composable (AppActions) -> Unit = {}) {
 						.fillMaxSize()
 						// right-click menus open where the click was
 						.trackRightClicks()
-						// keyboards (desktop, web, tablets with one): F5 / Ctrl+R refresh the
-						// screen, / and Ctrl+F search, Ctrl+, opens settings, Alt+Left and
-						// Cmd+[ go back (Esc already does), Alt+Right and Cmd+] go forward,
-						// Ctrl+arrows skip tracks; space and the media keys control playback
-						// unless a text field or a focused button takes precedence. Media keys
-						// are consumed on key-down so a key held down doesn't repeat-toggle.
+						// keyboard shortcuts on desktop (F5 / Ctrl+R refresh the screen, / and
+						// Ctrl+F search, Ctrl+, opens settings, Alt+Left and Cmd+[ go back (Esc
+						// already does), Alt+Right and Cmd+] go forward, Ctrl+arrows skip
+						// tracks); space and the media keys control playback unless a text
+						// field is being typed in. Media keys are consumed on key-down so a key
+						// held down doesn't repeat-toggle.
 					.focusRequester(rootFocus)
 					// Esc is back, before focus handling gets it: otherwise it only clears focus and
 					// nothing closes (the player, karaoke, the queue sheet). Popups (menus, sheets,
 					// dialogs) get their own key events and close themselves.
+					//
+					// Space also runs here when the player is open: a control the user clicked
+					// (the last button pressed) keeps focus and would swallow space and "press"
+					// itself instead of toggling playback. Previewing lets space win over that
+					// focus, like it does everywhere else in the player; typing still takes
+					// precedence.
 					.onPreviewKeyEvent { event ->
-						if (event.key != Key.Escape) return@onPreviewKeyEvent false
-						if (event.type == KeyEventType.KeyDown) actions.back()
-						true
+						when {
+							event.key == Key.Escape -> {
+								if (event.type == KeyEventType.KeyDown) actions.back()
+								true
+							}
+							event.key == Key.Spacebar && playerSheet.isVisible && textInputs == 0 -> {
+								if (event.type == KeyEventType.KeyDown) actions.playPause()
+								true
+							}
+							else -> false
+						}
 					}
 					.focusTarget()
 						.onKeyEvent { event ->
