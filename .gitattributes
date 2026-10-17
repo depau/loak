@@ -1,0 +1,2 @@
+# git apply needs the native patches' LF lines as they are, even in a Windows checkout
+loakDesktop/nucleus/**/*.patch -text
