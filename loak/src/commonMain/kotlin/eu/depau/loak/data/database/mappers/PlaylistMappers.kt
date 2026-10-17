@@ -37,7 +37,7 @@ fun PlaylistWithSongs.toDomainModel() = DomainPlaylist(
 	validUntil = playlist.validUntil,
 	songs = songs
 		.sortedBy { it.crossRef.position }
-		.map { it.song.toDomainModel() }
+		.map { it.songs.first().toDomainModel() }
 )
 
 fun DomainPlaylist.toEntity() = PlaylistEntity(

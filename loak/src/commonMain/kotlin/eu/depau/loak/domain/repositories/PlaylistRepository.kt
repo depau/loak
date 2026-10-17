@@ -63,7 +63,7 @@ class PlaylistRepository(
 			filters.all { filter ->
 				when (filter) {
 					DomainFilter.Starred -> false // not applicable
-					DomainFilter.Downloaded -> downloadedIds != null && downloadedIds.containsAll(songs.map { it.song.songId })
+					DomainFilter.Downloaded -> downloadedIds != null && downloadedIds.containsAll(songs.map { it.songs.first().songId })
 				}
 			}
 		}.map { it.toDomainModel() }
@@ -231,7 +231,7 @@ private suspend fun songsToAppend(id: String, songs: List<DomainSong>): List<Dom
 		playlistDao.insertPlaylist(
 			playlist.playlist.copy(
 				songCount = songIds.size,
-				duration = playlist.songs.fold(Duration.ZERO) { sum, it -> sum + it.song.duration }
+				duration = playlist.songs.fold(Duration.ZERO) { sum, it -> sum + it.songs.first().duration }
 			)
 		)
 	}

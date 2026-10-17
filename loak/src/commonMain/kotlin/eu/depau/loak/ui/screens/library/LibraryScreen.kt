@@ -410,7 +410,7 @@ private fun DownloadsPlaylistsTab(
 		items(playlists, key = { it.playlist.playlist.playlistId }) { row ->
 			val entity = row.playlist.playlist
 			val total = entity.songCount.coerceAtLeast(row.playlist.songs.size.coerceAtLeast(1))
-			val done = row.playlist.songs.count { it.song.songId in downloadedIds }
+			val done = row.playlist.songs.count { it.songs.first().songId in downloadedIds }
 			val rec = row.subscribed
 			val scope = rememberCoroutineScope()
 			CollectionRow(

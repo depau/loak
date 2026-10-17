@@ -609,7 +609,7 @@ class DownloadManager(
 				albumDao.getAlbumById(album.id)?.toDomainModel()?.songs ?: emptyList()
 			} else {
 				dbRepository.syncPlaylistSongs(collectionId).getOrNull()
-				playlistDao.getPlaylistById(collectionId)?.songs.orEmpty().map { it.song.toDomainModel() }
+				playlistDao.getPlaylistById(collectionId)?.songs.orEmpty().map { it.songs.first().toDomainModel() }
 			}
 		} catch (e: Exception) {
 			if (e is CancellationException) throw e
