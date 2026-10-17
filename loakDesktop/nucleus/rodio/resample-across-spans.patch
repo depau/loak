@@ -1,0 +1,113 @@
+diff --git a/src/source/uniform.rs b/src/source/uniform.rs
+index b92642f..5468071 100644
+--- a/src/source/uniform.rs
++++ b/src/source/uniform.rs
+@@ -60,6 +60,8 @@ where
+         let input = Take {
+             iter: input,
+             n: span_len,
++            channels: from_channels,
++            sample_rate: from_sample_rate,
+         };
+         let input =
+             SampleRateConverter::new(input, from_sample_rate, target_sample_rate, from_channels);
+@@ -129,10 +131,18 @@ where
+     }
+ }
+ 
++/// Ends where the input's channels or sample rate change, so that `UniformSourceIterator`
++/// rebuilds the converters for the new format. It checks at every span boundary, but a span
++/// in the same format carries on through the same converters: rebuilding them there restarts
++/// the resampler's interpolation, which puts a click at every span (every decoded packet) of
++/// resampled audio.
+ #[derive(Clone, Debug)]
+ struct Take<I> {
+     iter: I,
++    /// Samples left before the next check.
+     n: Option<usize>,
++    channels: ChannelCount,
++    sample_rate: SampleRate,
+ }
+ 
+ impl<I> Take<I> {
+@@ -144,41 +154,59 @@ impl<I> Take<I> {
+ 
+ impl<I> Iterator for Take<I>
+ where
+-    I: Iterator,
++    I: Source,
+ {
+     type Item = <I as Iterator>::Item;
+ 
+     #[inline]
+     fn next(&mut self) -> Option<<I as Iterator>::Item> {
+-        if let Some(n) = &mut self.n {
+-            if *n != 0 {
+-                *n -= 1;
+-                self.iter.next()
+-            } else {
+-                None
++        if self.n == Some(0) {
++            if self.iter.channels() != self.channels || self.iter.sample_rate() != self.sample_rate
++            {
++                return None;
+             }
+-        } else {
+-            self.iter.next()
++            self.n = self.iter.current_span_len().map(|x| x.min(32768));
+         }
++        if let Some(n) = &mut self.n {
++            *n = n.saturating_sub(1);
++        }
++        self.iter.next()
+     }
+ 
+     #[inline]
+     fn size_hint(&self) -> (usize, Option<usize>) {
+-        if let Some(n) = self.n {
+-            let (lower, upper) = self.iter.size_hint();
++        // it goes on past `n` while the format stays the same: only the lower bound is capped
++        let (lower, upper) = self.iter.size_hint();
++        match self.n {
++            Some(n) => (cmp::min(lower, n), upper),
++            None => (lower, upper),
++        }
++    }
++}
+ 
+-            let lower = cmp::min(lower, n);
++#[cfg(test)]
++mod test {
++    use super::UniformSourceIterator;
++    use crate::buffer::SamplesBuffer;
++    use crate::source::from_iter;
+ 
+-            let upper = match upper {
+-                Some(x) if x < n => Some(x),
+-                _ => Some(n),
+-            };
++    fn sine(range: std::ops::Range<usize>) -> Vec<f32> {
++        range
++            .map(|n| (n as f32 * 2.0 * std::f32::consts::PI * 3000.0 / 44100.0).sin())
++            .collect()
++    }
+ 
+-            (lower, upper)
+-        } else {
+-            self.iter.size_hint()
++    #[test]
++    fn spans_in_the_same_format_resample_like_one_span() {
++        let whole: Vec<f32> =
++            UniformSourceIterator::new(SamplesBuffer::new(1, 44100, sine(0..44100)), 1, 48000)
++                .collect();
++        let spans = (0..100).map(|i| SamplesBuffer::new(1, 44100, sine(i * 441..(i + 1) * 441)));
++        let spanned: Vec<f32> = UniformSourceIterator::new(from_iter(spans), 1, 48000).collect();
++
++        assert_eq!(spanned.len(), whole.len());
++        for (n, (a, b)) in spanned.iter().zip(&whole).enumerate() {
++            assert!((a - b).abs() < 1e-6, "sample {n}: {a} != {b}");
+         }
+     }
+ }
+-
+-impl<I> ExactSizeIterator for Take<I> where I: ExactSizeIterator {}

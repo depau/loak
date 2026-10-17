@@ -10,6 +10,7 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileSystemLocation
 import org.gradle.api.file.FileSystemOperations
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.CacheableTask
@@ -89,6 +90,15 @@ abstract class BuildPatchedNative @Inject constructor(
 	@get:Input
 	abstract val library: Property<String>
 
+	/**
+	 * crates.io dependencies of the crate built from patched sources instead, by crate name.
+	 * Their unit tests run first, so a patch can carry its own. The version checked out must
+	 * still be the one the crate's Cargo.lock asks for, or Cargo would leave the patched source
+	 * out; the build fails then.
+	 */
+	@get:Nested
+	abstract val patchedCrates: MapProperty<String, GitSource>
+
 	@get:Input
 	val platform = HostPlatform.current.name
 
@@ -102,12 +112,28 @@ abstract class BuildPatchedNative @Inject constructor(
 		fs.delete { delete(work) }
 		try {
 			val crate = checkout(source.get(), File(work, "crate"))
+			val overrides = patchedCrates.get().flatMap { (name, dependency) ->
+				val dir = checkout(dependency, File(work, name))
+				run(
+					"cargo", "test", "--lib",
+					"--manifest-path", File(dir, "Cargo.toml").path,
+					"--target-dir", File(work, "target").path,
+				)
+				listOf("--config", "patch.crates-io.$name.path=\"${dir.invariantSeparatorsPath}\"")
+			}
 			run(
 				"cargo", "build", "--release",
 				"--manifest-path", File(crate, "Cargo.toml").path,
 				"--target", host.rustTarget,
 				"--target-dir", File(work, "target").path,
+				*overrides.toTypedArray(),
 			)
+			for (name in patchedCrates.get().keys) {
+				check(isPathDependency(File(crate, "Cargo.lock"), name)) {
+					"Cargo left the patched $name out: ${source.get().repository} no longer " +
+						"uses the version patched, redo the patch on the version it does use"
+				}
+			}
 			val file = host.libraryFile(library.get())
 			fs.delete { delete(outputDir) }
 			fs.copy {
@@ -137,6 +163,12 @@ abstract class BuildPatchedNative @Inject constructor(
 	private fun run(vararg command: String) {
 		exec.exec { commandLine(*command) }
 	}
+
+	/** Whether [lockfile] takes [crate] from a path (a `[patch]`) rather than a registry. */
+	private fun isPathDependency(lockfile: File, crate: String): Boolean =
+		lockfile.readText().split("[[package]]").any { block ->
+			block.contains("name = \"$crate\"\n") && !block.contains("source = ")
+		}
 }
 
 /**

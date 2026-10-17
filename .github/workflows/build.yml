@@ -276,16 +276,15 @@ jobs:
           node-version: 22
 
       # electron-builder's AppImage step needs FUSE 2 and its RPM step rpmbuild; Nucleus' patched
-      # Tao native (loakDesktop/nucleus) builds against GTK 3
+      # natives (loakDesktop/nucleus) build against GTK 3 (Tao) and ALSA (rodio)
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfuse2t64 rpm libgtk-3-dev libdbus-1-dev libx11-dev libglib2.0-dev
+          sudo apt-get install -y libfuse2t64 rpm libgtk-3-dev libdbus-1-dev libx11-dev libglib2.0-dev libasound2-dev pkg-config
 
       # the build compiles Nucleus' patched natives (loakDesktop/nucleus) with cargo
       - name: Setup Rust
-        if: runner.os == 'Linux'
         uses: dtolnay/rust-toolchain@stable
 
       # The desktop UI tests, user flows included: the real app against a pinned Navidrome

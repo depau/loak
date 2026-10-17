@@ -96,6 +96,23 @@ tasks.named<Test>("desktopTest") {
 
 // Nucleus native libraries rebuilt with Lo'ak's patches (nucleus/), built on first use (needs
 // cargo) and swapped into Nucleus' jars for the app, its packages and its UI tests alike.
+val nucleusRodio by tasks.registering(BuildPatchedNative::class) {
+	source = GitSource(
+		"https://github.com/NucleusFramework/AudioKt.git",
+		"v${libs.versions.nucleus.rodio.get()}",
+		files(),
+		path = "rodio/src/main/native",
+	)
+	library = "nucleus_rodio"
+	// rodio's resampler restarted on every decoded packet, clicking at each one whenever the
+	// song's rate isn't the output's (a 44.1 kHz song on a 48 kHz device); v0.21.1 is the
+	// version AudioKt's Cargo.lock pins
+	patchedCrates.put(
+		"rodio",
+		GitSource("https://github.com/RustAudio/rodio.git", "v0.21.1", fileTree("nucleus/rodio")),
+	)
+	outputDir = layout.buildDirectory.dir("nucleus-natives/rodio")
+}
 // touchpad scroll phases on Wayland, which the trackpad swipes need
 val nucleusTao = if (HostPlatform.current.isLinux) {
 	tasks.register<BuildPatchedNative>("nucleusTao") {
@@ -112,7 +129,7 @@ val nucleusTao = if (HostPlatform.current.isLinux) {
 	null
 }
 swapNucleusNatives(
-	files(listOfNotNull(nucleusTao)),
+	files(listOfNotNull(nucleusRodio, nucleusTao)),
 	"desktopRuntimeClasspath",
 	"desktopTestRuntimeClasspath",
 )
