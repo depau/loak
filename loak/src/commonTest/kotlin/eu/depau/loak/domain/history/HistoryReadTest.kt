@@ -92,7 +92,7 @@ class HistoryReadTest {
 	}
 
 	@Test
-	fun `a source that refuses every request reads as unreadable, not as empty`() = runTest {
+	fun `a source that refuses every request reads as unreadable not as empty`() = runTest {
 		assertNull(koitoSource(refused()).recentListens(0, 10, 100))
 	}
 

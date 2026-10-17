@@ -116,7 +116,7 @@ class RecapTest {
 	}
 
 	@Test
-	fun `totals count plays, distinct tracks, artists and duration`() {
+	fun `totals count plays and distinct tracks and artists and duration`() {
 		val spans = recapSpans(RecapPeriod.Week, now, zone, oldest = now)
 		val recap = buildRecap(
 			listens = mapOf(
