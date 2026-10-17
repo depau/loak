@@ -1,8 +1,5 @@
 import dev.nucleusframework.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
-import java.util.zip.ZipOutputStream
 
 plugins {
 	alias(libs.plugins.kotlinMultiplatform)
@@ -97,55 +94,28 @@ tasks.named<Test>("desktopTest") {
 	usesNavidrome(this)
 }
 
-// Nucleus' Tao native library rebuilt with our patches (nucleus/build-native.sh: touchpad
-// scroll phases on Linux Wayland), swapped into Nucleus' jar in place of its own when
-// -Ploak.nucleusNative points at the script's output. CI builds it for the Linux packages.
-providers.gradleProperty("loak.nucleusNative").orNull?.let { nativeDir ->
-	val patched = Attribute.of("loak.nucleusNativePatched", Boolean::class.javaObjectType)
-	dependencies {
-		attributesSchema { attribute(patched) }
-		artifactTypes.getByName("jar").attributes.attribute(patched, false)
-		registerTransform(PatchNucleusNative::class) {
-			from.attribute(patched, false)
-			to.attribute(patched, true)
-			parameters.nativeDir.set(file(nativeDir))
-		}
+// Nucleus native libraries rebuilt with Lo'ak's patches (nucleus/), built on first use (needs
+// cargo) and swapped into Nucleus' jars for the app, its packages and its UI tests alike.
+// touchpad scroll phases on Wayland, which the trackpad swipes need
+val nucleusTao = if (HostPlatform.current.isLinux) {
+	tasks.register<BuildPatchedNative>("nucleusTao") {
+		source = GitSource(
+			"https://github.com/NucleusFramework/Nucleus.git",
+			"v${libs.versions.nucleus.asProvider().get()}",
+			fileTree("nucleus/tao"),
+			path = "decorated-window-tao/src/main/native",
+		)
+		library = "nucleus_tao"
+		outputDir = layout.buildDirectory.dir("nucleus-natives/tao")
 	}
-	configurations.named("desktopRuntimeClasspath") { attributes.attribute(patched, true) }
+} else {
+	null
 }
-
-abstract class PatchNucleusNative : TransformAction<PatchNucleusNative.Parameters> {
-	interface Parameters : TransformParameters {
-		/** `<platform>/libnucleus_tao.so` files, the platforms named as in Nucleus' jar. */
-		@get:InputDirectory
-		val nativeDir: DirectoryProperty
-	}
-
-	@get:InputArtifact
-	abstract val input: Provider<FileSystemLocation>
-
-	override fun transform(outputs: TransformOutputs) {
-		val jar = input.get().asFile
-		if (!jar.name.startsWith("nucleus.decorated-window-tao-")) {
-			outputs.file(jar)
-			return
-		}
-		val natives = parameters.nativeDir.get().asFile
-		var replaced = 0
-		ZipFile(jar).use { zip ->
-			ZipOutputStream(outputs.file(jar.name).outputStream()).use { out ->
-				for (entry in zip.entries()) {
-					val ours = natives.resolve(entry.name.removePrefix("nucleus/native/"))
-						.takeIf { entry.name.endsWith("/libnucleus_tao.so") && it.isFile }
-					out.putNextEntry(ZipEntry(entry.name))
-					(ours?.inputStream() ?: zip.getInputStream(entry)).use { it.copyTo(out) }
-					if (ours != null) replaced++
-				}
-			}
-		}
-		check(replaced > 0) { "no libnucleus_tao.so in $natives matches ${jar.name}" }
-	}
-}
+swapNucleusNatives(
+	files(listOfNotNull(nucleusTao)),
+	"desktopRuntimeClasspath",
+	"desktopTestRuntimeClasspath",
+)
 
 nucleus.application {
 	mainClass = "eu.depau.loak.desktopapp.MainKt"
