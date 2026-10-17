@@ -336,22 +336,35 @@ jobs:
       - name: Build desktop package
         shell: bash
         run: |
+          # Transient infra flake: on a slow runner (windows-11-arm) Gradle's
+          # buildFinished listener flush can time out *after* the package is
+          # written ("Timeout waiting for concurrent jobs to complete"), failing
+          # the build for nothing. A rerun sees the task up-to-date and is fast;
+          # a real failure still fails every attempt.
+          retry() {
+            local n=3
+            for i in $(seq 1 "$n"); do
+              if "$@"; then return 0; fi
+              echo "::warning::Gradle run failed (attempt $i/$n); retrying: $*"
+            done
+            return 1
+          }
           # Run each format as its own gradle invocation: on Linux/Windows the
           # per-OS formats share the intermediate app-image output, so the
           # multi-format packageDistributionForCurrentOS task graph collides.
           case "${{ runner.os }}" in
             macOS)
-              ./gradlew :loakDesktop:packageDmg --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
-              ./gradlew :loakDesktop:packageZip --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              retry ./gradlew :loakDesktop:packageDmg --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              retry ./gradlew :loakDesktop:packageZip --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
               ;;
             Windows)
-              ./gradlew :loakDesktop:packageMsi --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
-              ./gradlew :loakDesktop:packageExe --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              retry ./gradlew :loakDesktop:packageMsi --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              retry ./gradlew :loakDesktop:packageExe --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
               ;;
               *)
-              ./gradlew :loakDesktop:packageDeb --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
-              ./gradlew :loakDesktop:packageRpm --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
-              ./gradlew :loakDesktop:packageAppImage --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
+              retry ./gradlew :loakDesktop:packageDeb --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
+              retry ./gradlew :loakDesktop:packageRpm --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
+              retry ./gradlew :loakDesktop:packageAppImage --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
               ;;
           esac
       - name: Build portable archive
