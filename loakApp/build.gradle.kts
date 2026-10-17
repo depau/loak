@@ -90,7 +90,7 @@ extensions.configure<ApplicationExtension> {
 			matchingFallbacks += "release"
 			proguardFile("proguard-ui-test-rules.pro")
 			// R8 shrinks the test APK too when the tested app is
-			testProguardFiles("proguard-test-rules.pro")
+			testProguardFiles("proguard-ui-test-rules.pro", "proguard-test-rules.pro")
 		}
 	}
 	testBuildType = providers.gradleProperty("loak.uiTestBuildType").getOrElse("debug")
