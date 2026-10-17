@@ -157,6 +157,19 @@ xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/iosApp-*/Build
 xcrun simctl launch booted eu.depau.loak
 xcrun simctl io booted screenshot /tmp/loak.png   # the only way to look at a headless run
 
+# Run on a physical iPhone: signing is overridden on the command line so the
+# CI-oriented manual/ad-hoc signing in the project stays untouched. Xcode must be
+# signed into a developer account (Settings → Accounts) for -allowProvisioningUpdates.
+UDID=$(xcrun devicectl list devices | awk '$0 ~ /physical/ {print $3}')
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
+  -destination "platform=iOS,id=$UDID" \
+  DEVELOPMENT_TEAM=<TEAM_ID> CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
+  -allowProvisioningUpdates build
+xcrun devicectl device install app --device "$UDID" \
+  ~/Library/Developer/Xcode/DerivedData/iosApp-*/Build/Products/Debug-iphoneos/Lo\'ak.app
+xcrun devicectl device process launch --device "$UDID" eu.depau.loak<TEAM_ID>
+xcrun devicectl device capture screenshot --device "$UDID" --destination /tmp/iphone.png
+
 # Full app: open iosApp/iosApp.xcodeproj in Xcode, set your team, run the iosApp scheme
 # (or replicate the CI command):
 #   xcodebuild archive -project iosApp/iosApp.xcodeproj -scheme iosApp \
@@ -165,6 +178,7 @@ xcrun simctl io booted screenshot /tmp/loak.png   # the only way to look at a he
 #     CODE_SIGN_STYLE=Manual AD_HOC_CODE_SIGNING_ALLOWED=YES
 ```
 On Xcode 27 the simulator UI is `/Applications/Xcode.app/Contents/Applications/DeviceHub.app` (there is no `Simulator.app` anymore); `simctl` drives a booted device fine without it.
+A **free** developer team works for the device recipe above, with iOS' own limits: the first launch needs the app's developer to be trusted on the phone (Settings → General → VPN & Device Management), only **3** free-provisioned apps can be installed on a device at once, and both the profile and the trust expire after **7 days** — re-run the build and install to refresh them. A paid team has none of these limits and a one-year profile.
 `iosApp/Configuration/Config.xcconfig` derives the bundle identifier from `LOAK_DISAMBIGUATOR` (set to your `DEVELOPMENT_TEAM`), the bundle *filename* `Lo'ak.app` from `LOAK_PRODUCT_NAME`, and the home-screen/Spotlight display name `Loak` from `LOAK_DISPLAY_NAME` (apostrophe-free so Spotlight searches for "loak" match — same reason as the Android launcher label), so you can build without clobbering the real `eu.depau.loak`. The in-app brand is the shared Compose `app_name` (`Lo'ak`).
 
 **Icons only (no full build):** `./gradlew :loak:generateValkyrieImageVector`
