@@ -137,7 +137,19 @@ class HomeRepository(
 		val songs = if (read.plays.isEmpty()) emptyMap() else {
 			songDao.getSongsByIds(read.plays.keys.toList()).associate { it.songId to it.toDomainModel() }
 		}
-		buildRecap(read.plays, songs, spans, zone, listeningHistory.id, read.unreadable)
+		val recap = buildRecap(read.plays, songs, spans, zone, listeningHistory.id, read.unreadable)
+		// a played song carries its album's art, not its artist's: the Artist cards read it off
+		// the artist, like every other artist card in the app
+		val art = if (recap.topArtists.isEmpty()) emptyMap() else {
+			artistDao.getArtistsByIds(recap.topArtists.map { it.id })
+				.associate { it.artistId to it.coverArtId }
+		}
+		recap.copy(
+			topArtists = recap.topArtists.map { artist ->
+				// the artist's own image when the server has one, else what was played
+				artist.copy(coverArtId = art[artist.id]?.takeIf(String::isNotBlank) ?: artist.coverArtId)
+			}
+		)
 	}
 
 	// endregion

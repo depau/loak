@@ -221,7 +221,15 @@ fun buildRecap(
 		previous = previousTotals,
 		activity = activityGrid(activity, spans, zone),
 		topArtists = top(TOP_ARTISTS, key = { it.artistId }) { song, plays ->
-			RecapEntry(song.artistId, song.artistName ?: song.artistId, subtitle = null, coverArtId = null, plays = plays)
+			// an artist has no art of its own in a history: what was played stands in for it
+			// until the artist's own image is looked up (HomeRepository.recap)
+			RecapEntry(
+				song.artistId,
+				song.artistName ?: song.artistId,
+				subtitle = null,
+				coverArtId = song.coverArtId,
+				plays = plays
+			)
 		},
 		topAlbums = top(TOP_ALBUMS, key = { it.albumId }) { song, plays ->
 			RecapEntry(

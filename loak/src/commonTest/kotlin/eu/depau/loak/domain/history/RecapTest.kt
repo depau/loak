@@ -160,6 +160,8 @@ class RecapTest {
 
 		assertEquals(listOf("artist-A", "artist-B", "artist-C"), recap.topArtists.map { it.id })
 		assertEquals(3, recap.topArtists.first().plays)
+		// an artist card shows art: what was played stands in until the artist's own is read
+		assertEquals(listOf("cover-s1", "cover-s3", "cover-s4"), recap.topArtists.map { it.coverArtId })
 		assertEquals(listOf("album-One", "album-Three", "album-Two"), recap.topAlbums.map { it.id })
 		assertEquals(listOf("s1", "s2", "s3", "s4"), recap.topTracks.map { it.id })
 	}
