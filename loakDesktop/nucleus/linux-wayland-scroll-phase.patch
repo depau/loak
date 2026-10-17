@@ -1,0 +1,62 @@
+diff --git a/decorated-window-tao/src/main/native/vendor/tao/src/platform_impl/linux/event_loop.rs b/decorated-window-tao/src/main/native/vendor/tao/src/platform_impl/linux/event_loop.rs
+index 6cf94fb6..802e6180 100644
+--- a/decorated-window-tao/src/main/native/vendor/tao/src/platform_impl/linux/event_loop.rs
++++ b/decorated-window-tao/src/main/native/vendor/tao/src/platform_impl/linux/event_loop.rs
+@@ -939,7 +939,13 @@ impl<T: 'static> EventLoop<T> {
+             });
+ 
+             let tx_clone = event_tx.clone();
++            // PATCH(nucleus): a touchpad scroll in progress, for its phases.
++            let touchpad_scrolling = std::cell::Cell::new(false);
+             window.connect_scroll_event(move |_, event| {
++              let Some(scroll_phase) = touchpad_scroll_phase(event, is_wayland, &touchpad_scrolling)
++              else {
++                return glib::Propagation::Proceed;
++              };
+               // GDK only fills `delta_x`/`delta_y` for GDK_SCROLL_SMOOTH
+               // (trackpads). A discrete mouse wheel arrives with
+               // `direction = UP/DOWN/LEFT/RIGHT` and a zero delta, so the
+@@ -963,7 +969,7 @@ impl<T: 'static> EventLoop<T> {
+                     ScrollDirection::Smooth => TouchPhase::Moved,
+                     _ => TouchPhase::Ended,
+                   },
+-                  scroll_phase: crate::event::ScrollPhase::None,
++                  scroll_phase,
+                   modifiers: ModifiersState::empty(),
+                 },
+               }) {
+@@ -1517,6 +1523,34 @@ impl<T: 'static> EventLoopProxy<T> {
+   }
+ }
+ 
++/// PATCH(nucleus): the [`ScrollPhase`] of a touchpad scroll. GDK ends a finger
++/// scroll with a zero-delta stop event, which only Wayland sends (X11 never
++/// says when a scroll is over), so there touchpad scrolls stay phase-less, like
++/// wheels. No momentum phases: GDK leaves kinetic scrolling to the toolkit.
++/// `None` drops the event: a stop outside a touchpad scroll.
++fn touchpad_scroll_phase(
++  event: &gdk::EventScroll,
++  is_wayland: bool,
++  scrolling: &std::cell::Cell<bool>,
++) -> Option<crate::event::ScrollPhase> {
++  use crate::event::ScrollPhase;
++  if event.is_stop() {
++    return scrolling.replace(false).then_some(ScrollPhase::Ended);
++  }
++  let touchpad = is_wayland
++    && event.direction() == ScrollDirection::Smooth
++    && event
++      .source_device()
++      .is_some_and(|device| device.input_source() == gdk::InputSource::Touchpad);
++  Some(if !touchpad {
++    ScrollPhase::None
++  } else if scrolling.replace(true) {
++    ScrollPhase::Changed
++  } else {
++    ScrollPhase::Began
++  })
++}
++
+ fn assert_is_main_thread(suggested_method: &str) {
+   assert!(
+     is_main_thread(),

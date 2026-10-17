@@ -1,5 +1,8 @@
 import dev.nucleusframework.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 plugins {
 	alias(libs.plugins.kotlinMultiplatform)
@@ -92,6 +95,56 @@ tasks.named<Test>("desktopTest") {
 	systemProperty("user.home", home.absolutePath)
 	systemProperty("loak.uitest.failures", layout.buildDirectory.dir("ui-test-failures").get().asFile.absolutePath)
 	usesNavidrome(this)
+}
+
+// Nucleus' Tao native library rebuilt with our patches (nucleus/build-native.sh: touchpad
+// scroll phases on Linux Wayland), swapped into Nucleus' jar in place of its own when
+// -Ploak.nucleusNative points at the script's output. CI builds it for the Linux packages.
+providers.gradleProperty("loak.nucleusNative").orNull?.let { nativeDir ->
+	val patched = Attribute.of("loak.nucleusNativePatched", Boolean::class.javaObjectType)
+	dependencies {
+		attributesSchema { attribute(patched) }
+		artifactTypes.getByName("jar").attributes.attribute(patched, false)
+		registerTransform(PatchNucleusNative::class) {
+			from.attribute(patched, false)
+			to.attribute(patched, true)
+			parameters.nativeDir.set(file(nativeDir))
+		}
+	}
+	configurations.named("desktopRuntimeClasspath") { attributes.attribute(patched, true) }
+}
+
+abstract class PatchNucleusNative : TransformAction<PatchNucleusNative.Parameters> {
+	interface Parameters : TransformParameters {
+		/** `<platform>/libnucleus_tao.so` files, the platforms named as in Nucleus' jar. */
+		@get:InputDirectory
+		val nativeDir: DirectoryProperty
+	}
+
+	@get:InputArtifact
+	abstract val input: Provider<FileSystemLocation>
+
+	override fun transform(outputs: TransformOutputs) {
+		val jar = input.get().asFile
+		if (!jar.name.startsWith("nucleus.decorated-window-tao-")) {
+			outputs.file(jar)
+			return
+		}
+		val natives = parameters.nativeDir.get().asFile
+		var replaced = 0
+		ZipFile(jar).use { zip ->
+			ZipOutputStream(outputs.file(jar.name).outputStream()).use { out ->
+				for (entry in zip.entries()) {
+					val ours = natives.resolve(entry.name.removePrefix("nucleus/native/"))
+						.takeIf { entry.name.endsWith("/libnucleus_tao.so") && it.isFile }
+					out.putNextEntry(ZipEntry(entry.name))
+					(ours?.inputStream() ?: zip.getInputStream(entry)).use { it.copyTo(out) }
+					if (ours != null) replaced++
+				}
+			}
+		}
+		check(replaced > 0) { "no libnucleus_tao.so in $natives matches ${jar.name}" }
+	}
 }
 
 nucleus.application {

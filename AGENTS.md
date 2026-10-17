@@ -235,6 +235,8 @@ For UI changes: **manually verify on different themes and form factors and inclu
 
 11. **Never provide `LocalNavigationEventDispatcherOwner` over the platform's.** Dialogs (`ModalBottomSheet`, `Dialog`) inherit composition locals from the screen that shows them, so their back handlers would register with the provided dispatcher, while Android delivers back to the dialog's own window: back and the back gesture then silently do nothing on every open sheet. `App.kt` feeds keyboard/mouse back into the platform's dispatcher and only provides one of its own where the platform has none.
 
+12. **Linux packages ship a patched Nucleus native.** `loakDesktop/nucleus/build-native.sh` rebuilds Nucleus' Tao library (`libnucleus_tao.so`) at the Nucleus version in the catalog with the `*.patch` files next to it (touchpad scroll phases on Wayland, which the trackpad swipes need); `-Ploak.nucleusNative=<its output dir>` makes the build swap it into Nucleus' jar. CI does both on the Linux jobs; local and non-Linux builds use Nucleus' own library. On a Nucleus bump the patch must still apply (the script fails otherwise): rebase it on the new version's `decorated-window-tao/src/main/native`, or drop it once Nucleus ships the change.
+
 ## Quick orientation questions
 
 - *Where do I add a new screen?* → create `ui/screens/<feature>/…`, add a `Screen` variant in `ui/navigation/Screen.kt`, then register it in the `entryProvider` in `App.kt` (+ ViewModel in `di/ViewModelModule.kt`).

@@ -275,10 +275,22 @@ jobs:
         with:
           node-version: 22
 
-      # electron-builder's AppImage step needs FUSE 2
-      - name: Install AppImage dependencies
+      # electron-builder's AppImage step needs FUSE 2; Nucleus' patched Tao native (below) builds
+      # against GTK 3
+      - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get install -y libfuse2t64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2t64 libgtk-3-dev libdbus-1-dev libx11-dev libglib2.0-dev
+
+      - name: Setup Rust
+        if: runner.os == 'Linux'
+        uses: dtolnay/rust-toolchain@stable
+
+      # Nucleus with Lo'ak's patches (loakDesktop/nucleus): touchpad scroll phases on Wayland
+      - name: Build Nucleus' patched Tao native
+        if: runner.os == 'Linux'
+        run: loakDesktop/nucleus/build-native.sh "$RUNNER_TEMP/nucleus-native"
 
       # The desktop UI tests, user flows included: the real app against a pinned Navidrome
       # (see loakUiTest), on every OS the installers are built for. A failure blocks the nightly.
@@ -337,9 +349,9 @@ jobs:
               ./gradlew :loakDesktop:packageExe --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
               ;;
               *)
-              ./gradlew :loakDesktop:packageDeb --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
-              ./gradlew :loakDesktop:packageRpm --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
-              ./gradlew :loakDesktop:packageAppImage --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              ./gradlew :loakDesktop:packageDeb --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
+              ./gradlew :loakDesktop:packageRpm --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
+              ./gradlew :loakDesktop:packageAppImage --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -Ploak.nucleusNative="$RUNNER_TEMP/nucleus-native"
               ;;
           esac
       - name: Build portable archive

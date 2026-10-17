@@ -7,7 +7,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: \.patch$ # blank context lines in a patch are a single space
       - id: end-of-file-fixer
+        exclude: \.patch$
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
