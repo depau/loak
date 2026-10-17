@@ -64,11 +64,18 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 			}
 		} finally {
 			// the player is a Koin singleton, never cleared outside tests: stop its
-			// coroutines before the databases they use close under them
+			// coroutines first, and resolve the databases before Koin shuts down (they
+			// are plain `single`s, not closed by onClose). stopKoin() then runs every
+			// onClose (cancelling the SyncManager/DownloadManager/AudioStore scopes), and
+			// only after that is the database closed — otherwise a late periodic sync from
+			// the previous flow "Database is closed" asynchronously into the next test's
+			// uncaught handler
+			val cacheDatabase = runCatching { koin.koin.get<CacheDatabase>() }.getOrNull()
+			val downloadDatabase = runCatching { koin.koin.get<DownloadDatabase>() }.getOrNull()
 			ViewModelStore().apply { put("player", player); clear() }
-			runCatching { koin.koin.get<CacheDatabase>().close() }
-			runCatching { koin.koin.get<DownloadDatabase>().close() }
 			stopKoin()
+			runCatching { cacheDatabase?.close() }
+			runCatching { downloadDatabase?.close() }
 			Dispatchers.resetMain()
 			// a fresh install for the next flow
 			desktopDataDir.listFiles()?.forEach { it.deleteRecursively() }
