@@ -6,9 +6,12 @@ on:
       - loak/**
       - loakApp/**
       - loakDesktop/**
+      - loakUiTest/**
+      - buildSrc/**
       - gradle/**
       - build.gradle.kts
       - settings.gradle.kts
+      - .gitattributes
       - .github/workflows/build.yml
       - "!**/strings.xml"
     tags:
@@ -20,9 +23,12 @@ on:
       - loak/**
       - loakApp/**
       - loakDesktop/**
+      - loakUiTest/**
+      - buildSrc/**
       - gradle/**
       - build.gradle.kts
       - settings.gradle.kts
+      - .gitattributes
       - .github/workflows/build.yml
       - "!**/strings.xml"
   workflow_dispatch:
