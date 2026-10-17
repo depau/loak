@@ -254,7 +254,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-26, windows-latest, windows-11-arm ]
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-26, windows-latest, windows-11-arm ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -275,13 +275,13 @@ jobs:
         with:
           node-version: 22
 
-      # electron-builder's AppImage step needs FUSE 2; Nucleus' patched Tao native (below) builds
-      # against GTK 3
+      # electron-builder's AppImage step needs FUSE 2 and its RPM step rpmbuild; Nucleus' patched
+      # Tao native (below) builds against GTK 3
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libfuse2t64 libgtk-3-dev libdbus-1-dev libx11-dev libglib2.0-dev
+          sudo apt-get install -y libfuse2t64 rpm libgtk-3-dev libdbus-1-dev libx11-dev libglib2.0-dev
 
       - name: Setup Rust
         if: runner.os == 'Linux'
@@ -363,7 +363,7 @@ jobs:
           # auto-updatable zip (with blockmap) via electron-builder.
           case "${{ runner.os }}" in
             Linux)
-              tar -czf "loakDesktop/build/compose/binaries/main/Loak-Linux.tar.gz" \
+              tar -czf "loakDesktop/build/compose/binaries/main/Loak-${{ runner.arch }}-Linux.tar.gz" \
                 -C loakDesktop/build/compose/binaries/main/app .
               ;;
             Windows)
@@ -468,6 +468,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           pattern: loak-desktop-ubuntu-latest
+          path: artifacts/release-assets-linux
+          merge-multiple: true
+
+      - name: Download Linux arm64 desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-ubuntu-24.04-arm
           path: artifacts/release-assets-linux
           merge-multiple: true
 
