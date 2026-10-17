@@ -71,6 +71,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.russhwolf.settings.Settings
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.domain.manager.LoginFailureException
 import eu.depau.loak.domain.manager.LoginManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
@@ -80,6 +81,7 @@ import eu.depau.loak.generated.resources.action_cancel
 import eu.depau.loak.generated.resources.action_ok
 import eu.depau.loak.generated.resources.action_save_and_reconnect
 import eu.depau.loak.generated.resources.info_device_name
+import eu.depau.loak.generated.resources.info_error
 import eu.depau.loak.generated.resources.info_device_name_default
 import eu.depau.loak.generated.resources.notice_server_saved
 import eu.depau.loak.generated.resources.option_account_instance
@@ -100,8 +102,10 @@ import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
 import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.screens.settings.components.SettingsNavItem
+import eu.depau.loak.ui.util.messageResource
 import eu.depau.loak.util.systemDeviceName
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
@@ -192,7 +196,9 @@ fun SettingsServerScreen() {
 								)
 								snackBarManager.notify(Res.string.notice_server_saved)
 							} catch (e: Exception) {
-								error = e.message
+								error = (e as? LoginFailureException)?.let {
+									getString(it.reason.messageResource)
+								} ?: getString(Res.string.info_error)
 							}
 							busy = false
 						}

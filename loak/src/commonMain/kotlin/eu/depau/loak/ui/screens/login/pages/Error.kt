@@ -13,9 +13,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.depau.loak.domain.manager.LoginFailureException
 import eu.depau.loak.ui.components.common.ErrorBox
 import eu.depau.loak.ui.core.LoginUiState
 import eu.depau.loak.ui.core.UiState
+import eu.depau.loak.ui.util.messageResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun LoginScreenError(
@@ -42,10 +45,13 @@ fun LoginScreenError(
 		}
 	) {
 		if (it != null) {
+			val failure = it.error as? LoginFailureException
+			val message = if (failure == null) null else stringResource(failure.reason.messageResource)
 			ErrorBox(
 				UiState.Error(it.error, null),
 				padding = PaddingValues(0.dp),
 				modifier = Modifier.fillMaxWidth(),
+				message = message,
 				bottomPadding = 8.dp
 			)
 		}

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.cancellation.CancellationException
 
 class SessionManager(
 	private val settings: Settings,
@@ -111,21 +112,20 @@ class SessionManager(
 	) {
 		addSentryBreadcrumb("login", "started")
 
-		val client = createClient(instanceUrl, username, password)
-
+		val client: SubsonicClient
 		try {
+			client = createClient(instanceUrl, username, password)
 			client.ping()
 			fetchCurrentUser(username, client)
+		} catch (e: CancellationException) {
+			throw e
 		} catch (e: Exception) {
-			// TODO: custom exception instead of the generic "Exception"
-			// The message here is user-facing (shown in the login error box); a layer-1
-			// Sentry censor (LOGIN_CREDENTIAL_MESSAGE_REGEX) redacts it before it ever
-			// reaches Sentry, so keep the human-readable text in the app.
-			addSentryBreadcrumb("login", "failed", data = mapOf<String, Any>("error" to (e::class.simpleName ?: "unknown")))
-			throw Exception(
-				"Failed to connect to the instance. Please check your credentials and try again.",
-				e
+			addSentryBreadcrumb(
+				"login",
+				"failed",
+				data = mapOf<String, Any>("error" to (e::class.simpleName ?: "unknown"))
 			)
+			throw e.asLoginFailureException()
 		}
 
 		settings["instanceUrl"] = instanceUrl

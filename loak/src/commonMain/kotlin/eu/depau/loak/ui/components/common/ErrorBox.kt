@@ -45,6 +45,7 @@ fun <T> ErrorBox(
 	padding: PaddingValues = PaddingValues(12.dp),
 	bottomPadding: Dp = 24.dp,
 	onRetry: (() -> Unit)? = null,
+	message: String? = null,
 	modifier: Modifier = Modifier
 ) {
 	var expanded by rememberSaveable { mutableStateOf(false) }
@@ -79,7 +80,7 @@ fun <T> ErrorBox(
 				verticalAlignment = Alignment.CenterVertically
 			) {
 				Text(
-					stringResource(Res.string.info_error),
+					message ?: stringResource(Res.string.info_error),
 					modifier = Modifier.weight(1f)
 				)
 				onRetry?.let { onRetry ->

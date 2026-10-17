@@ -13,7 +13,8 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
@@ -49,11 +50,11 @@ import kotlin.test.Test
 import kotlin.time.Instant
 
 /**
- * CF-01 at the UI layer: the real [LoginScreenContent] mounts, the four login
- * fields render, and emptying them then clicking "Log in" surfaces the
- * per-field validation errors — the same UI the user sees. Uses the seam'd
- * SessionManager (Ktor MockEngine) so no network and no real library sync is
- * involved; LoginManager's sync/repository hooks are nullable in tests.
+ * CF-01 at the UI layer: the real [LoginScreenContent] mounts at phone size,
+ * validates empty fields, and names rejected credentials instead of showing a
+ * generic failure. Uses the seam'd SessionManager (Ktor MockEngine), so no
+ * network or real library sync is involved; LoginManager's sync/repository
+ * hooks are nullable in tests.
  */
 @OptIn(ExperimentalTestApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 class LoginScreenUiTest {
@@ -63,20 +64,13 @@ class LoginScreenUiTest {
 		stopKoin()
 	}
 
-	/** A SessionManager pointed at a fake Subsonic server (Ktor MockEngine). */
+	/** A SessionManager whose fake Subsonic server rejects the credentials. */
 	private fun fakeSessionManager(): SessionManager {
 		val settings = Settings()
-		val engine = MockEngine { request ->
-			val body = if (request.url.encodedPath.endsWith("/getUser.view")) {
-				"""{"subsonic-response":{"status":"ok","version":"1.16.1","user":{
-					"username":"demo","email":"demo@demo.navidrome.org","scrobblingEnabled":true,
-					"folder":[],"roles":["STREAM","PLAYLIST","SHARE"]
-				}}}"""
-			} else {
-				"""{"subsonic-response":{"status":"ok","version":"1.16.1"}}"""
-			}
+		val engine = MockEngine {
 			respond(
-				content = body,
+				content = """{"subsonic-response":{"status":"failed","version":"1.16.1",
+					"error":{"code":40,"message":"Wrong username or password"}}}""",
 				status = HttpStatusCode.OK,
 				headers = headersOf(HttpHeaders.ContentType, "application/json")
 			)
@@ -96,7 +90,7 @@ class LoginScreenUiTest {
 	}
 
 	@Test
-	fun rendersLoginScreenAndValidatesEmptySubmit() = runComposeUiTest {
+	fun validatesFieldsAndNamesRejectedCredentials() = runDesktopComposeUiTest(412, 892) {
 		startKoin {
 			allowOverride(true)
 			modules(
@@ -118,7 +112,7 @@ class LoginScreenUiTest {
 					override val name = "desktop-test"
 					override val appVersion = "test"
 					override val buildVariant = "test"
-					override val sizeClass = WindowSizeClass.calculateFromSize(DpSize(900.dp, 700.dp))
+					override val sizeClass = WindowSizeClass.calculateFromSize(DpSize(412.dp, 892.dp))
 					override val platformType = PlatformType.Desktop
 					@Composable
 					override fun systemColorScheme(isDark: Boolean) = null
@@ -142,5 +136,13 @@ class LoginScreenUiTest {
 		onAllNodesWithText("Log in")[0].assertExists() // headline
 		onAllNodesWithText("Log in")[1].assertIsDisplayed().assertIsEnabled() // submit
 		onAllNodesWithText("Log in")[1].performClick()
+		onNodeWithText("Instance URL").performTextInput("server.example")
+		onNodeWithText("Username").performTextInput("demo")
+		onNodeWithText("Password").performTextInput("wrong")
+		onAllNodesWithText("Log in")[1].performClick()
+		waitUntil(timeoutMillis = 5_000) {
+			onAllNodesWithText("Wrong username or password.").fetchSemanticsNodes().isNotEmpty()
+		}
+		onNodeWithText("Wrong username or password.").assertIsDisplayed()
 	}
 }

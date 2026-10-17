@@ -7,9 +7,12 @@ import eu.depau.loak.data.database.entities.NetworkStatsEntity
 import eu.depau.loak.data.database.entities.SyncRunEntity
 import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.domain.manager.ConnectivityManager
+import eu.depau.loak.domain.manager.LoginFailureException
+import eu.depau.loak.domain.manager.LoginFailureReason
 import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
+import eu.depau.loak.domain.manager.asLoginFailureException
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -19,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -27,6 +31,11 @@ import kotlin.test.assertTrue
  * No network, no UI, no user data — the hermetic gate for the login flow.
  */
 class SessionManagerLoginTest {
+	private class UnknownHostException : Exception()
+	private class ConnectTimeoutException : Exception()
+	private class SSLHandshakeException : Exception()
+	private class URLParserException : Exception()
+	private class JsonConvertException : Exception()
 
 	/** In-memory settings backend (multiplatform-settings no-arg). */
 	private fun settings(): Settings = Settings()
@@ -103,4 +112,41 @@ class SessionManagerLoginTest {
 		assertEquals("alice", settings.getString("username", ""))
 		assertEquals("secret", settings.getString("password", ""))
 	}
+
+	@Test
+	fun rejectedCredentialsHaveSpecificReason() = runTest {
+		val engine = MockEngine {
+			respond(
+				content = """{"subsonic-response":{"status":"failed","version":"1.16.1",
+					"error":{"code":40,"message":"Wrong username or password"}}}""",
+				status = HttpStatusCode.OK,
+				headers = headersOf(HttpHeaders.ContentType, "application/json")
+			)
+		}
+		val session = sessionManager(settings(), engine)
+
+		val error = assertFailsWith<LoginFailureException> {
+			session.login("https://server.example", "alice", "wrong")
+		}
+
+		assertEquals(LoginFailureReason.WRONG_CREDENTIALS, error.reason)
+	}
+
+	@Test
+	fun classifiesCommonConnectionFailures() {
+		val failures = listOf(
+			UnknownHostException() to LoginFailureReason.SERVER_NOT_FOUND,
+			Exception("Error Domain=NSURLErrorDomain Code=-1003") to
+				LoginFailureReason.SERVER_NOT_FOUND,
+			ConnectTimeoutException() to LoginFailureReason.CONNECTION_TIMED_OUT,
+			SSLHandshakeException() to LoginFailureReason.SECURE_CONNECTION_FAILED,
+			URLParserException() to LoginFailureReason.INVALID_ADDRESS,
+			JsonConvertException() to LoginFailureReason.INVALID_RESPONSE,
+		)
+
+		failures.forEach { (error, reason) ->
+			assertEquals(reason, error.asLoginFailureException().reason)
+		}
+	}
+
 }

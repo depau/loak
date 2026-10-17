@@ -454,6 +454,20 @@
 
 	<string name="info_app_version">Lo'ak %1$s</string>
 	<string name="info_action_is_permanent">This action cannot be undone</string>
+	<string name="error_login_invalid_address">The server address is invalid.</string>
+	<string name="error_login_server_not_found">Couldn\'t resolve the server address. Check it for typos.</string>
+	<string name="error_login_timeout">The server took too long to respond.</string>
+	<string name="error_login_secure_connection">Couldn\'t establish a secure connection. Check the server\'s certificate.</string>
+	<string name="error_login_connection">Couldn\'t connect to the server. Check your connection and server address.</string>
+	<string name="error_login_wrong_credentials">Wrong username or password.</string>
+	<string name="error_login_unsupported_authentication">This account uses an authentication method Lo\'ak doesn\'t support.</string>
+	<string name="error_login_incompatible_server">This server uses an incompatible Subsonic API version.</string>
+	<string name="error_login_unauthorized">This account isn\'t authorized to access the server.</string>
+	<string name="error_login_trial_expired">The server\'s trial period has expired.</string>
+	<string name="error_login_invalid_response">The address responded, but it isn\'t a compatible Subsonic server.</string>
+	<string name="error_login_http">The server returned an HTTP error.</string>
+	<string name="error_login_rejected">The server rejected the login request.</string>
+	<string name="error_login_unknown">Login failed for an unexpected reason.</string>
 	<string name="info_error">Something went wrong.</string>
 	<string name="info_error_show">Show details</string>
 	<string name="info_error_hide">Hide details</string>

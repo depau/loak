@@ -89,18 +89,6 @@ private val SENSITIVE_PARAM_REGEX =
 	Regex("""\b($SENSITIVE_PARAM_KEYS\s*[=:]\s*)[^&\s,"']+""", RegexOption.IGNORE_CASE)
 
 /**
- * The one user-facing message the session code throws on a failed login
- * (LOAK-1J). It's a UI string, not a diagnostic — the reason is in the chained
- * `SubsonicException`. Redact it so the human-readable hint never reaches
- * Sentry's event value; the wrapped cause still carries the real error code.
- */
-private val LOGIN_CREDENTIAL_MESSAGE =
-	"Failed to connect to the instance. Please check your credentials and try again."
-private val LOGIN_CREDENTIAL_MESSAGE_REGEX = Regex(
-	Regex.escape(LOGIN_CREDENTIAL_MESSAGE), RegexOption.IGNORE_CASE
-)
-
-/**
  * `UnknownHostException: navikek.puntokek.com` — the bare host is the whole
  * message. Require a full dotted hostname so `Unable` (no dot) can't match.
  */
@@ -184,7 +172,6 @@ internal fun censorSentryText(raw: String): Censored {
 			"resolve host " + m.groupValues[1] + "[REDACTED_HOST]" + m.groupValues[1]
 		} }
 		.let { SENSITIVE_PARAM_REGEX.replace(it, "$1[REDACTED]") }
-		.let { LOGIN_CREDENTIAL_MESSAGE_REGEX.replace(it, "[REDACTED_LOGIN_ERROR]") }
 	val breached = piiSnapshot.load().filter { p -> p.length >= 4 && l1.contains(p, ignoreCase = true) }
 	if (breached.isEmpty()) return Censored(l1, emptyList())
 	var censored = l1

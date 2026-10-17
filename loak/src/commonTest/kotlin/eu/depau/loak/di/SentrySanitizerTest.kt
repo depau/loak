@@ -128,19 +128,6 @@ class SentrySanitizerTest {
 	}
 
 	@Test
-	fun redactsLoginCredentialFailureMessage() {
-		// LOAK-1J: SessionManager.login surfaces its user-facing "check your credentials"
-		// message in the thrown exception; the layer-1 sanitizer must redact that exact
-		// string from anything Sentry sends (the wrapped SubsonicException is what's useful).
-		val msg = "Failed to connect to the instance. Please check your credentials and try again."
-		val out = msg.sanitizeSentryText()
-		assertEquals("[REDACTED_LOGIN_ERROR]", out)
-		// also inside a longer event value, case-insensitively
-		val chained = "subsonic call failed: ${msg.lowercase()} (wrapped)"
-		assertEquals("subsonic call failed: [REDACTED_LOGIN_ERROR] (wrapped)", chained.sanitizeSentryText())
-	}
-
-	@Test
 	fun recordPiiIdentifierSeedsAndScrubsUsername() {
 		// account usernames shouldn't need a dot to be protected like server hosts do
 		recordPiiIdentifier("demo-user")
