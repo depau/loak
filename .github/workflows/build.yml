@@ -88,9 +88,10 @@ jobs:
           ./gradlew :loakApp:packageRelease -Pnightly=true \
             -PversionCode="$version_code" -PversionName="$version_name" --stacktrace
           mkdir -p nightly
-          mv loakApp/build/outputs/apk/**/*.apk "nightly/Lo'ak.nightly.apk"
+          nightly_apk="Lo.ak-nightly-$(date -u +%Y%m%d)-${GITHUB_SHA::7}.apk"
+          mv loakApp/build/outputs/apk/**/*.apk "nightly/$nightly_apk"
           rm release.keystore
-          .github/scripts/upload-sentry-mapping.sh "nightly/Lo'ak.nightly.apk"
+          .github/scripts/upload-sentry-mapping.sh "nightly/$nightly_apk"
 
       - name: Build with Gradle (debug)
         id: build_debug
@@ -429,9 +430,44 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-
           shopt -s nullglob
+
+          # Per-build unique token: every main push rebuilds over the same `nightly`
+          # tag, so give the assets a date+sha so parallel installs never collide
+          # and users can tell which build they grabbed. Derive it from the Android
+          # APK's name (built as Lo.ak-nightly-<date>-<sha>.apk in build-android) so
+          # every asset shares one token even if the build and publish runs straddle
+          # a UTC day boundary.
+          token="$(basename nightly/*.apk .apk)"
+          token="${token#Lo.ak-}"
+
+          # Desktop installers/blockmaps carry the neutral non-tag version
+          # (loak-1.0.0-*, packageVersion=1.0.0) and the portables are versionless
+          # (Loak-X64-Linux.tar.gz) — rename both to the unique token. latest-*.yml
+          # update manifests are left alone: the pointer tag is what the updater
+          # resolves, and nightlies aren't auto-updated anyway (they match no
+          # published prerelease).
+          cd desktop
+          for f in loak-1.0.0-*; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f/loak-1.0.0-/loak-${token}-}"
+          done
+          for f in Loak-*-Linux.tar.gz Loak-*-Windows.zip; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f/Loak-/Loak-${token}-}"
+          done
+          cd ..
+
           FILES=( nightly/* desktop/* )
+
+          notes="$(
+            .github/scripts/generate-release-notes.sh \
+              "Nightly build of \`main\` (${GITHUB_SHA::7})." \
+              nightly \
+              "loak-${token}-" \
+              "Loak-${token}-" \
+              "Lo.ak-${token}.apk"
+          )"
 
           # Stable `nightly` tag: replaced on every main push, so installs always
           # track the latest tip. Old release/tag are dropped first.
@@ -443,7 +479,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Nightly" \
-            --notes "Nightly build of \`main\` (${{ github.sha }})." \
+            --notes "$notes" \
             --prerelease
 
   create-release:
@@ -520,10 +556,42 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           channel: alpha
 
+      # Body with the per-platform download table: rendered as HTML so the Android
+      # row can span both arch columns. The APK GitHub actually serves is the
+      # apostrophe-stripped asset name (Lo'ak.apk is uploaded as Lo.ak.apk).
+      # Written to a file: the HTML anchor tags contain double quotes, which would
+      # break shell quoting if inlined as an expression.
+      - name: Generate release description
+        shell: bash
+        run: |
+          notes="$(
+            .github/scripts/generate-release-notes.sh \
+              "Lo'ak v${{ steps.version.outputs.version }}" \
+              "${{ github.ref_name }}" \
+              "loak-${{ steps.version.outputs.version }}-" \
+              "Loak-" \
+              "Lo.ak.apk"
+          )"
+          printf '%s\n' "$notes" > release-notes.md
+
       # Published as `prerelease` on purpose (publish-release auto-generates
       # notes): GitHub's /releases/latest/* endpoints and the alpha channel
       # lookup only resolve published, non-draft releases — the auto-updater
-      # cannot reach a draft.
+      # cannot reach a draft. Pre-create with our download-table body (publish-release
+      # then only uploads assets --clobber and leaves the body as-is).
+      - name: Pre-create release with download table
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "${{ github.ref_name }}" \
+            --notes-file release-notes.md \
+            --prerelease \
+            --verify-tag \
+            || true # already published by publish-release on a re-run; nothing to do
+
       - name: Publish Release
         uses: NucleusFramework/Nucleus/.github/actions/publish-release@v2.5.18
         with:
