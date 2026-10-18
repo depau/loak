@@ -5,6 +5,8 @@ on:
     paths:
       - loak/**
       - webApp/**
+      - loakUiTest/**
+      - buildSrc/**
       - gradle/**
       - build.gradle.kts
       - settings.gradle.kts
@@ -17,6 +19,8 @@ on:
     paths:
       - loak/**
       - webApp/**
+      - loakUiTest/**
+      - buildSrc/**
       - gradle/**
       - build.gradle.kts
       - settings.gradle.kts
