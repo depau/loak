@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -120,6 +121,10 @@ private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow
 	var showAll by rememberSaveable { mutableStateOf(false) }
 	val rail = page.albums.filter { it.recordType == "album" || it.recordType == "ep" }
 	val albums = if (showAll || rail.isEmpty()) page.albums else rail
+	val albumListState = rememberLazyListState()
+	LaunchedEffect(showAll) {
+		if (showAll) albumListState.animateScrollToItem(rail.size)
+	}
 	var linkToOpen by rememberSaveable { mutableStateOf<String?>(null) }
 
 	LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
@@ -175,6 +180,7 @@ private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow
 				) { Text(stringResource(Res.string.action_see_all)) }
 			}
 			LazyRow(
+				state = albumListState,
 				contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
 				horizontalArrangement = Arrangement.spacedBy(12.dp)
 			) {
