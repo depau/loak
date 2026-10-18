@@ -55,12 +55,12 @@ separate app (`eu.depau.loak.nightly`) so it can run alongside the stable one.
 | Source | AltStore Classic | SideStore |
 |---|---|---|
 | **Stable** (`Loak`) | [Add](<altstore://source?url=https://raw.githubusercontent.com/depau/loak/main/app-repo.json>) | [Add](<sidestore://source?url=https://raw.githubusercontent.com/depau/loak/main/app-repo.json>) |
-| **Nightly** (`Loak Nightly`) | [Add](<altstore://source?url=https://github.com/depau/loak/releases/download/nightly/app-repo.json>) | [Add](<sidestore://source?url=https://github.com/depau/loak/releases/download/nightly/app-repo.json>) |
+| **Nightly** (`Loak Nightly`) | [Add](<altstore://source?url=https://github.com/depau/loak/releases/download/nightly/app-repo.json%3Fraw%3D1>) | [Add](<sidestore://source?url=https://github.com/depau/loak/releases/download/nightly/app-repo.json%3Fraw%3D1>) |
 
 Or paste the source URL directly into the app:
 
 - Stable: `https://raw.githubusercontent.com/depau/loak/main/app-repo.json`
-- Nightly: `https://github.com/depau/loak/releases/download/nightly/app-repo.json`
+- Nightly: `https://github.com/depau/loak/releases/download/nightly/app-repo.json?raw=1`
 
 Apps installed this way are re-signed with your own free Apple ID and expire
 after 7 days (refresh from the store keeps them alive). AltStore PAL is not
