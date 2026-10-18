@@ -97,11 +97,14 @@ tasks.named<Test>("desktopTest") {
 // Nucleus native libraries rebuilt with Lo'ak's patches (nucleus/), built on first use (needs
 // cargo) and swapped into Nucleus' jars for the app, its packages and its UI tests alike.
 val nucleusRodio by tasks.registering(BuildPatchedNative::class) {
+	// the bridge decodes ahead of the output's real-time thread, which otherwise blocked on disk
+	// and network reads and dropped a cycle (a click) each time one took too long
 	source = GitSource(
 		"https://github.com/NucleusFramework/AudioKt.git",
 		"v${libs.versions.nucleus.rodio.get()}",
-		files(),
+		fileTree("nucleus/audiokt"),
 		path = "rodio/src/main/native",
+		tests = true,
 	)
 	library = "nucleus_rodio"
 	// rodio's resampler restarted on every decoded packet, clicking at each one whenever the
@@ -109,7 +112,12 @@ val nucleusRodio by tasks.registering(BuildPatchedNative::class) {
 	// version AudioKt's Cargo.lock pins
 	patchedCrates.put(
 		"rodio",
-		GitSource("https://github.com/RustAudio/rodio.git", "v0.21.1", fileTree("nucleus/rodio")),
+		GitSource(
+			"https://github.com/RustAudio/rodio.git",
+			"v0.21.1",
+			fileTree("nucleus/rodio"),
+			tests = true,
+		),
 	)
 	outputDir = layout.buildDirectory.dir("nucleus-natives/rodio")
 }

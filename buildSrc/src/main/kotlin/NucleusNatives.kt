@@ -70,6 +70,8 @@ class GitSource(
 	@get:InputFiles @get:PathSensitive(PathSensitivity.NAME_ONLY) val patches: FileCollection,
 	/** The only directory checked out, or the whole repository when empty. */
 	@get:Input val path: String = "",
+	/** Whether the crate's unit tests run before the build: the patches carry tests of their own. */
+	@get:Input val tests: Boolean = false,
 )
 
 /**
@@ -92,9 +94,8 @@ abstract class BuildPatchedNative @Inject constructor(
 
 	/**
 	 * crates.io dependencies of the crate built from patched sources instead, by crate name.
-	 * Their unit tests run first, so a patch can carry its own. The version checked out must
-	 * still be the one the crate's Cargo.lock asks for, or Cargo would leave the patched source
-	 * out; the build fails then.
+	 * The version checked out must still be the one the crate's Cargo.lock asks for, or Cargo
+	 * would leave the patched source out; the build fails then.
 	 */
 	@get:Nested
 	abstract val patchedCrates: MapProperty<String, GitSource>
@@ -114,14 +115,11 @@ abstract class BuildPatchedNative @Inject constructor(
 			val crate = checkout(source.get(), File(work, "crate"))
 			val overrides = patchedCrates.get().flatMap { (name, dependency) ->
 				val dir = checkout(dependency, File(work, name))
-				run(
-					"cargo", "test", "--lib",
-					"--manifest-path", File(dir, "Cargo.toml").path,
-					"--target-dir", File(work, "target").path,
-				)
+				if (dependency.tests) test(dir, work)
 				// a TOML literal string: Windows' command line drops the double quotes of a basic one
 				listOf("--config", "patch.crates-io.$name.path='${dir.invariantSeparatorsPath}'")
 			}
+			if (source.get().tests) test(crate, work, overrides)
 			run(
 				"cargo", "build", "--release",
 				"--manifest-path", File(crate, "Cargo.toml").path,
@@ -159,6 +157,15 @@ abstract class BuildPatchedNative @Inject constructor(
 		val patches = source.patches.files.sorted().map { it.path }
 		if (patches.isNotEmpty()) run("git", "-C", dir.path, "apply", *patches.toTypedArray())
 		return File(dir, source.path)
+	}
+
+	private fun test(crate: File, work: File, overrides: List<String> = emptyList()) {
+		run(
+			"cargo", "test", "--lib",
+			"--manifest-path", File(crate, "Cargo.toml").path,
+			"--target-dir", File(work, "target").path,
+			*overrides.toTypedArray(),
+		)
 	}
 
 	private fun run(vararg command: String) {

@@ -1,0 +1,545 @@
+diff --git a/rodio/src/main/native/src/lib.rs b/rodio/src/main/native/src/lib.rs
+index e04e8f4..3eb4db9 100644
+--- a/rodio/src/main/native/src/lib.rs
++++ b/rodio/src/main/native/src/lib.rs
+@@ -8,10 +8,12 @@
+ //! dispatch attaches the current thread to the JVM before calling back.
+ 
+ mod error;
++mod prefetch;
+ mod state;
+ 
+ use std::fs::File;
+ use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom};
++use std::sync::atomic::Ordering;
+ use std::sync::{Arc, Mutex, OnceLock};
+ use std::time::Duration;
+ 
+@@ -109,6 +111,18 @@ fn notify_metadata(callback: &Option<Arc<CallbackRef>>, key: String, value: Stri
+ fn reset_sink(state: &mut PlayerState) {
+     state.sink.clear();
+     state.sink.play();
++    state.silence = None;
++}
++
++/// Appends a decoder decoded ahead of the audio thread (see `prefetch`).
++fn append_prefetched<S: Source + Send + 'static>(
++    state: &mut PlayerState,
++    source: S,
++) -> Result<(), RodioError> {
++    let prefetch = prefetch::Prefetch::new(source)?;
++    state.silence = Some(prefetch.silence());
++    state.sink.append(prefetch);
++    Ok(())
+ }
+ 
+ #[derive(Clone, Default)]
+@@ -794,7 +808,7 @@ fn play_seekable_http_bytes(
+         reset_sink(state);
+         state.current_duration = duration;
+         state.seekable = true;
+-        state.sink.append(decoder);
++        append_prefetched(state, decoder)?;
+         Ok(())
+     })
+ }
+@@ -806,7 +820,7 @@ fn play_hls_stream(id: u64, url: &str) -> Result<(), RodioError> {
+         reset_sink(state);
+         state.current_duration = total_duration;
+         state.seekable = false;
+-        state.sink.append(decoder);
++        append_prefetched(state, decoder)?;
+         Ok(())
+     })
+ }
+@@ -941,7 +955,7 @@ pub extern "system" fn Java_dev_nucleusframework_rodio_internal_NativeRodioBridg
+                 reset_sink(state);
+                 state.current_duration = None;
+                 state.seekable = false;
+-                state.sink.append(decoder);
++                append_prefetched(state, decoder)?;
+                 Ok(())
+             })
+         } else {
+@@ -954,7 +968,7 @@ pub extern "system" fn Java_dev_nucleusframework_rodio_internal_NativeRodioBridg
+                 reset_sink(state);
+                 state.current_duration = duration;
+                 state.seekable = seekable;
+-                state.sink.append(decoder);
++                append_prefetched(state, decoder)?;
+                 Ok(())
+             })
+         }
+@@ -1045,7 +1059,7 @@ pub extern "system" fn Java_dev_nucleusframework_rodio_internal_NativeRodioBridg
+             return with_player_mut(id as u64, |state| {
+                 reset_sink(state);
+                 state.current_duration = None;
+-                state.sink.append(decoder);
++                append_prefetched(state, decoder)?;
+                 Ok(())
+             });
+         }
+@@ -1076,7 +1090,7 @@ pub extern "system" fn Java_dev_nucleusframework_rodio_internal_NativeRodioBridg
+             reset_sink(state);
+             state.current_duration = duration;
+             state.seekable = false;
+-            state.sink.append(decoder);
++            append_prefetched(state, decoder)?;
+             Ok(())
+         })
+     })();
+@@ -1155,7 +1169,7 @@ pub extern "system" fn Java_dev_nucleusframework_rodio_internal_NativeRodioBridg
+             reset_sink(state);
+             state.current_duration = duration;
+             state.seekable = false;
+-            state.sink.append(decoder);
++            append_prefetched(state, decoder)?;
+             Ok(())
+         })
+     })();
+@@ -1228,6 +1242,7 @@ pub extern "system" fn Java_dev_nucleusframework_rodio_internal_NativeRodioBridg
+         state.current_duration = None;
+         state.seekable = false;
+         state.sink.clear();
++        state.silence = None;
+         Ok(state.callback.clone())
+     });
+     match result {
+@@ -1274,7 +1289,12 @@ pub extern "system" fn Java_dev_nucleusframework_rodio_internal_NativeRodioBridg
+     _class: JClass,
+     id: jlong,
+ ) -> jlong {
+-    match with_player(id as u64, |state| Ok(duration_to_millis(state.sink.get_pos()))) {
++    // the silence played while a stalled source's decoding was behind isn't progress
++    let position = |state: &PlayerState| {
++        let silence = state.silence.as_ref().map_or(0, |s| s.load(Ordering::Relaxed));
++        state.sink.get_pos().saturating_sub(Duration::from_nanos(silence))
++    };
++    match with_player(id as u64, |state| Ok(duration_to_millis(position(state)))) {
+         Ok(ms) => ms as jlong,
+         Err(e) => {
+             throw(&mut env, &e);
+diff --git a/rodio/src/main/native/src/prefetch.rs b/rodio/src/main/native/src/prefetch.rs
+new file mode 100644
+index 0000000..0355a5c
+--- /dev/null
++++ b/rodio/src/main/native/src/prefetch.rs
+@@ -0,0 +1,397 @@
++//! Decoding ahead of the audio thread.
++//!
++//! rodio pulls its sources from the output's render callback, a real-time thread with a few
++//! milliseconds per cycle: a decoder read from disk or the network there, or a touch of
++//! paged-out memory, overran the cycle and the output dropped it, an audible click. [`Prefetch`]
++//! runs the source on a thread of its own, a couple of seconds ahead, and the render callback
++//! only takes the samples it has already decoded: it never blocks, never allocates.
++
++use std::sync::atomic::{AtomicU64, Ordering};
++use std::sync::mpsc::{self, Receiver, Sender, SyncSender, TryRecvError};
++use std::sync::Arc;
++use std::time::Duration;
++
++use rodio::source::SeekError;
++use rodio::{ChannelCount, Sample, SampleRate, Source};
++
++/// Frames a chunk holds at most: about 46 ms at 44.1 kHz.
++const CHUNK_FRAMES: usize = 2048;
++
++/// Chunks decoded ahead: about 2 s at 44.1 kHz.
++const CHUNKS_AHEAD: usize = 48;
++
++enum Chunk {
++    /// Samples in one format, whole frames, decoded after the `generation`th seek.
++    Samples {
++        generation: u64,
++        channels: ChannelCount,
++        sample_rate: SampleRate,
++        samples: Vec<Sample>,
++    },
++    /// The source ended, after the `generation`th seek.
++    End { generation: u64 },
++}
++
++/// Plays a source decoded ahead on its own thread. When the decoding falls behind (a stalled
++/// stream) it plays silence instead of blocking, and counts it in [`Prefetch::silence`], so the
++/// position the player reports can leave it out: a stalled stream must still look stalled.
++pub struct Prefetch {
++    chunks: Receiver<Chunk>,
++    /// Played chunks go back to the decoding thread, so neither side allocates per chunk.
++    recycle: SyncSender<Vec<Sample>>,
++    seeks: Sender<(u64, Duration)>,
++    /// Seeks asked for so far: chunks decoded before the last one are dropped.
++    generation: u64,
++    samples: Vec<Sample>,
++    position: usize,
++    channels: ChannelCount,
++    sample_rate: SampleRate,
++    total_duration: Option<Duration>,
++    silence: Arc<AtomicU64>,
++    /// Whether `samples` is a frame of silence, standing in for a chunk not decoded yet.
++    silent: bool,
++    ended: bool,
++}
++
++impl Prefetch {
++    pub fn new<S: Source + Send + 'static>(source: S) -> std::io::Result<Self> {
++        let channels = source.channels();
++        let sample_rate = source.sample_rate();
++        let total_duration = source.total_duration();
++        let (chunk_tx, chunks) = mpsc::sync_channel(CHUNKS_AHEAD);
++        let (recycle, recycled) = mpsc::sync_channel(CHUNKS_AHEAD + 2);
++        let (seeks, seek_rx) = mpsc::channel();
++        std::thread::Builder::new()
++            .name("rodio-prefetch".into())
++            .spawn(move || decode(source, chunk_tx, recycled, seek_rx))?;
++        let mut prefetch = Self {
++            chunks,
++            recycle,
++            seeks,
++            generation: 0,
++            samples: Vec::with_capacity(CHUNK_FRAMES * channels as usize),
++            position: 0,
++            channels,
++            sample_rate,
++            total_duration,
++            silence: Arc::new(AtomicU64::new(0)),
++            silent: false,
++            ended: false,
++        };
++        prefetch.advance();
++        Ok(prefetch)
++    }
++
++    /// Nanoseconds of silence played because the decoding fell behind, since the last seek.
++    pub fn silence(&self) -> Arc<AtomicU64> {
++        self.silence.clone()
++    }
++
++    /// Moves on to the next chunk of the current generation, or a frame of silence if none is
++    /// decoded yet. Runs on the audio thread: only non-blocking calls.
++    fn advance(&mut self) {
++        loop {
++            match self.chunks.try_recv() {
++                Ok(Chunk::Samples {
++                    generation,
++                    channels,
++                    sample_rate,
++                    samples,
++                }) => {
++                    if generation != self.generation {
++                        let _ = self.recycle.try_send(samples);
++                        continue;
++                    }
++                    let played = std::mem::replace(&mut self.samples, samples);
++                    let _ = self.recycle.try_send(played);
++                    self.channels = channels;
++                    self.sample_rate = sample_rate;
++                    self.position = 0;
++                    self.silent = false;
++                    if !self.samples.is_empty() {
++                        return;
++                    }
++                }
++                Ok(Chunk::End { generation }) if generation == self.generation => {
++                    self.ended = true;
++                    return;
++                }
++                Ok(Chunk::End { .. }) => {}
++                Err(TryRecvError::Disconnected) => {
++                    self.ended = true;
++                    return;
++                }
++                Err(TryRecvError::Empty) => {
++                    // the buffer's capacity outlives any chunk, so this doesn't allocate
++                    self.samples.clear();
++                    self.samples.resize(self.channels as usize, 0.0);
++                    self.position = 0;
++                    self.silent = true;
++                    return;
++                }
++            }
++        }
++    }
++}
++
++impl Iterator for Prefetch {
++    type Item = Sample;
++
++    #[inline]
++    fn next(&mut self) -> Option<Sample> {
++        if self.ended {
++            return None;
++        }
++        if self.silent && self.position == 0 {
++            let frame = 1_000_000_000 / self.sample_rate as u64;
++            self.silence.fetch_add(frame, Ordering::Relaxed);
++        }
++        let sample = self.samples[self.position];
++        self.position += 1;
++        if self.position == self.samples.len() {
++            self.advance();
++        }
++        Some(sample)
++    }
++}
++
++impl Source for Prefetch {
++    fn current_span_len(&self) -> Option<usize> {
++        Some(if self.ended {
++            0
++        } else {
++            self.samples.len() - self.position
++        })
++    }
++
++    fn channels(&self) -> ChannelCount {
++        self.channels
++    }
++
++    fn sample_rate(&self) -> SampleRate {
++        self.sample_rate
++    }
++
++    fn total_duration(&self) -> Option<Duration> {
++        self.total_duration
++    }
++
++    /// Hands the seek to the decoding thread and plays silence until it delivers: seeking a
++    /// decoder can take long (a FLAC without a seek table is searched through), too long for
++    /// the audio thread. The seek is taken for done; a decoder failing it carries on from
++    /// where it was.
++    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
++        self.generation += 1;
++        if self.seeks.send((self.generation, pos)).is_err() {
++            return Err(SeekError::NotSupported {
++                underlying_source: "Prefetch",
++            });
++        }
++        self.ended = false;
++        self.silence.store(0, Ordering::Relaxed);
++        self.advance();
++        Ok(())
++    }
++}
++
++/// The decoding thread: runs until the [`Prefetch`] is dropped.
++fn decode<S: Source>(
++    mut source: S,
++    chunks: SyncSender<Chunk>,
++    recycled: Receiver<Vec<Sample>>,
++    seeks: Receiver<(u64, Duration)>,
++) {
++    let mut generation = 0;
++    let mut ended = false;
++    // a source reports a new format once it has returned that format's first sample: the
++    // sample that turned out to start a new chunk, with its format
++    let mut carry: Option<(Sample, ChannelCount, SampleRate)> = None;
++    loop {
++        // an ended source only has seeks left to wait for; otherwise just take the latest
++        let mut seek = if ended { seeks.recv().ok() } else { None };
++        if ended && seek.is_none() {
++            return;
++        }
++        loop {
++            match seeks.try_recv() {
++                Ok(next) => seek = Some(next),
++                Err(TryRecvError::Empty) => break,
++                Err(TryRecvError::Disconnected) => return,
++            }
++        }
++        if let Some((seek_generation, pos)) = seek {
++            generation = seek_generation;
++            let _ = source.try_seek(pos);
++            ended = false;
++            carry = None;
++        }
++
++        let first = carry.take().or_else(|| {
++            source
++                .next()
++                .map(|s| (s, source.channels(), source.sample_rate()))
++        });
++        let Some((first, channels, sample_rate)) = first else {
++            ended = true;
++            if chunks.send(Chunk::End { generation }).is_err() {
++                return;
++            }
++            continue;
++        };
++        let mut samples = recycled.try_recv().unwrap_or_default();
++        samples.clear();
++        samples.push(first);
++        let limit = CHUNK_FRAMES * channels as usize;
++        while samples.len() < limit {
++            let Some(sample) = source.next() else {
++                ended = true;
++                break;
++            };
++            let format = (source.channels(), source.sample_rate());
++            // formats only change between frames
++            if format != (channels, sample_rate) && samples.len() % channels as usize == 0 {
++                carry = Some((sample, format.0, format.1));
++                break;
++            }
++            samples.push(sample);
++        }
++        let chunk = Chunk::Samples {
++            generation,
++            channels,
++            sample_rate,
++            samples,
++        };
++        if chunks.send(chunk).is_err() {
++            return;
++        }
++        if ended && chunks.send(Chunk::End { generation }).is_err() {
++            return;
++        }
++    }
++}
++
++#[cfg(test)]
++mod test {
++    use super::*;
++    use rodio::buffer::SamplesBuffer;
++    use rodio::source::from_iter;
++
++    /// Takes everything out of `prefetch` the way the output does, and returns the samples it
++    /// decoded with the format they were reported in, the silence of underruns left out.
++    fn drain(mut prefetch: Prefetch) -> Vec<(Sample, ChannelCount, SampleRate)> {
++        let mut out = Vec::new();
++        let mut silent = 0usize;
++        loop {
++            let (channels, sample_rate) = (prefetch.channels(), prefetch.sample_rate());
++            match prefetch.next() {
++                Some(sample) if sample == 0.0 => silent += 1,
++                Some(sample) => out.push((sample, channels, sample_rate)),
++                None => break,
++            }
++        }
++        let silence = prefetch.silence.load(Ordering::Relaxed);
++        assert!(
++            silent == 0 || silence > 0,
++            "{silent} samples of silence uncounted"
++        );
++        out
++    }
++
++    fn ramp(range: std::ops::Range<u32>) -> Vec<Sample> {
++        range.map(|n| n as Sample + 1.0).collect()
++    }
++
++    #[test]
++    fn plays_every_sample_in_the_format_it_was_decoded_in() {
++        let parts = vec![
++            SamplesBuffer::new(2, 44100, ramp(0..10_000)),
++            SamplesBuffer::new(1, 22050, ramp(10_000..13_001)),
++            SamplesBuffer::new(2, 48000, ramp(13_001..20_001)),
++        ];
++        let expected: Vec<_> = [
++            (0..10_000, 2, 44100),
++            (10_000..13_001, 1, 22050),
++            (13_001..20_001, 2, 48000),
++        ]
++        .into_iter()
++        .flat_map(|(range, channels, rate)| {
++            ramp(range).into_iter().map(move |s| (s, channels, rate))
++        })
++        .collect();
++        let played = drain(Prefetch::new(from_iter(parts)).unwrap());
++        assert_eq!(played, expected);
++    }
++
++    /// A source whose first sample takes `stall` to decode, like a stream waiting on the network.
++    struct Stalling {
++        stall: Duration,
++        left: u32,
++    }
++
++    impl Iterator for Stalling {
++        type Item = Sample;
++        fn next(&mut self) -> Option<Sample> {
++            std::thread::sleep(std::mem::take(&mut self.stall));
++            self.left = self.left.checked_sub(1)?;
++            Some(1.0)
++        }
++    }
++
++    impl Source for Stalling {
++        fn current_span_len(&self) -> Option<usize> {
++            None
++        }
++        fn channels(&self) -> ChannelCount {
++            1
++        }
++        fn sample_rate(&self) -> SampleRate {
++            1000
++        }
++        fn total_duration(&self) -> Option<Duration> {
++            None
++        }
++    }
++
++    #[test]
++    fn plays_silence_instead_of_waiting_for_a_stalled_source() {
++        let source = Stalling {
++            stall: Duration::from_millis(500),
++            left: 10,
++        };
++        let mut prefetch = Prefetch::new(source).unwrap();
++        let started = std::time::Instant::now();
++        let first: Vec<_> = (0..1000).map(|_| prefetch.next()).collect();
++        assert!(
++            started.elapsed() < Duration::from_millis(100),
++            "the output waited on the source"
++        );
++        assert!(first.iter().all(|s| *s == Some(0.0)));
++        // 1000 frames of silence at 1 kHz: a second the position mustn't count
++        assert_eq!(prefetch.silence.load(Ordering::Relaxed), 1_000_000_000);
++        let played: Vec<_> = drain(prefetch).into_iter().map(|(s, _, _)| s).collect();
++        assert_eq!(played, vec![1.0; 10]);
++    }
++
++    #[test]
++    fn plays_on_from_a_seek() {
++        let source = SamplesBuffer::new(1, 1000, ramp(0..10_000));
++        let mut prefetch = Prefetch::new(source).unwrap();
++        for _ in 0..100 {
++            prefetch.next();
++        }
++        prefetch.try_seek(Duration::from_secs(4)).unwrap();
++        let played: Vec<_> = drain(prefetch).into_iter().map(|(s, _, _)| s).collect();
++        assert_eq!(played, ramp(4000..10_000));
++    }
++
++    #[test]
++    fn seeks_back_after_the_source_was_decoded_to_its_end() {
++        let source = SamplesBuffer::new(1, 1000, ramp(0..100));
++        let mut prefetch = Prefetch::new(source).unwrap();
++        // let the decoding thread reach the end and wait for seeks
++        std::thread::sleep(Duration::from_millis(200));
++        prefetch.try_seek(Duration::from_millis(50)).unwrap();
++        let played: Vec<_> = drain(prefetch).into_iter().map(|(s, _, _)| s).collect();
++        assert_eq!(played, ramp(50..100));
++    }
++}
+diff --git a/rodio/src/main/native/src/state.rs b/rodio/src/main/native/src/state.rs
+index 2695730..5ff5ff8 100644
+--- a/rodio/src/main/native/src/state.rs
++++ b/rodio/src/main/native/src/state.rs
+@@ -27,6 +27,8 @@ pub struct PlayerState {
+     pub callback: Option<Arc<CallbackRef>>,
+     pub current_duration: Option<Duration>,
+     pub seekable: bool,
++    /// Underrun silence of the source playing (see `prefetch::Prefetch::silence`), in ns.
++    pub silence: Option<Arc<AtomicU64>>,
+ }
+ 
+ impl PlayerState {
+@@ -55,6 +57,7 @@ impl PlayerState {
+                 callback: None,
+                 current_duration: None,
+                 seekable: false,
++                silence: None,
+             },
+             stream,
+         )

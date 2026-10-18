@@ -5,10 +5,11 @@ package eu.depau.loak.shared
  * source any more" decisions.
  *
  * rodio keeps reporting a playing, non-empty sink even when nothing comes out of the speakers:
- * a stalled HTTP read blocks the CoreAudio render callback (and the device then tears the stream
- * down), and a device that went away makes it never be called again. The position is the only
- * liveness signal, so a source that should be playing while the position stands still means the
- * output is gone — the app used to sit there showing a pause button over silence for ever.
+ * a stalled HTTP read starves the source (the output plays silence meanwhile, which the patched
+ * native leaves out of the position), and a device that went away makes it never be called again.
+ * The position is the only liveness signal, so a source that should be playing while the position
+ * stands still means the output is gone — the app used to sit there showing a pause button over
+ * silence for ever.
  *
  * [onTick] must only be called while playback is supposed to progress (a paused, transitioning or
  * failed player legitimately stands still). A position of `null` is a tick on which the engine
