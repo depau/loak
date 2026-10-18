@@ -12,6 +12,7 @@ on:
       - build.gradle.kts
       - settings.gradle.kts
       - .gitattributes
+      - .github/actions/**
       - .github/workflows/build.yml
       - "!**/strings.xml"
     tags:
@@ -29,6 +30,7 @@ on:
       - build.gradle.kts
       - settings.gradle.kts
       - .gitattributes
+      - .github/actions/**
       - .github/workflows/build.yml
       - "!**/strings.xml"
   workflow_dispatch:
@@ -45,15 +47,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: gradle
-
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Build with Gradle (release)
         id: build_release
@@ -127,18 +124,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: gradle
-
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      - name: Cache konan
-        uses: actions/cache@v4
+      # the Kotlin/Native toolchain; like Gradle's cache, only main writes it
+      - name: Restore konan
+        id: konan
+        uses: actions/cache/restore@v4
         with:
           path: ~/.konan
           key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
@@ -168,6 +162,13 @@ jobs:
 
           zip -r "Lo'ak.ipa" Payload
 
+      - name: Save konan
+        if: github.ref == 'refs/heads/main' && steps.konan.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.konan
+          key: ${{ steps.konan.outputs.cache-primary-key }}
+
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -185,15 +186,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: gradle
-
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Run unit tests (JVM)
         run: |
@@ -209,15 +205,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: gradle
-
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       # the emulator needs hardware acceleration
       - name: Enable KVM
@@ -265,15 +256,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-          cache: gradle
-
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-gradle
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       # Nucleus packages through electron-builder, which needs Node.js >= 20.19 (require(esm))
       - name: Setup Node.js

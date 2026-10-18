@@ -234,6 +234,7 @@ For UI changes: **manually verify on different themes and form factors and inclu
   - **Tests gate the nightly and releases**: the `test` job runs the unit tests (`:loak:desktopTest`), and every desktop matrix OS runs the desktop UI tests and user flows (`:loakDesktop:desktopTest`) before packaging, and `ui-flows-android` runs the Android user flows on the `minified` build in a managed emulator; failures upload their screenshots, reports and the Navidrome log.
 - **`checks.yml`** — Gradle wrapper integrity validation.
 - **`web.yml`** — runs the web user flows (`:webApp:wasmJsBrowserTest`), then builds the Kotlin/Wasm web bundle and deploys the web demo; failing flows stop the deploy.
+- **Caching**: every Gradle job sets up through `.github/actions/setup-gradle` (JDK 21 + `gradle/actions/setup-gradle`), which keeps Gradle's dependencies, build cache and configuration cache in the Actions cache. Only `main` writes it; other branches and pull requests only read it, so they can't plant outputs `main` would reuse or evict its entries. The configuration cache is encrypted with the `GRADLE_ENCRYPTION_KEY` secret (fork PRs don't get it and skip that cache). Don't add `cache: gradle` to `setup-java`: setup-gradle restores nothing into a Gradle User Home that already exists.
 
 ## Conventions & rules
 

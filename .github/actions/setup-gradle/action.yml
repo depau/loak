@@ -1,0 +1,29 @@
+name: Set up Gradle
+description: >
+  JDK 21 and Gradle, with Gradle's state (dependencies, the build cache, the configuration
+  cache) kept in the Actions cache. Only main writes that cache: every other run, pull requests
+  included, only reads it, so a branch can neither plant build outputs that main would later
+  reuse nor evict main's entries.
+
+inputs:
+  cache-encryption-key:
+    description: >
+      secrets.GRADLE_ENCRYPTION_KEY, which encrypts the configuration cache (it can hold the
+      secrets the build reads). Pull requests from forks don't get it, and then neither save
+      nor read the configuration cache.
+    required: false
+
+runs:
+  using: composite
+  steps:
+    # no `cache: gradle` here: setup-gradle restores nothing into a Gradle User Home that
+    # already exists, so setup-java restoring one first left the build without most of its cache
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: 21
+
+    - uses: gradle/actions/setup-gradle@v5
+      with:
+        cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+        cache-encryption-key: ${{ inputs.cache-encryption-key }}
