@@ -7,12 +7,14 @@ on:
       - loakApp/**
       - loakDesktop/**
       - loakUiTest/**
+      - iosApp/**
       - buildSrc/**
       - gradle/**
       - build.gradle.kts
       - settings.gradle.kts
       - .gitattributes
       - .github/actions/**
+      - .github/scripts/**
       - .github/workflows/build.yml
       - "!**/strings.xml"
     tags:
@@ -25,12 +27,14 @@ on:
       - loakApp/**
       - loakDesktop/**
       - loakUiTest/**
+      - iosApp/**
       - buildSrc/**
       - gradle/**
       - build.gradle.kts
       - settings.gradle.kts
       - .gitattributes
       - .github/actions/**
+      - .github/scripts/**
       - .github/workflows/build.yml
       - "!**/strings.xml"
   workflow_dispatch:
@@ -119,7 +123,6 @@ jobs:
 
   build-ios:
     name: iOS
-    if: false # iOS build disabled for now; remove this line to re-enable
     runs-on: macos-26
     steps:
       - name: Checkout repository
@@ -144,24 +147,37 @@ jobs:
         run: ./gradlew :loak:generateValkyrieImageVector
 
       - name: Build IPA
+        env:
+          IS_NIGHTLY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
+          set -euo pipefail
+          rm -rf Payload ios
+          mkdir -p Payload ios
+
+          ipa_name="Loak.ipa"
+          xcode_overrides=()
+          if [[ "$IS_NIGHTLY" == "true" ]]; then
+            ipa_name="Loak-nightly.ipa"
+            xcode_overrides+=(
+              LOAK_DISPLAY_NAME="Loak Nightly"
+              LOAK_PRODUCT_BUNDLE_IDENTIFIER="eu.depau.loak.nightly"
+              LOAK_PROJECT_BUILD_VERSION="$GITHUB_RUN_NUMBER"
+            )
+          fi
+
           xcodebuild archive \
             -project iosApp/iosApp.xcodeproj \
             -scheme iosApp \
             -configuration Release \
             -sdk iphoneos \
             -archivePath "iosApp.xcarchive" \
-            CODE_SIGN_ENTITLEMENTS="iosApp/entitlements.xml" \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGN_STYLE=Manual \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            "${xcode_overrides[@]}"
 
-          mkdir -p Payload
-
-          APP_PATH=$(find "iosApp.xcarchive/Products/Applications" -name "*.app" | head -n 1)
-          cp -r "$APP_PATH" Payload/
-
-          zip -r "Lo'ak.ipa" Payload
+          app_path="$(find "iosApp.xcarchive/Products/Applications" -name "*.app" -print -quit)"
+          cp -R "$app_path" Payload/
+          zip -qry "ios/$ipa_name" Payload
 
       - name: Save konan
         if: github.ref == 'refs/heads/main' && steps.konan.outputs.cache-hit != 'true'
@@ -170,13 +186,13 @@ jobs:
           path: ~/.konan
           key: ${{ steps.konan.outputs.cache-primary-key }}
 
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v6
         with:
-          name: loak-release-ios
-          path: Lo'ak.ipa
+          name: loak-ios
+          path: ios/*.ipa
           compression-level: 0
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   test:
     name: Tests
@@ -401,7 +417,7 @@ jobs:
   publish-nightly:
     name: Publish Nightly Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main')
-    needs: [ test, ui-flows-android, build-android, build-desktop ]
+    needs: [ test, ui-flows-android, build-android, build-ios, build-desktop ]
     runs-on: ubuntu-latest
     concurrency:
       group: nightly-publish
@@ -417,6 +433,12 @@ jobs:
         with:
           name: loak-nightly-android
           path: nightly
+
+      - name: Download nightly iOS
+        uses: actions/download-artifact@v7
+        with:
+          name: loak-ios
+          path: ios
 
       - name: Download desktop artifacts
         uses: actions/download-artifact@v7
@@ -458,7 +480,18 @@ jobs:
           done
           cd ..
 
-          FILES=( nightly/* desktop/* )
+          FILES=( nightly/* ios/* desktop/* )
+
+          # The Nightly AltSource is paired with the Nightly IPA it points to;
+          # both are re-published together under the same `nightly` tag. The
+          # manifest sits in the release so its URL stays stable while the IPA
+          # underneath it rotates.
+          .github/scripts/update-altsource.sh \
+            --ipa ios/Loak-nightly.ipa \
+            --source app-repo.json \
+            --base "https://github.com/depau/loak/releases/download/nightly" \
+            --ipa-name Loak-nightly.ipa
+          FILES+=( app-repo.json )
 
           notes="$(
             .github/scripts/generate-release-notes.sh \
@@ -466,7 +499,8 @@ jobs:
               nightly \
               "loak-${token}-" \
               "Loak-${token}-" \
-              "Lo.ak-${token}.apk"
+              "Lo.ak-${token}.apk" \
+              "Loak-nightly.ipa"
           )"
 
           # Stable `nightly` tag: replaced on every main push, so installs always
@@ -485,7 +519,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [ test, ui-flows-android, build-android, build-desktop ]
+    needs: [ test, ui-flows-android, build-android, build-ios, build-desktop ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -495,6 +529,12 @@ jobs:
         with:
           name: loak-release-android
           path: artifacts/release-assets-android
+
+      - name: Download iOS artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: loak-ios
+          path: artifacts/release-assets-ios
 
       # The Nucleus generate-update-yml/publish-release composite actions scan
       # for `release-assets-*` directories; one per OS keeps the per-platform
@@ -570,7 +610,8 @@ jobs:
               "${{ github.ref_name }}" \
               "loak-${{ steps.version.outputs.version }}-" \
               "Loak-" \
-              "Lo.ak.apk"
+              "Lo.ak.apk" \
+              "Loak.ipa"
           )"
           printf '%s\n' "$notes" > release-notes.md
 
@@ -598,3 +639,33 @@ jobs:
           artifacts-path: artifacts
           tag: ${{ github.ref_name }}
           release-type: prerelease
+
+      - name: Update stable AltSource and commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Move the checkout to main so the manifest is committed against the
+          # integration branch (the runner arrived detached at the tag).
+          git fetch origin main
+          git checkout main
+
+          # The release IPA is live under /releases/download/{tag}; regenerate the
+          # stable AltSource from the very file users will install and commit it to
+          # main so the long-lived raw.githubusercontent URL stays current. The
+          # generated file carries a fresh timestamp each run, so the push is
+          # idempotent.
+          .github/scripts/update-altsource.sh \
+            --ipa artifacts/release-assets-ios/Loak.ipa \
+            --source app-repo.json \
+            --base "https://github.com/depau/loak/releases/download/${{ github.ref_name }}"
+
+          if [[ -n "$(git status --porcelain -- app-repo.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app-repo.json
+            git commit -m "chore: update AltStore source for v${{ steps.version.outputs.version }}"
+            git pull --rebase origin main --autostash
+            git push origin main
+          fi
