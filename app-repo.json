@@ -8,31 +8,31 @@
       "name": "Lo'ak",
       "bundleIdentifier": "eu.depau.loak",
       "developerName": "depau",
-      "localizedDescription": "Subsonic music streaming app for Android and iOS",
       "subtitle": "Subsonic music streaming app",
-      "tintColor": "ffffff",
+      "localizedDescription": "Lo'ak is a modern Subsonic/OpenSubsonic music streaming client for Android and iOS. Stream and download music, scrobble to your server, listen with lyrics, radio, ReplayGain, equaliser, and more.",
+      "category": "entertainment",
       "iconURL": "https://raw.githubusercontent.com/depau/loak/main/fastlane/metadata/android/en-US/images/icon.png",
-      "versions": [
+      "versions": [],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {}
+      },
+      "screenshots": [
         {
-          "version": "1.0.0",
-          "buildVersion": "56",
-          "date": "2026-09-17T16:52:29Z",
-          "size": 21399507,
-          "downloadURL": "https://github.com/depau/loak/releases/download/v1.0.0-alpha56/Lo'ak.ipa"
+          "imageURL": "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg?raw=true"
+        },
+        {
+          "imageURL": "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/2.jpg?raw=true"
+        },
+        {
+          "imageURL": "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/3.jpg?raw=true"
+        },
+        {
+          "imageURL": "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/4.jpg?raw=true"
         }
       ],
-      "appPermissions": {},
-      "screenshotURLs": [
-        "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg?raw=true",
-        "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/2.jpg?raw=true",
-        "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/3.jpg?raw=true",
-        "https://github.com/depau/loak/blob/main/fastlane/metadata/android/en-US/images/phoneScreenshots/4.jpg?raw=true"
-      ],
-      "version": "1.0.0",
-      "buildVersion": "56",
-      "versionDate": "2026-09-17T16:52:29Z",
-      "size": 21399507,
-      "downloadURL": "https://github.com/depau/loak/releases/download/v1.0.0-alpha56/Lo'ak.ipa"
+      "tintColor": "ffffff"
     }
-  ]
+  ],
+  "news": []
 }
