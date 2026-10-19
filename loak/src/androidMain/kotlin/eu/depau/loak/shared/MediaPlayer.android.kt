@@ -85,6 +85,8 @@ import eu.depau.loak.generated.resources.notice_play_next
 import org.jetbrains.compose.resources.StringResource
 import eu.depau.loak.generated.resources.action_log_in
 import eu.depau.loak.generated.resources.info_log_in_to_browse
+import eu.depau.loak.generated.resources.action_instant_mix
+import eu.depau.loak.generated.resources.action_repeat
 import eu.depau.loak.generated.resources.info_sign_in_on_phone
 import eu.depau.loak.generated.resources.action_add_to_queue
 import eu.depau.loak.generated.resources.action_play_next
@@ -223,6 +225,8 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 	private val audioStore: AudioStore by inject()
 	private val audioFetcher: AudioFetcher by inject()
 	private val currentSongId = MutableStateFlow<String?>(null)
+	/** The player's shuffle and repeat modes, which the shuffle and repeat buttons show. */
+	private val modes = MutableStateFlow(false to Player.REPEAT_MODE_OFF)
 	private val networkReads = MutableStateFlow(0)
 	private var prefetchJob: Job? = null
 
@@ -393,10 +397,15 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) =
 				schedulePrefetch(player)
 
-			override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) =
+			override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+				modes.value = shuffleModeEnabled to player.repeatMode
 				schedulePrefetch(player)
+			}
 
-			override fun onRepeatModeChanged(repeatMode: Int) = schedulePrefetch(player)
+			override fun onRepeatModeChanged(repeatMode: Int) {
+				modes.value = player.shuffleModeEnabled to repeatMode
+				schedulePrefetch(player)
+			}
 
 			override fun onAudioSessionIdChanged(audioSessionId: Int) {
 				currentAudioSessionId = audioSessionId
@@ -444,10 +453,12 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 				.collect { player.setWakeMode(if (it) C.WAKE_MODE_NETWORK else C.WAKE_MODE_LOCAL) }
 		}
 
-		// the notification's only extra button stars the current song (radios get none)
+		// the extra buttons, in the notification and the car's now playing: star the current
+		// song, shuffle, repeat, and an instant mix from it (radios get none)
 		currentSongId.value = player.currentMediaItem?.mediaId
+		modes.value = player.shuffleModeEnabled to player.repeatMode
 		serviceScope.launch {
-			currentSongId
+			val starred = currentSongId
 				.flatMapLatest { id ->
 					if (id == null || id.startsWith("radio_")) {
 						flowOf(null)
@@ -455,11 +466,12 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 						songRepository.observeSongStarred(id)
 					}
 				}
-				// Room re-emits on every write to the songs table (syncs, album views): each new
-				// layout re-posts the notification, so only send real changes
+			// Room re-emits on every write to the songs table (syncs, album views): each new
+			// layout re-posts the notification, so only send real changes
+			combine(starred, modes) { starred, modes -> starred to modes }
 				.distinctUntilChanged()
-				.collect { starred ->
-					mediaSession?.setCustomLayout(listOfNotNull(starred?.let(::makeStarButton)))
+				.collect { (starred, modes) ->
+					mediaSession?.setCustomLayout(starred?.let { nowPlayingButtons(it, modes) }.orEmpty())
 				}
 		}
 
@@ -609,6 +621,34 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 		)
 	}
 
+	/** Star, shuffle, repeat and instant mix, for a song [starred] or not. */
+	private suspend fun nowPlayingButtons(
+		starred: Boolean,
+		modes: Pair<Boolean, Int>
+	): List<CommandButton> {
+		val (shuffle, repeat) = modes
+		fun button(icon: Int, command: String, name: String) = CommandButton.Builder(icon)
+			.setDisplayName(name)
+			.setSessionCommand(SessionCommand(command, Bundle.EMPTY))
+			.build()
+		return listOf(
+			makeStarButton(starred),
+			button(
+				if (shuffle) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF,
+				COMMAND_SHUFFLE, getString(Res.string.action_shuffle)
+			),
+			button(
+				when (repeat) {
+					Player.REPEAT_MODE_ALL -> CommandButton.ICON_REPEAT_ALL
+					Player.REPEAT_MODE_ONE -> CommandButton.ICON_REPEAT_ONE
+					else -> CommandButton.ICON_REPEAT_OFF
+				},
+				COMMAND_REPEAT, getString(Res.string.action_repeat)
+			),
+			button(CommandButton.ICON_RADIO, COMMAND_INSTANT_MIX, getString(Res.string.action_instant_mix))
+		)
+	}
+
 	/** A successful menu action, telling the host to do [key] (with [value]) next. */
 	private fun result(key: String, value: String?) =
 		SessionResult(SessionResult.RESULT_SUCCESS, Bundle().apply { putString(key, value) })
@@ -682,6 +722,9 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
 				.buildUpon()
 				.add(SessionCommand(COMMAND_STAR, Bundle.EMPTY))
+				.add(SessionCommand(COMMAND_SHUFFLE, Bundle.EMPTY))
+				.add(SessionCommand(COMMAND_REPEAT, Bundle.EMPTY))
+				.add(SessionCommand(COMMAND_INSTANT_MIX, Bundle.EMPTY))
 				.apply {
 					PlaybackLibrary.MENU_COMMANDS.forEach { add(SessionCommand(it, Bundle.EMPTY)) }
 				}
@@ -702,6 +745,17 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			val id = args.getString(MediaConstants.EXTRA_KEY_MEDIA_ID).orEmpty()
 			when (val action = customCommand.customAction) {
 				COMMAND_STAR -> toggleStar()
+				COMMAND_SHUFFLE -> session.player.run { shuffleModeEnabled = !shuffleModeEnabled }
+				COMMAND_REPEAT -> session.player.run {
+					repeatMode = when (repeatMode) {
+						Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+						Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+						else -> Player.REPEAT_MODE_OFF
+					}
+				}
+				COMMAND_INSTANT_MIX -> get<MediaPlayerViewModel>().uiState.value.currentSong?.let {
+					get<MediaPlayerViewModel>().playInstantMix(it.id, it.title, it)
+				}
 				// through the player view model, like the app's own menus: queued songs move
 				// rather than repeat, and offline only the stored ones join
 				PlaybackLibrary.PLAY_NEXT, PlaybackLibrary.ADD_TO_QUEUE -> return future {
@@ -951,6 +1005,9 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 
 	companion object {
 		const val COMMAND_STAR = "COMMAND_STAR"
+		private const val COMMAND_SHUFFLE = "COMMAND_SHUFFLE"
+		private const val COMMAND_REPEAT = "COMMAND_REPEAT"
+		private const val COMMAND_INSTANT_MIX = "COMMAND_INSTANT_MIX"
 
 		fun makeStarButton(starred: Boolean): CommandButton {
 			val icon = if (starred) {
