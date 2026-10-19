@@ -203,15 +203,33 @@ internal class PlaybackLibrary : KoinComponent {
 	val hasDownloads: Flow<Boolean>
 		get() = audioStore.pinned.map { it.isNotEmpty() }.distinctUntilChanged()
 
-	/** Browse search: the albums, artists, songs and playlists matching [query]. */
-	suspend fun search(query: String): List<MediaItem> = searchRepository.search(query).mapNotNull {
-		when (it) {
-			is DomainSong -> songItem(it, SINGLE, downloaded = false)
-			is DomainAlbum -> albumItem(it)
-			is DomainArtist -> artistItem(it)
-			is DomainPlaylist -> playlistItem(it)
-			else -> null
-		}
+	/**
+	 * Browse search: the artists, albums, songs and playlists matching [query], as rows under a
+	 * title per kind. The kind holding an exact match comes first, so "ugress" leads with the
+	 * artist; each kind shows its first few.
+	 */
+	suspend fun search(query: String): List<MediaItem> {
+		val results = searchRepository.search(query)
+		val downloaded = audioStore.downloadedIds()
+		fun String?.exact() = equals(query, ignoreCase = true)
+		val artists = results.filterIsInstance<DomainArtist>()
+		val albums = results.filterIsInstance<DomainAlbum>()
+		val songs = results.filterIsInstance<DomainSong>()
+		val playlists = results.filterIsInstance<DomainPlaylist>()
+		val artistsTitle = getString(Res.string.title_artists)
+		val albumsTitle = getString(Res.string.title_albums)
+		val songsTitle = getString(Res.string.title_songs)
+		val playlistsTitle = getString(Res.string.title_playlists)
+		return listOf(
+			artists.any { it.name.exact() } to
+				artists.take(SEARCH_GROUP_SIZE).map { artistItem(it, artistsTitle, tile = false) },
+			albums.any { it.name.exact() } to
+				albums.take(SEARCH_GROUP_SIZE).map { albumItem(it, albumsTitle, tile = false) },
+			songs.any { it.title.exact() } to
+				songs.take(SEARCH_GROUP_SIZE).map { songItem(it, SINGLE, it.id in downloaded, songsTitle) },
+			playlists.any { it.name.exact() } to
+				playlists.take(SEARCH_GROUP_SIZE).map { playlistItem(it, playlistsTitle, tile = false) }
+		).sortedByDescending { (exact, _) -> exact }.flatMap { (_, items) -> items }
 	}
 
 	/**
@@ -371,7 +389,12 @@ internal class PlaybackLibrary : KoinComponent {
 	 * keep the artwork: without one, Android Automotive draws a coloured placeholder, so a song
 	 * without its own takes its album's (Subsonic serves cover art by album id too).
 	 */
-	private fun songItem(song: DomainSong, folder: String, downloaded: Boolean): MediaItem {
+	private fun songItem(
+		song: DomainSong,
+		folder: String,
+		downloaded: Boolean,
+		group: String? = null
+	): MediaItem {
 		val inAlbum = folder.substringBefore('|') == ALBUM
 		return item(
 			"$SONG|${song.id}|$folder", song.title,
@@ -379,7 +402,7 @@ internal class PlaybackLibrary : KoinComponent {
 			else song.artists.joinToString { it.name }.ifBlank { song.artistName },
 			song.coverArtId ?: song.albumId,
 			playable = true, type = MediaMetadata.MEDIA_TYPE_MUSIC,
-			extras = Bundle().apply {
+			extras = style(group = group).apply {
 				if (song.explicitStatus == DomainExplicitStatus.Explicit) {
 					putLong(MediaConstants.EXTRAS_KEY_IS_EXPLICIT, MediaConstants.EXTRAS_VALUE_ATTRIBUTE_PRESENT)
 				}
@@ -464,6 +487,9 @@ internal class PlaybackLibrary : KoinComponent {
 
 		/** A song found by search: it plays alone, and Autoplay carries on. */
 		private const val SINGLE = "single"
+
+		/** Search results shown per kind: past a handful, a driver searches again. */
+		private const val SEARCH_GROUP_SIZE = 5
 
 		private const val ALBUM = "album"
 		private const val PLAYLIST = "playlist"
