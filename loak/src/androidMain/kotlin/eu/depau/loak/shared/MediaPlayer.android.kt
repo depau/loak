@@ -77,6 +77,12 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.SettableFuture
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.R
+import eu.depau.loak.generated.resources.action_shuffle
+import eu.depau.loak.generated.resources.action_view_album
+import eu.depau.loak.generated.resources.notice_added_to_queue
+import eu.depau.loak.generated.resources.notice_play_next
+import org.jetbrains.compose.resources.StringResource
 import eu.depau.loak.generated.resources.action_log_in
 import eu.depau.loak.generated.resources.info_log_in_to_browse
 import eu.depau.loak.generated.resources.info_sign_in_on_phone
@@ -363,7 +369,7 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 		mediaSession = MediaLibrarySession.Builder(this, sessionPlayer, SessionCallback())
 			.setSessionActivity(sessionPendingIntent)
 			.setBitmapLoader(bitmapLoader)
-			.setCommandButtonsForMediaItems(queueButtons())
+			.setCommandButtonsForMediaItems(menuButtons())
 			.build()
 
 		// skipping, ReplayGain, Autoplay and saving the queue live in the player view model: the
@@ -573,23 +579,39 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 	}
 
 	/**
-	 * The car's per-item menu on songs and what holds them, see [PlaybackLibrary.songsOf]. Hosts
-	 * read only the icon URI, and crash without one.
+	 * The car's per-item menu, see [PlaybackLibrary.commandsFor]. Hosts read only the icon URI,
+	 * and crash without one.
 	 */
-	private fun queueButtons() = runBlocking {
-		listOf(
-			CommandButton.Builder(CommandButton.ICON_QUEUE_NEXT)
-				.setIconUri(library.iconUri(eu.depau.loak.R.drawable.auto_play_next))
-				.setSessionCommand(SessionCommand(PlaybackLibrary.PLAY_NEXT, Bundle.EMPTY))
-				.setDisplayName(getString(Res.string.action_play_next))
-				.build(),
-			CommandButton.Builder(CommandButton.ICON_QUEUE_ADD)
-				.setIconUri(library.iconUri(eu.depau.loak.R.drawable.auto_add_to_queue))
-				.setSessionCommand(SessionCommand(PlaybackLibrary.ADD_TO_QUEUE, Bundle.EMPTY))
-				.setDisplayName(getString(Res.string.action_add_to_queue))
+	private fun menuButtons() = runBlocking {
+		suspend fun button(icon: Int, drawable: Int, action: String, name: StringResource) =
+			CommandButton.Builder(icon)
+				.setIconUri(library.iconUri(drawable))
+				.setSessionCommand(SessionCommand(action, Bundle.EMPTY))
+				.setDisplayName(getString(name))
 				.build()
+		listOf(
+			button(
+				CommandButton.ICON_SHUFFLE_ON, R.drawable.auto_shuffle,
+				PlaybackLibrary.SHUFFLE_ITEM, Res.string.action_shuffle
+			),
+			button(
+				CommandButton.ICON_QUEUE_NEXT, R.drawable.auto_play_next,
+				PlaybackLibrary.PLAY_NEXT, Res.string.action_play_next
+			),
+			button(
+				CommandButton.ICON_QUEUE_ADD, R.drawable.auto_add_to_queue,
+				PlaybackLibrary.ADD_TO_QUEUE, Res.string.action_add_to_queue
+			),
+			button(
+				CommandButton.ICON_ALBUM, R.drawable.auto_album,
+				PlaybackLibrary.GO_TO_ALBUM, Res.string.action_view_album
+			)
 		)
 	}
+
+	/** A successful menu action, telling the host to do [key] (with [value]) next. */
+	private fun result(key: String, value: String?) =
+		SessionResult(SessionResult.RESULT_SUCCESS, Bundle().apply { putString(key, value) })
 
 	private fun toggleStar() {
 		val id = currentSongId.value ?: return
@@ -660,8 +682,9 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
 				.buildUpon()
 				.add(SessionCommand(COMMAND_STAR, Bundle.EMPTY))
-				.add(SessionCommand(PlaybackLibrary.PLAY_NEXT, Bundle.EMPTY))
-				.add(SessionCommand(PlaybackLibrary.ADD_TO_QUEUE, Bundle.EMPTY))
+				.apply {
+					PlaybackLibrary.MENU_COMMANDS.forEach { add(SessionCommand(it, Bundle.EMPTY)) }
+				}
 				.build()
 
 			return MediaSession.ConnectionResult.accept(
@@ -676,15 +699,35 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			customCommand: SessionCommand,
 			args: Bundle
 		): ListenableFuture<SessionResult> {
+			val id = args.getString(MediaConstants.EXTRA_KEY_MEDIA_ID).orEmpty()
 			when (val action = customCommand.customAction) {
 				COMMAND_STAR -> toggleStar()
 				// through the player view model, like the app's own menus: queued songs move
 				// rather than repeat, and offline only the stored ones join
 				PlaybackLibrary.PLAY_NEXT, PlaybackLibrary.ADD_TO_QUEUE -> return future {
-					val songs = library.songsOf(args.getString(MediaConstants.EXTRA_KEY_MEDIA_ID).orEmpty())
+					val songs = library.songsOf(id)
 					val player = get<MediaPlayerViewModel>()
-					if (action == PlaybackLibrary.PLAY_NEXT) player.playNext(songs) else player.addToQueue(songs)
-					SessionResult(SessionResult.RESULT_SUCCESS)
+					val next = action == PlaybackLibrary.PLAY_NEXT
+					if (next) player.playNext(songs) else player.addToQueue(songs)
+					val notice = if (next) Res.string.notice_play_next else Res.string.notice_added_to_queue
+					result(PlaybackLibrary.RESULT_MESSAGE, getString(notice))
+				}
+				// played as a pick would be, and the host shows it playing
+				PlaybackLibrary.SHUFFLE_ITEM -> return future {
+					val shuffled = MediaItem.Builder().setMediaId(PlaybackLibrary.shuffled(id)).build()
+					val (items, start) = library.play(shuffled)
+						?: return@future SessionResult(SessionError.ERROR_BAD_VALUE)
+					session.player.run {
+						setMediaItems(items, start, C.TIME_UNSET)
+						prepare()
+						play()
+					}
+					result(PlaybackLibrary.RESULT_SHOW_PLAYING_ITEM, null)
+				}
+				// a song's album
+				PlaybackLibrary.GO_TO_ALBUM -> return future {
+					library.albumOf(id)?.let { result(PlaybackLibrary.RESULT_BROWSE_NODE, it) }
+						?: SessionResult(SessionError.ERROR_BAD_VALUE)
 				}
 			}
 			return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
