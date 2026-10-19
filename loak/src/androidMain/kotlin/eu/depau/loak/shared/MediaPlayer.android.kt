@@ -4,6 +4,7 @@ import eu.depau.loak.di.COVER_ART_MEDIUM
 import android.app.Application
 import android.app.PendingIntent
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
 import android.media.audiofx.AudioEffect
@@ -76,6 +77,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.SettableFuture
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.action_log_in
+import eu.depau.loak.generated.resources.info_log_in_to_browse
 import eu.depau.loak.generated.resources.info_sign_in_on_phone
 import eu.depau.loak.generated.resources.action_add_to_queue
 import eu.depau.loak.generated.resources.action_play_next
@@ -92,6 +95,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -453,6 +457,14 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 				}
 		}
 
+		// the car asked for the library while signed out and got an error: signing in, or out,
+		// changes every list, so it asks again
+		serviceScope.launch {
+			sessionManager.isLoggedIn.drop(1).collect {
+				mediaSession?.notifyChildrenChanged(PlaybackLibrary.ROOT, Int.MAX_VALUE, null)
+			}
+		}
+
 		scope.launch(Dispatchers.Main) {
 			equaliserManager.config.collect { config ->
 				if (config.mode != equaliserMode) {
@@ -709,12 +721,7 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			params: LibraryParams?
 		): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = future {
 			if (!sessionManager.isLoggedIn.value) {
-				LibraryResult.ofError(
-					SessionError(
-						SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED,
-						getString(Res.string.info_sign_in_on_phone)
-					)
-				)
+				LibraryResult.ofError(signedOutError())
 			} else {
 				LibraryResult.ofItemList(library.children(parentId).page(page, pageSize), params)
 			}
@@ -770,6 +777,36 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 					?: throw UnsupportedOperationException("nothing to play for ${picked.mediaId}")
 			}
 		}
+	}
+
+	/**
+	 * Browsing while signed out. Android Automotive has no phone to sign in on: there the error
+	 * carries the login screen as its resolution, which the host shows as a button.
+	 */
+	private suspend fun signedOutError(): SessionError {
+		if (!packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
+			return SessionError(
+				SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED,
+				getString(Res.string.info_sign_in_on_phone)
+			)
+		}
+		val login = PendingIntent.getActivity(
+			this,
+			0,
+			Intent(Intent.ACTION_APPLICATION_PREFERENCES).setPackage(packageName),
+			PendingIntent.FLAG_IMMUTABLE
+		)
+		return SessionError(
+			SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED,
+			getString(Res.string.info_log_in_to_browse),
+			Bundle().apply {
+				putString(
+					MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_LABEL_COMPAT,
+					getString(Res.string.action_log_in)
+				)
+				putParcelable(MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_INTENT_COMPAT, login)
+			}
+		)
 	}
 
 	// Applies the chosen equaliser mode

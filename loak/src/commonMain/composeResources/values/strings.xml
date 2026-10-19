@@ -516,6 +516,7 @@
 	<string name="info_no_search_results">No results</string>
 	<string name="info_not_available_offline">Not available offline</string>
 	<string name="info_sign_in_on_phone">Open Lo'ak on your phone to sign in</string>
+	<string name="info_log_in_to_browse">Log in to a server to browse your music</string>
 	<string name="info_offline">Offline · downloaded and cached music only</string>
 	<string name="action_go_online">Go online</string>
 	<string name="info_no_queue">Nothing queued</string>
