@@ -458,10 +458,16 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 		}
 
 		// the car asked for the library while signed out and got an error: signing in, or out,
-		// changes every list, so it asks again
+		// changes every list, so it asks again; the Downloads tab comes and goes with downloads
 		serviceScope.launch {
-			sessionManager.isLoggedIn.drop(1).collect {
+			combine(sessionManager.isLoggedIn, library.hasDownloads) { _, _ -> }.drop(1).collect {
 				mediaSession?.notifyChildrenChanged(PlaybackLibrary.ROOT, Int.MAX_VALUE, null)
+			}
+		}
+		// Home leads with the downloads while offline
+		serviceScope.launch {
+			connectivityManager.isOnline.drop(1).collect {
+				mediaSession?.notifyChildrenChanged(PlaybackLibrary.HOME, Int.MAX_VALUE, null)
 			}
 		}
 

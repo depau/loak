@@ -44,8 +44,15 @@ import eu.depau.loak.generated.resources.title_quick_picks
 import eu.depau.loak.generated.resources.title_radios
 import eu.depau.loak.generated.resources.title_songs
 import eu.depau.loak.generated.resources.title_starred
+import eu.depau.loak.generated.resources.count_songs
+import eu.depau.loak.generated.resources.info_offline
+import eu.depau.loak.domain.manager.ConnectivityManager
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.getString
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -68,44 +75,44 @@ internal class PlaybackLibrary : KoinComponent {
 	private val homeRepository: HomeRepository by inject()
 	private val searchRepository: SearchRepository by inject()
 	private val audioStore: AudioStore by inject()
+	private val connectivityManager: ConnectivityManager by inject()
 	private val context: Context by inject()
 
 	fun root(): MediaItem = item(ROOT, "", browsable = true)
 
 	// Layout follows Android Auto's media guidelines: artwork-led lists (albums, playlists,
-	// artists) as grids, folders of folders as category lists with small tinted icons.
+	// artists) as grids, folders of folders as category lists with small tinted icons, and
+	// short lists: Home is a handful of shelves, not every album it could show.
 	// ponytail: whole lists from the DB per request, sliced into pages; DB paging if a big
 	// library proves slow
 	suspend fun children(id: String): List<MediaItem> = when (id) {
-		ROOT -> listOf(
-			folder(HOME, Res.string.title_home, R.drawable.auto_home, browsable = GRID),
-			folder(STARRED, Res.string.title_starred, R.drawable.auto_star, browsable = CATEGORY),
+		// Downloads only when it has something: an empty tab is a dead end in the car
+		ROOT -> listOfNotNull(
+			folder(HOME, Res.string.title_home, R.drawable.auto_home),
 			folder(LIBRARY, Res.string.title_library, R.drawable.auto_library, browsable = CATEGORY),
 			folder(DOWNLOADS, Res.string.title_downloads, R.drawable.auto_download, browsable = GRID)
+				.takeIf { hasDownloads.first() }
 		)
 		HOME -> home()
-		STARRED -> listOf(
-			folder(STARRED_SONGS, Res.string.title_songs, R.drawable.auto_song),
-			folder(STARRED_ALBUMS, Res.string.title_albums, R.drawable.auto_album, browsable = GRID),
-			folder(STARRED_ARTISTS, Res.string.title_artists, R.drawable.auto_artist, browsable = GRID)
-		)
 		LIBRARY -> listOf(
 			folder(PLAYLISTS, Res.string.title_playlists, R.drawable.auto_playlist, browsable = GRID),
-			folder(ARTISTS, Res.string.title_artists, R.drawable.auto_artist, browsable = GRID),
 			folder(ALBUMS, Res.string.title_albums, R.drawable.auto_album, browsable = GRID),
+			folder(ARTISTS, Res.string.title_artists, R.drawable.auto_artist, browsable = GRID),
+			folder(STARRED, Res.string.title_starred, R.drawable.auto_star, browsable = GRID),
 			folder(GENRES, Res.string.title_genres, R.drawable.auto_genre, browsable = CATEGORY),
 			folder(RADIOS, Res.string.title_radios, R.drawable.auto_radio, playable = CATEGORY)
 		)
-		// a category tile among the downloaded albums and playlists
-		DOWNLOADS -> listOf(
-			folder(DOWNLOADED_SONGS, Res.string.title_songs, R.drawable.auto_song, single = CATEGORY_GRID)
+		STARRED -> starred()
+		DOWNLOADS -> listOfNotNull(
+			playAll(DOWNLOADED_SONGS, Res.string.title_songs, icon = R.drawable.auto_download)
 		) + downloadCollectionDao.getAll().mapNotNull { collectionItem(it.collectionId) }
+		MADE_FOR_YOU -> homeRepository.madeForYou().map(::playlistItem)
+		RECENTLY_ADDED -> homeRepository.recentlyAdded(homeRepository.library(), null).map(::albumItem)
+		FORGOTTEN -> homeRepository.forgottenFavourites(homeRepository.library(), null).map(::albumItem)
+		NEVER_PLAYED -> homeRepository.neverPlayed(homeRepository.library()).map(::albumItem)
 		PLAYLISTS -> playlistDao.getAllPlaylistsByName().map { playlistItem(it.toDomainModel()) }
 		ARTISTS -> artistDao.getArtistsAlphabeticalByName().map { artistItem(it.toDomainModel()) }
-		STARRED_ARTISTS -> artistDao.getArtistsStarred().map { artistItem(it.toDomainModel()) }
 		ALBUMS -> albumDao.getAllAlbumsList().map { albumItem(it.toDomainModel()) }
-		STARRED_ALBUMS -> albumDao.getAllAlbumsList().map { it.toDomainModel() }
-			.filter { it.starredAt != null }.sortedByDescending { it.starredAt }.map(::albumItem)
 		GENRES -> genreDao.getGenres().map {
 			folder("$GENRE|${it.genreName}", it.genreName, R.drawable.auto_genre, browsable = GRID)
 		}
@@ -126,20 +133,72 @@ internal class PlaybackLibrary : KoinComponent {
 		}
 	}
 
+	/**
+	 * One row per shelf, each with its first item's artwork: song mixes play when picked, the
+	 * others open a grid. Empty shelves are left out.
+	 */
 	private suspend fun home(): List<MediaItem> {
 		val library = homeRepository.library()
-		fun List<DomainAlbum>.group(title: String) = map { albumItem(it, group = title) }
-		return listOf(
-			folder(QUICK_PICKS, Res.string.title_quick_picks, R.drawable.auto_quick_picks, single = CATEGORY_GRID)
-		) +
-			homeRepository.madeForYou().map {
-				playlistItem(it, group = getString(Res.string.title_made_for_you))
-			} +
-			homeRepository.recentlyAdded(library, null).group(getString(Res.string.lens_recently_added)) +
-			homeRepository.forgottenFavourites(library, null)
-				.group(getString(Res.string.title_forgotten_favourites)) +
-			homeRepository.neverPlayed(library).group(getString(Res.string.title_never_played))
+		suspend fun shelf(id: String, title: StringResource, items: List<Pair<String?, String?>>) =
+			items.takeIf { it.isNotEmpty() }?.let {
+				item(
+					id, getString(title), it.take(3).mapNotNull { (name, _) -> name }.joinToString(),
+					it.first().second, browsable = true, extras = style(browsable = GRID)
+				)
+			}
+		val offline = !connectivityManager.isOnline.value
+		return listOfNotNull(
+			playAll(DOWNLOADED_SONGS, Res.string.info_offline, icon = R.drawable.auto_download)
+				.takeIf { offline },
+			playAll(QUICK_PICKS, Res.string.title_quick_picks),
+			shelf(
+				MADE_FOR_YOU, Res.string.title_made_for_you,
+				homeRepository.madeForYou().map { it.name to it.coverArtId }
+			),
+			shelf(
+				RECENTLY_ADDED, Res.string.lens_recently_added,
+				homeRepository.recentlyAdded(library, null).map { it.name to it.coverArtId }
+			),
+			playAll(STARRED_SONGS, Res.string.title_starred),
+			shelf(
+				FORGOTTEN, Res.string.title_forgotten_favourites,
+				homeRepository.forgottenFavourites(library, null).map { it.name to it.coverArtId }
+			),
+			shelf(
+				NEVER_PLAYED, Res.string.title_never_played,
+				homeRepository.neverPlayed(library).map { it.name to it.coverArtId }
+			)
+		)
 	}
+
+	/** Library › Starred: a row playing every starred song, then the starred albums and artists. */
+	private suspend fun starred(): List<MediaItem> {
+		val albums = albumDao.getAllAlbumsList().map { it.toDomainModel() }
+			.filter { it.starredAt != null }.sortedByDescending { it.starredAt }
+		return listOfNotNull(playAll(STARRED_SONGS, Res.string.title_songs)) +
+			albums.map { albumItem(it, group = getString(Res.string.title_albums)) } +
+			artistDao.getArtistsStarred().map {
+				artistItem(it.toDomainModel(), group = getString(Res.string.title_artists))
+			}
+	}
+
+	/**
+	 * A row that plays the songs of [folder] (none when it has none), with the first artwork
+	 * among them, or [icon], and the song count.
+	 */
+	private suspend fun playAll(folder: String, title: StringResource, icon: Int? = null): MediaItem? {
+		val songs = songs(folder).ifEmpty { return null }
+		return item(
+			"$PLAY|$folder", getString(title),
+			getPluralString(Res.plurals.count_songs, songs.size, songs.size),
+			songs.firstNotNullOfOrNull { it.coverArtId ?: it.albumId }.takeIf { icon == null }, icon,
+			playable = true, extras = style(single = icon?.let { CATEGORY })
+		)
+	}
+
+	/** Whether the current server has any download, finished or still coming. */
+	val hasDownloads: Flow<Boolean>
+		get() = audioStore.pinned.map { it.isNotEmpty() }.distinctUntilChanged()
 
 	/** Browse search: the albums, artists, songs and playlists matching [query]. */
 	suspend fun search(query: String): List<MediaItem> = searchRepository.search(query).mapNotNull {
@@ -290,9 +349,10 @@ internal class PlaybackLibrary : KoinComponent {
 		browsable = true, type = MediaMetadata.MEDIA_TYPE_PLAYLIST, extras = style(group = group)
 	)
 
-	private fun artistItem(artist: DomainArtist) = item(
+	private fun artistItem(artist: DomainArtist, group: String? = null) = item(
 		"$ARTIST|${artist.id}", artist.name, null, artist.coverArtId,
-		browsable = true, type = MediaMetadata.MEDIA_TYPE_ARTIST, extras = style(browsable = GRID)
+		browsable = true, type = MediaMetadata.MEDIA_TYPE_ARTIST,
+		extras = style(browsable = GRID, group = group)
 	)
 
 	private fun songItem(song: DomainSong, folder: String, downloaded: Boolean) = item(
@@ -366,7 +426,7 @@ internal class PlaybackLibrary : KoinComponent {
 
 	companion object {
 		const val ROOT = "root"
-		private const val HOME = "home"
+		const val HOME = "home"
 		private const val STARRED = "starred"
 		private const val LIBRARY = "library"
 		private const val DOWNLOADS = "downloads"
@@ -376,10 +436,12 @@ internal class PlaybackLibrary : KoinComponent {
 		private const val GENRES = "genres"
 		private const val RADIOS = "radios"
 		private const val STARRED_SONGS = "starred_songs"
-		private const val STARRED_ALBUMS = "starred_albums"
-		private const val STARRED_ARTISTS = "starred_artists"
 		private const val DOWNLOADED_SONGS = "downloaded_songs"
 		private const val QUICK_PICKS = "quick_picks"
+		private const val MADE_FOR_YOU = "made_for_you"
+		private const val RECENTLY_ADDED = "recently_added"
+		private const val FORGOTTEN = "forgotten_favourites"
+		private const val NEVER_PLAYED = "never_played"
 
 		/** A song found by search: it plays alone, and Autoplay carries on. */
 		private const val SINGLE = "single"
