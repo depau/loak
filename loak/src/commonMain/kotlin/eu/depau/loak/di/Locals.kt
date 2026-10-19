@@ -53,3 +53,9 @@ val LocalQueuePaneOpen = staticCompositionLocalOf<MutableState<Boolean>> {
  * once one has moved over the app. Shows mouse-only affordances, like the refresh button.
  */
 val LocalMouseInUse = compositionLocalOf { false }
+
+/**
+ * On Android Automotive, where this UI opens from the car's media app (parked only), the way
+ * back to it; null elsewhere.
+ */
+val LocalBackToCar = staticCompositionLocalOf<(() -> Unit)?> { null }

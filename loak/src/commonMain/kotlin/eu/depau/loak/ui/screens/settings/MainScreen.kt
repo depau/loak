@@ -26,6 +26,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.di.LocalNavStack
+import eu.depau.loak.di.LocalBackToCar
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.isLandscape
+import eu.depau.loak.icons.outlined.Car
+import eu.depau.loak.generated.resources.action_back_to_car
+import eu.depau.loak.ui.components.layouts.TopBarButton
 import eu.depau.loak.domain.manager.NavidromeManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
@@ -80,12 +86,24 @@ fun SettingsScreen() {
 	val backStack = LocalNavStack.current
 	val besideDetail = backStack.lastOrNull() !is Screen.Settings.Root
 	val isTab = backStack.firstOrNull() is Screen.Settings
+	// opened from the car's media app: on narrow screens, without the rail, its way back
+	val backToCar = LocalBackToCar.current.takeIf { !LocalPlatformContext.current.isLandscape() }
 	Scaffold(
 		topBar = {
 			NestedTopBar(
 				{ Text(stringResource(Res.string.title_settings)) },
-				// opened as a tab from the rail: nothing to go back to
-				navigationAction = { if (!isTab) NestedTopBarDefaults.NavigationAction() },
+				// opened as a tab from the rail: nothing to go back to, but maybe the car
+				navigationAction = {
+					when {
+						!isTab -> NestedTopBarDefaults.NavigationAction()
+						backToCar != null -> TopBarButton(
+							modifier = Modifier.padding(start = 20.dp, end = 13.dp),
+							onClick = backToCar
+						) {
+							Icon(Icons.Outlined.Car, stringResource(Res.string.action_back_to_car))
+						}
+					}
+				},
 				trailing = !besideDetail
 			)
 		}

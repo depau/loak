@@ -7,7 +7,11 @@ import eu.depau.loak.icons.filled.Explore
 import eu.depau.loak.generated.resources.title_explore
 import eu.depau.loak.generated.resources.title_discover
 import eu.depau.loak.icons.outlined.Settings
+import eu.depau.loak.icons.outlined.Car
 import eu.depau.loak.generated.resources.title_settings
+import eu.depau.loak.generated.resources.action_back_to_car
+import eu.depau.loak.generated.resources.label_car
+import eu.depau.loak.di.LocalBackToCar
 import eu.depau.loak.generated.resources.title_library
 import eu.depau.loak.icons.outlined.LibraryMusic
 import eu.depau.loak.icons.filled.LibraryMusic
@@ -278,6 +282,16 @@ fun AppNavigationRail(modifier: Modifier = Modifier) {
 			Spacer(Modifier.height(chrome.barHeight))
 		}
 		Spacer(Modifier.height(12.dp))
+		// on Android Automotive, first: the way back to the car's media app
+		LocalBackToCar.current?.let { backToCar ->
+			NavigationRailItem(
+				selected = false,
+				onClick = backToCar,
+				icon = { Icon(Icons.Outlined.Car, stringResource(Res.string.action_back_to_car)) },
+				label = { Text(stringResource(Res.string.label_car), maxLines = 1) }
+			)
+			Spacer(Modifier.height(12.dp))
+		}
 		(tabs.map { it.id.navItem() } + NavItem.LIBRARY).forEach { item ->
 			val selected = backStack.firstOrNull() == item.destination
 			NavigationRailItem(

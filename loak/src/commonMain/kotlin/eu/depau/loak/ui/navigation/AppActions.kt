@@ -45,6 +45,12 @@ class AppActions(
 		if (backStack.lastOrNull() !is Screen.Settings) backStack.add(Screen.Settings.Root)
 	}
 
+	/** Settings as the tab the user is in, as the navigation rail's Settings opens it. */
+	fun settingsTab() {
+		backStack.clear()
+		backStack.add(Screen.Settings.Root)
+	}
+
 	fun about() {
 		settings()
 		if (backStack.lastOrNull() != Screen.Settings.About) backStack.add(Screen.Settings.About)

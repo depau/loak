@@ -46,7 +46,8 @@
 		tools:targetApi="33">
 
 		<!-- APPLICATION_PREFERENCES: the settings button of the Android Automotive media app,
-		     the way to this UI there, parked, since the launcher entry is off (see Application) -->
+		     the way to this UI there, parked, since the launcher entry is off (see Application).
+		     It opens on Settings, with a way back to the car (see MainActivity) -->
 		<activity
 			android:name=".MainActivity"
 			android:exported="true"

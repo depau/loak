@@ -8,7 +8,10 @@ import eu.depau.loak.generated.resources.info_offline
 import eu.depau.loak.generated.resources.action_go_online
 import org.koin.compose.koinInject
 import eu.depau.loak.icons.outlined.Settings
+import eu.depau.loak.icons.outlined.Car
 import eu.depau.loak.generated.resources.title_settings
+import eu.depau.loak.generated.resources.action_back_to_car
+import eu.depau.loak.di.LocalBackToCar
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -167,6 +170,16 @@ private fun Actions(
 	OfflineButton()
 
 	QueuePaneToggle()
+
+	// wider windows have it at the top of the navigation rail
+	val backToCar = LocalBackToCar.current
+	if (backToCar != null && !LocalPlatformContext.current.isLandscape()) {
+		TooltipBox(stringResource(Res.string.action_back_to_car)) {
+			IconButton(onClick = backToCar) {
+				Icon(Icons.Outlined.Car, stringResource(Res.string.action_back_to_car))
+			}
+		}
+	}
 
 	// wider windows have it at the bottom of the navigation rail
 	if (!LocalPlatformContext.current.isLandscape()) TooltipBox(stringResource(Res.string.title_settings)) {
