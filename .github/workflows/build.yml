@@ -143,15 +143,43 @@ jobs:
       # Keyed on the Kotlin version alone: ~/.konan holds the compiler,
       # dependencies and platform libs, which change only when that does -- keying
       # it on every gradle script made each run restore an older entry and re-save
-      # a fresh ~1 GB one for no gain.
+      # a fresh ~1 GB one for no gain. The release binary caches the build puts under it
+      # are left out: they are cached per ref below.
       - name: Restore konan
         id: konan
         uses: actions/cache/restore@v4
         with:
-          path: ~/.konan
+          path: |
+            ~/.konan
+            !~/.konan/kotlin-native-prebuilt-*/klib/cache/*-user-pl
           key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-konan-
+
+      # Everything but releases (v-tags) links against release binary caches: the
+      # dependencies compiled once, so the link compiles only the app. The full link-time
+      # optimisation needs a 5+ GB heap on this 7.5 GB runner and swapped for ~35 min;
+      # cached, it takes ~1 min locally and ~4 GB. Releases keep the full optimisation and
+      # no cache. The caches are native code linked into the app, so every ref keeps its
+      # own entry: main restores only main's, and a branch or pull request may start from
+      # main's but saves under its own key, so nothing it builds reaches another ref.
+      # Restored only over a restored toolchain, never into an empty ~/.konan that the
+      # toolchain download expects to create.
+      - name: Restore release binary caches
+        id: release-cache
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.konan.outputs.cache-matched-key != '' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.konan/kotlin-native-prebuilt-*/klib/cache/ios_arm64-optSTATIC-user-pl
+          key: ${{ runner.os }}-kn-release-cache-${{ github.ref }}-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-kn-release-cache-refs/heads/main-${{ hashFiles('gradle/libs.versions.toml') }}
+
+      - name: Use release binary caches
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          printf '%s\n' kotlin.native.binary.enableReleaseBinaryCache=true \
+            kotlin.internal.native.enableReleaseBinaryCache=true >> gradle.properties
 
       - name: Run Gradle tasks
         run: ./gradlew :loak:generateValkyrieImageVector
@@ -196,8 +224,17 @@ jobs:
         if: github.ref == 'refs/heads/main' && steps.konan.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ~/.konan
+          path: |
+            ~/.konan
+            !~/.konan/kotlin-native-prebuilt-*/klib/cache/*-user-pl
           key: ${{ steps.konan.outputs.cache-primary-key }}
+
+      - name: Save release binary caches
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.release-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.konan/kotlin-native-prebuilt-*/klib/cache/ios_arm64-optSTATIC-user-pl
+          key: ${{ runner.os }}-kn-release-cache-${{ github.ref }}-${{ hashFiles('gradle/libs.versions.toml') }}
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v6
