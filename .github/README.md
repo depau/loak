@@ -45,6 +45,20 @@ Fork of [Navic](https://github.com/ssalggnikool/Navic).
 |:--------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|
 | ![](fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg) | ![](fastlane/metadata/android/en-US/images/phoneScreenshots/2.jpg) | ![](fastlane/metadata/android/en-US/images/phoneScreenshots/3.jpg) | ![](fastlane/metadata/android/en-US/images/phoneScreenshots/4.jpg) |
 
+## Android
+
+Lo'ak can notify you when a GitHub release is available. Obtainium can instead
+install updates automatically; use the matching entry because stable and nightly
+are separate apps with different package IDs.
+
+| Channel | Package | Obtainium |
+|---|---|---|
+| **Stable** | `eu.depau.loak` | [Add][ADD_TO_OBTAINIUM] |
+| **Nightly** | `eu.depau.loak.nightly` | [Add][ADD_NIGHTLY_TO_OBTAINIUM] |
+
+When Obtainium or another package manager handles updates, turn off
+**Settings → About Lo'ak → Check for updates** to avoid duplicate prompts.
+
 ## iOS (AltStore Classic / SideStore)
 
 iOS builds are distributed through an AltSource; add the source in **AltStore
@@ -72,8 +86,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) to see how you can help out!
 
 [WEB_DEMO]: https://depau.github.io/loak
 
-[ADD_TO_OBTAINIUM]: https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22eu.depau.loak%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fdepau%2Floak%22%2C%22author%22%3A%22depau%22%2C%22name%22%3A%22Lo%27ak%22%2C%22preferredApkIndex%22%3A0%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Atrue%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22filterReleaseTitlesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22filterReleaseNotesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22useLatestAssetDateAsReleaseDate%5C%22%3Afalse%2C%5C%22releaseTitleAsVersion%5C%22%3Afalse%2C%5C%22trackOnly%5C%22%3Afalse%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22matchGroupToUse%5C%22%3A%5C%22%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22useVersionCodeAsOSVersion%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22invertAPKFilter%5C%22%3Afalse%2C%5C%22autoApkFilterByArch%5C%22%3Atrue%2C%5C%22appName%5C%22%3A%5C%22%5C%22%2C%5C%22shizukuPretendToBeGooglePlay%5C%22%3Afalse%2C%5C%22exemptFromBackgroundUpdates%5C%22%3Afalse%2C%5C%22skipUpdateNotifications%5C%22%3Afalse%2C%5C%22about%5C%22%3A%5C%22%5C%22%7D%22%7D
+[ADD_TO_OBTAINIUM]: https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22eu.depau.loak%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fdepau%2Floak%22%2C%22author%22%3A%22depau%22%2C%22name%22%3A%22Lo%27ak%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Atrue%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELo%5C%5C%5C%5C.ak%5C%5C%5C%5C.apk%24%5C%22%7D%22%7D
+
+[ADD_NIGHTLY_TO_OBTAINIUM]: https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22eu.depau.loak.nightly%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fdepau%2Floak%22%2C%22author%22%3A%22depau%22%2C%22name%22%3A%22Lo%27ak%20Nightly%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Atrue%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELo%5C%5C%5C%5C.ak-nightly-.%2A%5C%5C%5C%5C.apk%24%5C%22%7D%22%7D
 
 [ALTSOURCE]: https://raw.githubusercontent.com/depau/loak/main/app-repo.json
 
-[LATEST_RELEASE]: https://github.com/depau/loak/releases/latest
+[LATEST_RELEASE]: https://github.com/depau/loak/releases
