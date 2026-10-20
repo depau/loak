@@ -148,6 +148,9 @@ kotlin {
 			isStatic = true
 			binaryOption("objcExportEntryPointsPath", objcEntryPoints.absolutePath)
 			linkTaskProvider.configure { inputs.file(objcEntryPoints) }
+			// This optimisation only drops initializer calls it proves redundant, yet took
+			// 50-125 s of a ~7 min release link.
+			freeCompilerArgs += "-Xdisable-phases=RemoveRedundantCallsToStaticInitializersPhase"
 		}
 	}
 
