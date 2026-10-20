@@ -133,13 +133,17 @@ jobs:
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      # the Kotlin/Native toolchain; like Gradle's cache, only main writes it
+      # the Kotlin/Native toolchain; like Gradle's cache, only main writes it.
+      # Keyed on the Kotlin version alone: ~/.konan holds the compiler,
+      # dependencies and platform libs, which change only when that does -- keying
+      # it on every gradle script made each run restore an older entry and re-save
+      # a fresh ~1 GB one for no gain.
       - name: Restore konan
         id: konan
         uses: actions/cache/restore@v4
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
+          key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-konan-
 
