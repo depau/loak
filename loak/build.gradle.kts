@@ -136,6 +136,9 @@ public fun interface TextFieldDecorator {
 }
 
 kotlin {
+	// The Kotlin API iosApp's Swift calls. Exporting every public declaration instead made
+	// the release link bridge ~2,400 classes into ObjC and keep all their code alive.
+	val objcEntryPoints = file("objc-entry-points.txt")
 	listOf(
 		iosArm64(),
 		iosSimulatorArm64()
@@ -143,6 +146,8 @@ kotlin {
 		target.binaries.framework {
 			baseName = "ComposeApp"
 			isStatic = true
+			binaryOption("objcExportEntryPointsPath", objcEntryPoints.absolutePath)
+			linkTaskProvider.configure { inputs.file(objcEntryPoints) }
 		}
 	}
 

@@ -275,6 +275,8 @@ For UI changes: **manually verify on different themes and form factors and inclu
 
 13. **A single-valued `@Relation` that can exceed 999 keys crashes on iOS.** Room batches relation fetches of more than 999 keys through `recursiveFetchMap`, whose single-valued branch does `map.putAll(batch)` while iterating `map.keys`; on Kotlin/Native that `putAll` sometimes rebuilds the backing table and invalidates the iterator, killing the query with `ConcurrentModificationException` — for some key counts only, so it looks like a data problem and Android (whose `HashMap` never bumps `modCount` for a replacement) is unaffected. Relations declared as collections never re-put the batch and are safe, which is why `PlaylistSong.songs` is a `List<SongEntity>`; key into it with `.songs.first()`, and keep it that way. `loak/src/iosTest/…/PlaylistRelationBatchingTest.kt` fails if a playlist relation goes back to being single-valued.
 
+14. **Swift sees only the Kotlin listed in `loak/objc-entry-points.txt`.** The iOS framework exports just those declarations (and the types their signatures use) to ObjC, through the `objcExportEntryPointsPath` binary option, instead of every public declaration of `:loak`, which made a 57k-line header and kept all that code alive through the release link. Before calling another Kotlin declaration from `iosApp`'s Swift, add it there (`function <fully qualified name>`).
+
 ## Quick orientation questions
 
 - *Where do I add a new screen?* → create `ui/screens/<feature>/…`, add a `Screen` variant in `ui/navigation/Screen.kt`, then register it in the `entryProvider` in `App.kt` (+ ViewModel in `di/ViewModelModule.kt`).

@@ -1,0 +1,5 @@
+// Kotlin declarations exported to iosApp's Swift (`<function|property|callable> <fq name>`,
+// `*` wildcards). Anything else stays out of the ComposeApp framework header.
+function eu.depau.loak.MainViewController
+function eu.depau.loak.di.initKoin
+function eu.depau.loak.di.initializeSentry
