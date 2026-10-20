@@ -32,6 +32,19 @@ actual class PermissionManager(
 		)
 	}
 
+	private var pendingNotificationsContinuation: CancellableContinuation<Boolean>? = null
+	private var notificationsPermissionLauncher = run {
+		val activity = activities.get<ComponentActivity>()
+		activity.activityResultRegistry.register(
+			key = UUID.randomUUID().toString(),
+			contract = ActivityResultContracts.RequestPermission(),
+			callback = { isGranted ->
+				pendingNotificationsContinuation?.resume(isGranted)
+				pendingNotificationsContinuation = null
+			},
+		)
+	}
+
 	actual fun openPermissionsSettings() {
 		val activity = activities.get<ComponentActivity>()
 		val intent = Intent(ACTION_APPLICATION_DETAILS_SETTINGS)
@@ -58,6 +71,24 @@ actual class PermissionManager(
 				pendingContinuation = null
 			}
 			permissionLauncher.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
+		}
+	}
+
+	actual suspend fun requestNotificationsPermission(): Boolean {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+
+		if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+			PackageManager.PERMISSION_GRANTED
+		) {
+			return true
+		}
+
+		return suspendCancellableCoroutine { continuation ->
+			pendingNotificationsContinuation = continuation
+			continuation.invokeOnCancellation {
+				pendingNotificationsContinuation = null
+			}
+			notificationsPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
 		}
 	}
 }

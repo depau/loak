@@ -43,7 +43,7 @@ import eu.depau.loak.domain.manager.SyncManager
 val managerModule = module {
 	single { SleepTimerManager(get<MediaPlayerViewModel>()) }
 	single(createdAtStart = true) {
-		SyncManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()).apply {
+		SyncManager(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()).apply {
 			startPeriodicSync()
 		}
 	}.onOptions { onClose { it?.close() } }

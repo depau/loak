@@ -186,6 +186,11 @@ class PreferenceManager(
 	// getScanStatus count at the last successful full pull, -1 = unknown
 	var lastScanCount by preference(-1)
 
+	/** Notify when a library sync finds albums added since the last one. */
+	var newAlbumsNotifications by preference(false)
+	/** The add date of the newest album the last "new albums" notification covered (0 = never). */
+	var lastNewAlbumsNotifiedAt by preference(0L)
+
 	// sorting/view mode preferences
 	var albumListViewMode by preference(ListViewMode.Grid)
 	var playlistListViewMode by preference(ListViewMode.List)

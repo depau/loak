@@ -16,6 +16,7 @@ import eu.depau.loak.domain.manager.ExportManager
 import eu.depau.loak.domain.manager.LinkManager
 import eu.depau.loak.domain.manager.LogManager
 import eu.depau.loak.domain.manager.MediaControlManager
+import eu.depau.loak.domain.manager.NewAlbumsNotifier
 import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.domain.manager.ShareManager
 import eu.depau.loak.domain.manager.StorageManager
@@ -97,6 +98,7 @@ actual val platformModule = module {
 	singleOf(::AudioGainManager)
 	single<PreviewPlayer> { DesktopPreviewPlayer() }
 	singleOf(::VolumeProvider)
+	singleOf(::NewAlbumsNotifier)
 }
 
 private object Os {

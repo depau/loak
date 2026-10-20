@@ -742,6 +742,21 @@
 	<string name="pref_download_only_while_charging_desc">Wait for a charger, to save battery</string>
 	<string name="action_download_now">Download now</string>
 	<string name="pref_download_refresh_now_desc">Downloaded albums and playlists also refresh on every library sync</string>
+	<string name="option_new_album_notifications">New album notifications</string>
+	<string name="subtitle_new_album_notifications">Let you know when your library's Recently added list grows</string>
+	<string name="title_notifications">Notifications</string>
+	<plurals name="count_new_albums">
+		<item quantity="one">%1$d new album</item>
+		<item quantity="other">%1$d new albums</item>
+	</plurals>
+	<plurals name="count_new_album_songs">
+		<item quantity="one">%1$d song</item>
+		<item quantity="other">%1$d songs</item>
+	</plurals>
+	<string name="title_new_albums">New albums</string>
+	<string name="info_new_albums_tap">Tap to open Recently added</string>
+	<string name="info_notifications_disabled">Notifications are off in system settings</string>
+	<string name="action_notification_settings">Open notification settings</string>
 	<string name="info_audiomuse_connected">Connected · alchemy, radios, describe a mix</string>
 	<string name="info_audiomuse_not_connected">Sonic analysis on your own server: mixes of songs that sound alike, alchemy, AI playlists</string>
 	<string name="action_set_up">Set up</string>

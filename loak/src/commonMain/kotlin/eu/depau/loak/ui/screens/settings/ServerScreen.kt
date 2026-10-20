@@ -5,7 +5,11 @@ import androidx.compose.material3.ButtonDefaults
 import eu.depau.loak.generated.resources.action_log_out
 import eu.depau.loak.generated.resources.info_audiomuse_not_connected
 import eu.depau.loak.generated.resources.info_audiomuse_connected
-import eu.depau.loak.generated.resources.info_smart_playlists_switch
+import eu.depau.loak.generated.resources.info_notifications_disabled
+import eu.depau.loak.generated.resources.action_notification_settings
+import eu.depau.loak.generated.resources.option_new_album_notifications
+import eu.depau.loak.generated.resources.subtitle_new_album_notifications
+import eu.depau.loak.generated.resources.title_notifications
 import eu.depau.loak.generated.resources.option_crash_reporting
 import eu.depau.loak.generated.resources.subtitle_crash_reporting
 import eu.depau.loak.generated.resources.title_audiomuse
@@ -27,6 +31,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import eu.depau.loak.di.PlatformType
 import eu.depau.loak.domain.manager.LidarrManager
+import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.ChevronForward
 import androidx.compose.runtime.collectAsState
@@ -36,6 +41,7 @@ import eu.depau.loak.domain.manager.ServerInfo
 import androidx.compose.runtime.produceState
 import eu.depau.loak.generated.resources.option_server_software
 import eu.depau.loak.generated.resources.option_smart_playlists
+import eu.depau.loak.generated.resources.info_smart_playlists_switch
 import eu.depau.loak.generated.resources.info_smart_playlists_unavailable
 import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import androidx.compose.foundation.layout.Arrangement
@@ -211,6 +217,7 @@ fun SettingsServerScreen() {
 			IntegrationsGroup()
 			DiscoverGroup()
 			ListeningHistoryGroup()
+			NewAlbumsNotificationsGroup()
 
 			SettingsGroup(title = { Text(stringResource(Res.string.title_advanced)) }) {
 				CustomHeadersItem()
@@ -273,6 +280,51 @@ fun IntegrationsGroup() {
 				))
 			}
 		)
+	}
+}
+
+/** Android-only: the new-albums notification toggle, asks for the permission on enable. */
+@Composable
+fun NewAlbumsNotificationsGroup() {
+	if (LocalPlatformContext.current.platformType != PlatformType.Android) return
+	val preferenceManager = koinInject<PreferenceManager>()
+	val permissionManager = koinInject<PermissionManager>()
+	val scope = rememberCoroutineScope()
+	val backStack = LocalNavStack.current
+	var denied by remember { mutableStateOf(false) }
+
+	SettingsGroup(title = { Text(stringResource(Res.string.title_notifications)) }) {
+		SettingsToggleItem(
+			content = { Text(stringResource(Res.string.option_new_album_notifications)) },
+			supportingContent = {
+				Text(stringResource(
+					if (denied) Res.string.info_notifications_disabled
+					else Res.string.subtitle_new_album_notifications
+				))
+			},
+			checked = preferenceManager.newAlbumsNotifications,
+			onCheckedChange = { on ->
+				if (on) {
+					scope.launch {
+						// asking here is the only place a prompt is ever shown for these
+						denied = !permissionManager.requestNotificationsPermission()
+						preferenceManager.newAlbumsNotifications = !denied
+					}
+				} else {
+					preferenceManager.newAlbumsNotifications = false
+					denied = false
+				}
+			},
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+		)
+		// notification permission denied: this row reroutes to the system settings
+		if (denied) {
+			SettingsNavItem(
+				onClick = dropUnlessResumed { permissionManager.openPermissionsSettings() },
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2),
+				content = { Text(stringResource(Res.string.action_notification_settings)) }
+			)
+		}
 	}
 }
 

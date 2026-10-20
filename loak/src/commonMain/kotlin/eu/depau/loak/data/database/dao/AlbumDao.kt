@@ -1,5 +1,6 @@
 package eu.depau.loak.data.database.dao
 
+import kotlin.time.Instant
 import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
@@ -45,6 +46,10 @@ interface AlbumDao {
 
 	@Query("SELECT userRating FROM AlbumEntity WHERE albumId = :albumId")
 	suspend fun getAlbumRating(albumId: String): Int?
+
+	/** Albums added to the server since [since], newest first: the "new albums" notification. */
+	@Query("SELECT * FROM AlbumEntity WHERE createdAt > :since ORDER BY createdAt DESC")
+	suspend fun getAlbumsAddedSince(since: Instant): List<AlbumEntity>
 
 	@Transaction
 	@Query("SELECT * FROM AlbumEntity WHERE artistId = :artistId ORDER BY year DESC")

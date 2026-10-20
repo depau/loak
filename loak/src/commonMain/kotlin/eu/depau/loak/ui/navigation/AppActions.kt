@@ -2,6 +2,7 @@ package eu.depau.loak.ui.navigation
 
 import androidx.navigation3.runtime.NavKey
 import androidx.navigationevent.DirectNavigationEventInput
+import eu.depau.loak.domain.models.DomainAlbumListType
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.components.layouts.refreshSlots
 
@@ -36,6 +37,13 @@ class AppActions(
 
 	val canGoForward get() = forwardHistory.canGoForward
 	fun forward() = forwardHistory.forward(backStack)
+
+	/** The Recently added album list, as the single screen: the "new albums" notification. */
+	fun recentlyAdded() {
+		backStack.clear()
+		backStack.add(Screen.Home())
+		backStack.add(Screen.AlbumList(nested = true, listType = DomainAlbumListType.Newest))
+	}
 
 	fun search() {
 		if (backStack.lastOrNull() !is Screen.Search) backStack.add(Screen.Search(nested = true))

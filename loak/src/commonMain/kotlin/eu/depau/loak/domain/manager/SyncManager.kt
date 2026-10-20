@@ -65,7 +65,8 @@ class SyncManager(
 	private val snackBarManager: SnackBarManager,
 	private val downloadManager: DownloadManager,
 	private val libraryMatcher: LibraryMatcher,
-	private val audioMuse: AudioMuseManager
+	private val audioMuse: AudioMuseManager,
+	private val newAlbumsNotifier: NewAlbumsNotifier
 ) {
 	private val scope = CoroutineScope(SupervisorJob() + IoDispatcher)
 	private var syncJob: Job? = null
@@ -249,6 +250,7 @@ class SyncManager(
 			downloadManager.onLibrarySynced()
 			// Discover's "In library" answers come from the fresh cache from now on
 			libraryMatcher.invalidate()
+			notifyNewAlbums(startedAt, initial)
 		}.onFailure {
 			addSentryBreadcrumb(
 				"sync", "pull_failed",
@@ -270,6 +272,34 @@ class SyncManager(
 		if (e is CancellationException) throw e
 		Logger.w("SyncManager", "getScanStatus failed; falling back to time-based sync", e)
 		null
+	}
+
+	/**
+	 * After a successful pull, notifies about albums the server added after the last pull that
+	 * got one. The baseline is the newest add date already notified, so `createdAt > baseline`
+	 * covers each album exactly once. The first pull on this install (or after reinstall, when
+	 * the preference resets to 0) only establishes the baseline: the whole library would
+	 * otherwise flood the user. Never throws into the sync cycle.
+	 */
+	private suspend fun notifyNewAlbums(pullStartedAt: Instant, initial: Boolean) {
+		if (initial || !preferenceManager.newAlbumsNotifications) return
+		if (preferenceManager.lastNewAlbumsNotifiedAt == 0L) {
+			// fresh install / never notified: seed the baseline without notifying
+			preferenceManager.lastNewAlbumsNotifiedAt = pullStartedAt.toEpochMilliseconds()
+			return
+		}
+		val baseline = Instant.fromEpochMilliseconds(preferenceManager.lastNewAlbumsNotifiedAt)
+		runCatching {
+			val newAlbums = albumDao.getAlbumsAddedSince(baseline)
+			if (newAlbums.isEmpty()) return@runCatching
+			newAlbumsNotifier.notifyNewAlbums(newAlbums.size, newAlbums.sumOf { it.songCount })
+			// the next pull compares against the newest album covered here
+			preferenceManager.lastNewAlbumsNotifiedAt =
+				newAlbums.maxOf { it.createdAt }.toEpochMilliseconds()
+		}.onFailure {
+			// don't advance the baseline on failure: the albums stay unnotified
+			Logger.e("SyncManager", "couldn't notify about new albums", it)
+		}
 	}
 
 	private suspend fun processQueue() {
