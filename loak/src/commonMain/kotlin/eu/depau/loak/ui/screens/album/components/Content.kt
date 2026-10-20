@@ -43,6 +43,7 @@ fun LazyGridScope.albumListScreenContent(
 ) {
 	val data = state.data.orEmpty()
 	if (data.isNotEmpty()) {
+		val showAddedDate = selectedSorting == DomainAlbumListType.Newest
 		if (selectedSorting == DomainAlbumListType.AlphabeticalByName) {
 			val grouped = data.groupBy { it.name?.firstOrNull()?.uppercaseChar() ?: '#' }
 				.toList()
@@ -109,6 +110,7 @@ fun LazyGridScope.albumListScreenContent(
 						modifier = loakAnimateItem(),
 						tab = "albums",
 						album = album,
+						showAddedDate = showAddedDate,
 						selected = album == selectedAlbum,
 						starred = starred,
 						onSelect = { onUpdateSelection(album) },
@@ -124,6 +126,7 @@ fun LazyGridScope.albumListScreenContent(
 					AlbumListScreenListItem(
 						modifier = loakAnimateItem(),
 						album = album,
+						showAddedDate = showAddedDate,
 						selected = album == selectedAlbum,
 						starred = starred,
 						onSelect = { onUpdateSelection(album) },

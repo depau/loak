@@ -34,12 +34,15 @@ import eu.depau.loak.ui.components.sheets.CollectionSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
 import eu.depau.loak.ui.util.appendBulletPoint
+import eu.depau.loak.ui.util.timeAgo
 import eu.depau.loak.ui.theme.SmallCoverArtShape
 
 @Composable
 fun AlbumListScreenListItem(
 	modifier: Modifier = Modifier,
 	album: DomainAlbum,
+	/** "Recently added" only: show the add date in the supporting line. */
+	showAddedDate: Boolean = false,
 	selected: Boolean,
 	starred: Boolean,
 	rating: Int,
@@ -82,6 +85,10 @@ fun AlbumListScreenListItem(
 						album.year?.let {
 							appendBulletPoint()
 							append("$it")
+						}
+						if (showAddedDate) {
+							appendBulletPoint()
+							append(album.createdAt.timeAgo())
 						}
 					}
 				)

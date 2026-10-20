@@ -25,12 +25,15 @@ import eu.depau.loak.ui.components.layouts.ArtGridItem
 import eu.depau.loak.ui.components.sheets.CollectionSheet
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.playlist.dialogs.PlaylistUpdateDialog
+import eu.depau.loak.ui.util.timeAgo
 
 @Composable
 fun AlbumListScreenGridItem(
 	modifier: Modifier = Modifier,
 	tab: String,
 	album: DomainAlbum,
+	/** "Recently added" only: show the add date in the subtitle. */
+	showAddedDate: Boolean = false,
 	selected: Boolean,
 	starred: Boolean,
 	rating: Int,
@@ -63,7 +66,10 @@ fun AlbumListScreenGridItem(
 			onLongClick = onSelect,
 			coverArtId = album.coverArtId,
 			title = album.name ?: "[unknown album]",
-			subtitle = album.artistName,
+			subtitle = if (showAddedDate) {
+				listOfNotNull(album.artistName, album.year?.toString(), album.createdAt.timeAgo())
+					.joinToString(" • ")
+			} else album.artistName,
 			id = album.id,
 			tab = tab
 		)
