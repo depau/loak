@@ -489,12 +489,30 @@ jobs:
         shell: bash
         run: echo "version=1.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
+      # Portable archives cannot self-update and are renamed below. Keep them out
+      # of the installer manifest so every listed URL remains valid.
+      - name: Exclude portable archives from nightly metadata
+        shell: bash
+        run: |
+          mkdir -p artifacts/portable-assets
+          find artifacts/release-assets-* -type f \
+            \( -name 'Loak-*-Linux.tar.gz' -o -name 'Loak-*-Windows.zip' \) \
+            -exec mv {} artifacts/portable-assets/ \;
+
       - name: Generate nightly update YML
         uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.5.18
         with:
           artifacts-path: artifacts
           version: ${{ steps.nightly_version.outputs.version }}
           channel: latest
+
+      - name: Restore portable nightly archives
+        shell: bash
+        run: |
+          mkdir -p artifacts/release-assets-portable
+          find artifacts/portable-assets -type f \
+            -exec mv {} artifacts/release-assets-portable/ \;
+          rmdir artifacts/portable-assets
 
       - name: Tag and create nightly release
         env:
@@ -646,12 +664,28 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "package_version=$major.$minor.$build" >> "$GITHUB_OUTPUT"
 
+      - name: Exclude portable archives from update metadata
+        shell: bash
+        run: |
+          mkdir -p artifacts/portable-assets
+          find artifacts/release-assets-* -type f \
+            \( -name 'Loak-*-Linux.tar.gz' -o -name 'Loak-*-Windows.zip' \) \
+            -exec mv {} artifacts/portable-assets/ \;
+
       - name: Generate update YML
         uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.5.18
         with:
           artifacts-path: artifacts
           version: ${{ steps.version.outputs.version }}
           channel: alpha
+
+      - name: Restore portable release archives
+        shell: bash
+        run: |
+          mkdir -p artifacts/release-assets-portable
+          find artifacts/portable-assets -type f \
+            -exec mv {} artifacts/release-assets-portable/ \;
+          rmdir artifacts/portable-assets
 
       # Body with the per-platform download table: rendered as HTML so the Android
       # row can span both arch columns. The APK GitHub actually serves is the
