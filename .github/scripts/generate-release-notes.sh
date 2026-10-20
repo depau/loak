@@ -38,7 +38,7 @@ $title
 </tr>
 <tr>
 <td><strong>macOS</strong></td>
-<td>—</td>
+<td>$(dl "${dp}mac-x64.dmg" "DMG") · $(dl "${dp}mac-x64.zip" "ZIP")</td>
 <td>$(dl "${dp}mac-arm64.dmg" "DMG") · $(dl "${dp}mac-arm64.zip" "ZIP")</td>
 </tr>
 <tr>

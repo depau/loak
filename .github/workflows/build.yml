@@ -272,7 +272,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-26, windows-latest, windows-11-arm ]
+        # macos-15-intel is the last GitHub-hosted Intel macOS image (to Aug 2027);
+        # macOS 26 only ships on Apple Silicon. The desktop build is a JVM target so
+        # it crosses archs fine; it produces the same mac-x64 artifacts on Intel hosts.
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-26, macos-15-intel, windows-latest, windows-11-arm ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -474,6 +477,13 @@ jobs:
           path: artifacts/release-assets-macos
           merge-multiple: true
 
+      - name: Download Intel macOS desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-macos-15-intel
+          path: artifacts/release-assets-macos
+          merge-multiple: true
+
       - name: Download Windows desktop artifacts
         uses: actions/download-artifact@v7
         with:
@@ -628,6 +638,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           pattern: loak-desktop-macos-26
+          path: artifacts/release-assets-macos
+          merge-multiple: true
+
+      - name: Download Intel macOS desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-macos-15-intel
           path: artifacts/release-assets-macos
           merge-multiple: true
 
