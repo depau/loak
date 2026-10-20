@@ -41,7 +41,13 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Main's runs are never cancelled in flight: the iOS job needs ~45 min, and
+  # `publish-nightly` is gated on it, so a run cancelled by the next push
+  # publishes nothing -- on a main that gets pushed more often than that, no
+  # nightly ever lands. The group still serializes main's runs (GitHub drops the
+  # older *pending* one, so there is one pipeline of lag, not a pile-up), and
+  # branches, PRs and tags still cancel, where nothing waits on the older commit.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build-android:
@@ -437,8 +443,13 @@ jobs:
     needs: [ test, ui-flows-android, build-android, build-ios, build-desktop ]
     runs-on: ubuntu-latest
     concurrency:
+      # Serializes publishers and never interrupts one: the release and its tag
+      # are deleted and re-created under the same `nightly` tag, so a publish
+      # cancelled half-way leaves the tag pointing at a partial release. A newer
+      # run's publish takes the queue slot instead (GitHub drops the older
+      # pending one), so the newest build still wins.
       group: nightly-publish
-      cancel-in-progress: true
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
