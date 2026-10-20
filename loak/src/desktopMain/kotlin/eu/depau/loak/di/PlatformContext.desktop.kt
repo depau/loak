@@ -37,7 +37,7 @@ actual fun rememberPlatformContext(): PlatformContext {
 			override val appVersion = NucleusApp.version ?: "desktop"
 			override val buildVariant = when {
 				NucleusApp.version == null -> "dev"
-				NucleusApp.version?.contains("-nightly.") == true -> "nightly"
+				System.getProperty("loak.updateChannel") == "nightly" -> "nightly"
 				else -> "release"
 			}
 			override val sizeClass = sizeClass

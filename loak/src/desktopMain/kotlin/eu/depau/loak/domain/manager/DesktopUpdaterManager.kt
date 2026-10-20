@@ -32,13 +32,13 @@ class DesktopUpdaterManager : UpdateController {
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
 	private val updater: NucleusUpdater = NucleusUpdater {
-		val nightly = NucleusApp.version?.contains("-nightly.") == true
+		val nightly = System.getProperty("loak.updateChannel") == "nightly"
 		provider = if (nightly) {
 			GenericProvider("https://github.com/depau/loak/releases/download/nightly")
 		} else {
 			GitHubProvider(owner = "depau", repo = "loak")
 		}
-		channel = if (nightly) "nightly" else "alpha"
+		channel = if (nightly) "latest" else "alpha"
 	}
 
 	/** The UpdateInfo chosen by the last check; kept for [download]. */

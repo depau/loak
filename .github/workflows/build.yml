@@ -324,19 +324,25 @@ jobs:
           if-no-files-found: ignore
 
       # Tagged packages use the tag version. Main builds get a monotonically increasing
-      # semver so the fixed `nightly` release can update one nightly installation to the next.
+      # numeric semver so jpackage accepts it and the fixed `nightly` release can update
+      # one nightly installation to the next. The separate channel property selects the
+      # nightly updater at runtime.
       - name: Compute package version
         id: version
         shell: bash
         run: |
+          channel="release"
           if [ "$GITHUB_EVENT_NAME" = "push" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             version="${GITHUB_REF_NAME#v}"
           elif [ "$GITHUB_EVENT_NAME" = "push" ] && [[ "$GITHUB_REF" == refs/heads/main ]]; then
-            version="1.0.${GITHUB_RUN_NUMBER}-nightly.${GITHUB_SHA::7}"
+            version="1.0.${GITHUB_RUN_NUMBER}"
+            channel="nightly"
           else
             version="1.0.0"
+            channel="dev"
           fi
           echo "package_version=$version" >> "$GITHUB_OUTPUT"
+          echo "update_channel=$channel" >> "$GITHUB_OUTPUT"
 
       - name: Build desktop package
         shell: bash
@@ -359,17 +365,17 @@ jobs:
           # multi-format packageDistributionForCurrentOS task graph collides.
           case "${{ runner.os }}" in
             macOS)
-              retry ./gradlew :loakDesktop:packageDmg --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
-              retry ./gradlew :loakDesktop:packageZip --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              retry ./gradlew :loakDesktop:packageDmg --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -PupdateChannel="${{ steps.version.outputs.update_channel }}"
+              retry ./gradlew :loakDesktop:packageZip --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -PupdateChannel="${{ steps.version.outputs.update_channel }}"
               ;;
             Windows)
-              retry ./gradlew :loakDesktop:packageMsi --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
-              retry ./gradlew :loakDesktop:packageExe --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              retry ./gradlew :loakDesktop:packageMsi --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -PupdateChannel="${{ steps.version.outputs.update_channel }}"
+              retry ./gradlew :loakDesktop:packageExe --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -PupdateChannel="${{ steps.version.outputs.update_channel }}"
               ;;
               *)
-              retry ./gradlew :loakDesktop:packageDeb --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
-              retry ./gradlew :loakDesktop:packageRpm --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
-              retry ./gradlew :loakDesktop:packageAppImage --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}"
+              retry ./gradlew :loakDesktop:packageDeb --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -PupdateChannel="${{ steps.version.outputs.update_channel }}"
+              retry ./gradlew :loakDesktop:packageRpm --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -PupdateChannel="${{ steps.version.outputs.update_channel }}"
+              retry ./gradlew :loakDesktop:packageAppImage --stacktrace -PpackageVersion="${{ steps.version.outputs.package_version }}" -PupdateChannel="${{ steps.version.outputs.update_channel }}"
               ;;
           esac
       - name: Build portable archive
@@ -481,14 +487,14 @@ jobs:
       - name: Compute nightly version
         id: nightly_version
         shell: bash
-        run: echo "version=1.0.${GITHUB_RUN_NUMBER}-nightly.${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        run: echo "version=1.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Generate nightly update YML
         uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.5.18
         with:
           artifacts-path: artifacts
           version: ${{ steps.nightly_version.outputs.version }}
-          channel: nightly
+          channel: latest
 
       - name: Tag and create nightly release
         env:
@@ -622,14 +628,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Version = tag minus the leading v; this must match the packaged
-      # nucleus.app.version (build-desktop passes -PpackageVersion=${{ tag#v }})
-      # and the release tag, so the updater's getDownloadUrl resolves
-      # /releases/download/v{version}/{file}.
+      # Keep the semantic tag version in updater metadata. Installer names use the
+      # numeric package version derived by loakDesktop/build.gradle.kts.
       - name: Compute release version
         id: version
         shell: bash
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          base="${version%%-*}"
+          IFS=. read -r major minor patch <<< "$base"
+          build="$patch"
+          if [[ "$version" == *-* && "$patch" == 0 ]]; then
+            prerelease="${version#*-}"
+            digits="${prerelease//[!0-9]/}"
+            [ -z "$digits" ] || build="$digits"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "package_version=$major.$minor.$build" >> "$GITHUB_OUTPUT"
 
       - name: Generate update YML
         uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.5.18
@@ -650,7 +665,7 @@ jobs:
             .github/scripts/generate-release-notes.sh \
               "Lo'ak v${{ steps.version.outputs.version }}" \
               "${{ github.ref_name }}" \
-              "loak-${{ steps.version.outputs.version }}-" \
+              "loak-${{ steps.version.outputs.package_version }}-" \
               "Loak-" \
               "Lo.ak.apk" \
               "Loak.ipa"

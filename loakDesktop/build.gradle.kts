@@ -11,17 +11,19 @@ plugins {
 // ---------------------------------------------------------------------------
 // Version plumbing for auto-update.
 //
-// `packageVersion` becomes the app version the Nucleus updater compares against
-// its release manifest. Tagged builds use the tag without `v`; CI nightlies use
-// `1.0.<run>-nightly.<sha>`, whose numeric patch increases on every workflow run.
-// Local/manual builds keep `1.0.0`, which matches no published release.
+// `packageVersion` is the semantic app version the Nucleus updater compares
+// against its release manifest. jpackage only accepts numeric versions, so the
+// native package uses `numericVersion` while a JVM property restores the full
+// semantic version at runtime. CI nightlies are already numeric `1.0.<run>`.
+// `updateChannel` is baked into the JVM options so the packaged app can select
+// the fixed nightly release instead of the stable GitHub release stream.
 //
-// The strict installers (MSI/EXE want MAJOR.MINOR.BUILD, RPM forbids '-', DEB
-// wants a plain numeric upstream version) get their own derived numeric version
-// for artifact naming and OS package metadata; the updater only ever looks at
-// the manifest `version` vs `nucleus.app.version`, never at a filename.
+// Strict installer metadata and artifact names also use the derived numeric
+// version. The updater reads the manifest version and `nucleus.app.version`,
+// never the installer filename.
 // ---------------------------------------------------------------------------
 val releaseVersion: String = project.findProperty("packageVersion") as String? ?: "1.0.0"
+val updateChannel: String = project.findProperty("updateChannel") as String? ?: "release"
 
 /** Converts release and nightly versions to the numeric MAJOR.MINOR.BUILD installers require. */
 fun numericBuildVersion(version: String): String {
@@ -144,6 +146,7 @@ swapNucleusNatives(
 
 nucleus.application {
 	mainClass = "eu.depau.loak.desktopapp.MainKt"
+	jvmArgs("-Dnucleus.app.version=$releaseVersion", "-Dloak.updateChannel=$updateChannel")
 	// Nucleus' Tao window backend must own the macOS main thread; the plugin only adds this
 	// to hot reload. Installers are built per host OS, so checking the build host is enough.
 	if (System.getProperty("os.name").startsWith("Mac")) {
@@ -163,11 +166,9 @@ nucleus.application {
 			TargetFormat.AppImage
 		)
 		packageName = "Loak"
-		// Full release version (tag-derived in CI): this is what the app reports
-		// and what the auto-updater compares against the manifest. The
-		// --strict-installer numeric overrides below only shape package metadata
-		// and file names; nucleus.app.version keeps this full value.
-		packageVersion = releaseVersion
+		// jpackage requires this numeric value; nucleus.app.version above keeps
+		// prerelease identifiers for updater comparisons.
+		packageVersion = numericVersion
 		description = "Lo'ak — a modern Subsonic music client"
 		// electron-builder refuses a .deb without these
 		homepage = "https://github.com/depau/loak"
