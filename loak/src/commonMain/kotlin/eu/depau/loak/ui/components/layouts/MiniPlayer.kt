@@ -135,7 +135,7 @@ fun MiniPlayer(
 
 	val outerPadding = if (detached) 12.dp else 0.dp
 	val coverRounding by animateDpAsState(
-		if (playerState.isLoading)
+		if (playerState.isBusy)
 			46.dp
 		else 8.dp
 	)
@@ -237,7 +237,7 @@ fun MiniPlayer(
 								modifier = Modifier
 									.playerPillArt(playerSheet)
 									.size(if (detached) 48.dp else 50.dp)
-									.padding(if (playerState.isLoading) 8.dp else 0.dp)
+									.padding(if (playerState.isBusy) 8.dp else 0.dp)
 									.clip(
 										ContinuousRoundedRectangle(coverRounding)
 									)
@@ -251,7 +251,7 @@ fun MiniPlayer(
 								)
 							}
 							AnimatedVisibility(
-								playerState.isLoading,
+								playerState.isBusy,
 								modifier = Modifier.matchParentSize(),
 								enter = scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec())
 									+ fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),

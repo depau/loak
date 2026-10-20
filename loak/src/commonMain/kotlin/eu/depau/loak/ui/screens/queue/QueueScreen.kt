@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -263,12 +264,21 @@ fun QueueScreen() {
 				val instantMix by player.instantMix.collectAsStateWithLifecycle()
 				(pickedUpFromLabel(ago = true)
 					?: instantMix?.let { stringResource(Res.string.info_instant_mix, it.seedName) })?.let {
-					Text(
-						text = it,
-						style = MaterialTheme.typography.bodyMedium,
-						color = MaterialTheme.colorScheme.onSurfaceVariant,
+					Row(
+						verticalAlignment = Alignment.CenterVertically,
 						modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp)
-					)
+					) {
+						Text(
+							text = it,
+							style = MaterialTheme.typography.bodyMedium,
+							color = MaterialTheme.colorScheme.onSurfaceVariant
+						)
+						// the queue is still growing into the mix: the songs are on their way
+						if (playerState.isBuildingMix) CircularProgressIndicator(
+							Modifier.padding(start = 8.dp).size(14.dp),
+							strokeWidth = 2.dp
+						)
+					}
 				}
 			}
 

@@ -22,8 +22,8 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * The play/pause icon for [state], ringed by a spinner filling the enclosing button while the
- * player is buffering, so a stalled track doesn't look frozen. [animated] uses the platform's
- * animated icon where there is one.
+ * player is buffering or fetching the rest of an instant mix, so a stalled track doesn't look
+ * frozen. [animated] uses the platform's animated icon where there is one.
  */
 @Composable
 fun PlayPauseIcon(state: PlayerUiState, modifier: Modifier = Modifier, animated: Boolean = false) {
@@ -31,7 +31,7 @@ fun PlayPauseIcon(state: PlayerUiState, modifier: Modifier = Modifier, animated:
 		if (state.isPaused) Res.string.action_play else Res.string.action_pause
 	)
 	Box(contentAlignment = Alignment.Center) {
-		if (state.isLoading) CircularProgressIndicator(
+		if (state.isBusy) CircularProgressIndicator(
 			Modifier.fillMaxSize(),
 			color = LocalContentColor.current,
 			trackColor = Color.Transparent,

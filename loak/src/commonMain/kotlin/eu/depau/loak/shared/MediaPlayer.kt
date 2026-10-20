@@ -425,15 +425,21 @@ abstract class MediaPlayerViewModel(
 	fun playNow(songs: List<DomainSong>, startIndex: Int = 0) = startQueue(songs, startIndex, mix = null)
 
 	private fun startQueue(all: List<DomainSong>, startIndex: Int, mix: InstantMix?) {
+		// the queue this mix was being built for is gone with it
+		mixJob?.cancel()
 		// offline, songs that can't play are left out: start from the first one that can
-		val songs = playable(all).ifEmpty { return }
+		val songs = playable(all).ifEmpty {
+			// nothing to play, and this queue won't be built either: don't wait on a mix
+			if (uiState.value.isBuildingMix) abandonMix()
+			return
+		}
 		val start = all.take(startIndex).count(::canPlay).takeIf { it < songs.size } ?: 0
 		addSentryBreadcrumb(
 			"player", "queue_started",
 			data = mapOf("songs" to songs.size, "mix" to (mix != null))
 		)
 		// before clearQueue: platforms clear by copying the state, which keeps the mix
-		_uiState.update { it.copy(instantMix = mix) }
+		_uiState.update { it.copy(instantMix = mix, isBuildingMix = false) }
 		// the old queue's: auto-fill would otherwise pick one before the new ones arrive
 		autoplaySongs.value = emptyList()
 		clearQueue()
@@ -493,31 +499,63 @@ abstract class MediaPlayerViewModel(
 		return true
 	}
 
+	/** The mix being built; starting another one, or a queue, abandons it. */
+	private var mixJob: Job? = null
+
+	/** Identifies the mix being built, so a slower earlier one can't apply over a newer. */
+	private var mixCount = 0
+
 	private fun startInstantMix(
 		seedName: String,
 		seed: DomainSong?,
 		fetchSimilar: suspend () -> List<DomainSong>
 	) {
-		viewModelScope.launch {
+		// what an undo goes back to: the queue as it was before the tap
+		val previous = uiState.value
+		val building = ++mixCount
+		// the seed is known: it plays while the server looks for the rest (which joins it)
+		if (seed != null) startQueue(listOf(seed), 0, InstantMix(seedName, setOf(seed.id)))
+		_uiState.update { it.copy(isBuildingMix = true) }
+		// said now rather than a second later, when the mix is already playing: the undo is how
+		// a tap that wasn't meant to replace the queue is taken back, so it has to be offered then
+		snackBarManager.notifyWithUndo(Res.string.notice_instant_mix, seedName) {
+			replaceQueue(previous)
+		}
+		mixJob = viewModelScope.launch {
 			val similar = try {
 				fetchSimilar()
 			} catch (e: Exception) {
 				if (e is CancellationException) throw e
 				Logger.w("MediaPlayerViewModel", "could not fetch similar songs", e)
 				snackBarManager.notify(Res.string.notice_server_unreachable)
+				abandonMix()
 				return@launch
 			}
+			// a newer mix, or a queue started meanwhile, owns the player now
+			if (building != mixCount) return@launch
 			if (similar.isEmpty()) {
 				snackBarManager.notify(Res.string.notice_no_similar_songs)
+				abandonMix()
+				return@launch
+			}
+			if (uiState.value.currentSong?.id != (seed?.id ?: previous.currentSong?.id)) {
+				abandonMix()
 				return@launch
 			}
 			val songs = listOfNotNull(seed) + similar.filter { it.id != seed?.id }
-			val previous = uiState.value
-			startQueue(songs, 0, InstantMix(seedName, songs.mapTo(HashSet()) { it.id }))
-			snackBarManager.notifyWithUndo(Res.string.notice_instant_mix, seedName) {
-				replaceQueue(previous)
+			if (seed == null) startQueue(songs, 0, InstantMix(seedName, songs.mapTo(HashSet()) { it.id }))
+			else {
+				// the seed's already playing: the rest of the mix follows it, without a restart
+				_uiState.update { it.copy(instantMix = InstantMix(seedName, songs.mapTo(HashSet()) { it.id })) }
+				insertIntoQueue(1, songs.drop(1))
 			}
+			_uiState.update { it.copy(isBuildingMix = false) }
 		}
+	}
+
+	/** The mix couldn't be built: stop the spinner, and stop calling the queue one. */
+	private fun abandonMix() {
+		_uiState.update { it.copy(isBuildingMix = false, instantMix = null) }
 	}
 
 	// ponytail: probed once per run; a server switch in Settings keeps the old answer
@@ -604,6 +642,8 @@ abstract class MediaPlayerViewModel(
 	private fun checkAndAutoFillQueue() {
 		// the state can change while the server answers
 		if (!preferenceManager.autoFillQueue || autoFillJob?.isActive == true) return
+		// a mix being built is a one-song queue only until its songs arrive: not a queue running out
+		if (uiState.value.isBuildingMix) return
 
 		val state = uiState.value
 		if (state.currentIndex !in state.queue.indices || state.queue.size - state.currentIndex > 1) return
@@ -631,6 +671,9 @@ abstract class MediaPlayerViewModel(
 				.debounce(500.milliseconds)
 				.collectLatest { queue ->
 					if (queue == null) return@collectLatest
+					// the mix being built fetches these songs itself: wait for it rather than
+					// asking the server for the same suggestions twice, for a queue a second old
+					if (uiState.value.isBuildingMix) return@collectLatest
 					val ids = queue.mapTo(HashSet()) { it.id }
 					val added = ids - seeded
 					seeded = ids
@@ -721,7 +764,9 @@ abstract class MediaPlayerViewModel(
 
 	/** Swaps in [state], paused, the same way the saved queue is restored at startup. */
 	private fun replaceQueue(state: PlayerUiState) {
-		val paused = state.copy(isPaused = true, isLoading = false)
+		// this queue replaces the mix being built, if any
+		mixJob?.cancel()
+		val paused = state.copy(isPaused = true, isLoading = false, isBuildingMix = false)
 		clearQueue()
 		autoplaySongs.value = emptyList()
 		// a queue that came from the server, or was there before, isn't pushed back

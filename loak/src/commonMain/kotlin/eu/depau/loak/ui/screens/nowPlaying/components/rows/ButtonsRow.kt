@@ -10,8 +10,10 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -171,29 +173,39 @@ fun NowPlayingButtonsRow() {
 					Res.string.action_play
 				else Res.string.action_pause
 			)
-			AnimatedContent(playerState.isLoading) { isBuffering ->
-				if (!isBuffering) {
-					if (painter != null) {
-						Icon(
-							painter = painter,
-							contentDescription = description,
-							modifier = Modifier.size(40.dp)
-						)
+			Box(contentAlignment = Alignment.Center) {
+				// the mix's songs are on their way: a ring around it, never over it, since the
+				// song playing keeps being the user's to pause
+				if (playerState.isBuildingMix) CircularProgressIndicator(
+					Modifier.fillMaxSize(),
+					color = MaterialTheme.colorScheme.onPrimary,
+					trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = .5f),
+					strokeWidth = 3.dp
+				)
+				AnimatedContent(playerState.isLoading) { isBuffering ->
+					if (!isBuffering) {
+						if (painter != null) {
+							Icon(
+								painter = painter,
+								contentDescription = description,
+								modifier = Modifier.size(40.dp)
+							)
+						} else {
+							Icon(
+								imageVector = if (playerState.isPaused)
+									Icons.Filled.Play
+								else Icons.Filled.Pause,
+								contentDescription = description,
+								modifier = Modifier.size(40.dp)
+							)
+						}
 					} else {
-						Icon(
-							imageVector = if (playerState.isPaused)
-								Icons.Filled.Play
-							else Icons.Filled.Pause,
-							contentDescription = description,
-							modifier = Modifier.size(40.dp)
+						CircularProgressIndicator(
+							Modifier.size(40.dp),
+							color = MaterialTheme.colorScheme.onPrimary,
+							trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = .5f),
 						)
 					}
-				} else {
-					CircularProgressIndicator(
-						Modifier.size(40.dp),
-						color = MaterialTheme.colorScheme.onPrimary,
-						trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = .5f),
-					)
 				}
 			}
 		}

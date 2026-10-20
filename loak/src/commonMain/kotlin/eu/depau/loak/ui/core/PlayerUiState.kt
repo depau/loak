@@ -17,11 +17,17 @@ data class PlayerUiState(
 	val repeatMode: Int = 0,
 	val progress: Float = 0f,
 	val isLoading: Boolean = false,
+	/** The songs of an instant mix are being fetched, the seed (if known) already playing. */
+	@Transient
+	val isBuildingMix: Boolean = false,
 	val playbackSpeed: Float = 1.0f,
 	@Transient
 	val playbackDetails: PlaybackDetails? = null,
 	val instantMix: InstantMix? = null
-)
+) {
+	/** The player is working on something the user asked for: buffering, or building a mix. */
+	val isBusy: Boolean get() = isLoading || isBuildingMix
+}
 
 /** The seed's name and the songs of an instant mix. */
 @Serializable
