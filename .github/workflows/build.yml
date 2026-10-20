@@ -159,6 +159,9 @@ jobs:
           mkdir -p Payload ios
 
           ipa_name="Loak.ipa"
+          # Expanded with `${arr[@]+...}` below: bash 3.2 (macOS' /bin/bash) treats
+          # `"${arr[@]}"` on an empty array as an unbound variable under `set -u`,
+          # which is every run where IS_NIGHTLY is false -- manual dispatch, v* tags.
           xcode_overrides=()
           if [[ "$IS_NIGHTLY" == "true" ]]; then
             ipa_name="Loak-nightly.ipa"
@@ -177,7 +180,7 @@ jobs:
             -archivePath "iosApp.xcarchive" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            "${xcode_overrides[@]}"
+            ${xcode_overrides[@]+"${xcode_overrides[@]}"}
 
           app_path="$(find "iosApp.xcarchive/Products/Applications" -name "*.app" -print -quit)"
           cp -R "$app_path" Payload/
