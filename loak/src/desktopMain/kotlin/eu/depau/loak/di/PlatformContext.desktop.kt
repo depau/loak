@@ -35,7 +35,11 @@ actual fun rememberPlatformContext(): PlatformContext {
 			// The packaged app's version (nucleus.app.properties); null under
 			// `./gradlew run`, so fall back to a stable label.
 			override val appVersion = NucleusApp.version ?: "desktop"
-			override val buildVariant = if (NucleusApp.version == null) "dev" else "release"
+			override val buildVariant = when {
+				NucleusApp.version == null -> "dev"
+				NucleusApp.version?.contains("-nightly.") == true -> "nightly"
+				else -> "release"
+			}
 			override val sizeClass = sizeClass
 
 			@Composable

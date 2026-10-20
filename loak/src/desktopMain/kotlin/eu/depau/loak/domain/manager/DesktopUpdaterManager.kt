@@ -1,10 +1,11 @@
 package eu.depau.loak.domain.manager
 
 import dev.nucleusframework.core.runtime.NucleusApp
-import dev.nucleusframework.updater.provider.GitHubProvider
 import dev.nucleusframework.updater.NucleusUpdater
 import dev.nucleusframework.updater.UpdateInfo
 import dev.nucleusframework.updater.UpdateResult
+import dev.nucleusframework.updater.provider.GenericProvider
+import dev.nucleusframework.updater.provider.GitHubProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,20 +22,23 @@ import eu.depau.loak.util.Logger
 import java.io.File
 
 /**
- * Desktop auto-update via Nucleus. Feeds the shared [UpdateState] surface so the UI can ask
- * for a check, show download progress, and trigger install-and-restart.
+ * Desktop auto-update via Nucleus. Tagged builds use Lo'ak's alpha release channel; nightly
+ * builds use the manifests attached to the moving `nightly` release.
  *
- * The [NucleusUpdater] reads the version from the packaged `nucleus.app.properties`
- * (`NucleusApp.version`), so identical code is safe under `./gradlew run` (dev mode answers
- * NotAvailable). It talks to the `alpha` channel, matching the prerelease tags Lo'ak publishes.
+ * [NucleusUpdater] reads the packaged `nucleus.app.version`, so the same code is inert under
+ * `./gradlew run`, where no self-updatable executable or published version exists.
  */
 class DesktopUpdaterManager : UpdateController {
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
 	private val updater: NucleusUpdater = NucleusUpdater {
-		provider = GitHubProvider(owner = "depau", repo = "loak")
-		// Lo'ak ships only v1.0.0-alpha* prereleases; the "latest" channel 404s on them.
-		channel = "alpha"
+		val nightly = NucleusApp.version?.contains("-nightly.") == true
+		provider = if (nightly) {
+			GenericProvider("https://github.com/depau/loak/releases/download/nightly")
+		} else {
+			GitHubProvider(owner = "depau", repo = "loak")
+		}
+		channel = if (nightly) "nightly" else "alpha"
 	}
 
 	/** The UpdateInfo chosen by the last check; kept for [download]. */

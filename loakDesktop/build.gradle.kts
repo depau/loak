@@ -12,11 +12,9 @@ plugins {
 // Version plumbing for auto-update.
 //
 // `packageVersion` becomes the app version the Nucleus updater compares against
-// the release manifest (nucleus.app.version), so it MUST be the full release
-// version, including the prerelease suffix for alpha tags: v1.0.0-alpha58 ->
-// "1.0.0-alpha58". CI passes it as -PpackageVersion; local/manual builds keep
-// the plain "1.0.0" default (which matches no published release, so the updater
-// never announces an update from a dev build).
+// its release manifest. Tagged builds use the tag without `v`; CI nightlies use
+// `1.0.<run>-nightly.<sha>`, whose numeric patch increases on every workflow run.
+// Local/manual builds keep `1.0.0`, which matches no published release.
 //
 // The strict installers (MSI/EXE want MAJOR.MINOR.BUILD, RPM forbids '-', DEB
 // wants a plain numeric upstream version) get their own derived numeric version
@@ -25,12 +23,14 @@ plugins {
 // ---------------------------------------------------------------------------
 val releaseVersion: String = project.findProperty("packageVersion") as String? ?: "1.0.0"
 
-/** Strips any prerelease/tag to a numeric MAJOR.MINOR.BUILD (1.0.0-alpha58 -> 1.0.58). */
+/** Converts release and nightly versions to the numeric MAJOR.MINOR.BUILD installers require. */
 fun numericBuildVersion(version: String): String {
-	val parts = version.split('.')
-	val major = parts.getOrNull(0)?.filter { it.isDigit() }?.toIntOrNull() ?: 1
-	val minor = parts.getOrNull(1)?.filter { it.isDigit() }?.toIntOrNull() ?: 0
-	val build = parts.drop(2).joinToString("-").filter { it.isDigit() }.toIntOrNull() ?: 0
+	val base = version.substringBefore('-').split('.')
+	val major = base.getOrNull(0)?.toIntOrNull() ?: 1
+	val minor = base.getOrNull(1)?.toIntOrNull() ?: 0
+	val patch = base.getOrNull(2)?.toIntOrNull() ?: 0
+	val prereleaseBuild = version.substringAfter('-', "").filter(Char::isDigit).toIntOrNull()
+	val build = if (patch == 0) prereleaseBuild ?: 0 else patch
 	return "$major.$minor.$build"
 }
 

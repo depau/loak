@@ -8,7 +8,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import eu.depau.loak.ui.components.sheets.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -24,15 +23,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.action_dont_show_again
 import eu.depau.loak.generated.resources.action_update_app
 import eu.depau.loak.generated.resources.action_update_install_restart
 import eu.depau.loak.generated.resources.action_update_later
 import eu.depau.loak.generated.resources.info_update
 import eu.depau.loak.generated.resources.info_update_downloading_percent
-import eu.depau.loak.generated.resources.info_update_checking
 import eu.depau.loak.generated.resources.info_update_installing
 import eu.depau.loak.generated.resources.info_update_ready
 import eu.depau.loak.generated.resources.title_update
@@ -42,7 +38,6 @@ import eu.depau.loak.ui.util.LocalUpdateController
 import eu.depau.loak.ui.util.UpdatePhase
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 
 /**
@@ -55,10 +50,9 @@ fun DesktopUpdateSheet() {
 	val updateController = LocalUpdateController.current
 	if (updateController == null || !updateController.supported) return
 
-	val preferenceManager = koinInject<PreferenceManager>()
 	val state by updateController.state.collectAsStateWithLifecycle()
 
-	// Fire the update check exactly once per launch, before drawing anything.
+	// Check once per launch without interrupting the user until an update is available.
 	LaunchedEffect(updateController) {
 		updateController.check()
 	}
@@ -69,9 +63,9 @@ fun DesktopUpdateSheet() {
 	if (deferred) return
 
 	val visible = when (state.phase) {
-		UpdatePhase.Checking, UpdatePhase.Available, UpdatePhase.Downloading,
+		UpdatePhase.Available, UpdatePhase.Downloading,
 		UpdatePhase.Downloaded, UpdatePhase.Installing -> true
-		UpdatePhase.Idle, UpdatePhase.UpToDate, UpdatePhase.Failed -> false
+		UpdatePhase.Idle, UpdatePhase.Checking, UpdatePhase.UpToDate, UpdatePhase.Failed -> false
 	}
 	if (!visible) return
 
@@ -98,12 +92,6 @@ fun DesktopUpdateSheet() {
 			)
 
 			when (state.phase) {
-				UpdatePhase.Checking ->
-					Text(
-						stringResource(Res.string.info_update_checking),
-						style = MaterialTheme.typography.bodyMedium
-					)
-
 				UpdatePhase.Available -> {
 					Text(
 						stringResource(Res.string.info_update, state.newVersion ?: ""),

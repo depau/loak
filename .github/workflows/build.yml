@@ -323,19 +323,20 @@ jobs:
             build/navidrome-fixture/navidrome.log
           if-no-files-found: ignore
 
-      # The Nucleus updater compares the app version (nucleus.app.version) against the
-      # release manifest, so on a v* tag the packaged version must be the tag with the v
-      # stripped (v1.0.0-alpha58 -> 1.0.0-alpha58). Non-tag builds keep the neutral
-      # "1.0.0", which matches no published release, so they never announce an update.
+      # Tagged packages use the tag version. Main builds get a monotonically increasing
+      # semver so the fixed `nightly` release can update one nightly installation to the next.
       - name: Compute package version
         id: version
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "package_version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          elif [ "$GITHUB_EVENT_NAME" = "push" ] && [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            version="1.0.${GITHUB_RUN_NUMBER}-nightly.${GITHUB_SHA::7}"
           else
-            echo "package_version=1.0.0" >> "$GITHUB_OUTPUT"
+            version="1.0.0"
           fi
+          echo "package_version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build desktop package
         shell: bash
@@ -440,12 +441,54 @@ jobs:
           name: loak-ios
           path: ios
 
-      - name: Download desktop artifacts
+      # Keep one directory per platform: generate-update-yml merges both architectures
+      # into one manifest and preserves each installer's blockmap companion.
+      - name: Download Linux desktop artifacts
         uses: actions/download-artifact@v7
         with:
-          pattern: loak-desktop-*
-          path: desktop
+          pattern: loak-desktop-ubuntu-latest
+          path: artifacts/release-assets-linux
           merge-multiple: true
+
+      - name: Download Linux arm64 desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-ubuntu-24.04-arm
+          path: artifacts/release-assets-linux
+          merge-multiple: true
+
+      - name: Download macOS desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-macos-26
+          path: artifacts/release-assets-macos
+          merge-multiple: true
+
+      - name: Download Windows desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-windows-latest
+          path: artifacts/release-assets-windows
+          merge-multiple: true
+
+      - name: Download Windows arm64 desktop artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: loak-desktop-windows-11-arm
+          path: artifacts/release-assets-windows
+          merge-multiple: true
+
+      - name: Compute nightly version
+        id: nightly_version
+        shell: bash
+        run: echo "version=1.0.${GITHUB_RUN_NUMBER}-nightly.${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate nightly update YML
+        uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.5.18
+        with:
+          artifacts-path: artifacts
+          version: ${{ steps.nightly_version.outputs.version }}
+          channel: nightly
 
       - name: Tag and create nightly release
         env:
@@ -463,24 +506,23 @@ jobs:
           token="$(basename nightly/*.apk .apk)"
           token="${token#Lo.ak-}"
 
-          # Desktop installers/blockmaps carry the neutral non-tag version
-          # (loak-1.0.0-*, packageVersion=1.0.0) and the portables are versionless
-          # (Loak-X64-Linux.tar.gz) — rename both to the unique token. latest-*.yml
-          # update manifests are left alone: the pointer tag is what the updater
-          # resolves, and nightlies aren't auto-updated anyway (they match no
-          # published prerelease).
-          cd desktop
-          for f in loak-1.0.0-*; do
+          # Installers already carry the unique, monotonic nightly version. Portable archives
+          # are versionless, so add the same human-readable token used by the APK.
+          for f in artifacts/release-assets-*/Loak-*-Linux.tar.gz \
+                   artifacts/release-assets-*/Loak-*-Windows.zip; do
             [ -e "$f" ] || continue
-            mv "$f" "${f/loak-1.0.0-/loak-${token}-}"
+            dir="${f%/*}"
+            name="${f##*/}"
+            mv "$f" "$dir/${name/Loak-/Loak-${token}-}"
           done
-          for f in Loak-*-Linux.tar.gz Loak-*-Windows.zip; do
-            [ -e "$f" ] || continue
-            mv "$f" "${f/Loak-/Loak-${token}-}"
-          done
-          cd ..
 
-          FILES=( nightly/* ios/* desktop/* )
+          FILES=( nightly/* ios/* artifacts/update-yml/* )
+          while IFS= read -r -d '' f; do
+            case "$f" in
+              *.yml|*.yaml) ;;
+              *) FILES+=( "$f" ) ;;
+            esac
+          done < <(find artifacts/release-assets-* -type f -print0)
 
           # The Nightly AltSource is paired with the Nightly IPA it points to;
           # both are re-published together under the same `nightly` tag. The
@@ -497,7 +539,7 @@ jobs:
             .github/scripts/generate-release-notes.sh \
               "Nightly build of \`main\` (${GITHUB_SHA::7})." \
               nightly \
-              "loak-${token}-" \
+              "loak-${{ steps.nightly_version.outputs.version }}-" \
               "Loak-${token}-" \
               "Lo.ak-${token}.apk" \
               "Loak-nightly.ipa"

@@ -57,5 +57,5 @@ $title
 </tbody>
 </table>
 
-Installers auto-update; portable builds (tar.gz/zip) don't. \`.blockmap\` and \`latest-*.yml\` files are auto-update metadata, not downloads.
+Installers auto-update; portable builds (tar.gz/zip) don't. \`.blockmap\` and channel \`.yml\` files are auto-update metadata, not downloads.
 EOF
