@@ -82,7 +82,7 @@ fun SettingsAboutScreen() {
 			}
 
 			SettingsGroup(title = { Text(stringResource(Res.string.title_updates_privacy)) }) {
-				// the Android and desktop builds update themselves; elsewhere a store does
+				// Android and desktop check here; iOS and web are updated by their distribution.
 				val updates = platformContext.platformType == PlatformType.Android
 					|| platformContext.platformType == PlatformType.Desktop
 				val count = if (updates) 2 else 1

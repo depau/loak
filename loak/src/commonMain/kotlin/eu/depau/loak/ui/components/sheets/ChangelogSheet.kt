@@ -42,29 +42,86 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import eu.depau.loak.di.LocalPlatformContext
+import eu.depau.loak.di.PlatformContext
+import eu.depau.loak.di.SENTRY_BUILD_COMMIT
+import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_dont_show_again
-import eu.depau.loak.generated.resources.action_update_app
+import eu.depau.loak.generated.resources.action_open_release
 import eu.depau.loak.generated.resources.info_update
 import eu.depau.loak.generated.resources.title_update
-import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
-import org.koin.compose.viewmodel.koinViewModel
-import org.koin.core.parameter.parametersOf
-import eu.depau.loak.di.LocalPlatformContext
-import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.ui.components.common.Markdown
 import eu.depau.loak.ui.components.dialogs.LinkConfirmationDialog
 import eu.depau.loak.ui.theme.defaultFont
 import eu.depau.loak.util.Logger
-import eu.depau.loak.di.PlatformContext
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Serializable
 data class Release(
 	@SerialName("tag_name") val tag: String? = null,
 	@SerialName("html_url") val url: String? = null,
-	@SerialName("body") val body: String? = null
+	@SerialName("target_commitish") val targetCommit: String? = null,
+	val name: String? = null,
+	val body: String? = null
 )
+
+internal data class AppVersion(
+	val major: Int,
+	val minor: Int,
+	val patch: Int,
+	val alpha: Int?
+) : Comparable<AppVersion> {
+	override fun compareTo(other: AppVersion): Int {
+		compareValues(major, other.major).takeIf { it != 0 }?.let { return it }
+		compareValues(minor, other.minor).takeIf { it != 0 }?.let { return it }
+		compareValues(patch, other.patch).takeIf { it != 0 }?.let { return it }
+		return when {
+			alpha == null && other.alpha == null -> 0
+			alpha == null -> 1
+			other.alpha == null -> -1
+			else -> alpha.compareTo(other.alpha)
+		}
+	}
+}
+
+private val APP_VERSION = Regex(
+	"""^v?(\d+)\.(\d+)\.(\d+)(?:-alpha\.?(\d+))?(?:[-+].*)?$"""
+)
+
+internal fun parseAppVersion(value: String): AppVersion? {
+	val match = APP_VERSION.matchEntire(value) ?: return null
+	return AppVersion(
+		major = match.groupValues[1].toInt(),
+		minor = match.groupValues[2].toInt(),
+		patch = match.groupValues[3].toInt(),
+		alpha = match.groupValues[4].takeIf(String::isNotEmpty)?.toInt()
+	)
+}
+
+internal fun selectUpdate(
+	currentVersion: String,
+	buildVariant: String,
+	buildCommit: String,
+	releases: List<Release>
+): Release? {
+	if (buildVariant == "nightly") {
+		return releases.firstOrNull { release ->
+			release.tag == "nightly"
+				&& release.targetCommit?.startsWith(buildCommit, ignoreCase = true) == false
+		}
+	}
+
+	val current = parseAppVersion(currentVersion) ?: return null
+	return releases
+		.mapNotNull { release -> parseAppVersion(release.tag ?: "")?.let { release to it } }
+		.maxByOrNull { it.second }
+		?.takeIf { it.second > current }
+		?.first
+}
 
 class ChangelogViewModel(
 	platformContext: PlatformContext
@@ -79,31 +136,35 @@ class ChangelogViewModel(
 	}
 
 	init {
-		checkForUpdates(platformContext.appVersion)
+		checkForUpdates(
+			currentVersion = platformContext.appVersion,
+			buildVariant = platformContext.buildVariant,
+			buildCommit = SENTRY_BUILD_COMMIT
+		)
 	}
 
-	fun checkForUpdates(currentVersion: String) {
+	private fun checkForUpdates(
+		currentVersion: String,
+		buildVariant: String,
+		buildCommit: String
+	) {
 		viewModelScope.launch {
 			release.value = try {
-				val response: HttpResponse =
-					updateClient.get("https://api.github.com/repos/depau/loak/releases/latest")
+				val nightly = buildVariant == "nightly"
+				val response: HttpResponse = updateClient.get(
+					if (nightly) NIGHTLY_RELEASE_URL else RELEASES_URL
+				)
 				if (!response.status.isSuccess()) {
 					Logger.i("ChangelogViewModel", "update check failed (HTTP ${response.status.value})")
 					return@launch
 				}
-				val release: Release = response.body()
-				val remoteVersion = release.tag
-					?.filter { it.isDigit() }
-					?.toIntOrNull() ?: return@launch
-				val localVersion = currentVersion
-					.filter { it.isDigit() }
-					.toIntOrNull() ?: return@launch
-				if (remoteVersion > localVersion || "$remoteVersion".length != "$localVersion".length)
-					release
-				else null
+				val releases = if (nightly) {
+					listOf(response.body<Release>())
+				} else {
+					response.body<List<Release>>()
+				}
+				selectUpdate(currentVersion, buildVariant, buildCommit, releases)
 			} catch (e: Exception) {
-				// non-2xx responses no longer reach this catch: a 404 (e.g. no release published
-				// yet) or 403 rate limit is an expected state, not an error worth reporting.
 				Logger.e("ChangelogViewModel", "couldn't check for updates", e)
 				null
 			}
@@ -112,6 +173,11 @@ class ChangelogViewModel(
 
 	fun clearRelease() {
 		release.value = null
+	}
+
+	private companion object {
+		const val RELEASES_URL = "https://api.github.com/repos/depau/loak/releases?per_page=100"
+		const val NIGHTLY_RELEASE_URL = "https://api.github.com/repos/depau/loak/releases/tags/nightly"
 	}
 }
 
@@ -150,7 +216,7 @@ fun ChangelogSheet() {
 						fontFamily = defaultFont(round = 100f)
 					)
 					Text(
-						stringResource(Res.string.info_update, release.tag ?: ""),
+						stringResource(Res.string.info_update, release.name ?: release.tag ?: ""),
 						style = MaterialTheme.typography.bodyMedium
 					)
 				}
@@ -177,7 +243,7 @@ fun ChangelogSheet() {
 					shape = ContinuousCapsule
 				) {
 					Text(
-						text = stringResource(Res.string.action_update_app),
+						text = stringResource(Res.string.action_open_release),
 						fontFamily = defaultFont(100)
 					)
 				}

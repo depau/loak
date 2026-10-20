@@ -50,7 +50,7 @@
 	<string name="subtitle_enable_scrobbling">Tell your server what you play; it passes plays on to Last.fm or ListenBrainz if linked</string>
 	<string name="subtitle_gapless_playback">No silence between songs. Applies after a restart</string>
 	<string name="subtitle_audio_offload">Hands decoding to the audio chip (audio offload). Turns off the equalizer. Applies after a restart</string>
-	<string name="subtitle_check_for_updates">Look for a new version on GitHub when the app opens</string>
+	<string name="subtitle_check_for_updates">Look on GitHub when the app opens. Turn this off if Obtainium or another package manager handles updates</string>
 	<string name="subtitle_offline_mode_toggle">Play only downloaded and cached music</string>
 	<string name="subtitle_dynamic_theming">Tint each page with its artwork's colors</string>
 	<string name="subtitle_local_network_denied">You need to grant Lo'ak access to your local network in order for your server to be reachable.</string>
@@ -330,6 +330,7 @@
 	<string name="notice_lyrics_saved">Lyrics saved on this device.</string>
 	<string name="notice_lyrics_save_failed">Couldn't save the lyrics.</string>
 	<string name="action_update_app">Update</string>
+	<string name="action_open_release">Open release</string>
 	<string name="action_play_next">Play next</string>
 	<string name="action_add_to_queue">Add to queue</string>
 	<string name="action_instant_mix">Instant mix</string>
@@ -498,7 +499,6 @@
 	<string name="info_dynamic_replay_gain">Smart</string>
 	<string name="info_track_replay_gain_effective">ReplayGain effective value</string>
 	<string name="info_update">Version "%1$s" has been released</string>
-	<string name="info_update_checking">Checking for updates…</string>
 	<string name="info_update_downloading_percent">Downloading %1$s… %2$d%%</string>
 	<string name="info_update_ready">Update ready to install</string>
 	<string name="info_update_installing">Installing update…</string>
