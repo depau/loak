@@ -580,7 +580,8 @@ jobs:
               "loak-${{ steps.nightly_version.outputs.version }}-" \
               "Loak-${token}-" \
               "Lo.ak-${token}.apk" \
-              "Loak-nightly.ipa"
+              "Loak-nightly.ipa" \
+              "nightly"
           )"
 
           # Stable `nightly` tag: replaced on every main push, so installs always
@@ -723,7 +724,8 @@ jobs:
               "loak-${{ steps.version.outputs.package_version }}-" \
               "Loak-" \
               "Lo.ak.apk" \
-              "Loak.ipa"
+              "Loak.ipa" \
+              "stable"
           )"
           printf '%s\n' "$notes" > release-notes.md
 
