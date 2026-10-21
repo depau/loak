@@ -1,9 +1,12 @@
 package eu.depau.loak.di
 
 import io.sentry.SentryEvent
+import io.sentry.protocol.SentryException
 import io.sentry.protocol.SentryThread
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 /** JVM-side checks that thread names and tags (hosts/IPs) are scrubbed before send. */
 class SentryJvmSanitizerTest {
@@ -23,5 +26,45 @@ class SentryJvmSanitizerTest {
 		assertEquals("main", event.threads?.get(1)?.name)
 		assertEquals("[REDACTED_HOST]", event.tags?.get("server_name"))
 		assertEquals("clean", event.tags?.get("device.state"))
+	}
+
+	@Test
+	fun dropsStaleDesktopContinuationChain() {
+		val event = SentryEvent().apply {
+			exceptions = mutableListOf(
+				SentryException().apply {
+					type = "kotlinx.coroutines.internal.DiagnosticCoroutineContextException"
+				},
+				SentryException().apply {
+					type = "java.lang.NoClassDefFoundError"
+					value = "eu.depau.loak.shared.MediaPlayerViewModel\$checkAndAutoFillQueue\$1"
+				}
+			)
+		}
+
+		assertNull(sanitizeJvmEvent(event))
+	}
+
+	@Test
+	fun dropsHandledAudioTimeoutOnly() {
+		val timeout = SentryEvent().apply {
+			exceptions = mutableListOf(
+				SentryException().apply {
+					type = "java.lang.IllegalStateException"
+					value = "the audio output is not responding"
+				}
+			)
+		}
+		val unexpected = SentryEvent().apply {
+			exceptions = mutableListOf(
+				SentryException().apply {
+					type = "java.lang.IllegalStateException"
+					value = "database is corrupt"
+				}
+			)
+		}
+
+		assertNull(sanitizeJvmEvent(timeout))
+		assertSame(unexpected, sanitizeJvmEvent(unexpected))
 	}
 }
