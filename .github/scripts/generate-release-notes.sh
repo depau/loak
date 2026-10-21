@@ -9,7 +9,7 @@
 #   ANDROID_FILE    Android APK asset name (e.g. "Lo.ak.apk")
 #   IOS_FILE        iOS IPA asset name (e.g. "Loak.ipa")
 #   CHANNEL         "stable" (tags) or "nightly" (the fixed nightly tag): picks the
-#                   Obtainium / AltStore source deep links. Defaults to "stable".
+#                   mobile package-manager deep links. Defaults to "stable".
 #
 # Rendered as HTML so the Android row can span both arch columns (markdown tables
 # cannot colspan). Artifact names must match what build-desktop/build-android emit;
@@ -26,17 +26,53 @@ channel="${7:-stable}"
 
 dl() { printf '<a href="https://github.com/depau/loak/releases/download/%s/%s">%s</a>' "$tag" "$1" "$2"; }
 
-# Deep links into the mobile package managers. Nightly is a separate app/package
-# (eu.depau.loak.nightly) so it runs alongside the stable one; its Obtainium entry
-# already sets includePrereleases=true and the ^Lo\.ak-nightly-.*\.apk$ regex.
+urlencode() {
+	jq -rn --arg value "$1" '$value | @uri'
+}
+
+obtainium_link() {
+	local config
+
+	config="$(
+		jq -cn \
+			--arg id "$1" \
+			--arg name "$2" \
+			--arg apk_regex "$3" \
+			'{
+				id: $id,
+				url: "https://github.com/depau/loak",
+				author: "depau",
+				name: $name,
+				additionalSettings: ({
+					includePrereleases: true,
+					fallbackToOlderReleases: true,
+					verifyLatestTag: false,
+					sortMethodChoice: "date",
+					versionDetection: true,
+					apkFilterRegEx: $apk_regex
+				} | tojson)
+			}'
+	)"
+
+	printf '<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%s">Obtainium</a>' \
+		"$(urlencode "$config")"
+}
+
+altsource_link() {
+	printf '<a href="https://altdirect.app/?url=%s&amp;r=%s">%s</a>' \
+		"$(urlencode "$altsource")" "$1" "$2"
+}
+
+# GitHub strips custom URL schemes, so iOS links use AltDirect HTTPS redirects.
+# Nightly is a separate app/package (eu.depau.loak.nightly), with its own source
+# and an Obtainium filter that selects only nightly APKs.
 if [[ "$channel" == "nightly" ]]; then
-	obtainium='<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22eu.depau.loak.nightly%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fdepau%2Floak%22%2C%22author%22%3A%22depau%22%2C%22name%22%3A%22Lo%27ak%20Nightly%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Atrue%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELo%5C%5C%5C%5C.ak-nightly-.%2A%5C%5C%5C%5C.apk%24%5C%22%7D%22%7D">Add to Obtainium</a>'
-	altsource='https://github.com/depau/loak/releases/download/nightly/app-repo.json%3Fraw%3D1'
+	obtainium="$(obtainium_link "eu.depau.loak.nightly" "Lo'ak Nightly" '^Lo\.ak-nightly-.*\.apk$')"
+	altsource='https://github.com/depau/loak/releases/download/nightly/app-repo.json?raw=1'
 else
-	obtainium='<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22eu.depau.loak%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fdepau%2Floak%22%2C%22author%22%3A%22depau%22%2C%22name%22%3A%22Lo%27ak%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Atrue%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELo%5C%5C%5C%5C.ak%5C%5C%5C%5C.apk%24%5C%22%7D%22%7D">Add to Obtainium</a>'
+	obtainium="$(obtainium_link "eu.depau.loak" "Lo'ak" '^Lo\.ak\.apk$')"
 	altsource='https://raw.githubusercontent.com/depau/loak/main/app-repo.json'
 fi
-
 cat <<EOF
 $title
 
@@ -62,20 +98,14 @@ $title
 </tr>
 <tr>
 <td><strong>Android</strong></td>
-<td colspan="2">$(dl "$apk" "APK") · universal</td>
+<td colspan="2">$(dl "$apk" "APK") · Add to: $obtainium</td>
 </tr>
 <tr>
 <td><strong>iOS</strong></td>
-<td colspan="2">$(dl "$ipa" "IPA") · universal</td>
+<td colspan="2">$(dl "$ipa" "IPA") · Add to: $(altsource_link altstore "AltStore Classic"), $(altsource_link sidestore "SideStore"), $(altsource_link livecontainer "LiveContainer")</td>
 </tr>
 </tbody>
 </table>
-
-### Install on mobile
-
-<strong>Android</strong> — $obtainium (installs and updates the APK from this release automatically).
-
-<strong>iOS</strong> — add the AltSource in <a href="altstore://source?url=$altsource">AltStore Classic</a> or <a href="sidestore://source?url=$altsource">SideStore</a> to install and keep this channel updated.
 
 Installers auto-update; portable builds (tar.gz/zip) don't. \`.blockmap\` and channel \`.yml\` files are auto-update metadata, not downloads.
 EOF

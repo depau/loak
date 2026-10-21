@@ -59,22 +59,25 @@ are separate apps with different package IDs.
 When Obtainium or another package manager handles updates, turn off
 **Settings → About Lo'ak → Check for updates** to avoid duplicate prompts.
 
-## iOS (AltStore Classic / SideStore)
+## iOS (AltStore Classic / SideStore / LiveContainer)
 
 iOS builds are distributed through an AltSource; add the source in **AltStore
-Classic** or **SideStore** to install and get updates. If you use both a
-stable and a nightly app, add **only one** of each source — the Nightly is a
-separate app (`eu.depau.loak.nightly`) so it can run alongside the stable one.
+Classic**, **SideStore**, or **LiveContainer** to install and get updates. If you
+use both a stable and a nightly app, add **only one** of each source — the Nightly
+is a separate app (`eu.depau.loak.nightly`) so it can run alongside the stable one.
 
-| Source | AltStore Classic | SideStore |
-|---|---|---|
-| **Stable** (`Loak`) | [Add](<altstore://source?url=https://raw.githubusercontent.com/depau/loak/main/app-repo.json>) | [Add](<sidestore://source?url=https://raw.githubusercontent.com/depau/loak/main/app-repo.json>) |
-| **Nightly** (`Loak Nightly`) | [Add](<altstore://source?url=https://github.com/depau/loak/releases/download/nightly/app-repo.json%3Fraw%3D1>) | [Add](<sidestore://source?url=https://github.com/depau/loak/releases/download/nightly/app-repo.json%3Fraw%3D1>) |
+| Source | AltStore Classic | SideStore | LiveContainer |
+|---|---|---|---|
+| **Stable** (`Loak`) | [Add][ADD_STABLE_TO_ALTSTORE] | [Add][ADD_STABLE_TO_SIDESTORE] | [Add][ADD_STABLE_TO_LIVECONTAINER] |
+| **Nightly** (`Loak Nightly`) | [Add][ADD_NIGHTLY_TO_ALTSTORE] | [Add][ADD_NIGHTLY_TO_SIDESTORE] | [Add][ADD_NIGHTLY_TO_LIVECONTAINER] |
 
-Or paste the source URL directly into the app:
+<details>
+<summary>Manual source URLs</summary>
 
 - Stable: `https://raw.githubusercontent.com/depau/loak/main/app-repo.json`
 - Nightly: `https://github.com/depau/loak/releases/download/nightly/app-repo.json?raw=1`
+
+</details>
 
 Apps installed this way are re-signed with your own free Apple ID and expire
 after 7 days (refresh from the store keeps them alive). AltStore PAL is not
@@ -90,6 +93,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) to see how you can help out!
 
 [ADD_NIGHTLY_TO_OBTAINIUM]: https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22eu.depau.loak.nightly%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fdepau%2Floak%22%2C%22author%22%3A%22depau%22%2C%22name%22%3A%22Lo%27ak%20Nightly%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Atrue%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5ELo%5C%5C%5C%5C.ak-nightly-.%2A%5C%5C%5C%5C.apk%24%5C%22%7D%22%7D
 
-[ALTSOURCE]: https://raw.githubusercontent.com/depau/loak/main/app-repo.json
+[ALTSOURCE]: #ios-altstore-classic--sidestore--livecontainer
+
+[ADD_STABLE_TO_ALTSTORE]: https://altdirect.app/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdepau%2Floak%2Fmain%2Fapp-repo.json&r=altstore
+[ADD_STABLE_TO_SIDESTORE]: https://altdirect.app/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdepau%2Floak%2Fmain%2Fapp-repo.json&r=sidestore
+[ADD_STABLE_TO_LIVECONTAINER]: https://altdirect.app/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdepau%2Floak%2Fmain%2Fapp-repo.json&r=livecontainer
+[ADD_NIGHTLY_TO_ALTSTORE]: https://altdirect.app/?url=https%3A%2F%2Fgithub.com%2Fdepau%2Floak%2Freleases%2Fdownload%2Fnightly%2Fapp-repo.json%3Fraw%3D1&r=altstore
+[ADD_NIGHTLY_TO_SIDESTORE]: https://altdirect.app/?url=https%3A%2F%2Fgithub.com%2Fdepau%2Floak%2Freleases%2Fdownload%2Fnightly%2Fapp-repo.json%3Fraw%3D1&r=sidestore
+[ADD_NIGHTLY_TO_LIVECONTAINER]: https://altdirect.app/?url=https%3A%2F%2Fgithub.com%2Fdepau%2Floak%2Freleases%2Fdownload%2Fnightly%2Fapp-repo.json%3Fraw%3D1&r=livecontainer
 
 [LATEST_RELEASE]: https://github.com/depau/loak/releases
