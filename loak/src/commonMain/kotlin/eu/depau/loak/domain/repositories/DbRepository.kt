@@ -4,6 +4,7 @@ import eu.depau.loak.util.IoDispatcher
 
 import androidx.room3.concurrent.AtomicInt
 import dev.zt64.subsonic.api.model.SubsonicException
+import dev.zt64.subsonic.api.model.SubsonicErrorCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -378,15 +379,21 @@ class DbRepository(
 		val playlist = try {
 			sessionManager.api.getPlaylist(playlistId)
 		} catch (e: Exception) {
-			if (e is SerializationException) {
-				Logger.e(
-					"DbRepository",
-					"could not deserialize playlist $playlistId; skipping it",
-					e
-				)
-				return@runDbOp emptySet<String>()
-			} else {
-				throw e
+			when {
+				e is SubsonicException && e.code == SubsonicErrorCode.DATA_NOT_FOUND -> {
+					Logger.w("DbRepository", "playlist $playlistId no longer exists remotely")
+					playlistDao.deletePlaylist(playlistId)
+					return@runDbOp emptySet<String>()
+				}
+				e is SerializationException -> {
+					Logger.e(
+						"DbRepository",
+						"could not deserialize playlist $playlistId; skipping it",
+						e
+					)
+					return@runDbOp emptySet<String>()
+				}
+				else -> throw e
 			}
 		}
 		playlistDao.insertPlaylist(playlist.toEntity())
