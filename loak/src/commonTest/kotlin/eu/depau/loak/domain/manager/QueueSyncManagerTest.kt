@@ -196,7 +196,7 @@ class QueueSyncManagerTest {
 	}
 
 	@Test
-	fun startupStatePicksUpTheServerQueue() = runBlocking {
+	fun startupStateServerKeepsTheLocalQueueWithoutFetching() = runBlocking {
 		val fake = fakeServer("/getPlayQueue.view" to playQueueJson)
 		val prefs = PreferenceManager(settings())
 		prefs.queueSyncEnabled = true
@@ -206,56 +206,106 @@ class QueueSyncManagerTest {
 
 		val state = manager.startupState(local)
 
-		assertEquals(listOf("s1", "s2", "s3"), state?.queue?.map { it.id }, "remote queue wins")
-		assertEquals(1, state?.currentIndex, "current song preserved from the server")
-		assertEquals("s2", state?.currentSong?.id)
-	}
-
-	@Test
-	fun startupStateFallsBackToLocalWhenServerHasNoQueue() = runBlocking {
-		// no /getPlayQueue body: the server responds ok with no playQueue field
-		val fake = fakeServer()
-		val prefs = PreferenceManager(settings())
-		prefs.queueSyncEnabled = true
-		prefs.startupQueue = StartupQueue.Server
-		val manager = manager(fake, prefs, song("s1"))
-		val local = PlayerUiState(queue = listOf(song("s9").toDomainModel()), currentIndex = 0)
-
-		val state = manager.startupState(local)
-
-		assertEquals(listOf("s9"), state?.queue?.map { it.id }, "falls back to the local queue")
-	}
-
-	@Test
-	fun startupStateFallsBackToLocalWhenServerUnreachable() = runBlocking {
-		// every .view call throws; fetch propagates, serverState catches and falls back
-		val prefs = PreferenceManager(settings())
-		prefs.queueSyncEnabled = true
-		prefs.startupQueue = StartupQueue.Server
-		val session = sessionManager(
-			MockEngine { error("server down") },
-			prefs,
+		assertEquals(listOf("s9"), state?.queue?.map { it.id }, "the local queue comes up first")
+		assertTrue(
+			fake.getLog.none { it == "getPlayQueue.view" },
+			"startup no longer fetches: the server's queue is offered by the foreground check, not adopted at boot"
 		)
-		val manager = QueueSyncManager(session, prefs, fakeSongDao(song("s1")))
-		val local = PlayerUiState(queue = listOf(song("s9").toDomainModel()), currentIndex = 0)
-
-		val state = manager.startupState(local)
-
-		assertEquals(listOf("s9"), state?.queue?.map { it.id }, "unreachable server keeps the local queue")
 	}
 
 	@Test
-	fun startupStateWithServerSyncDisabledKeepsLocal() = runBlocking {
-		val fake = fakeServer("/getPlayQueue.view" to playQueueJson)
+	fun decisionAdoptsWhenThisDeviceHasBeenIdle() = runBlocking {
 		val prefs = PreferenceManager(settings())
-		prefs.queueSyncEnabled = false
-		val manager = manager(fake, prefs, song("s1"))
-		val local = PlayerUiState(queue = listOf(song("s9").toDomainModel()), currentIndex = 0)
+		val manager = manager(fakeServer(), prefs, song("s1"))
+		manager.lastActivityMs = 10_000L // synced long ago
+		val local = PlayerUiState(
+			queue = listOf(song("s9").toDomainModel()), currentIndex = 0, isPaused = true
+		)
+		val now = 10_000L + QueueSyncManager.IDLE_WINDOW_MS + 1
 
-		val state = manager.startupState(local)
+		assertEquals(
+			QueueSyncManager.Decision.Adopt,
+			manager.decision(remote("Other App"), local, now),
+			"an idle, paused device silently adopts the server queue"
+		)
+	}
 
-		assertEquals(listOf("s9"), state?.queue?.map { it.id }, "sync disabled ignores the server")
-		assertTrue(fake.getLog.none { it == "getPlayQueue.view" }, "no fetch when sync is disabled")
+	@Test
+	fun decisionOffersWhenThisDeviceSyncedRecently() = runBlocking {
+		val prefs = PreferenceManager(settings())
+		val manager = manager(fakeServer(), prefs, song("s1"))
+		manager.lastActivityMs = 10_000L // synced a moment ago
+		val local = PlayerUiState(
+			queue = listOf(song("s9").toDomainModel()), currentIndex = 0, isPaused = true
+		)
+		val now = 10_000L + QueueSyncManager.IDLE_WINDOW_MS - 1
+
+		assertEquals(
+			QueueSyncManager.Decision.Offer,
+			manager.decision(remote("Other App"), local, now),
+			"a recently-active device gets an offer, never a silent takeover"
+		)
+	}
+
+	@Test
+	fun decisionAdoptsWhenThisDeviceNeverSynced() = runBlocking {
+		val prefs = PreferenceManager(settings())
+		val manager = manager(fakeServer(), prefs, song("s1"))
+		// fresh install: it never told the server anything; reset in case a previous test leaked
+		manager.lastActivityMs = 0L
+		val local = PlayerUiState(
+			queue = listOf(song("s9").toDomainModel()), currentIndex = 0, isPaused = true
+		)
+
+		assertEquals(
+			QueueSyncManager.Decision.Adopt,
+			manager.decision(remote("Other App"), local, 10_000L),
+			"a device that never synced resumes the foreign queue silently"
+		)
+	}
+
+	@Test
+	fun decisionDoesNotAdoptWhileThisDeviceIsPlaying() = runBlocking {
+		val prefs = PreferenceManager(settings())
+		val manager = manager(fakeServer(), prefs, song("s1"))
+		manager.lastActivityMs = 10_000L // stale stamp
+		val local = PlayerUiState(
+			queue = listOf(song("s9").toDomainModel()), currentIndex = 0, isPaused = false
+		)
+		val now = 10_000L + QueueSyncManager.IDLE_WINDOW_MS + 1
+
+		assertEquals(
+			QueueSyncManager.Decision.Offer,
+			manager.decision(remote("Other App"), local, now),
+			"listening on this device never lets another queue take over silently"
+		)
+	}
+
+	@Test
+	fun decisionNothingForTheSameOrNoQueues() = runBlocking {
+		val prefs = PreferenceManager(settings())
+		val manager = manager(fakeServer(), prefs, song("s1"))
+		manager.lastActivityMs = 10_000L
+		val now = 10_000L + QueueSyncManager.IDLE_WINDOW_MS + 1
+		val local = PlayerUiState(
+			queue = listOf(song("s1").toDomainModel()), currentIndex = 0, isPaused = true
+		)
+
+		assertEquals(
+			QueueSyncManager.Decision.Nothing,
+			manager.decision(remote("Other App").copy(songs = local.queue), local, now),
+			"an identical server queue is nothing to act on"
+		)
+		assertEquals(
+			QueueSyncManager.Decision.Nothing,
+			manager.decision(null, local, now),
+			"no server queue: nothing to act on"
+		)
+		assertEquals(
+			QueueSyncManager.Decision.Nothing,
+			manager.decision(remote("Other App"), PlayerUiState(), now),
+			"no local queue: nothing to protect, the startup path handles it"
+		)
 	}
 
 	@Test
