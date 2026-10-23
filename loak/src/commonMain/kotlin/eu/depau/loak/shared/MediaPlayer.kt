@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Clock
 import androidx.compose.runtime.snapshotFlow
 import eu.depau.loak.domain.manager.AudioStore
 import eu.depau.loak.domain.manager.ConnectivityManager
@@ -31,6 +32,7 @@ import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.QueueSyncManager
 import eu.depau.loak.domain.manager.toState
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.models.snackbars.PlayerEvent
 import eu.depau.loak.domain.manager.VolumeProvider
 import eu.depau.loak.domain.models.DomainAlbum
 import eu.depau.loak.domain.models.DomainExplicitStatus
@@ -48,6 +50,7 @@ import eu.depau.loak.ui.core.InstantMix
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.action_resume
 import eu.depau.loak.generated.resources.info_not_available_offline
 import eu.depau.loak.generated.resources.notice_added_to_queue
 import eu.depau.loak.generated.resources.notice_instant_mix
@@ -59,6 +62,7 @@ import eu.depau.loak.generated.resources.notice_play_next
 import eu.depau.loak.generated.resources.notice_queue_cleared
 import eu.depau.loak.generated.resources.notice_sonic_path
 import eu.depau.loak.generated.resources.notice_queue_loaded
+import eu.depau.loak.generated.resources.notice_resume_from_device
 import eu.depau.loak.generated.resources.notice_queue_sent
 import eu.depau.loak.generated.resources.notice_removed_from_queue
 import eu.depau.loak.generated.resources.notice_server_unreachable
@@ -148,6 +152,12 @@ abstract class MediaPlayerViewModel(
 
 	fun onUiVisibilityChanged(visible: Boolean) {
 		uiVisible.value = visible
+		if (visible) {
+			// the user came back (minimize, recents, dock): the server may now hold another
+			// device's queue; offer or adopt it, but never while one of ours is fresh
+			foreignQueueJob?.cancel()
+			foreignQueueJob = viewModelScope.launch { checkForeignQueue() }
+		}
 	}
 
 	// declared before init, like syncedKey
@@ -175,7 +185,63 @@ abstract class MediaPlayerViewModel(
 			observeAndSaveState()
 			observeAutoFill()
 			observeAutoplay()
+			// the server's queue vs. this device's, decided when it comes up and again on each
+			// foreground: never live-polled, and never taken from a recently-active device
+			checkForeignQueue()
 		}
+	}
+
+	/** The queue noticed in the foreground check, so an identical re-check doesn't re-offer. */
+	private var lastOfferedKey: Any? = null
+
+	/** The foreground check in flight; re-entry cancels and restarts it around a queue change. */
+	private var foreignQueueJob: Job? = null
+
+	/** Fetches the server's queue and offers (or adopts) it per [QueueSyncManager.decision]. */
+	private suspend fun checkForeignQueue() {
+		// the current queue stays until the user picks; a fresh device with nothing may resume
+		// silently. Everything else is an offer with an Undo that puts this device's queue back.
+		if (lastOfferedKey == syncedKey) return
+		if (!preferenceManager.queueSyncEnabled) return
+		if (!connectivityManager.isOnline.value) return
+		val previous = uiState.value
+		if (previous.queue.isEmpty()) return
+		val remote = try {
+			queueSyncManager.fetch()
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			Logger.w("MediaPlayerViewModel", "could not fetch the server queue", e)
+			return
+		}
+		if (remote == null) return
+		val decision = queueSyncManager.decision(
+			remote,
+			previous,
+			Clock.System.now().toEpochMilliseconds()
+		)
+		if (decision == QueueSyncManager.Decision.Adopt) {
+			replaceQueue(remote.toState(previous))
+			queueSyncManager.markPickedUp(remote)
+			return
+		}
+		if (decision != QueueSyncManager.Decision.Offer) return
+		lastOfferedKey = syncedKey
+		snackBarManager.notify(
+			PlayerEvent(
+				resource = Res.string.notice_resume_from_device,
+				args = listOf(QueueSyncManager.sourceName(remote.changedBy)),
+				action = Res.string.action_resume,
+				onAction = {
+					replaceQueue(remote.toState(uiState.value))
+					queueSyncManager.markPickedUp(remote)
+				},
+				onDismiss = {},
+				// stays up until picked or dismissed
+				persistent = true,
+				dismissible = true
+			)
+		)
 	}
 
 	protected abstract val snackBarManager: SnackBarManager
@@ -718,6 +784,8 @@ abstract class MediaPlayerViewModel(
 	fun removeFromAutoplay(song: DomainSong) =
 		autoplaySongs.update { songs -> songs.filter { it.id != song.id } }
 
+	/** The sync the device last kept: the server queue it adopted, or its own first sync. */
+	private var adoptedKey: Any? = null
 	private suspend fun restoreState() {
 		val savedState = queueSyncManager.startupState(stateRepository.state.value)
 			?.copy(isPaused = true, isLoading = false)
@@ -770,6 +838,7 @@ abstract class MediaPlayerViewModel(
 		clearQueue()
 		autoplaySongs.value = emptyList()
 		// a queue that came from the server, or was there before, isn't pushed back
+		adoptedKey = paused.syncKey()
 		syncedKey = paused.syncKey()
 		_uiState.value = paused
 		syncPlayerWithState(paused)
@@ -814,7 +883,12 @@ abstract class MediaPlayerViewModel(
 				}
 				.debounce(QUEUE_PUSH_DEBOUNCE)
 				.collect { state ->
-					if (preferenceManager.queueSyncEnabled && state.syncKey() != syncedKey) pushQueue()
+					// the right moment to push: the change is real, and this device owns it (it
+					// either made the change or took the server queue over); a fresh device on
+					// first interaction never pushes until it accepts what the server had
+					if (preferenceManager.queueSyncEnabled && state.syncKey() != syncedKey &&
+						adoptedKey != state.syncKey()
+					) pushQueue()
 				}
 		}
 

@@ -254,9 +254,14 @@ fun App(platform: @Composable (AppActions) -> Unit = {}) {
 				snackBarState.showSnackbar(
 					message = getString(event.resource, *event.args.toTypedArray()),
 					actionLabel = event.action?.let { getString(it) },
-					// Short (4 s) is the Material default; Compose extends it for users who set a
-					// longer accessibility timeout
-					duration = SnackbarDuration.Short,
+					duration = if (event.persistent) {
+						// stays up with its dismiss X until the user acts on it
+						SnackbarDuration.Indefinite
+					} else {
+						// Short (4 s) is the Material default; Compose extends it for users who
+						// set a longer accessibility timeout
+						SnackbarDuration.Short
+					},
 					withDismissAction = event.dismissible
 				)
 			} catch (e: CancellationException) {

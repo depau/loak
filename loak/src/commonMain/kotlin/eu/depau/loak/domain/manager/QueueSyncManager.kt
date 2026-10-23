@@ -15,17 +15,14 @@ import io.ktor.http.parameters
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.last
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Clock
 import kotlin.time.Instant
-
-/** The play queue as the server keeps it: one per user, saved by whichever device played last. */
 data class ServerQueue(
 	val songs: List<DomainSong>,
 	val currentIndex: Int,
@@ -36,9 +33,9 @@ data class ServerQueue(
 )
 
 /**
- * Saves the queue to the server and picks it up again at startup, so playback can move between
- * devices. The queue is only read at startup or when asked: a queue saved by another device
- * never replaces the one playing here.
+ * Saves the queue to the server as playback goes and lets the user move it between devices:
+ * the server keeps one queue per user, this device's own comes up first, and the server's
+ * (saved by another device) is adopted when this one has been idle or offered otherwise.
  *
  * ponytail: raw calls, because subsonic-kotlin 1.0.0-SNAPSHOT can't save a whole queue
  * (savePlayQueue takes one id) and drops getPlayQueueByIndex's result. Use the library once it
@@ -62,6 +59,18 @@ class QueueSyncManager(
 	/** The queue picked up from another device, until this device saves its own. */
 	val pickedUpFrom: StateFlow<ServerQueue?>
 		field = MutableStateFlow(null)
+
+	/**
+	 * When this device last told the server how playback was going (a push), as epoch ms.
+	 * Never forgetting it is what keeps a device that has been playing all along from being
+	 * treated as idle and having a foreign queue pushed over its head.
+	 */
+	@Volatile
+	var lastActivityMs: Long = preferenceManager.lastQueueSyncMs
+		set(value) {
+			field = value
+			preferenceManager.lastQueueSyncMs = value
+		}
 
 	/** The OpenSubsonic extensions the server has; none when it can't say. */
 	suspend fun extensions(): Set<String> = extensions ?: runCatching {
@@ -120,7 +129,28 @@ class QueueSyncManager(
 		// a long queue doesn't fit in a URL
 		if (FORM_POST in extensions) client.submitForm(endpoint, params)
 		else client.get(endpoint) { params.forEach { key, values -> values.forEach { parameter(key, it) } } }
+		lastActivityMs = Clock.System.now().toEpochMilliseconds()
 		pickedUpFrom.value = null
+	}
+
+	/**
+	 * How the server's queue relates to this device's playback right now, [now] in epoch ms.
+	 * Pure so it is testable. A device is never adoptable while it is playing, and once it has
+	 * ever told the server anything it is only adoptable after the [IDLE_WINDOW_MS] window with
+	 * nothing new; otherwise the server's queue is offered instead. Everything else: nothing.
+	 */
+	fun decision(remote: ServerQueue?, local: PlayerUiState?, now: Long): Decision {
+		if (remote == null || local?.queue.isNullOrEmpty()) return Decision.Nothing
+		if (remote.songs.map { it.id } == local.queue.map { it.id }) return Decision.Nothing
+		val playing = !local.isPaused && local.currentIndex >= 0
+		val idle = now - lastActivityMs >= IDLE_WINDOW_MS && !playing
+		// never told the server anything (fresh install, reinstall, sync off since): nothing of
+		// this device's to protect, resume the foreign queue silently — unless it is playing
+		val fresh = lastActivityMs == 0L && !playing
+		return when {
+			idle || fresh -> Decision.Adopt
+			else -> Decision.Offer
+		}
 	}
 
 	/** The queue to start with, following the "On startup, play" setting; null for none. */
@@ -129,22 +159,10 @@ class QueueSyncManager(
 			StartupQueue.Nothing -> null
 			StartupQueue.Local -> local
 			StartupQueue.Playlist -> playlistState(local) ?: local
-			StartupQueue.Server -> {
-				if (!preferenceManager.queueSyncEnabled) local
-				else serverState(local) ?: local
-			}
+			// the server queue is no longer fetched at startup: this device's own queue comes up
+			// first and the server's is offered (or adopted when idle) by the foreground check
+			StartupQueue.Server -> local
 		}
-
-	private suspend fun serverState(base: PlayerUiState?): PlayerUiState? {
-		val remote = try {
-			withTimeoutOrNull(STARTUP_TIMEOUT) { fetch() }
-		} catch (e: Exception) {
-			Logger.w(TAG, "could not fetch the server queue, using this device's", e)
-			null
-		} ?: return null
-		markPickedUp(remote)
-		return remote.toState(base)
-	}
 
 	private suspend fun playlistState(base: PlayerUiState?): PlayerUiState? {
 		val id = preferenceManager.startupPlaylistId.ifBlank { return null }
@@ -171,12 +189,27 @@ class QueueSyncManager(
 		private const val TAG = "QueueSyncManager"
 		private const val INDEX_BASED = "indexBasedQueue"
 		private const val FORM_POST = "formPost"
-		private val STARTUP_TIMEOUT = 5.seconds
+
+		/**
+		 * A device that pushed nothing for this long (and isn't playing) is treated as idle:
+		 * the server's foreign queue may take over silently instead of being offered.
+		 */
+		const val IDLE_WINDOW_MS = 60L * 60L * 1000L
 		private val CLIENT_NAME = Regex("""^Lo'ak \((.+)\)$""")
 
 		/** "Lo'ak (Pixel 9)" → "Pixel 9"; other clients' names as they are. */
 		fun sourceName(changedBy: String): String =
 			CLIENT_NAME.matchEntire(changedBy)?.groupValues?.get(1) ?: changedBy
+	}
+
+	/** What to do with a foreign server queue when this device comes up from behind. */
+	enum class Decision {
+		/** No foreign queue, no local queue, or the queues already match. */
+		Nothing,
+		/** Take it over silently (this device hasn't touched playback in [IDLE_WINDOW_MS]). */
+		Adopt,
+		/** Ask: this device is fresh or was recently playing; never replace without a say. */
+		Offer
 	}
 }
 

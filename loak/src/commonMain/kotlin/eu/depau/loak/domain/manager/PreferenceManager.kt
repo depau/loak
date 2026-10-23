@@ -89,6 +89,9 @@ class PreferenceManager(
 	var autoFillQueue by preference(true)
 	/** Save the queue to the server as playback goes, for the user's other devices. */
 	var queueSyncEnabled by preference(true)
+	/** When the queue was last pushed to the server, epoch ms; keeps an idle device from being
+	 *  mistaken for a fresh one and having a foreign queue adopted over it. */
+	var lastQueueSyncMs by preference(0L)
 	var startupQueue by preference(StartupQueue.Server)
 	var startupPlaylistId by preference("")
 	/** Id of the playlist songs were last saved to; "Add to playlist" goes straight there. */

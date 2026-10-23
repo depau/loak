@@ -9,5 +9,7 @@ data class PlayerEvent(
 	val onAction: (() -> Unit)? = null,
 	/** Runs when the snackbar goes away without its action, for any reason. */
 	val onDismiss: (() -> Unit)? = null,
-	val dismissible: Boolean = false
+	val dismissible: Boolean = false,
+	/** Stays up (with a dismiss X when [dismissible]) until acted on or replaced. */
+	val persistent: Boolean = false
 )

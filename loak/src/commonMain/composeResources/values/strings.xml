@@ -928,6 +928,7 @@
 	<string name="info_server_unreachable">Can't reach the server</string>
 	<string name="notice_queue_sent">Queue sent to the server.</string>
 	<string name="notice_queue_loaded">Loaded the queue from %1$s.</string>
+	<string name="notice_resume_from_device">Resume from %1$s?</string>
 	<string name="notice_export_started">Saving the original file…</string>
 	<string name="notice_export_progress">Saving the original file… %1$d%%</string>
 	<string name="notice_export_saved">Original file saved.</string>
