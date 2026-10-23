@@ -376,10 +376,12 @@ inline fun <T> LazyListScope.draggableItemsIndexed(
 		Modifier
 			.zIndex(1f)
 			.graphicsLayer { translationY = state.previousItemOffset.value }
-	} else {
-		// Default specs = appearance + placement + removal animation, enabled by the
-		// stable per-song keys the queue (and other callers) pass to draggableItemsIndexed.
+	} else if (state.draggingItemIndex == null) {
+		// Placement animation during a drag lets rows moving into their new slots repeatedly
+		// cross the held row's midpoint, advancing it again without any pointer movement.
 		loakAnimateItem()
+	} else {
+		Modifier
 	}
 	Box(modifier = draggingModifier) {
 		itemContent(index, item, isDragging)
