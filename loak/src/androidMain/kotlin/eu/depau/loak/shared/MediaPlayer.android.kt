@@ -1236,7 +1236,8 @@ class AndroidMediaPlayerViewModel(
 	/**
 	 * Adopts a queue another controller put in the player (the car, the assistant, a resumed
 	 * session), so skipping, ReplayGain, Autoplay and saving keep working on it. The app's own
-	 * edits update the state right after the player, which the lookup's suspension waits out.
+	 * edits update the state before the player, so synchronous player callbacks resolve their
+	 * new indices against the new queue.
 	 */
 	private fun followQueue() {
 		val player = controller ?: return
@@ -1540,22 +1541,22 @@ class AndroidMediaPlayerViewModel(
 
 	override fun insertIntoQueue(index: Int, songs: List<DomainSong>) {
 		viewModelScope.launch {
-			controller?.addMediaItems(index, songs.map { it.toMediaItem() })
 			_uiState.update { it.withInserted(index, songs) }
+			controller?.addMediaItems(index, songs.map { it.toMediaItem() })
 		}
 	}
 
 	override fun removeFromQueue(index: Int) {
 		viewModelScope.launch {
-			controller?.removeMediaItem(index)
 			_uiState.update { it.withRemoved(index) }
+			controller?.removeMediaItem(index)
 		}
 	}
 
 	override fun moveQueueItem(fromIndex: Int, toIndex: Int) {
 		viewModelScope.launch {
-			controller?.moveMediaItem(fromIndex, toIndex)
 			_uiState.update { it.withMoved(fromIndex, toIndex) }
+			controller?.moveMediaItem(fromIndex, toIndex)
 		}
 	}
 
