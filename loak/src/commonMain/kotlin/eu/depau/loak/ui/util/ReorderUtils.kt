@@ -210,17 +210,17 @@ class DraggableListState internal constructor(
 		}?.takeIf { canMove(draggingItem.index, it.index) }
 
 		if (targetItem != null) {
-			if (
-				draggingItem.index == listState.firstVisibleItemIndex ||
-				targetItem.index == listState.firstVisibleItemIndex
-			) {
-				listState.requestScrollToItem(
-					listState.firstVisibleItemIndex,
-					listState.firstVisibleItemScrollOffset
-				)
-			}
+			val firstVisibleIndex = listState.firstVisibleItemIndex
+			val firstVisibleOffset = listState.firstVisibleItemScrollOffset
+			val keepViewport = draggingItem.index == firstVisibleIndex ||
+				targetItem.index == firstVisibleIndex
 			onMove(draggingItem.index, targetItem.index)
 			draggingItemIndex = targetItem.index
+			if (keepViewport) {
+				// The move invalidates the current layout. Queue the override for its remeasure,
+				// or key anchoring follows the moved first row and jumps the viewport with it.
+				listState.requestScrollToItem(firstVisibleIndex, firstVisibleOffset)
+			}
 		}
 	}
 
