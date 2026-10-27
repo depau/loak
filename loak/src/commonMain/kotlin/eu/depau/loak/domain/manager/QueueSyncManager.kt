@@ -21,8 +21,10 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
+import kotlin.concurrent.Volatile
 import kotlin.time.Clock
 import kotlin.time.Instant
+
 data class ServerQueue(
 	val songs: List<DomainSong>,
 	val currentIndex: Int,
