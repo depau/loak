@@ -16,7 +16,8 @@ plugins {
 
 sentryKmp {
 	autoInstall {
-		cocoapods.enabled = false
+		// Sentry Cocoa comes from the Swift package in iosApp.xcodeproj
+		apple.provider = io.sentry.kotlin.multiplatform.gradle.AppleDependencyProvider.NONE
 	}
 }
 

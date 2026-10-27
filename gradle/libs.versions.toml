@@ -57,8 +57,8 @@ jna = "5.19.1"
 
 # Error reporting
 # sentry KMP SDK + gradle plugin share one version; must stay in lockstep with
-# the pinned Sentry Cocoa SDK (currently 8.58.2 for 0.27.0 — see README table).
-sentry = "0.27.0"
+# the pinned Sentry Cocoa SDK (currently 9.30.2 for 0.29.0 — see README table).
+sentry = "0.29.0"
 # @sentry/browser (npm) for the web target, where the KMP SDK is a no-op stub
 sentryBrowser = "11.7.0"
 

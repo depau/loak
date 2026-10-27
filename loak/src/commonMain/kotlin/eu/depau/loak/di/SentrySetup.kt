@@ -64,6 +64,9 @@ fun initializeSentry(release: String? = null) {
 		// No PII: with it on, Sentry stores each sender's IP address (and a city derived from
 		// it) on every event. Android still tags events with the SDK's random per-install id.
 		options.sendDefaultPii = false
+		// No HTTP client errors either: on Apple (since 0.29) they'd report the user's server
+		// answering 5xx, its full request URL (server, username, auth token) included.
+		options.enableCaptureFailedRequests = false
 		// Performance tracing for the few spans we create (see [traced]). Span names and data
 		// are fixed strings/ids/counts we set ourselves: never URLs, usernames or servers.
 		// ANR (Android) and app-hang (iOS) detection stay at their defaults (on).
