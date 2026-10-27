@@ -34,7 +34,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 fun LoakMenuBar(actions: AppActions, quit: () -> Unit) {
-	// items are clicked on the Swing thread: run the actions on the composition's instead
+	// items are clicked from the native menu's callback: run the actions in the composition's scope
 	val scope = rememberCoroutineScope()
 	fun run(action: () -> Unit): () -> Unit = { scope.launch { action() } }
 

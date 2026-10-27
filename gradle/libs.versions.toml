@@ -7,8 +7,10 @@ android-minSdk = "24"
 #noinspection UnusedVersionCatalogEntry
 android-targetSdk = "37"
 kotlin = "2.4.21"
-# desktop window chrome (client-side decorations, Tao backend)
-nucleus = "2.5.18"
+# desktop window chrome (client-side decorations, Tao backend). A 3.0 dev build for its macOS
+# fix that stops drawing while the window is out of sight: drawing through a lid-closed sleep
+# left the render thread stuck in CAMetalLayer.nextDrawable, the window frozen.
+nucleus = "3.0.0-dev-202610230652"
 
 # Androidx
 androidx-activity = "1.13.0"

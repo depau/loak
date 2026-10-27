@@ -35,7 +35,7 @@ class MediaControlManager(
 
 	/**
 	 * Mirrors [state] (and [volume], if the app owns one) to the OS and forwards its commands
-	 * to [onEvent], on the Swing EDT.
+	 * to [onEvent], on the UI thread (the Tao main thread, that of Dispatchers.Main).
 	 */
 	fun start(
 		state: StateFlow<PlayerUiState>,

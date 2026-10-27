@@ -155,7 +155,7 @@ nucleus.application {
 
 	nativeDistributions {
 		// one package task per format (packageDmg, packageAppImage, ...); electron-builder
-		// builds them, so packaging needs Node.js >= 20.19 (the plugin only checks for 18)
+		// builds them, on a Node.js the plugin downloads
 		targetFormats(
 			TargetFormat.Dmg,
 			TargetFormat.Zip,

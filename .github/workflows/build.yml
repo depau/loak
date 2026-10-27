@@ -331,12 +331,6 @@ jobs:
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      # Nucleus packages through electron-builder, which needs Node.js >= 20.19 (require(esm))
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
       # electron-builder's AppImage step needs FUSE 2 and its RPM step rpmbuild; Nucleus' patched
       # natives (loakDesktop/nucleus) build against GTK 3 (Tao) and ALSA (rodio)
       - name: Install Linux packaging dependencies
@@ -565,7 +559,7 @@ jobs:
             -exec mv {} artifacts/portable-assets/ \;
 
       - name: Generate nightly update YML
-        uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.5.18
+        uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v3.0.0-dev-202610230652
         with:
           artifacts-path: artifacts
           version: ${{ steps.nightly_version.outputs.version }}
@@ -746,7 +740,7 @@ jobs:
             -exec mv {} artifacts/portable-assets/ \;
 
       - name: Generate update YML
-        uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v2.5.18
+        uses: NucleusFramework/Nucleus/.github/actions/generate-update-yml@v3.0.0-dev-202610230652
         with:
           artifacts-path: artifacts
           version: ${{ steps.version.outputs.version }}
@@ -799,7 +793,7 @@ jobs:
             || true # already published by publish-release on a re-run; nothing to do
 
       - name: Publish Release
-        uses: NucleusFramework/Nucleus/.github/actions/publish-release@v2.5.18
+        uses: NucleusFramework/Nucleus/.github/actions/publish-release@v3.0.0-dev-202610230652
         with:
           artifacts-path: artifacts
           tag: ${{ github.ref_name }}
