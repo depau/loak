@@ -146,11 +146,6 @@ swapNucleusNatives(
 nucleus.application {
 	mainClass = "eu.depau.loak.desktopapp.MainKt"
 	jvmArgs("-Dnucleus.app.version=$releaseVersion", "-Dloak.updateChannel=$updateChannel")
-	// Nucleus' Tao window backend must own the macOS main thread; the plugin only adds this
-	// to hot reload. Installers are built per host OS, so checking the build host is enough.
-	if (System.getProperty("os.name").startsWith("Mac")) {
-		jvmArgs("-XstartOnFirstThread")
-	}
 
 	nativeDistributions {
 		// one package task per format (packageDmg, packageAppImage, ...); electron-builder
