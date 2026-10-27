@@ -59,7 +59,6 @@ kotlin {
 				implementation(libs.nucleus.application)
 				implementation(libs.nucleus.updater.runtime)
 				implementation(libs.nucleus.decorated.window.tao)
-				implementation(libs.nucleus.darkmode.detector)
 				implementation(libs.nucleus.menu.macos)
 				implementation(libs.cmp.resources)
 				implementation(libs.androidx.navigation3.ui) // the back input for trackpad swipes

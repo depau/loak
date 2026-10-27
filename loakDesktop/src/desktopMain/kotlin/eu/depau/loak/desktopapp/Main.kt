@@ -182,13 +182,11 @@ fun main(args: Array<String>) {
 						if (quit) exitApplication()
 						quit
 					}) {
-						ProvideSystemTheme {
-							App { actions ->
-								LoakMenuBar(actions, ::exitApplication)
-								// Nucleus reports a swipe's phases on macOS and Linux Wayland: elsewhere
-								// swipes come without and scroll as before
-								TrackpadTouchEffect(taoWindow, actions.backInput)
-							}
+						App { actions ->
+							LoakMenuBar(actions, ::exitApplication)
+							// Nucleus reports a swipe's phases on macOS and Linux Wayland: elsewhere
+							// swipes come without and scroll as before
+							TrackpadTouchEffect(taoWindow, actions.backInput)
 						}
 					}
 				}
