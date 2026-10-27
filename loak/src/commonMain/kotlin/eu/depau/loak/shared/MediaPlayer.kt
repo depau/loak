@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import androidx.compose.runtime.snapshotFlow
@@ -180,7 +181,9 @@ abstract class MediaPlayerViewModel(
 	init {
 		observeVolumeMuted()
 		observeCurrentSongDelivery()
-		viewModelScope.launch {
+		// dispatched, not immediate: restoring calls syncPlayerWithState, which must not run on a
+		// platform subclass still being constructed (a local queue restores without suspending)
+		viewModelScope.launch(Dispatchers.Main) {
 			restoreState()
 			observeAndSaveState()
 			observeAutoFill()
