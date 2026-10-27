@@ -148,7 +148,21 @@ private class JdbcSQLiteStatement(
 
 	override fun getColumnNames(): List<String> = columnNames
 
-	override fun getColumnType(index: Int): Int =
+	// Like sqlite3_column_type, the type of the current row's value (NULL for a null in a TEXT
+	// column): Room buffers rows by it, reading a TEXT column with getText. Before a row is
+	// stepped, the declared type.
+	override fun getColumnType(index: Int): Int {
+		val rs = resultSet ?: return declaredColumnType(index)
+		return when (rs.getObject(index + 1)) {
+			null -> SQLITE_DATA_NULL
+			is Long, is Int, is Short, is Byte, is Boolean -> SQLITE_DATA_INTEGER
+			is Double, is Float -> SQLITE_DATA_FLOAT
+			is ByteArray -> SQLITE_DATA_BLOB
+			else -> SQLITE_DATA_TEXT
+		}
+	}
+
+	private fun declaredColumnType(index: Int): Int =
 		when (columnTypes.getOrNull(index)) {
 			java.sql.Types.INTEGER, java.sql.Types.BIGINT, java.sql.Types.SMALLINT,
 			java.sql.Types.TINYINT, java.sql.Types.BOOLEAN, java.sql.Types.NUMERIC,
