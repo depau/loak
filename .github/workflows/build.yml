@@ -94,7 +94,7 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 -d > release.keystore
           version_code=$(( $(git show -s --format=%ct HEAD) / 60 ))
-          version_name="v1.0.0-alpha58-nightly.${GITHUB_SHA::7}"
+          version_name="v1.0.0-alpha.58-nightly.${GITHUB_SHA::7}"
           ./gradlew :loakApp:packageRelease -Pnightly=true \
             -PversionCode="$version_code" -PversionName="$version_name" --stacktrace
           mkdir -p nightly

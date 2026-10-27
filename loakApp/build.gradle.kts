@@ -33,7 +33,7 @@ extensions.configure<ApplicationExtension> {
 		minSdk = libs.versions.android.minSdk.get().toInt()
 		targetSdk = libs.versions.android.targetSdk.get().toInt()
 		versionCode = versionCodeOverride ?: 58
-		versionName = versionNameOverride ?: "v1.0.0-alpha58"
+		versionName = versionNameOverride ?: "v1.0.0-alpha.58"
 
 		// the user flows (src/androidTest): crash reporting off, a fresh install per flow
 		testInstrumentationRunner = "eu.depau.loak.androidApp.UserFlowsRunner"

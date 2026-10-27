@@ -31,7 +31,7 @@ This file gives an agent (or any new contributor) everything needed to navigate 
 - Kotlin Multiplatform (KMP) + **Compose Multiplatform** — one shared codebase for Android + iOS UI and logic.
 - Kotlin package / application id: **`eu.depau.loak`**; default branch: `main`.
 - The Gradle root project is `LoakMusic` (`settings.gradle.kts`) — "Lo'ak" can't be a Gradle project name (apostrophe breaks the type-safe accessors, and "Loak" would collide with the `:loak` module's accessor).
-- Current version: `v1.0.0-alpha58` (`versionCode 58`), GPL-3.0 licensed.
+- Current version: `v1.0.0-alpha.58` (`versionCode 58`), GPL-3.0 licensed. Release tags are `v1.0.0-alpha.N`: the desktop updater (Nucleus) reads a pre-release's channel up to the first dot, so `alphaN` would be a channel of its own that `alpha` clients never take.
 
 ## Tech stack (from `gradle/libs.versions.toml`)
 

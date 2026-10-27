@@ -4,7 +4,7 @@
 # Usage: generate-release-notes.sh TITLE TAG DESKTOP_PREFIX PORTABLE_PREFIX ANDROID_FILE IOS_FILE [CHANNEL]
 #   TITLE           first line of the description (user-facing, e.g. the version label)
 #   TAG             release tag (also the /releases/download/{tag}/ path prefix)
-#   DESKTOP_PREFIX  installer/blockmap filename prefix, e.g. "loak-1.0.0-alpha58-"
+#   DESKTOP_PREFIX  installer/blockmap filename prefix, e.g. "loak-1.0.58-"
 #   PORTABLE_PREFIX portable archive prefix, e.g. "Loak-" (versionless on releases)
 #   ANDROID_FILE    Android APK asset name (e.g. "Lo.ak.apk")
 #   IOS_FILE        iOS IPA asset name (e.g. "Loak.ipa")
