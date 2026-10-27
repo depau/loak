@@ -38,8 +38,8 @@ This file gives an agent (or any new contributor) everything needed to navigate 
 | Concern | Choice |
 |---|---|
 | Language | Kotlin `2.4.21` (very bleeding-edge — all versions here are similarly fresh) |
-| UI | Compose Multiplatform `1.12.1`, Material3 `1.12.0-alpha03`, material3-adaptive `1.3.0-alpha04` (**pinned — see gotchas**; Compose held at 1.12 for the desktop window decorations) |
-| Navigation | `androidx.navigation3` `1.2.0-beta01` + `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3` |
+| UI | Compose Multiplatform `1.12.2`, Material3 `1.12.0-alpha03`, material3-adaptive `1.3.0-alpha04` (**pinned — see gotchas**; Compose held at 1.12 for the desktop window decorations) |
+| Navigation | `androidx.navigation3` `1.2.0` + `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3` |
 | DI | Koin `4.2.2` (`koin-core`, `koin-compose`, `koin-compose-viewmodel`, `koin-android`) |
 | Networking | Ktor client `3.5.2` (OkHttp on Android, Darwin on iOS), kotlinx-serialization |
 | Images | Coil `3.6.2` (ktor3 network, gif) |
@@ -262,7 +262,7 @@ For UI changes: **manually verify on different themes and form factors and inclu
 1. **Version catalog is intentionally pinned** in places with comments — e.g. `material3-adaptive` must stay on `1.3.0-alpha04` (alpha05 makes the detail pane always visible). Do **not** blindly bump dependencies; read the `#noinspection`/comment lines in `gradle/libs.versions.toml`. There is also a global exclude that strips Material 2 — don't reintroduce it.
 2. **`subsonic-kotlin` is a SNAPSHOT from a private Maven repo** (`https://raw.githubusercontent.com/Nightdavisao/maven-repo/...`) with a 1-hour SNAPSHOT cache. Don't be surprised by flaky freshening; don't "fix" it by pinning a release that doesn't exist.
 3. **Do not declare** `androidx.compose.foundation.text.input.TextFieldDecorator` in commonMain (shares the inject-on-build workaround).
-4. **Nightly/beta-quality toolchain.** Kotlin 2.4.21, AGP 9.3.2, Compose 1.12.0 are pre-release — a compile error may be a toolchain issue; search for known issues before "fixing" shared code.
+4. **Nightly/beta-quality toolchain.** Kotlin 2.4.21, AGP 9.3.2, Compose 1.12.2 are pre-release — a compile error may be a toolchain issue; search for known issues before "fixing" shared code.
 5. `viewModelModule` wires ViewModel constructor deps manually (some take screen params by factory lambda). New ViewModels must be registered there, not `singleOf`'d.
 6. New managers/repositories that need platform impls follow the `expect`/`actual` pattern (see `PlatformModule`, `DataStoreModule`, `ConnectivityManager`, `ShareManager`). Remember to add the Koin registration in **both** platform `platformModule`s.
 7. Exported names/`-Xexpect-actual-classes` and `-Xexplicit-backing-fields` compiler flags are set globally; note the `field = ...` property syntax used in ViewModels/flows (backing-field feature).

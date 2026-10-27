@@ -18,14 +18,14 @@ androidx-lifecycle = "2.11.0"
 androidx-room3 = "3.1.0-alpha01"
 androidx-sqlite = "2.8.0-alpha01"
 kotlinx-browser = "0.5.0"
-androidx-navigation3 = "1.2.0-beta01"
+androidx-navigation3 = "1.2.0"
 androidx-media3 = "1.11.0"
 androidx-glance = "1.3.0-alpha02"
 
 # Compose/UI
 # Compose 1.12 (not 1.13): Nucleus, the desktop window decorations, implements
 # Compose-internal interfaces and doesn't run on 1.13 yet (Nucleus #671).
-compose = "1.12.1"
+compose = "1.12.2"
 material3 = "1.12.0-alpha03"
 #noinspection NewerVersionAvailable do not update this to alpha05 it makes the detail pane always visible
 material3-adaptive = "1.3.0-alpha04"
