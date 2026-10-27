@@ -42,7 +42,7 @@ This file gives an agent (or any new contributor) everything needed to navigate 
 | Navigation | `androidx.navigation3` `1.2.0` + `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3` |
 | DI | Koin `4.2.2` (`koin-core`, `koin-compose`, `koin-compose-viewmodel`, `koin-android`) |
 | Networking | Ktor client `3.5.2` (OkHttp on Android, Darwin on iOS), kotlinx-serialization |
-| Images | Coil `3.6.2` (ktor3 network, gif) |
+| Images | Coil `3.6.3` (ktor3 network, gif) |
 | Local DB | Room 3 (KMP) `androidx.room3:3.1.0-alpha01` (alpha for the web pool timeout, see `PlatformModule.wasmJs.kt`) + bundled SQLite driver, KSP |
 | Settings | `androidx.datastore:datastore-preferences` + `multiplatform-settings` |
 | Subsonic API | `dev.zt64.subsonic:subsonic-client:1.0.0-SNAPSHOT` — **binary from a custom Maven repo** (see gotchas) |
