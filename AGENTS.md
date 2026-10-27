@@ -47,7 +47,7 @@ This file gives an agent (or any new contributor) everything needed to navigate 
 | Settings | `androidx.datastore:datastore-preferences` + `multiplatform-settings` |
 | Subsonic API | `dev.zt64.subsonic:subsonic-client:1.0.0-SNAPSHOT` — **binary from a custom Maven repo** (see gotchas) |
 | Icons | Valkyrie icon code-gen from SVG (see below) |
-| Build | Gradle wrapper `9.7.1`, AGP `9.3.2`, JVM target 21, compileSdk 37, minSdk 24, targetSdk 37 |
+| Build | Gradle wrapper `9.8.2`, AGP `9.3.2`, JVM target 21, compileSdk 37, minSdk 24, targetSdk 37 |
 
 ## Repo layout
 
