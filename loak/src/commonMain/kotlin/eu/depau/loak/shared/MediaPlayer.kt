@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import androidx.compose.runtime.snapshotFlow
@@ -181,16 +182,20 @@ abstract class MediaPlayerViewModel(
 	init {
 		observeVolumeMuted()
 		observeCurrentSongDelivery()
-		// dispatched, not immediate: restoring calls syncPlayerWithState, which must not run on a
-		// platform subclass still being constructed (a local queue restores without suspending)
-		viewModelScope.launch(Dispatchers.Main) {
-			restoreState()
-			observeAndSaveState()
-			observeAutoFill()
-			observeAutoplay()
-			// the server's queue vs. this device's, decided when it comes up and again on each
-			// foreground: never live-polled, and never taken from a recently-active device
-			checkForeignQueue()
+		// Restoring calls syncPlayerWithState, which must not run in this constructor, before the
+		// platform subclass is built (a local queue restores without suspending). Main can't
+		// defer it: Nucleus' runs inline on its own thread. Coming back from Default, it waits
+		// for the main thread's current task, the one constructing this, to finish.
+		viewModelScope.launch(Dispatchers.Default) {
+			withContext(Dispatchers.Main) {
+				restoreState()
+				observeAndSaveState()
+				observeAutoFill()
+				observeAutoplay()
+				// the server's queue vs. this device's, decided when it comes up and again on each
+				// foreground: never live-polled, and never taken from a recently-active device
+				checkForeignQueue()
+			}
 		}
 	}
 
