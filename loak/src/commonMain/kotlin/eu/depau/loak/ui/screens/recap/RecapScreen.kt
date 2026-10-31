@@ -1,6 +1,7 @@
 package eu.depau.loak.ui.screens.recap
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,6 +72,7 @@ import eu.depau.loak.generated.resources.label_recap_listened
 import eu.depau.loak.generated.resources.label_recap_new_artists
 import eu.depau.loak.generated.resources.label_recap_plays
 import eu.depau.loak.generated.resources.label_recap_tracks
+import eu.depau.loak.generated.resources.title_listening_history
 import eu.depau.loak.generated.resources.title_recap
 import eu.depau.loak.generated.resources.title_recap_activity
 import eu.depau.loak.generated.resources.title_recap_top_albums
@@ -78,6 +80,8 @@ import eu.depau.loak.generated.resources.title_recap_top_artists
 import eu.depau.loak.generated.resources.title_recap_top_tracks
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.outlined.BarChart
+import eu.depau.loak.icons.outlined.ChevronForward
+import eu.depau.loak.icons.outlined.History
 import eu.depau.loak.icons.outlined.Share
 import eu.depau.loak.ui.components.common.CoverArt
 import eu.depau.loak.ui.components.common.MarqueeText
@@ -134,22 +138,31 @@ fun RecapScreen() {
 	val recap = state.data
 	// hoisted: the share button's lambda is not a composable scope
 	val shareText = recap?.shareText()
+	// a settings detail page: Root first, so the list+detail layout has its list
+	val openHistorySettings = dropUnlessResumed {
+		backStack.add(Screen.Settings.Root)
+		backStack.add(Screen.Settings.ListeningHistory)
+	}
 
 	Scaffold(
 		modifier = if (nested) Modifier else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
 		topBar = {
-			val share: @Composable RowScope.() -> Unit = {
+			val actions: @Composable RowScope.() -> Unit = {
 				// nothing to share until there is something on screen
 				if (shareText != null) {
 					IconButton(onClick = { scope.launch { shareManager.shareString(shareText) } }) {
 						Icon(Icons.Outlined.Share, stringResource(Res.string.action_share))
 					}
 				}
+				// where the figures come from: the eyebrow's sources are picked there
+				IconButton(onClick = openHistorySettings) {
+					Icon(Icons.Outlined.History, stringResource(Res.string.title_listening_history))
+				}
 			}
 			val title: @Composable () -> Unit = { Text(stringResource(Res.string.title_recap)) }
 			// in the tab bar it is a root of its own; opened from Library it is a page on top
-			if (nested) NestedTopBar(title, actions = share)
-			else RootTopBar(title, scrollBehavior, actions = share)
+			if (nested) NestedTopBar(title, actions = actions)
+			else RootTopBar(title, scrollBehavior, actions = actions)
 		},
 		// like the other scrolling screens, the bar stays: it is how the flow leaves the page
 		bottomBar = { RootBottomBar(scrolled = LocalBottomBarScrollManager.current.isTriggered) }
@@ -166,7 +179,7 @@ fun RecapScreen() {
 			} else if (recap == null) {
 				// loading: the period picker is the only thing that is already true
 			} else {
-				item { Hero(recap) }
+				item { Hero(recap, openHistorySettings) }
 				// the grid is always the same 27 weeks, so a period with nothing played still
 				// shows what was played around it
 				item { Activity(recap) }
@@ -200,16 +213,28 @@ private fun PeriodPicker(selected: RecapPeriod, onSelect: (RecapPeriod) -> Unit)
 
 /** The sources, the number, the four figures and how they compare with the period before. */
 @Composable
-private fun Hero(recap: RecapData) {
+private fun Hero(recap: RecapData, onSources: () -> Unit) {
 	Column(
 		Modifier.padding(horizontal = 16.dp),
 		verticalArrangement = Arrangement.spacedBy(8.dp)
 	) {
-		Text(
-			stringResource(Res.string.info_recap_from, recap.sourceLabel()).uppercase(),
-			style = MaterialTheme.typography.labelLarge.copy(fontFamily = defaultFont(grade = 100)),
-			color = MaterialTheme.colorScheme.primary
-		)
+		// the sources are where they are picked: tapping them opens the listening history settings
+		Row(
+			Modifier.clip(CircleShape).clickable(onClick = onSources),
+			verticalAlignment = Alignment.CenterVertically
+		) {
+			Text(
+				stringResource(Res.string.info_recap_from, recap.sourceLabel()).uppercase(),
+				style = MaterialTheme.typography.labelLarge.copy(fontFamily = defaultFont(grade = 100)),
+				color = MaterialTheme.colorScheme.primary
+			)
+			Icon(
+				Icons.Outlined.ChevronForward,
+				stringResource(Res.string.title_listening_history),
+				Modifier.size(18.dp),
+				tint = MaterialTheme.colorScheme.primary
+			)
+		}
 		if (recap.unreadable.isNotEmpty()) {
 			// the eyebrow above names only what answered: say what is missing from the figures
 			Text(
