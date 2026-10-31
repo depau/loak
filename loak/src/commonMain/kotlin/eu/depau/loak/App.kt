@@ -101,6 +101,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -657,7 +658,7 @@ private fun entryProvider(
 		.plus(popTransitionSpec { ContentTransform(EnterTransition.None, fadeOut()) })
 		.plus(predictivePopTransitionSpec { ContentTransform(EnterTransition.None, fadeOut()) })
 
-	return androidx.navigation3.runtime.entryProvider {
+	val provider = androidx.navigation3.runtime.entryProvider<NavKey> {
 		// tabs
 		entry<Screen.Home>(metadata = navtabMetadata) {
 			HomeScreen()
@@ -850,6 +851,22 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.Equaliser> {
 			SettingsEqualiserScreen()
+		}
+	}
+	// a screen leaving the stack keeps seeing it as it was while it animates out: the tabs tell
+	// from it whether they're a tab (back arrow, bottom bar, selected tab), and against the
+	// destination's stack they'd flash as nested
+	return { key ->
+		val entry = provider(key)
+		NavEntry(key, entry.contentKey, entry.metadata) {
+			val inStack = key in backStack
+			// what it saw last; the copy below is taken before this composition's update
+			val shown = remember { mutableListOf<NavKey>() }
+			SideEffect { shown.clear(); shown += backStack }
+			CompositionLocalProvider(
+				LocalNavStack provides if (inStack) backStack else remember { NavBackStack(*shown.toTypedArray()) },
+				content = { entry.Content() }
+			)
 		}
 	}
 }
