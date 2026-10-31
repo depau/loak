@@ -143,6 +143,9 @@ class QueueSyncManager(
 	 */
 	fun decision(remote: ServerQueue?, local: PlayerUiState?, now: Long): Decision {
 		if (remote == null || local?.queue.isNullOrEmpty()) return Decision.Nothing
+		// this device's own save (its queue moved on since, or the save hasn't gone out yet)
+		// is nothing to resume from
+		if (isOwn(remote)) return Decision.Nothing
 		if (remote.songs.map { it.id } == local.queue.map { it.id }) return Decision.Nothing
 		val playing = !local.isPaused && local.currentIndex >= 0
 		val idle = now - lastActivityMs >= IDLE_WINDOW_MS && !playing
@@ -184,8 +187,12 @@ class QueueSyncManager(
 
 	/** Shows where [remote] came from, unless this device saved it. */
 	fun markPickedUp(remote: ServerQueue) {
-		pickedUpFrom.value = remote.takeIf { it.changedBy != sessionManager.clientName }
+		pickedUpFrom.value = remote.takeUnless { isOwn(it) }
 	}
+
+	/** Whether this device saved [remote]; servers may trim or re-case the client name. */
+	private fun isOwn(remote: ServerQueue) =
+		remote.changedBy.trim().equals(sessionManager.clientName.trim(), ignoreCase = true)
 
 	companion object {
 		private const val TAG = "QueueSyncManager"

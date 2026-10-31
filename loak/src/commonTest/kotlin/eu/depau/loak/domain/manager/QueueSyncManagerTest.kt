@@ -282,6 +282,28 @@ class QueueSyncManagerTest {
 	}
 
 	@Test
+	fun decisionNothingForThisDevicesOwnSave() = runBlocking {
+		val prefs = PreferenceManager(settings())
+		val manager = manager(fakeServer(), prefs, song("s1"))
+		manager.lastActivityMs = 10_000L
+		val local = PlayerUiState(
+			queue = listOf(song("s9").toDomainModel()), currentIndex = 0, isPaused = true
+		)
+		val now = 10_000L + 1
+
+		assertEquals(
+			QueueSyncManager.Decision.Nothing,
+			manager.decision(remote("lo'ak (Test Box) "), local, now),
+			"this device's own save, even re-cased by the server, is never offered back"
+		)
+		assertEquals(
+			QueueSyncManager.Decision.Offer,
+			manager.decision(remote("Lo'ak (Other Phone)"), local, now),
+			"another Lo'ak device's save still is"
+		)
+	}
+
+	@Test
 	fun decisionNothingForTheSameOrNoQueues() = runBlocking {
 		val prefs = PreferenceManager(settings())
 		val manager = manager(fakeServer(), prefs, song("s1"))
