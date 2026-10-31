@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.runtime.Composable
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.di.isExpanded
@@ -60,10 +62,14 @@ fun RootBottomBar(
 	val density = LocalDensity.current
 	val owner = remember { Any() }
 	var measuredHeight by remember { mutableStateOf(0.dp) }
-	LaunchedEffect(scrolled, measuredHeight) {
-		scrollManager.barHeights[owner] = if (scrolled) 0.dp else measuredHeight
+	// the keyboard is up (only on touch platforms): the screen gets that height instead
+	val ime = WindowInsets.ime
+	val imeOpen by remember(ime, density) { derivedStateOf { ime.getBottom(density) > 0 } }
+	LaunchedEffect(scrolled, imeOpen, measuredHeight) {
+		scrollManager.barHeights[owner] = if (scrolled || imeOpen) 0.dp else measuredHeight
 	}
 	DisposableEffect(owner) { onDispose { scrollManager.barHeights.remove(owner) } }
+	if (imeOpen) return
 
 	Column(
 		modifier = modifier.onSizeChanged {
