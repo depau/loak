@@ -141,6 +141,8 @@ fun CollectionDetailScreen(
 			if (isReversed) filtered.reversed() else filtered
 		}
 	}
+	// a playlist as shown (filtered, maybe reversed): what Play and the queue actions take
+	val displayed = (collection as? DomainPlaylist)?.copy(songs = visibleSongs) ?: collection
 	var reordering by rememberSaveable { mutableStateOf(false) }
 	var reorderSongs by remember(reordering, collection?.songs) {
 		mutableStateOf(
@@ -241,8 +243,8 @@ fun CollectionDetailScreen(
 						onSetShareId = { shareId = it },
 						onDownloadAll = { viewModel.downloadAll() },
 						onCancelDownloadAll = { viewModel.cancelDownloadAll() },
-						onPlayNext = { if (collection != null) player.playNext(collection) },
-						onAddToQueue = { if (collection != null) player.addToQueue(collection) },
+						onPlayNext = { if (displayed != null) player.playNext(displayed) },
+						onAddToQueue = { if (displayed != null) player.addToQueue(displayed) },
 						downloadStatus = downloadStatus,
 						rating = if (collection !is DomainPlaylist) rating else null,
 						onSetRating = if (collection !is DomainPlaylist) {
@@ -343,7 +345,7 @@ fun CollectionDetailScreen(
 								tab = tab,
 								titleAlpha = 1f
 							)
-							CollectionDetailScreenHeadingRowButtons(collection = collection)
+							CollectionDetailScreenHeadingRowButtons(collection = collection, displayed = displayed!!)
 							if (collection is DomainPlaylist) {
 								PlaylistRebuiltNotice(collection)
 								SmartRulesCard(collection, onEdit = { editingRules = it })
@@ -412,7 +414,8 @@ fun CollectionDetailScreen(
 
 							item {
 								CollectionDetailScreenHeadingRowButtons(
-									collection = collection
+									collection = collection,
+									displayed = displayed!!
 								)
 							}
 
@@ -581,7 +584,7 @@ fun CollectionDetailScreen(
 											isPlaylist = true,
 											onClick = {
 												if (playerState.currentSong?.id != song.id) {
-													player.playNow((collection as DomainPlaylist).copy(songs = visibleSongs), index)
+													player.playNow(displayed!!, index)
 												} else {
 													player.togglePlay()
 												}

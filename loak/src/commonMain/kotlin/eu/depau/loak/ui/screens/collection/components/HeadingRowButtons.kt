@@ -92,7 +92,9 @@ import eu.depau.loak.ui.theme.defaultFont
 
 @Composable
 fun CollectionDetailScreenHeadingRowButtons(
-	collection: DomainSongCollection
+	collection: DomainSongCollection,
+	// what Play queues: the songs in the order the screen shows them
+	displayed: DomainSongCollection = collection
 ) {
 	val player = koinInject<MediaPlayerViewModel>()
 	val snackBarManager = koinInject<SnackBarManager>()
@@ -175,7 +177,7 @@ fun CollectionDetailScreenHeadingRowButtons(
 		Button(
 			modifier = Modifier.weight(1f).height(buttonHeight),
 			onClick = {
-				player.playNow(collection)
+				player.playNow(displayed)
 			},
 			shape = buttonShape,
 			enabled = playable
