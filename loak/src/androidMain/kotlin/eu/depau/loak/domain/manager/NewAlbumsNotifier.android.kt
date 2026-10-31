@@ -38,7 +38,10 @@ actual class NewAlbumsNotifier(private val context: android.content.Context) {
 					addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 					putExtra(EXTRA_OPEN_RECENTLY_ADDED, true)
 				}
-				?.let { PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE) }
+				?.let { PendingIntent.getActivity(
+					context, NOTIFICATION_ID, it,
+					PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+				) }
 			manager.notify(
 				NOTIFICATION_ID,
 				NotificationCompat.Builder(context, CHANNEL)

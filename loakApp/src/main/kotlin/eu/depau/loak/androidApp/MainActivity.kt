@@ -11,12 +11,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
 import eu.depau.loak.App
 import eu.depau.loak.di.LocalBackToCar
 import eu.depau.loak.domain.manager.DownloadManager
 import eu.depau.loak.domain.manager.EXTRA_OPEN_RECENTLY_ADDED
-import eu.depau.loak.ui.navigation.AppActions
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.get
@@ -25,12 +25,13 @@ class MainActivity : ComponentActivity() {
 	private val askNotifications =
 		registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
-	/** The latest AppActions, for the notification tap to navigate while the app is running. */
-	private var appActions: AppActions? = null
+	/** A new-albums notification tap waiting to open Recently added, once past login. */
+	private val openRecentlyAdded = mutableStateOf(false)
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		enableEdgeToEdge()
+		if (savedInstanceState == null) takeRecentlyAdded()
 		// the settings button of Android Automotive's media app, the way to this UI in a car
 		val fromCarSettings = savedInstanceState == null &&
 			intent?.action == Intent.ACTION_APPLICATION_PREFERENCES
@@ -45,18 +46,16 @@ class MainActivity : ComponentActivity() {
 		setContent {
 			CompositionLocalProvider(LocalBackToCar provides backToCar) {
 				App { actions ->
-					appActions = actions
 					// on Settings, as its tab: back returns to the car. Signed out, the login
 					// screen stays (the car's Log in button opens it this way too)
 					LaunchedEffect(Unit) {
 						if (fromCarSettings && actions.inApp) actions.settingsTab()
 					}
 					// the new-albums notification opens Recently added directly
-					LaunchedEffect(Unit) {
-						if (intent?.getBooleanExtra(EXTRA_OPEN_RECENTLY_ADDED, false) == true &&
-							actions.inApp
-						) {
-							setIntent(intent?.apply { removeExtra(EXTRA_OPEN_RECENTLY_ADDED) })
+					// (re)keyed: on cold start the session isn't restored yet at first composition
+					LaunchedEffect(openRecentlyAdded.value, actions.inApp) {
+						if (openRecentlyAdded.value && actions.inApp) {
+							openRecentlyAdded.value = false
 							actions.recentlyAdded()
 						}
 					}
@@ -73,14 +72,16 @@ class MainActivity : ComponentActivity() {
 		}
 	}
 
+	/** Consumes the new-albums notification's extra, so recreation doesn't reopen it. */
+	private fun takeRecentlyAdded() {
+		if (intent?.getBooleanExtra(EXTRA_OPEN_RECENTLY_ADDED, false) != true) return
+		intent.removeExtra(EXTRA_OPEN_RECENTLY_ADDED)
+		openRecentlyAdded.value = true
+	}
+
 	override fun onNewIntent(intent: Intent) {
 		super.onNewIntent(intent)
-		if (intent.getBooleanExtra(EXTRA_OPEN_RECENTLY_ADDED, false)) {
-			// handle once, and only after the app already runs (cold start goes through onCreate)
-			setIntent(intent.apply { removeExtra(EXTRA_OPEN_RECENTLY_ADDED) })
-			appActions?.takeIf { it.inApp }?.recentlyAdded()
-		} else {
-			setIntent(intent)
-		}
+		setIntent(intent)
+		takeRecentlyAdded()
 	}
 }
