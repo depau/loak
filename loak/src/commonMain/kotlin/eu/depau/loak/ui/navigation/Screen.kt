@@ -103,7 +103,7 @@ sealed interface Screen : NavKey {
 
 	@Immutable
 	@Serializable
-	data object DiscoverSearch : Screen
+	data class DiscoverSearch(val query: String = "") : Screen
 
 	/** An album the library doesn't have, by Deezer id or else by [title] and [artist]. */
 	@Immutable

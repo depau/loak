@@ -756,7 +756,7 @@ private fun entryProvider(
 			DiscoverScreen()
 		}
 		entry<Screen.DiscoverSearch> {
-			DiscoverSearchScreen()
+			DiscoverSearchScreen(it.query)
 		}
 		entry<Screen.DiscoverAlbum> { DiscoverAlbumScreen(it) }
 		entry<Screen.DiscoverArtist> { DiscoverArtistScreen(it) }

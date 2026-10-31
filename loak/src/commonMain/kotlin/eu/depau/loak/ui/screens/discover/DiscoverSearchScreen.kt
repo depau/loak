@@ -31,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -113,8 +114,12 @@ private val categories = listOf(
 
 /** Discover's own search, on Deezer: music outside the library. Blank query: recent searches. */
 @Composable
-fun DiscoverSearchScreen() {
+fun DiscoverSearchScreen(initialQuery: String = "") {
 	val viewModel = koinViewModel<DiscoverSearchViewModel>()
+	// seeded once: the field's own debounce runs the search
+	LaunchedEffect(Unit) {
+		if (initialQuery.isNotBlank() && viewModel.query.text.isEmpty()) viewModel.query.setTextAndPlaceCursorAtEnd(initialQuery)
+	}
 	val state by viewModel.results.collectAsState()
 	val category by viewModel.category.collectAsState()
 	val resultQuery by viewModel.resultQuery.collectAsState()

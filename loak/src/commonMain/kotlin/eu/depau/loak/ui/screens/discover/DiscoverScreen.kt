@@ -155,7 +155,7 @@ fun DiscoverScreen() {
 			item(key = "search") {
 				SearchPill(
 					modifier = Modifier.padding(horizontal = 16.dp),
-					onClick = dropUnlessResumed { backStack.add(Screen.DiscoverSearch) }
+					onClick = dropUnlessResumed { backStack.add(Screen.DiscoverSearch()) }
 				)
 			}
 			if (home.loadingMadeForYou || home.madeForYou.isNotEmpty()) item(key = "made-for-you") {

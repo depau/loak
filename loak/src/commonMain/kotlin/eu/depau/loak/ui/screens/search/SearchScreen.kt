@@ -7,6 +7,10 @@ import eu.depau.loak.generated.resources.action_ask_ai_playlist
 import eu.depau.loak.generated.resources.info_by_sound_private
 import eu.depau.loak.generated.resources.info_by_sound
 import eu.depau.loak.generated.resources.title_sounds_like
+import eu.depau.loak.generated.resources.info_search_in_discover_row
+import eu.depau.loak.generated.resources.title_discover
+import eu.depau.loak.icons.outlined.TravelExplore
+import eu.depau.loak.domain.manager.LidarrManager
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.draw.clip
@@ -162,6 +166,7 @@ fun SearchScreen(
 	val soundState by viewModel.soundState.collectAsState()
 	val audioMuseInfo by viewModel.audioMuseInfo.collectAsState()
 	val audioMusePrefs = koinInject<PreferenceManager>()
+	val lidarr = koinInject<LidarrManager>()
 
 	val selectedCategory by viewModel.selectedCategory.collectAsState()
 	LaunchedEffect(initialCategory) {
@@ -400,6 +405,23 @@ fun SearchScreen(
 										leadingContent = { Icon(Icons.Filled.Sparkle, null) },
 										headlineContent = { Text(stringResource(Res.string.action_ask_ai_playlist)) },
 										supportingContent = { Text(stringResource(Res.string.info_ask_ai_row, query.text.toString().trim())) },
+										trailingContent = { Icon(Icons.Outlined.ChevronForward, null) }
+									)
+								}
+							}
+
+							// Discover: the same query outside the library, most useful with no results
+							if (lidarr.discoverShown) {
+								item(span = { GridItemSpan(maxLineSpan) }) {
+									ListItem(
+										modifier = Modifier
+											.padding(horizontal = 16.dp, vertical = 8.dp)
+											.clip(MaterialTheme.shapes.large)
+											.clickable { backStack.add(Screen.DiscoverSearch(query.text.toString().trim())) },
+										colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+										leadingContent = { Icon(Icons.Outlined.TravelExplore, null) },
+										headlineContent = { Text(stringResource(Res.string.title_discover)) },
+										supportingContent = { Text(stringResource(Res.string.info_search_in_discover_row, query.text.toString().trim())) },
 										trailingContent = { Icon(Icons.Outlined.ChevronForward, null) }
 									)
 								}
