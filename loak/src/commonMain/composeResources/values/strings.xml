@@ -1257,6 +1257,7 @@
 	<string name="notice_lidarr_search_failed">Couldn't search in Lidarr: %1$s</string>
 	<string name="title_popular">Popular</string>
 	<string name="title_albums_eps">Albums &amp; EPs</string>
+	<string name="title_artist_releases">Releases by %1$s</string>
 	<string name="info_discover_album_unavailable">Couldn't load this album</string>
 	<string name="info_discover_artist_unavailable">Couldn't load this artist</string>
 	<string name="title_new_releases">New releases</string>

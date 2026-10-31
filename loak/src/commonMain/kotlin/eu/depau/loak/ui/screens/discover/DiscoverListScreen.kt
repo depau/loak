@@ -61,6 +61,7 @@ import eu.depau.loak.generated.resources.title_moods_activities
 import eu.depau.loak.generated.resources.title_new_releases
 import eu.depau.loak.generated.resources.title_radio_stations
 import eu.depau.loak.generated.resources.title_top_albums
+import eu.depau.loak.generated.resources.title_artist_releases
 import eu.depau.loak.generated.resources.title_top_artists
 import eu.depau.loak.generated.resources.title_top_songs
 import eu.depau.loak.icons.Icons
@@ -164,6 +165,11 @@ sealed interface DiscoverListType {
 	@Immutable
 	@Serializable
 	data class MadeForYou(val playlistMbid: String, val title: String) : DiscoverListType
+
+	/** Everything one artist released: albums, EPs, singles and compilations. */
+	@Immutable
+	@Serializable
+	data class ArtistReleases(val artistName: String, val deezerId: Long?, val mbid: String?) : DiscoverListType
 }
 
 /** A Discover shelf in full: the chart, fresh releases, similar artists or a genre's songs. */
@@ -383,6 +389,7 @@ private fun listTitle(type: DiscoverListType) = when (type) {
 	is DiscoverListType.Radio -> type.title
 	is DiscoverListType.Playlist -> type.title
 	is DiscoverListType.MadeForYou -> type.title
+	is DiscoverListType.ArtistReleases -> stringResource(Res.string.title_artist_releases, type.artistName)
 }
 
 private fun listIcon(type: DiscoverListType) = when (type) {
@@ -398,6 +405,7 @@ private fun listIcon(type: DiscoverListType) = when (type) {
 	is DiscoverListType.Radio -> Icons.Outlined.Radio
 	is DiscoverListType.Playlist -> Icons.Outlined.PlaylistPlay
 	is DiscoverListType.MadeForYou -> Icons.Outlined.PlaylistPlay
+	is DiscoverListType.ArtistReleases -> Icons.Outlined.Album
 }
 
 /**

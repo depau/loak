@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -25,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.di.LocalBottomBarScrollManager
 import eu.depau.loak.domain.discover.PreviewManager
 import eu.depau.loak.domain.discover.deezerImageUrl
@@ -118,13 +119,9 @@ private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow
 	// just the audible song's id: progress ticks don't recompose the list
 	val previewing by remember { derivedStateOf { active.value?.takeIf { it.isPlaying }?.song?.id } }
 	// the rail: albums and EPs; singles and compilations wait behind "See all"
-	var showAll by rememberSaveable { mutableStateOf(false) }
 	val rail = page.albums.filter { it.recordType == "album" || it.recordType == "ep" }
-	val albums = if (showAll || rail.isEmpty()) page.albums else rail
-	val albumListState = rememberLazyListState()
-	LaunchedEffect(showAll) {
-		if (showAll) albumListState.animateScrollToItem(rail.size)
-	}
+	val albums = rail.ifEmpty { page.albums }
+	val backStack = LocalNavStack.current
 	var linkToOpen by rememberSaveable { mutableStateOf<String?>(null) }
 
 	LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
@@ -175,12 +172,13 @@ private fun ArtistPage(page: DiscoverArtistPage, padding: PaddingValues, addFlow
 			Row(verticalAlignment = Alignment.CenterVertically) {
 				SectionTitle(Res.string.title_albums_eps, Modifier.weight(1f))
 				if (albums.size < page.albums.size) TextButton(
-					onClick = { showAll = true },
+					onClick = dropUnlessResumed {
+						backStack.add(Screen.DiscoverList(DiscoverListType.ArtistReleases(artist.name, artist.deezerId, artist.mbid)))
+					},
 					modifier = Modifier.padding(top = 14.dp, end = 4.dp)
 				) { Text(stringResource(Res.string.action_see_all)) }
 			}
 			LazyRow(
-				state = albumListState,
 				contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
 				horizontalArrangement = Arrangement.spacedBy(12.dp)
 			) {

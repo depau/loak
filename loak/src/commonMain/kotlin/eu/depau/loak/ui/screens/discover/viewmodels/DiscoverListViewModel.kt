@@ -12,6 +12,7 @@ import eu.depau.loak.domain.discover.DiscoverRadio
 import eu.depau.loak.domain.discover.DiscoverSong
 import eu.depau.loak.domain.discover.LibraryMatcher
 import eu.depau.loak.domain.discover.ListenBrainzClient
+import eu.depau.loak.domain.discover.MusicBrainzClient
 import eu.depau.loak.domain.discover.activeChart
 import eu.depau.loak.domain.discover.genrePlayCounts
 import eu.depau.loak.domain.manager.PlayLogManager
@@ -53,6 +54,7 @@ class DiscoverListViewModel(
 	private val type: DiscoverListType,
 	private val deezer: DeezerClient,
 	private val listenBrainz: ListenBrainzClient,
+	private val musicBrainz: MusicBrainzClient,
 	private val preferenceManager: PreferenceManager,
 	private val matcher: LibraryMatcher,
 	private val playLog: PlayLogManager,
@@ -100,6 +102,13 @@ class DiscoverListViewModel(
 			is DiscoverListType.Playlist ->
 				page.update { it.copy(loading = false, songs = deezer.getChartTracks(type.playlistId)) }
 			is DiscoverListType.MadeForYou -> loadPlaylist(type.playlistMbid)
+			is DiscoverListType.ArtistReleases -> page.update {
+				// the same sources as the artist page: Deezer's discography, else MusicBrainz's
+				val albums = type.deezerId?.let { id -> deezer.getArtistAlbums(id) }.orEmpty().ifEmpty {
+					type.mbid?.let { mbid -> musicBrainz.getArtistDiscography(mbid) }.orEmpty()
+				}
+				it.copy(loading = false, albums = albums.map { a -> a.copy(artist = type.artistName, artistDeezerId = type.deezerId) })
+			}
 		}
 	}
 
