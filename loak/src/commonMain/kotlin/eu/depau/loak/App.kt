@@ -78,6 +78,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -517,7 +518,9 @@ fun App(platform: @Composable (AppActions) -> Unit = {}) {
 											.calculateEndPadding(layoutDirection)
 									)
 									.fillMaxSize()
-									.background(MaterialTheme.colorScheme.surface),
+									.background(MaterialTheme.colorScheme.surface)
+									// the keyboard shrinks the screens instead of panning the window
+									.imePadding(),
 								backStack = backStack,
 								sceneStrategies = listOf(
 									remember { NowPlayingSceneStrategy() },
