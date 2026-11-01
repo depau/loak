@@ -200,7 +200,7 @@ abstract class UserFlows {
 	}
 
 	@Test
-	fun listeningHistorySourceCanBePicked() = runApp {
+	fun listeningHistorySourceOpensItsConnectPage() = runApp {
 		// the web build has no such picker: neither Koito nor Last.fm sends the CORS
 		// headers a browser needs, so the sources cannot work there anyway (the group is
 		// hidden, and this flow would time out waiting for a row that can't be shown)
@@ -211,12 +211,12 @@ abstract class UserFlows {
 		click(text(TestServer.USER, substring = true))
 		click("This device only")
 		waitForText("History source")
+		// a source with nothing to read from yet is connected (and checked) before it's picked
 		click("Last.fm")
+		waitForText("Connect Last.fm")
 		type(text("Last.fm username"), "a-scrobbler-user")
 		navigateUp()
-		waitForText("Server & account")
-		// back on the account page the row now says what was picked
-		waitForText("Last.fm")
+		waitForText("History source")
 	}
 
 	@Test

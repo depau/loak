@@ -83,6 +83,34 @@ class LastFmHistorySource(
 
 	override val isConfigured get() = preferenceManager.lastFmUsername.isNotBlank()
 
+	/** Whether Last.fm knows [username], and how many scrobbles it has, before saving it. */
+	suspend fun check(username: String): HistoryCheck = withContext(IoDispatcher) {
+		val response = try {
+			client.get(ENDPOINT) {
+				parameter("method", "user.getrecenttracks")
+				parameter("user", username.trim())
+				parameter("api_key", API_KEY)
+				parameter("format", "json")
+				parameter("limit", 1)
+			}
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			Logger.w(TAG, "could not reach Last.fm", e)
+			return@withContext HistoryCheck.Unreachable
+		}
+		val body = runCatching { json.parseToJsonElement(response.bodyAsText()) }.getOrNull() as? JsonObject
+		when {
+			// an unknown user is error 6, with a 404
+			body?.get("error") != null -> HistoryCheck.Rejected
+			!response.status.isSuccess() || body == null -> HistoryCheck.Unexpected
+			else -> HistoryCheck.Connected(
+				(body["recenttracks"] as? JsonObject)?.get("@attr")?.jsonObject?.get("total")
+					?.jsonPrimitive?.contentOrNull?.toLongOrNull()
+			)
+		}
+	}
+
 	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen>? =
 		withContext(IoDispatcher) {
 			val username = preferenceManager.lastFmUsername.trim()

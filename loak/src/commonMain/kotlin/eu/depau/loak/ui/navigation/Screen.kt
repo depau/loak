@@ -313,6 +313,11 @@ sealed interface Screen : NavKey {
 		@Serializable
 		data object ListeningHistory : Settings
 
+		/** Connecting the history source [source] ("koito", "lastfm", "listenbrainz"). */
+		@Immutable
+		@Serializable
+		data class HistorySourceConnect(val source: String) : Settings
+
 		@Immutable
 		@Serializable
 		data object DiscoverSearch : Settings

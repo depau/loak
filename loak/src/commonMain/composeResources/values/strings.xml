@@ -1076,8 +1076,8 @@
 	<string name="option_history_source_none">This device only</string>
 	<string name="info_history_source_none">Quick picks and the Recap use only what Lo'ak itself has played. Nothing leaves the device.</string>
 	<string name="option_history_source_listenbrainz">ListenBrainz</string>
-	<string name="option_history_source_listenbrainz_unset">Set a username under Discover first</string>
-	<string name="info_history_source_listenbrainz">Reads your public listens from listenbrainz.org, with the username already set for Discover.</string>
+	<string name="info_history_source_listenbrainz">Reads your public listens from listenbrainz.org.</string>
+	<string name="info_listenbrainz_shared">Discover's Made for you uses the same username.</string>
 	<string name="option_history_source_koito">Koito</string>
 	<string name="info_history_source_koito">Reads the listens recorded by your own Koito instance.</string>
 	<string name="label_koito_url">Koito address</string>
@@ -1086,6 +1086,18 @@
 	<string name="option_history_source_lastfm">Last.fm</string>
 	<string name="info_history_source_lastfm">Reads your public scrobbles. Needs no sign-in and never writes to your Last.fm account.</string>
 	<string name="label_lastfm_username">Last.fm username</string>
+	<string name="title_connect_koito">Connect Koito</string>
+	<string name="title_connect_lastfm">Connect Last.fm</string>
+	<string name="info_replaces_history_source">Replaces %1$s as your history source.</string>
+	<string name="error_koito_unreachable">Couldn't reach Koito at that address.</string>
+	<string name="error_koito_rejected">Koito didn't accept that API key.</string>
+	<string name="error_koito_unexpected">That address doesn't answer like Koito. Is it the one you open Koito at?</string>
+	<string name="error_lastfm_unknown_user">Last.fm has no user with that name.</string>
+	<string name="error_history_unreachable">Couldn't reach it. Check your connection and try again.</string>
+	<plurals name="count_listens">
+		<item quantity="one">%1$d listen</item>
+		<item quantity="other">%1$d listens</item>
+	</plurals>
 	<string name="title_quick_picks_decay">Quick picks repeats</string>
 	<string name="info_quick_picks_decay">How quickly a song you have been playing stops standing out in Quick picks. Songs you play to death lead the list, then fade back in among the rest.</string>
 	<string name="option_decay_short">Three days</string>

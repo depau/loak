@@ -15,6 +15,7 @@ fun SettingsRadioItem(
 	shapes: ListItemShapes,
 	contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
 	supportingContent: @Composable (() -> Unit)? = null,
+	trailingContent: @Composable (() -> Unit)? = null,
 	content: @Composable () -> Unit
 ) {
 	SegmentedListItem(
@@ -25,6 +26,7 @@ fun SettingsRadioItem(
 		contentPadding = contentPadding,
 		content = content,
 		supportingContent = supportingContent,
+		trailingContent = trailingContent,
 		leadingContent = {
 			RadioButton(
 				selected = selected,

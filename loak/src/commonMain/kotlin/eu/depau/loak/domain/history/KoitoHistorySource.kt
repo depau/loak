@@ -13,6 +13,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
@@ -22,6 +23,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlin.time.Instant
 
 /** The largest page Koito serves; asking for more gets the default instead. */
@@ -73,6 +75,32 @@ class KoitoHistorySource(
 
 	override val isConfigured get() = preferenceManager.koitoUrl.isNotBlank() &&
 		preferenceManager.koitoApiKey.isNotBlank()
+
+	/**
+	 * Whether Koito at [url] takes [key], and how many listens it holds, before saving them:
+	 * one listen's page, which also says the total.
+	 */
+	suspend fun check(url: String, key: String): HistoryCheck = withContext(IoDispatcher) {
+		val response = try {
+			client.get("${url.trim().trimEnd('/')}/apis/web/v1/listens") {
+				header(HttpHeaders.Authorization, "Token ${key.trim()}")
+				parameter("limit", 1)
+			}
+		} catch (e: CancellationException) {
+			throw e
+		} catch (e: Exception) {
+			Logger.w(TAG, "could not reach Koito", e)
+			return@withContext HistoryCheck.Unreachable
+		}
+		if (response.status == HttpStatusCode.Unauthorized || response.status == HttpStatusCode.Forbidden) {
+			return@withContext HistoryCheck.Rejected
+		}
+		val body = response.takeIf { it.status.isSuccess() }
+			?.let { runCatching { json.parseToJsonElement(it.bodyAsText()) }.getOrNull() as? JsonObject }
+			?.takeIf { "items" in it }
+			?: return@withContext HistoryCheck.Unexpected
+		HistoryCheck.Connected(body["total_record_count"]?.jsonPrimitive?.longOrNull)
+	}
 
 	override suspend fun recentListens(from: Long, to: Long, limit: Int): List<RemoteListen>? =
 		withContext(IoDispatcher) {
