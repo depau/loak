@@ -58,12 +58,7 @@ fun AudioQualitySheet(
 
 	val navidrome = koinInject<NavidromeManager>()
 	val serverSoftware by produceState<String?>(null) {
-		value = runCatching {
-			val info = navidrome.serverInfo()
-			listOfNotNull(info.type?.replaceFirstChar { it.uppercase() }, info.version)
-				.joinToString(" ")
-				.ifBlank { null }
-		}.getOrNull()
+		value = runCatching { navidrome.serverInfo().label }.getOrNull()
 	}
 
 	ModalBottomSheet(

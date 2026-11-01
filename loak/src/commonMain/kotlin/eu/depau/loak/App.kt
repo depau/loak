@@ -13,8 +13,8 @@ import eu.depau.loak.ui.screens.discover.DiscoverListScreen
 import eu.depau.loak.ui.screens.discover.LidarrQueueScreen
 import eu.depau.loak.ui.screens.alchemy.DescribeMixScreen
 import eu.depau.loak.ui.screens.alchemy.SongPathScreen
-import eu.depau.loak.ui.screens.login.INTEGRATIONS_VERSION
-import eu.depau.loak.ui.screens.login.SetupIntegrationsScreen
+import eu.depau.loak.ui.screens.setup.INTEGRATIONS_VERSION
+import eu.depau.loak.ui.screens.setup.SetupFeaturesScreen
 import eu.depau.loak.ui.screens.library.LibraryScreen
 import eu.depau.loak.ui.screens.library.DownloadsScreen
 import eu.depau.loak.ui.screens.settings.AudioMuseSettingsScreen
@@ -354,10 +354,10 @@ fun App(platform: @Composable (AppActions) -> Unit = {}) {
 	// fresh-login case on its own.
 	val permissionManager = koinInject<PermissionManager>()
 	var localNetworkDenied by rememberSaveable { mutableStateOf(false) }
-	// something new among the integrations since this user last looked: show the page once
+	// something new among the optional features since this user last looked: show the page once
 	LaunchedEffect(Unit) {
 		if (isLoggedIn && preferenceManager.integrationsSeen < INTEGRATIONS_VERSION) {
-			backStack.add(Screen.SetupIntegrations)
+			backStack.add(Screen.SetupFeatures)
 		}
 	}
 	LaunchedEffect(Unit) {
@@ -696,8 +696,8 @@ private fun entryProvider(
 		entry<Screen.Login> {
 			LoginScreen()
 		}
-		entry<Screen.SetupIntegrations> {
-			SetupIntegrationsScreen()
+		entry<Screen.SetupFeatures> {
+			SetupFeaturesScreen()
 		}
 		entry<Screen.ImageView>(metadata = imageViewMetadata) { key ->
 			ImageViewScreen(

@@ -29,6 +29,11 @@ import kotlinx.serialization.json.jsonPrimitive
 data class ServerInfo(val type: String?, val version: String?) {
 	val isNavidrome get() = type.equals("navidrome", ignoreCase = true)
 
+	/** "Navidrome 0.64.2", without the build Navidrome appends to its version; null if unknown. */
+	val label: String?
+		get() = listOfNotNull(type?.replaceFirstChar { it.uppercase() }, version?.substringBefore(' '))
+			.joinToString(" ").ifBlank { null }
+
 	/**
 	 * Smart playlists can be made and edited here: Navidrome's own API takes "rules" since smart
 	 * playlists exist, but partial updates only stop wiping the other fields in 0.62.

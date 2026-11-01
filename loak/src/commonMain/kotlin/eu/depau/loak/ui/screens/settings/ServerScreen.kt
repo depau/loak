@@ -253,7 +253,7 @@ fun IntegrationsGroup() {
 				shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count),
 				content = { Text(stringResource(Res.string.option_server_software)) },
 				supportingContent = {
-					Text(listOfNotNull(info.type?.replaceFirstChar { it.uppercase() }, info.version).joinToString(" "))
+					Text(info.label.orEmpty())
 				}
 			)
 		}

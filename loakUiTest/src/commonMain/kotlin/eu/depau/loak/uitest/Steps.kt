@@ -158,7 +158,7 @@ suspend fun ComposeUiTest.logIn() {
 	type(text("Password"), TestServer.PASSWORD)
 	// "Log in" is both the headline and the button
 	click(text("Log in") and hasClickAction())
-	click("Done")
+	click("Start listening")
 }
 
 suspend fun ComposeUiTest.openTab(label: String) = click(tab(label))

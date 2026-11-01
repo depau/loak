@@ -29,6 +29,7 @@ import eu.depau.loak.domain.manager.NavidromeManager
 import eu.depau.loak.domain.manager.NetworkStatsManager
 import eu.depau.loak.domain.manager.AudioMuseManager
 import eu.depau.loak.domain.manager.LidarrManager
+import eu.depau.loak.domain.manager.FeatureCatalog
 import eu.depau.loak.domain.manager.SleepTimerManager
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.domain.discover.DeezerClient
@@ -77,6 +78,7 @@ val managerModule = module {
 	singleOf(::LoginManager)
 	singleOf(::EqualiserManager)
 	singleOf(::QueueSyncManager)
+	singleOf(::FeatureCatalog)
 	singleOf(::PlayLogManager)
 	// What Quick picks rank on: the local play log, plus whichever remote source is on. The
 	// registry resolves the choice per call, so a settings change applies to the next rebuild.

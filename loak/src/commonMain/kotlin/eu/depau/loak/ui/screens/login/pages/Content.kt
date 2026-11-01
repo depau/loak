@@ -100,7 +100,7 @@ fun LoginScreenContent(innerPadding: PaddingValues) {
 	LaunchedEffect(loginState) {
 		if (loginState is LoginUiState.Success) {
 			backStack.clear()
-			backStack.add(Screen.SetupIntegrations)
+			backStack.add(Screen.SetupFeatures)
 		}
 	}
 

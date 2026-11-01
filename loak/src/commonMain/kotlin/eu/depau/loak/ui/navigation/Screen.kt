@@ -159,7 +159,7 @@ sealed interface Screen : NavKey {
 	/** The setup wizard's last page, right after logging in. */
 	@Immutable
 	@Serializable
-	data object SetupIntegrations : Screen
+	data object SetupFeatures : Screen
 
 	@Immutable
 	@Serializable

@@ -192,10 +192,7 @@ private fun AccountRow(shapes: ListItemShapes) {
 	val sessionManager = koinInject<SessionManager>()
 	val navidrome = koinInject<NavidromeManager>()
 	val software by produceState<String?>(null) {
-		value = navidrome.serverInfo().let { info ->
-			listOfNotNull(info.type?.replaceFirstChar { it.uppercase() }, info.version)
-				.joinToString(" ").ifBlank { null }
-		}
+		value = navidrome.serverInfo().label
 	}
 	val host = runCatching { Url(sessionManager.instanceUrl).host }.getOrNull()
 		?: sessionManager.instanceUrl
