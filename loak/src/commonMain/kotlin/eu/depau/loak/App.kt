@@ -13,7 +13,7 @@ import eu.depau.loak.ui.screens.discover.DiscoverListScreen
 import eu.depau.loak.ui.screens.discover.LidarrQueueScreen
 import eu.depau.loak.ui.screens.alchemy.DescribeMixScreen
 import eu.depau.loak.ui.screens.alchemy.SongPathScreen
-import eu.depau.loak.ui.screens.setup.INTEGRATIONS_VERSION
+import eu.depau.loak.ui.screens.setup.WhatsNewScreen
 import eu.depau.loak.ui.screens.setup.SetupFeaturesScreen
 import eu.depau.loak.ui.screens.library.LibraryScreen
 import eu.depau.loak.ui.screens.library.DownloadsScreen
@@ -144,6 +144,7 @@ import eu.depau.loak.di.PlatformType
 import eu.depau.loak.di.isLandscape
 import eu.depau.loak.di.rememberPlatformContext
 import eu.depau.loak.domain.manager.BottomBarScrollManager
+import eu.depau.loak.domain.manager.FeatureCatalog
 import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
@@ -354,11 +355,12 @@ fun App(platform: @Composable (AppActions) -> Unit = {}) {
 	// fresh-login case on its own.
 	val permissionManager = koinInject<PermissionManager>()
 	var localNetworkDenied by rememberSaveable { mutableStateOf(false) }
-	// something new among the optional features since this user last looked: show the page once
+	// features this user was never shown and hasn't set up: show them once
+	val featureCatalog = koinInject<FeatureCatalog>()
 	LaunchedEffect(Unit) {
-		if (isLoggedIn && preferenceManager.integrationsSeen < INTEGRATIONS_VERSION) {
-			backStack.add(Screen.SetupFeatures)
-		}
+		if (!isLoggedIn || backStack.any { it is Screen.WhatsNew }) return@LaunchedEffect
+		val new = featureCatalog.unannounced()
+		if (new.isNotEmpty()) backStack.add(Screen.WhatsNew(new.map { it.id }))
 	}
 	LaunchedEffect(Unit) {
 		if (platformContext.platformType != PlatformType.Android) return@LaunchedEffect
@@ -698,6 +700,9 @@ private fun entryProvider(
 		}
 		entry<Screen.SetupFeatures> {
 			SetupFeaturesScreen()
+		}
+		entry<Screen.WhatsNew> { key ->
+			WhatsNewScreen(key.features)
 		}
 		entry<Screen.ImageView>(metadata = imageViewMetadata) { key ->
 			ImageViewScreen(

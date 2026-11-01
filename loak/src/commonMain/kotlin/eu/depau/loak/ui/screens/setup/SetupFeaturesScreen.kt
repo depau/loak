@@ -1,10 +1,12 @@
 package eu.depau.loak.ui.screens.setup
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.domain.manager.PreferenceManager
+import eu.depau.loak.domain.manager.Feature
+import eu.depau.loak.domain.manager.FeatureCatalog
 import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_start_listening
@@ -17,9 +19,6 @@ import eu.depau.loak.ui.navigation.Screen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-/** Bump when a feature is added: users who saw an older list get the page again, once. */
-const val INTEGRATIONS_VERSION = 3
-
 /**
  * The setup wizard's last page, after the server: every optional feature as a card, like the
  * end of a phone's setup, while the library syncs.
@@ -28,7 +27,9 @@ const val INTEGRATIONS_VERSION = 3
 fun SetupFeaturesScreen() {
 	val backStack = LocalNavStack.current
 	val sync by koinInject<SyncManager>().syncState.collectAsState()
-	val preferenceManager = koinInject<PreferenceManager>()
+	val catalog = koinInject<FeatureCatalog>()
+	// all of them are on this page: none is news later, even if the app is closed from here
+	LaunchedEffect(Unit) { catalog.markSeen(Feature.entries.filter(catalog::onPlatform)) }
 
 	WizardScaffold(
 		title = stringResource(Res.string.title_make_loak_yours),
@@ -37,13 +38,8 @@ fun SetupFeaturesScreen() {
 		step = WizardStep(2, 2),
 		actions = {
 			WizardButton(stringResource(Res.string.action_start_listening), onClick = {
-				preferenceManager.integrationsSeen = INTEGRATIONS_VERSION
-				// shown over the app after an update: back to where it was
-				if (backStack.size > 1) backStack.removeLastOrNull()
-				else {
-					backStack.clear()
-					backStack.add(Screen.Home())
-				}
+				backStack.clear()
+				backStack.add(Screen.Home())
 			})
 		}
 	) {

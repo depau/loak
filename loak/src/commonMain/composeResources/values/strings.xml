@@ -739,6 +739,10 @@
 	<string name="info_history_set_up">Reading from %1$s</string>
 	<string name="title_feature_new_album_alerts">New album alerts</string>
 	<string name="info_feature_new_album_alerts">A heads-up when Recently added grows</string>
+	<string name="title_new_in_loak">New in Lo'ak</string>
+	<string name="info_new_in_loak">Lo'ak learned something since you set it up. Want to try it?</string>
+	<string name="title_more_to_turn_on">More you can turn on</string>
+	<string name="info_already_on">Already on: %1$s</string>
 	<string name="action_start_listening">Start listening</string>
 	<string name="label_downloaded">Downloaded</string>
 	<string name="title_downloads">Downloads</string>

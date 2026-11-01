@@ -112,8 +112,14 @@ class PreferenceManager(
 	/** Smart playlist tools (create, edit, rules) on servers that support them. */
 	var smartPlaylistsEnabled by preference(true)
 
-	/** The integrations list the user last saw on the setup wizard's last page. */
-	var integrationsSeen by preference(0)
+	/**
+	 * Which optional features the user has been shown, as [Feature] ids, comma-separated. Empty
+	 * until the wizard's last page or the "New in Lo'ak" page is first dismissed.
+	 */
+	var featuresSeen by preference("")
+
+	/** Before [featuresSeen]: how many versions of the integrations list the user had seen. */
+	val integrationsSeen by preference(0)
 
 	// AudioMuse-AI's own API; an empty address means not connected
 	var audioMuseUrl by preference("")

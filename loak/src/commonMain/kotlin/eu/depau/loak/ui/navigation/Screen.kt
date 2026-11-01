@@ -161,6 +161,11 @@ sealed interface Screen : NavKey {
 	@Serializable
 	data object SetupFeatures : Screen
 
+	/** Shown over the app once when it gained features this user was never shown; [features] are ids. */
+	@Immutable
+	@Serializable
+	data class WhatsNew(val features: List<String>) : Screen
+
 	@Immutable
 	@Serializable
 	data class ImageView(

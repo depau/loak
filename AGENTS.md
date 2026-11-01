@@ -283,4 +283,5 @@ For UI changes: **manually verify on different themes and form factors and inclu
 - *Where do I add a new screen?* → create `ui/screens/<feature>/…`, add a `Screen` variant in `ui/navigation/Screen.kt`, then register it in the `entryProvider` in `App.kt` (+ ViewModel in `di/ViewModelModule.kt`).
 - *Where do I add a server API call?* → `domain/repositories/*Repository.kt` via `sessionManager.api` (SubsonicClient), or a new repository wired in `di/RepositoryModule.kt`.
 - *Where do I add a setting?* → `domain/manager/PreferenceManager.kt` + settings UI under `ui/screens/settings/`.
+- *Adding an optional integration (a scrobbler, a service, a switch for something the server can do)?* → add it to `Feature` in `domain/manager/FeatureCatalog.kt` (a stable id, where it's available, when it counts as set up) and give it a card in `ui/screens/setup/FeatureCards.kt`. That puts it on the setup wizard's last page and Settings › Integrations, and shows existing users "New in Lo'ak" once. Never skip this: Koito went unannounced because the old page was a hand-kept list.
 - *Building for iOS?* → macOS + Apple Silicon + Xcode required; see the iOS build section.

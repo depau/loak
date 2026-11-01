@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -31,6 +32,7 @@ import eu.depau.loak.domain.manager.PermissionManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.ServerInfo
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.action_new
 import eu.depau.loak.generated.resources.info_audiomuse_set_up
 import eu.depau.loak.generated.resources.info_discover_set_up
 import eu.depau.loak.generated.resources.info_discover_set_up_listenbrainz
@@ -51,6 +53,7 @@ import eu.depau.loak.generated.resources.title_feature_discover
 import eu.depau.loak.generated.resources.title_feature_new_album_alerts
 import eu.depau.loak.generated.resources.title_listening_history
 import eu.depau.loak.icons.Icons
+import org.jetbrains.compose.resources.StringResource
 import eu.depau.loak.icons.brand.Deezer
 import eu.depau.loak.icons.brand.Lastfm
 import eu.depau.loak.icons.brand.Lidarr
@@ -68,11 +71,16 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /**
- * Every optional [Feature] this device can have, as cards: a switch for the ones that only
- * turn on, the way to their setup page for the rest. Set-up cards turn tonal and say how.
+ * [features] as cards (by default every one this device can have): a switch for the ones that
+ * only turn on, the way to their setup page for the rest. Set-up cards turn tonal and say how;
+ * the ones in [new] wear a badge.
  */
 @Composable
-fun FeatureCards(modifier: Modifier = Modifier) {
+fun FeatureCards(
+	modifier: Modifier = Modifier,
+	features: List<Feature>? = null,
+	new: Set<Feature> = emptySet()
+) {
 	val catalog = koinInject<FeatureCatalog>()
 	val preferenceManager = koinInject<PreferenceManager>()
 	val navidrome = koinInject<NavidromeManager>()
@@ -81,8 +89,10 @@ fun FeatureCards(modifier: Modifier = Modifier) {
 	val colors = MaterialTheme.colorScheme
 
 	Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-		for (feature in Feature.entries.filter(catalog::onPlatform)) {
+		for (feature in features ?: Feature.entries.filter(catalog::onPlatform)) {
 			val setUp = catalog.isSetUp(feature)
+			val title = stringResource(featureTitle(feature))
+			val isNew = feature in new
 			when (feature) {
 				Feature.SmartPlaylists -> {
 					val canSmart = info?.canEditSmartPlaylists == true
@@ -90,7 +100,8 @@ fun FeatureCards(modifier: Modifier = Modifier) {
 						icon = Icons.Outlined.PlaylistAddCheck,
 						iconColor = colors.secondary,
 						iconContentColor = colors.onSecondary,
-						title = stringResource(Res.string.option_smart_playlists),
+						title = title,
+						isNew = isNew,
 						description = stringResource(Res.string.info_feature_smart_playlists),
 						setUp = canSmart && setUp,
 						checked = canSmart && setUp,
@@ -108,7 +119,8 @@ fun FeatureCards(modifier: Modifier = Modifier) {
 					icon = Icons.Outlined.Soundwave,
 					iconColor = colors.tertiary,
 					iconContentColor = colors.onTertiary,
-					title = stringResource(Res.string.title_feature_audiomuse),
+					title = title,
+					isNew = isNew,
 					description = stringResource(Res.string.info_feature_audiomuse),
 					setUp = setUp,
 					onClick = dropUnlessResumed { backStack.add(Screen.Settings.AudioMuse) }
@@ -120,7 +132,8 @@ fun FeatureCards(modifier: Modifier = Modifier) {
 					icon = Icons.Outlined.Explore,
 					iconColor = colors.primary,
 					iconContentColor = colors.onPrimary,
-					title = stringResource(Res.string.title_feature_discover),
+					title = title,
+					isNew = isNew,
 					description = stringResource(Res.string.info_feature_discover),
 					setUp = setUp,
 					onClick = dropUnlessResumed { backStack.add(Screen.Settings.Lidarr) }
@@ -139,7 +152,8 @@ fun FeatureCards(modifier: Modifier = Modifier) {
 					icon = Icons.Outlined.History,
 					iconColor = colors.primaryContainer,
 					iconContentColor = colors.onPrimaryContainer,
-					title = stringResource(Res.string.title_listening_history),
+					title = title,
+					isNew = isNew,
 					description = stringResource(Res.string.info_feature_history),
 					setUp = setUp,
 					onClick = dropUnlessResumed { backStack.add(Screen.Settings.ListeningHistory) }
@@ -158,7 +172,8 @@ fun FeatureCards(modifier: Modifier = Modifier) {
 						icon = Icons.Outlined.Notifications,
 						iconColor = colors.surfaceContainerHighest,
 						iconContentColor = colors.onSurfaceVariant,
-						title = stringResource(Res.string.title_feature_new_album_alerts),
+						title = title,
+						isNew = isNew,
 						description = stringResource(Res.string.info_feature_new_album_alerts),
 						setUp = setUp,
 						checked = setUp,
@@ -170,6 +185,15 @@ fun FeatureCards(modifier: Modifier = Modifier) {
 			}
 		}
 	}
+}
+
+/** What [feature] is called, on its card and wherever a list names it. */
+fun featureTitle(feature: Feature): StringResource = when (feature) {
+	Feature.SmartPlaylists -> Res.string.option_smart_playlists
+	Feature.AudioMuse -> Res.string.title_feature_audiomuse
+	Feature.Discover -> Res.string.title_feature_discover
+	Feature.ListeningHistory -> Res.string.title_listening_history
+	Feature.NewAlbumAlerts -> Res.string.title_feature_new_album_alerts
 }
 
 /** New album notifications, asking for the notification permission when turned on. */
@@ -208,6 +232,7 @@ private fun FeatureCard(
 	title: String,
 	description: String,
 	setUp: Boolean,
+	isNew: Boolean,
 	onClick: () -> Unit,
 	checked: Boolean? = null,
 	enabled: Boolean = true,
@@ -229,7 +254,12 @@ private fun FeatureCard(
 				Icon(icon, null, Modifier.padding(10.dp).size(24.dp))
 			}
 			Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-				Text(title, style = MaterialTheme.typography.titleMedium)
+				Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+					Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+					if (isNew) Badge(containerColor = colors.tertiary, contentColor = colors.onTertiary) {
+						Text(stringResource(Res.string.action_new), Modifier.padding(horizontal = 4.dp))
+					}
+				}
 				Text(
 					description,
 					style = MaterialTheme.typography.bodyMedium,
