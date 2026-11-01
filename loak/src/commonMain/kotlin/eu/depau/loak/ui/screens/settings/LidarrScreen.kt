@@ -27,6 +27,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.outlined.Explore
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -45,12 +47,20 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-/** Lidarr: the connect form until it's set up, then what it's doing and its connection. */
+/**
+ * Discover's own page: Lidarr's connect form until it's set up, then what it's doing, its
+ * connection, and the extras Discover can use beside it.
+ */
 @Composable
 fun LidarrSettingsScreen() {
 	val manager = koinInject<LidarrManager>()
 	var connecting by remember { mutableStateOf(false) }
-	SettingsScaffold(stringResource(Res.string.title_lidarr)) {
+	SettingsScaffold(
+		stringResource(Res.string.title_discover_settings),
+		wizardTitle = stringResource(Res.string.title_feature_discover),
+		icon = Icons.Outlined.Explore,
+		description = stringResource(Res.string.info_feature_discover)
+	) {
 		// connect() saves the address before checking it: keep the form up until it answers
 		if (manager.isConfigured && !connecting) LidarrConnected(manager)
 		else LidarrConnectForm(manager, connecting, { connecting = it }, onConnected = {})
@@ -170,6 +180,29 @@ private fun LidarrConnected(manager: LidarrManager) {
 						else stringResource(Res.string.info_nothing_downloading)
 					)
 				}
+			}
+		)
+	}
+
+	SettingsGroup(title = { Text(stringResource(Res.string.title_discover_extras)) }) {
+		val listenBrainzUser = preferenceManager.listenBrainzUsername
+		SettingsNavItem(
+			onClick = dropUnlessResumed { backStack.add(Screen.Settings.ListenBrainz) },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2),
+			content = { Text(stringResource(Res.string.title_listenbrainz)) },
+			supportingContent = {
+				Text(
+					if (listenBrainzUser.isNotBlank()) stringResource(Res.string.info_listenbrainz_connected, listenBrainzUser)
+					else stringResource(Res.string.info_listenbrainz_optional)
+				)
+			}
+		)
+		SettingsNavItem(
+			onClick = dropUnlessResumed { backStack.add(Screen.Settings.DiscoverSearch) },
+			shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2),
+			content = { Text(stringResource(Res.string.title_discover_sources)) },
+			supportingContent = {
+				Text(stringResource(if (preferenceManager.deezerEnabled) Res.string.info_deezer_on else Res.string.info_deezer_off))
 			}
 		)
 	}

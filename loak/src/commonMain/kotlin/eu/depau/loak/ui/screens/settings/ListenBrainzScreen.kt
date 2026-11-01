@@ -54,7 +54,13 @@ import org.koin.compose.koinInject
 @Composable
 fun ListenBrainzSettingsScreen() {
 	val preferenceManager = koinInject<PreferenceManager>()
-	SettingsScaffold(stringResource(Res.string.title_listenbrainz)) {
+	val connecting = preferenceManager.listenBrainzUsername.isBlank()
+	SettingsScaffold(
+		stringResource(Res.string.title_listenbrainz),
+		wizardTitle = if (connecting) stringResource(Res.string.title_connect_listenbrainz) else null,
+		icon = Icons.Outlined.Soundwave,
+		description = if (connecting) stringResource(Res.string.info_connect_listenbrainz) else null
+	) {
 		if (preferenceManager.listenBrainzUsername.isBlank()) ListenBrainzConnectForm(preferenceManager)
 		else ListenBrainzConnected(preferenceManager)
 	}
@@ -70,11 +76,14 @@ private fun ColumnScope.ListenBrainzConnectForm(preferenceManager: PreferenceMan
 	var busy by remember { mutableStateOf(false) }
 	var unknownUser by remember { mutableStateOf(false) }
 
-	Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
-		Icon(Icons.Outlined.Soundwave, null, Modifier.padding(12.dp).size(32.dp))
+	// the wizard shows these up top
+	if (!LocalInWizard.current) {
+		Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
+			Icon(Icons.Outlined.Soundwave, null, Modifier.padding(12.dp).size(32.dp))
+		}
+		Text(stringResource(Res.string.title_connect_listenbrainz), style = MaterialTheme.typography.headlineSmall)
+		Text(stringResource(Res.string.info_connect_listenbrainz), style = MaterialTheme.typography.bodyLarge)
 	}
-	Text(stringResource(Res.string.title_connect_listenbrainz), style = MaterialTheme.typography.headlineSmall)
-	Text(stringResource(Res.string.info_connect_listenbrainz), style = MaterialTheme.typography.bodyLarge)
 	OutlinedTextField(
 		state = username,
 		modifier = Modifier.fillMaxWidth(),

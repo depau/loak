@@ -1149,6 +1149,7 @@
 	</plurals>
 	<string name="info_recap_share">My %1$s in Lo'ak</string>
 	<string name="title_discover_sources">Search, previews &amp; charts</string>
+	<string name="title_discover_extras">Extras</string>
 	<string name="info_deezer_on">Deezer · on</string>
 	<string name="info_deezer_off">Deezer · off</string>
 	<string name="title_use_deezer">Use Deezer</string>

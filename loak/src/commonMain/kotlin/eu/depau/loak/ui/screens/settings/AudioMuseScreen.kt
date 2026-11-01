@@ -7,11 +7,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -20,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -51,13 +48,11 @@ import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Sparkle
 import eu.depau.loak.icons.outlined.Check
 import eu.depau.loak.icons.outlined.Info
+import eu.depau.loak.icons.outlined.Soundwave
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
-import eu.depau.loak.ui.components.layouts.NestedTopBar
-import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
-import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.screens.settings.components.SettingsNavItem
 import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import kotlinx.coroutines.delay
@@ -69,28 +64,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-
-/** A settings detail page: back arrow only where needed, scrolling grouped content. */
-@Composable
-internal fun SettingsScaffold(title: String, content: @Composable ColumnScope.() -> Unit) {
-	Scaffold(
-		topBar = {
-			NestedTopBar(
-				title = { Text(title) },
-				navigationAction = NestedTopBarDefaults::NavigationAction
-			)
-		}
-	) { innerPadding ->
-		Column(
-			modifier = Modifier
-				.padding(innerPadding)
-				.verticalScroll(rememberScrollState())
-				.padding(horizontal = 16.dp)
-				.padding(bottom = 24.dp),
-			verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
-		) { content() }
-	}
-}
 
 /** AudioMuse-AI: connection, what it's doing, and what Lo'ak does with it. */
 @Composable
@@ -104,7 +77,12 @@ fun AudioMuseSettingsScreen() {
 		if (manager.isConfigured) runCatching { manager.refresh() }.onFailure { error = it.message }
 	}
 
-	SettingsScaffold(stringResource(Res.string.title_audiomuse)) {
+	SettingsScaffold(
+		stringResource(Res.string.title_audiomuse),
+		wizardTitle = stringResource(Res.string.title_feature_audiomuse),
+		icon = Icons.Outlined.Soundwave,
+		description = stringResource(Res.string.info_feature_audiomuse)
+	) {
 		if (manager.isConfigured) {
 			Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondaryContainer) {
 				Row(
@@ -124,7 +102,10 @@ fun AudioMuseSettingsScreen() {
 			}
 			AnalysisBanner(manager)
 		} else {
-			Text(stringResource(Res.string.info_audiomuse_not_connected), style = MaterialTheme.typography.bodyMedium)
+			// the wizard already said what it does, up top
+			if (!LocalInWizard.current) {
+				Text(stringResource(Res.string.info_audiomuse_not_connected), style = MaterialTheme.typography.bodyMedium)
+			}
 			Button(onClick = dropUnlessResumed { backStack.add(Screen.Settings.AudioMuseConnect) }) {
 				Text(stringResource(Res.string.action_set_up))
 			}

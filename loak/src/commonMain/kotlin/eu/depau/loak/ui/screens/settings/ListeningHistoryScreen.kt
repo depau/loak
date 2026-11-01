@@ -78,6 +78,7 @@ import eu.depau.loak.generated.resources.title_quick_picks_decay
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.CheckCircle
 import eu.depau.loak.icons.outlined.Edit
+import eu.depau.loak.icons.outlined.History
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
@@ -99,12 +100,15 @@ import org.koin.compose.koinInject
 @Composable
 fun ListeningHistorySettingsScreen() {
 	val preferenceManager = koinInject<PreferenceManager>()
-	SettingsScaffold(stringResource(Res.string.title_listening_history)) {
-		Text(
-			stringResource(Res.string.info_listening_history),
-			style = MaterialTheme.typography.bodyMedium,
-			modifier = Modifier.padding(horizontal = 12.dp)
-		)
+	val intro = stringResource(Res.string.info_listening_history)
+	SettingsScaffold(
+		stringResource(Res.string.title_listening_history),
+		icon = Icons.Outlined.History,
+		description = intro
+	) {
+		if (!LocalInWizard.current) {
+			Text(intro, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 12.dp))
+		}
 		SourceGroup(preferenceManager)
 		DecayGroup(preferenceManager)
 	}
@@ -196,6 +200,7 @@ fun HistorySourceConnectScreen(source: String) {
 	var result by remember { mutableStateOf<HistoryCheck?>(null) }
 	val connected = result as? HistoryCheck.Connected
 
+	val intro = stringResource(historySourceInfo(source))
 	SettingsScaffold(
 		stringResource(
 			when (source) {
@@ -203,13 +208,12 @@ fun HistorySourceConnectScreen(source: String) {
 				"lastfm" -> Res.string.title_connect_lastfm
 				else -> Res.string.title_connect_listenbrainz
 			}
-		)
+		),
+		description = intro
 	) {
-		Text(
-			stringResource(historySourceInfo(source)),
-			style = MaterialTheme.typography.bodyLarge,
-			modifier = Modifier.padding(horizontal = 4.dp)
-		)
+		if (!LocalInWizard.current) {
+			Text(intro, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = 4.dp))
+		}
 		val error = result?.let { historyCheckError(source, it) }
 		// only a key Koito turned down is the key's fault; the rest is the address's
 		val keyError = error.takeIf { source == "koito" && result == HistoryCheck.Rejected }
