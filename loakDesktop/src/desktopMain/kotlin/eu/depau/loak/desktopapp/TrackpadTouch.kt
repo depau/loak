@@ -48,6 +48,11 @@ internal class TrackpadTouch(
 	private val backDirection: Float,
 	/** Pixels per second past which a back swipe goes back, however short. */
 	private val backFlingVelocity: Float,
+	/**
+	 * When an event is handled, in milliseconds: the OS's scroll events carry no time of their
+	 * own. Tests pass their frame clock.
+	 */
+	private val now: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
 	private enum class State { Idle, Waiting, Touching, Back }
 
@@ -58,6 +63,8 @@ internal class TrackpadTouch(
 	/** Something under the touch moved with it: a list scrolled, a row swiped. */
 	private var claimed = false
 	private val velocity = VelocityTracker()
+	/** The fingers' last step: which way they were going when lifted. */
+	private var lastDelta = Offset.Zero
 
 	/**
 	 * A trackpad swipe's phases: [MayBegin] is the fingers coming down before they move, [Other]
@@ -93,6 +100,7 @@ internal class TrackpadTouch(
 		target = scene
 		origin = pointer()
 		moved = Offset.Zero
+		lastDelta = Offset.Zero
 		claimed = false
 		velocity.resetTracking()
 		state = State.Waiting
@@ -110,8 +118,9 @@ internal class TrackpadTouch(
 
 	private fun move(delta: Offset) {
 		moved += delta
+		lastDelta = delta
 		val position = origin + moved
-		velocity.addPosition(System.nanoTime() / 1_000_000, position)
+		velocity.addPosition(now(), position)
 		when (state) {
 			State.Waiting -> if (moved.getDistance() > touchSlop) {
 				touch(PointerEventType.Press, origin)
@@ -141,7 +150,11 @@ internal class TrackpadTouch(
 				if (commit && claimed) touch(PointerEventType.Release, origin + moved)
 				else target?.cancelPointerInput()
 			State.Back -> {
-				val flung = velocity.calculateVelocity().x * backDirection >= backFlingVelocity
+				// the velocity is fitted to when events were handled, not sent: a stall just
+				// before the last ones can fit a fling towards back to fingers going away
+				// from it, so a fling also has to be the way the fingers were last going
+				val flung = lastDelta.x * backDirection > 0 &&
+					velocity.calculateVelocity().x * backDirection >= backFlingVelocity
 				if (commit && (progress() >= BACK_PROGRESS || flung)) back.backCompleted()
 				else back.backCancelled()
 			}

@@ -100,6 +100,29 @@ class TrackpadTouchTest {
 	}
 
 	@Test
+	fun swipeComingBackAfterAStallIsNotAFlingBack() = runDesktopComposeUiTest(800, 600) {
+		val back = BackRecorder()
+		setContent { back.Content() }
+		var now = 1000L
+		val touch = trackpad(back.input, now = { now })
+		fun send(delta: Offset, phase: TrackpadTouch.Phase, at: Long) {
+			now = at
+			runOnUiThread { touch.onScroll(delta, phase) }
+		}
+		// out a frame at a time, then back in a burst handled together, the last two after a
+		// stall: the velocity fitted to those times points towards back, the fingers don't
+		send(Offset.Zero, Began, now)
+		repeat(10) { send(Offset(30f, 0f), Changed, 1000L + it * 16) }
+		repeat(8) { send(Offset(-25f, 0f), Changed, 1200L + it) }
+		send(Offset(-25f, 0f), Changed, 1235)
+		send(Offset(-25f, 0f), Changed, 1270)
+		send(Offset.Zero, Ended, 1270)
+		waitForIdle()
+		assertEquals(0, back.completed)
+		assertEquals(1, back.cancelled)
+	}
+
+	@Test
 	fun swipeTakenByADragIsNotBack() = runDesktopComposeUiTest(800, 600) {
 		val back = BackRecorder()
 		setContent {
@@ -140,7 +163,9 @@ class TrackpadTouchTest {
 	@OptIn(ExperimentalTestApi::class, InternalComposeUiApi::class)
 	internal fun ComposeUiTest.trackpad(
 		back: DirectNavigationEventInput = DirectNavigationEventInput(),
-		pointer: Offset = Offset(200f, 300f)
+		pointer: Offset = Offset(200f, 300f),
+		// the test's frame clock, not the wall's: how busy the machine is changes nothing
+		now: () -> Long = { mainClock.currentTime },
 	) = TrackpadTouch(
 			scene = { (this as SkikoComposeUiTest).scene },
 			pointer = { pointer },
@@ -148,6 +173,7 @@ class TrackpadTouchTest {
 			touchSlop = 18f,
 			backDirection = 1f,
 			backFlingVelocity = 1000f,
+			now = now,
 		)
 
 	/**
