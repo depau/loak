@@ -321,5 +321,13 @@ sealed interface Screen : NavKey {
 		@Immutable
 		@Serializable
 		data object DiscoverSearch : Settings
+
+		@Immutable
+		@Serializable
+		data object Integrations : Settings
+
+		@Immutable
+		@Serializable
+		data object ChangeServer : Settings
 	}
 }

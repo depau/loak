@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
@@ -32,11 +33,17 @@ import eu.depau.loak.di.isLandscape
 import eu.depau.loak.icons.outlined.Car
 import eu.depau.loak.generated.resources.action_back_to_car
 import eu.depau.loak.ui.components.layouts.TopBarButton
+import eu.depau.loak.domain.manager.Feature
+import eu.depau.loak.domain.manager.FeatureCatalog
 import eu.depau.loak.domain.manager.NavidromeManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.models.settings.OfflineMode
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.info_integrations_on
+import eu.depau.loak.generated.resources.label_count_new
+import eu.depau.loak.generated.resources.title_integrations
+import eu.depau.loak.icons.filled.Sparkle
 import eu.depau.loak.generated.resources.option_offline_mode
 import eu.depau.loak.generated.resources.subtitle_offline_mode_toggle
 import eu.depau.loak.generated.resources.subtitle_settings_about
@@ -131,7 +138,8 @@ fun SettingsScreen() {
 				)
 			}
 			SettingsGroup {
-				AccountRow(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1))
+				AccountRow(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2))
+				IntegrationsRow(index = 1, count = 2)
 			}
 			SettingsGroup {
 				PageRow(Screen.Settings.Appearance, Icons.Filled.Palette,
@@ -236,6 +244,31 @@ private fun PageRow(
 	subtitle: StringResource,
 	index: Int,
 	count: Int
+) = PageRow(destination, icon, title, stringResource(subtitle), index, count)
+
+/** The optional features: how many are on, and a badge for any never shown. */
+@Composable
+private fun IntegrationsRow(index: Int, count: Int) {
+	val catalog = koinInject<FeatureCatalog>()
+	val available by produceState(emptyList<Feature>()) { value = catalog.available() }
+	val new by produceState(0) { value = catalog.unannounced().size }
+	PageRow(
+		Screen.Settings.Integrations, Icons.Filled.Sparkle, Res.string.title_integrations,
+		stringResource(Res.string.info_integrations_on, available.count(catalog::isSetUp), available.size),
+		index, count,
+		badge = new.takeIf { it > 0 }?.let { stringResource(Res.string.label_count_new, it) }
+	)
+}
+
+@Composable
+private fun PageRow(
+	destination: Screen.Settings,
+	icon: ImageVector,
+	title: StringResource,
+	subtitle: String,
+	index: Int,
+	count: Int,
+	badge: String? = null
 ) {
 	SegmentedListItem(
 		shapes = SegmentedListItemDefaults.segmentedShapes(index = index, count = count),
@@ -263,10 +296,17 @@ private fun PageRow(
 			}
 			PageRowText(
 				stringResource(title),
-				stringResource(subtitle),
+				subtitle,
 				Modifier.weight(1f),
 				selected = isOpen(destination)
 			)
+			badge?.let {
+				Badge(
+					modifier = Modifier.align(Alignment.CenterVertically),
+					containerColor = MaterialTheme.colorScheme.tertiary,
+					contentColor = MaterialTheme.colorScheme.onTertiary
+				) { Text(it, Modifier.padding(horizontal = 4.dp)) }
+			}
 		}
 	}
 }

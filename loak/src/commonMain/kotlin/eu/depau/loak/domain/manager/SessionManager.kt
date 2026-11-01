@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration
+import kotlin.time.measureTime
 
 class SessionManager(
 	private val settings: Settings,
@@ -166,6 +168,15 @@ class SessionManager(
 			username = settings.getString("username", ""),
 			password = settings.getString("password", ""),
 		)
+	}
+
+	/** How long the server takes to answer a ping; null when it doesn't. */
+	suspend fun pingTime(): Duration? = try {
+		measureTime { api.ping() }
+	} catch (e: CancellationException) {
+		throw e
+	} catch (_: Exception) {
+		null
 	}
 
 	/** Prefer a [eu.depau.loak.di.CoverArtId] model in Coil: it picks the size and cache key. */

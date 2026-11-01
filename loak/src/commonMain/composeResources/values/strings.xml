@@ -563,7 +563,6 @@
 	<string name="info_lyric_provider_disclaimer">Enabling LRCLIB, MusicMatch and/or LyricsPlus will make requests to external and unaffiliated web services.</string>
 	<string name="info_duration_left">%1$s left</string>
 	<string name="title_connection">Connection</string>
-	<string name="title_this_device">This device</string>
 	<string name="title_server_features">Server features</string>
 	<string name="option_audiomuse_integration">AudioMuse-AI playlists</string>
 	<string name="subtitle_audiomuse_integration">Tidy names, a badge, and warnings where AudioMuse-AI may undo your edits</string>
@@ -762,9 +761,19 @@
 	<string name="info_no_downloaded_albums">No downloaded albums</string>
 	<string name="info_no_downloaded_artists">No downloaded artists</string>
 	<string name="info_no_downloaded_playlists">No downloaded playlists</string>
-	<string name="title_integrations">Server features</string>
+	<string name="title_integrations">Integrations</string>
+	<string name="info_integrations">Optional extras that work with your server, the same ones offered at setup.</string>
+	<string name="info_integrations_on">%1$d of %2$d on</string>
+	<string name="label_count_new">%1$d new</string>
+	<string name="info_server_signed_in">%1$s · signed in as %2$s</string>
+	<string name="status_server_ping">Connected · %1$d ms</string>
+	<string name="info_synced_ago">Synced %1$s</string>
+	<string name="action_change_server">Change server or account</string>
+	<string name="info_change_server">Nothing changes until the new details work.</string>
+	<string name="info_change_server_switch">A different server or user starts over with a fresh library sync. Same account, new password: nothing is lost.</string>
+	<string name="action_sync_now">Sync now</string>
+	<string name="info_log_out">Removes this server's library from the device</string>
 	<string name="title_audiomuse">AudioMuse-AI</string>
-	<string name="info_smart_playlists_switch">Make and edit them in Lo'ak, with Navidrome's own API</string>
 	<string name="title_downloads_settings">Downloads</string>
 	<string name="pref_download_over_cellular">Use mobile data</string>
 	<string name="pref_download_over_roaming">Also while roaming</string>
@@ -772,9 +781,6 @@
 	<string name="pref_download_only_while_charging_desc">Wait for a charger, to save battery</string>
 	<string name="action_download_now">Download now</string>
 	<string name="pref_download_refresh_now_desc">Downloaded albums and playlists also refresh on every library sync</string>
-	<string name="option_new_album_notifications">New album notifications</string>
-	<string name="subtitle_new_album_notifications">Let you know when your library's Recently added list grows</string>
-	<string name="title_notifications">Notifications</string>
 	<plurals name="count_new_albums">
 		<item quantity="one">%1$d new album</item>
 		<item quantity="other">%1$d new albums</item>
@@ -786,8 +792,6 @@
 	<string name="title_new_albums">New albums</string>
 	<string name="info_new_albums_tap">Tap to open Recently added</string>
 	<string name="info_notifications_disabled">Notifications are off in system settings</string>
-	<string name="action_notification_settings">Open notification settings</string>
-	<string name="info_audiomuse_connected">Connected · alchemy, radios, describe a mix</string>
 	<string name="info_audiomuse_not_connected">Sonic analysis on your own server: mixes of songs that sound alike, alchemy, AI playlists</string>
 	<string name="action_set_up">Set up</string>
 	<string name="action_connect">Connect</string>
@@ -867,7 +871,6 @@
 	<string name="action_playlist">Playlist</string>
 	<string name="notice_smart_playlist_saved">Smart playlist saved</string>
 	<string name="notice_smart_playlist_failed">Couldn't save the smart playlist: %1$s</string>
-	<string name="option_server_software">Server software</string>
 	<string name="option_smart_playlists">Smart playlists</string>
 	<string name="info_smart_playlists_available">Create and edit them here, with Navidrome's own API</string>
 	<string name="info_smart_playlists_unavailable">Needs Navidrome 0.62 or newer</string>
@@ -1070,8 +1073,6 @@
 	<string name="label_downloaded_copy">Downloaded</string>
 	<string name="title_discover_settings">Discover</string>
 	<string name="title_lidarr">Lidarr</string>
-	<string name="info_lidarr_required">Required · turns on the Discover tab and downloads what you pick</string>
-	<string name="info_lidarr_connected">Connected · %1$s</string>
 	<string name="title_listenbrainz">ListenBrainz</string>
 	<string name="info_listenbrainz_optional">Optional · Made for you, personal new releases</string>
 	<string name="info_listenbrainz_connected">Connected · %1$s</string>
@@ -1168,7 +1169,6 @@
 	<string name="title_always_on">Always on</string>
 	<string name="title_brainz">MusicBrainz &amp; ListenBrainz</string>
 	<string name="info_brainz">Open music databases. Used to identify what you add to Lidarr, for new releases and for similar artists. Only sees what you open or add.</string>
-	<string name="info_connect_lidarr_first">Connect Lidarr first. ListenBrainz is optional; without it Discover still has search, charts and new releases.</string>
 	<string name="title_connect_lidarr">Connect Lidarr</string>
 	<string name="info_connect_lidarr">Lidarr downloads the music you pick in Discover and puts it in your library.</string>
 	<string name="label_lidarr_address">Lidarr address</string>

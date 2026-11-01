@@ -190,7 +190,7 @@ abstract class UserFlows {
 		logIn()
 		openSettings()
 		for (page in listOf(
-			"Appearance", "Player", "Tabs", "Playback", "Sound & quality",
+			"Integrations", "Appearance", "Player", "Tabs", "Playback", "Sound & quality",
 			"Downloads & storage", "Advanced", "About Lo'ak",
 		)) {
 			click(page)
@@ -207,9 +207,9 @@ abstract class UserFlows {
 		if (!listeningHistorySourceReachable()) return@runApp
 		logIn()
 		openSettings()
-		// the row on the Server & account page is labelled with the source that is on
-		click(text(TestServer.USER, substring = true))
-		click("This device only")
+		// listening history is one of the optional features, on Integrations
+		click("Integrations")
+		click("Listening history")
 		waitForText("History source")
 		// a source with nothing to read from yet is connected (and checked) before it's picked
 		click("Last.fm")

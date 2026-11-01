@@ -1,129 +1,254 @@
 package eu.depau.loak.ui.screens.settings
 
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ButtonDefaults
-import eu.depau.loak.generated.resources.action_log_out
-import eu.depau.loak.generated.resources.info_audiomuse_not_connected
-import eu.depau.loak.generated.resources.info_audiomuse_connected
-import eu.depau.loak.generated.resources.info_notifications_disabled
-import eu.depau.loak.generated.resources.action_notification_settings
-import eu.depau.loak.generated.resources.option_new_album_notifications
-import eu.depau.loak.generated.resources.subtitle_new_album_notifications
-import eu.depau.loak.generated.resources.title_notifications
-import eu.depau.loak.generated.resources.option_crash_reporting
-import eu.depau.loak.generated.resources.subtitle_crash_reporting
-import eu.depau.loak.generated.resources.title_audiomuse
-import eu.depau.loak.generated.resources.title_integrations
-import eu.depau.loak.generated.resources.action_set_up
-import eu.depau.loak.generated.resources.info_connect_lidarr_first
-import eu.depau.loak.generated.resources.info_deezer_off
-import eu.depau.loak.generated.resources.info_deezer_on
-import eu.depau.loak.generated.resources.info_lidarr_connected
-import eu.depau.loak.generated.resources.info_lidarr_required
-import eu.depau.loak.generated.resources.info_listenbrainz_optional
-import eu.depau.loak.generated.resources.info_listenbrainz_connected
-import eu.depau.loak.generated.resources.title_discover_settings
-import eu.depau.loak.generated.resources.title_discover_sources
-import eu.depau.loak.generated.resources.title_listening_history
-import eu.depau.loak.generated.resources.title_lidarr
-import eu.depau.loak.generated.resources.title_listenbrainz
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import eu.depau.loak.di.PlatformType
-import eu.depau.loak.domain.manager.LidarrManager
-import eu.depau.loak.domain.manager.PermissionManager
-import eu.depau.loak.icons.Icons
-import eu.depau.loak.icons.outlined.ChevronForward
-import androidx.compose.runtime.collectAsState
-import eu.depau.loak.domain.manager.AudioMuseManager
-import eu.depau.loak.domain.manager.NavidromeManager
-import eu.depau.loak.domain.manager.ServerInfo
-import androidx.compose.runtime.produceState
-import eu.depau.loak.generated.resources.option_server_software
-import eu.depau.loak.generated.resources.option_smart_playlists
-import eu.depau.loak.generated.resources.info_smart_playlists_switch
-import eu.depau.loak.generated.resources.info_smart_playlists_unavailable
-import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.russhwolf.settings.Settings
+import eu.depau.loak.data.database.dao.AlbumDao
+import eu.depau.loak.data.database.dao.ArtistDao
+import eu.depau.loak.data.database.dao.SongDao
 import eu.depau.loak.di.LocalNavStack
-import eu.depau.loak.di.LocalPlatformContext
 import eu.depau.loak.domain.manager.LoginFailureException
 import eu.depau.loak.domain.manager.LoginManager
+import eu.depau.loak.domain.manager.NavidromeManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.domain.manager.SnackBarManager
+import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_cancel
+import eu.depau.loak.generated.resources.action_change_server
+import eu.depau.loak.generated.resources.action_log_out
 import eu.depau.loak.generated.resources.action_ok
 import eu.depau.loak.generated.resources.action_save_and_reconnect
+import eu.depau.loak.generated.resources.action_sync_now
+import eu.depau.loak.generated.resources.count_albums
+import eu.depau.loak.generated.resources.count_artists
+import eu.depau.loak.generated.resources.count_songs
+import eu.depau.loak.generated.resources.info_change_server
+import eu.depau.loak.generated.resources.info_change_server_switch
 import eu.depau.loak.generated.resources.info_device_name
-import eu.depau.loak.generated.resources.info_error
 import eu.depau.loak.generated.resources.info_device_name_default
+import eu.depau.loak.generated.resources.info_error
+import eu.depau.loak.generated.resources.info_log_out
+import eu.depau.loak.generated.resources.info_server_signed_in
+import eu.depau.loak.generated.resources.info_sync_never
+import eu.depau.loak.generated.resources.info_synced_ago
 import eu.depau.loak.generated.resources.notice_server_saved
 import eu.depau.loak.generated.resources.option_account_instance
 import eu.depau.loak.generated.resources.option_account_password
 import eu.depau.loak.generated.resources.option_account_username
+import eu.depau.loak.generated.resources.option_crash_reporting
 import eu.depau.loak.generated.resources.option_custom_headers
 import eu.depau.loak.generated.resources.option_device_name
+import eu.depau.loak.generated.resources.status_server_ping
+import eu.depau.loak.generated.resources.info_server_unreachable
+import eu.depau.loak.generated.resources.subtitle_crash_reporting
 import eu.depau.loak.generated.resources.subtitle_custom_headers
 import eu.depau.loak.generated.resources.title_connection
+import eu.depau.loak.generated.resources.title_library
 import eu.depau.loak.generated.resources.title_server_account
-import eu.depau.loak.generated.resources.title_advanced
-import eu.depau.loak.generated.resources.title_this_device
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.filled.Dns
+import eu.depau.loak.icons.outlined.Edit
+import eu.depau.loak.icons.outlined.Logout
+import eu.depau.loak.icons.outlined.SyncAlt
+import eu.depau.loak.icons.outlined.Tune
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
-import eu.depau.loak.ui.components.layouts.NestedTopBar
-import eu.depau.loak.ui.components.layouts.NestedTopBarDefaults
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.settings.components.SettingsGroup
-import eu.depau.loak.ui.screens.settings.components.SettingsGroupDefaults
 import eu.depau.loak.ui.screens.settings.components.SettingsNavItem
+import eu.depau.loak.ui.screens.settings.components.SettingsToggleItem
 import eu.depau.loak.ui.util.messageResource
+import eu.depau.loak.ui.util.timeAgo
+import eu.depau.loak.util.IoDispatcher
+import eu.depau.loak.util.instanceHost
 import eu.depau.loak.util.systemDeviceName
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import kotlin.time.Duration
+import kotlin.time.Instant
 
-/** Server address and account, what the server offers, and how to reach it. */
+/**
+ * The account and nothing else: where, who, and whether it answers; the library it gave this
+ * device; custom headers; logging out. The optional features live in Settings › Integrations.
+ */
 @Composable
 fun SettingsServerScreen() {
-	val platformContext = LocalPlatformContext.current
 	val sessionManager = koinInject<SessionManager>()
 	val loginManager = koinInject<LoginManager>()
+	val syncManager = koinInject<SyncManager>()
+	val navidrome = koinInject<NavidromeManager>()
+	val preferenceManager = koinInject<PreferenceManager>()
+	val songDao = koinInject<SongDao>()
+	val albumDao = koinInject<AlbumDao>()
+	val artistDao = koinInject<ArtistDao>()
 	val backStack = LocalNavStack.current
+	val sync by syncManager.syncState.collectAsState()
+
+	val server by produceState<String?>(null) { value = navidrome.serverInfo().label }
+	// null until the first answer; then the time it took, or null in the pair when it didn't
+	val ping by produceState<Pair<Duration?, Boolean>?>(null) { value = sessionManager.pingTime() to true }
+	val counts by produceState<List<Int>?>(null, sync.isSyncing) {
+		value = withContext(IoDispatcher) {
+			listOf(songDao.getAllSongIds().size, albumDao.getAlbumCount(), artistDao.getAllArtistIds().size)
+		}
+	}
+
+	SettingsScaffold(stringResource(Res.string.title_server_account)) {
+		Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.secondaryContainer) {
+			Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+				Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+					Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+						Icon(Icons.Filled.Dns, null, Modifier.padding(14.dp).size(28.dp))
+					}
+					Column(Modifier.weight(1f)) {
+						Text(instanceHost(sessionManager.instanceUrl), style = MaterialTheme.typography.titleLarge)
+						Text(
+							server?.let { stringResource(Res.string.info_server_signed_in, it, sessionManager.username) }
+								?: sessionManager.username,
+							style = MaterialTheme.typography.bodyMedium,
+							color = MaterialTheme.colorScheme.onSecondaryContainer
+						)
+					}
+				}
+				FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+					ping?.let { (time, _) ->
+						StatusChip(
+							if (time != null) stringResource(Res.string.status_server_ping, time.inWholeMilliseconds)
+							else stringResource(Res.string.info_server_unreachable),
+							dot = if (time != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+						)
+					}
+					val synced = preferenceManager.lastFullSyncTime
+					StatusChip(
+						when {
+							sync.isSyncing -> stringResource(sync.message)
+							synced == 0L -> stringResource(Res.string.info_sync_never)
+							else -> stringResource(Res.string.info_synced_ago, Instant.fromEpochMilliseconds(synced).timeAgo())
+						},
+						icon = Icons.Outlined.SyncAlt
+					)
+				}
+				Button(
+					onClick = dropUnlessResumed { backStack.add(Screen.Settings.ChangeServer) },
+					modifier = Modifier.fillMaxWidth()
+				) {
+					Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp))
+					Text(stringResource(Res.string.action_change_server), Modifier.padding(start = 8.dp))
+				}
+			}
+		}
+
+		SettingsGroup(title = { Text(stringResource(Res.string.title_library)) }) {
+			SegmentedListItem(
+				onClick = {},
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2),
+				content = {
+					Text(counts?.let { (songs, albums, artists) ->
+						listOf(
+							pluralStringResource(Res.plurals.count_songs, songs, songs),
+							pluralStringResource(Res.plurals.count_albums, albums, albums),
+							pluralStringResource(Res.plurals.count_artists, artists, artists)
+						).joinToString(" · ")
+					} ?: "")
+				}
+			)
+			SettingsNavItem(
+				onClick = { syncManager.triggerManualSync() },
+				enabled = !sync.isSyncing,
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2),
+				leadingContent = { Icon(Icons.Outlined.SyncAlt, null) },
+				content = { Text(stringResource(Res.string.action_sync_now)) }
+			)
+		}
+
+		SettingsGroup(title = { Text(stringResource(Res.string.title_connection)) }) {
+			CustomHeadersItem()
+		}
+
+		SettingsGroup {
+			SegmentedListItem(
+				onClick = {
+					loginManager.logout()
+					backStack.clear()
+					backStack.add(Screen.Login)
+				},
+				shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1),
+				leadingContent = { Icon(Icons.Outlined.Logout, null, tint = MaterialTheme.colorScheme.error) },
+				content = { Text(stringResource(Res.string.action_log_out), color = MaterialTheme.colorScheme.error) },
+				supportingContent = { Text(stringResource(Res.string.info_log_out)) }
+			)
+		}
+	}
+}
+
+@Composable
+private fun StatusChip(text: String, dot: androidx.compose.ui.graphics.Color? = null, icon: ImageVector? = null) {
+	Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface) {
+		Row(
+			Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+			horizontalArrangement = Arrangement.spacedBy(6.dp),
+			verticalAlignment = Alignment.CenterVertically
+		) {
+			dot?.let { Box(Modifier.size(8.dp).background(it, CircleShape)) }
+			icon?.let { Icon(it, null, Modifier.size(16.dp)) }
+			Text(text, style = MaterialTheme.typography.labelLarge)
+		}
+	}
+}
+
+/**
+ * New connection details, checked before anything changes; a different server or user starts
+ * over with a fresh library, which is said before it happens.
+ */
+@Composable
+fun SettingsChangeServerScreen() {
+	val sessionManager = koinInject<SessionManager>()
+	val loginManager = koinInject<LoginManager>()
 	val snackBarManager = koinInject<SnackBarManager>()
 	val settings = koinInject<Settings>()
+	val backStack = LocalNavStack.current
 	val scope = rememberCoroutineScope()
 
 	val savedPassword = settings.getString("password", "")
@@ -137,286 +262,69 @@ fun SettingsServerScreen() {
 		|| username.text.toString() != sessionManager.username
 		|| password.text.toString() != savedPassword
 
-	Scaffold(
-		topBar = {
-			NestedTopBar(
-				title = { Text(stringResource(Res.string.title_server_account)) },
-				navigationAction = NestedTopBarDefaults::NavigationAction
+	SettingsScaffold(stringResource(Res.string.action_change_server)) {
+		Text(
+			stringResource(Res.string.info_change_server),
+			style = MaterialTheme.typography.bodyLarge,
+			modifier = Modifier.padding(horizontal = 4.dp)
+		)
+		Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+			OutlinedTextField(
+				state = instance,
+				modifier = Modifier.fillMaxWidth(),
+				label = { Text(stringResource(Res.string.option_account_instance)) },
+				leadingIcon = { Icon(Icons.Filled.Dns, null) },
+				lineLimits = TextFieldLineLimits.SingleLine,
+				enabled = !busy,
+				isError = error != null,
+				keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri)
+			)
+			OutlinedTextField(
+				state = username,
+				modifier = Modifier.fillMaxWidth(),
+				label = { Text(stringResource(Res.string.option_account_username)) },
+				lineLimits = TextFieldLineLimits.SingleLine,
+				enabled = !busy,
+				isError = error != null,
+				keyboardOptions = KeyboardOptions(autoCorrectEnabled = false)
+			)
+			OutlinedSecureTextField(
+				state = password,
+				modifier = Modifier.fillMaxWidth(),
+				label = { Text(stringResource(Res.string.option_account_password)) },
+				enabled = !busy,
+				isError = error != null,
+				supportingText = error?.let { { Text(it) } },
+				keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Password)
 			)
 		}
-	) { innerPadding ->
-		Column(
-			modifier = Modifier
-				.padding(innerPadding)
-				.verticalScroll(rememberScrollState())
-				.padding(horizontal = 16.dp),
-			verticalArrangement = Arrangement.spacedBy(SettingsGroupDefaults.GapBetweenGroups)
+		Text(
+			stringResource(Res.string.info_change_server_switch),
+			style = MaterialTheme.typography.bodyMedium,
+			color = MaterialTheme.colorScheme.onSurfaceVariant,
+			modifier = Modifier.padding(horizontal = 4.dp)
+		)
+		Button(
+			modifier = Modifier.align(Alignment.End),
+			enabled = changed && !busy && instance.text.isNotBlank() && username.text.isNotBlank(),
+			onClick = {
+				busy = true
+				error = null
+				scope.launch {
+					try {
+						loginManager.reconnect(instance.text.toString(), username.text.toString(), password.text.toString())
+						snackBarManager.notify(Res.string.notice_server_saved)
+						backStack.removeLastOrNull()
+					} catch (e: Exception) {
+						error = (e as? LoginFailureException)?.let { getString(it.reason.messageResource) }
+							?: getString(Res.string.info_error)
+					}
+					busy = false
+				}
+			}
 		) {
-			SettingsGroup(title = { Text(stringResource(Res.string.title_connection)) }) {
-				OutlinedTextField(
-					state = instance,
-					modifier = Modifier.fillMaxWidth(),
-					label = { Text(stringResource(Res.string.option_account_instance)) },
-					lineLimits = TextFieldLineLimits.SingleLine,
-					enabled = !busy,
-					isError = error != null,
-					keyboardOptions = KeyboardOptions(
-						autoCorrectEnabled = false,
-						keyboardType = KeyboardType.Uri
-					)
-				)
-				OutlinedTextField(
-					state = username,
-					modifier = Modifier.fillMaxWidth(),
-					label = { Text(stringResource(Res.string.option_account_username)) },
-					lineLimits = TextFieldLineLimits.SingleLine,
-					enabled = !busy,
-					isError = error != null,
-					keyboardOptions = KeyboardOptions(autoCorrectEnabled = false)
-				)
-				OutlinedSecureTextField(
-					state = password,
-					modifier = Modifier.fillMaxWidth(),
-					label = { Text(stringResource(Res.string.option_account_password)) },
-					enabled = !busy,
-					isError = error != null,
-					supportingText = error?.let { { Text(it) } },
-					keyboardOptions = KeyboardOptions(
-						autoCorrectEnabled = false,
-						keyboardType = KeyboardType.Password
-					)
-				)
-				Button(
-					modifier = Modifier.align(Alignment.End).padding(top = 6.dp),
-					enabled = changed && !busy
-						&& instance.text.isNotBlank() && username.text.isNotBlank(),
-					onClick = {
-						busy = true
-						error = null
-						scope.launch {
-							try {
-								loginManager.reconnect(
-									instance.text.toString(),
-									username.text.toString(),
-									password.text.toString()
-								)
-								snackBarManager.notify(Res.string.notice_server_saved)
-							} catch (e: Exception) {
-								error = (e as? LoginFailureException)?.let {
-									getString(it.reason.messageResource)
-								} ?: getString(Res.string.info_error)
-							}
-							busy = false
-						}
-					}
-				) {
-					Text(stringResource(Res.string.action_save_and_reconnect))
-				}
-			}
-
-			IntegrationsGroup()
-			DiscoverGroup()
-			ListeningHistoryGroup()
-			NewAlbumsNotificationsGroup()
-
-			SettingsGroup(title = { Text(stringResource(Res.string.title_advanced)) }) {
-				CustomHeadersItem()
-			}
-
-			OutlinedButton(
-				onClick = {
-					loginManager.logout()
-					backStack.clear()
-					backStack.add(Screen.Login)
-				},
-				colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-			) { Text(stringResource(Res.string.action_log_out)) }
+			Text(stringResource(Res.string.action_save_and_reconnect))
 		}
-	}
-}
-
-/** What the server and AudioMuse-AI add: smart playlists, AudioMuse-AI. Also on the setup wizard. */
-@Composable
-fun IntegrationsGroup() {
-	val preferenceManager = koinInject<PreferenceManager>()
-	val navidrome = koinInject<NavidromeManager>()
-	val audioMuse = koinInject<AudioMuseManager>()
-	val audioMuseInfo by audioMuse.info.collectAsState()
-	val backStack = LocalNavStack.current
-	val info by produceState<ServerInfo?>(null) { value = navidrome.serverInfo() }
-	val known = info?.type != null
-	val count = if (known) 3 else 2
-	SettingsGroup(title = { Text(stringResource(Res.string.title_integrations)) }) {
-		info?.takeIf { known }?.let { info ->
-			SegmentedListItem(
-				onClick = {},
-				shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = count),
-				content = { Text(stringResource(Res.string.option_server_software)) },
-				supportingContent = {
-					Text(info.label.orEmpty())
-				}
-			)
-		}
-		val canSmart = info?.canEditSmartPlaylists == true
-		SettingsToggleItem(
-			content = { Text(stringResource(Res.string.option_smart_playlists)) },
-			supportingContent = {
-				Text(stringResource(
-					if (canSmart) Res.string.info_smart_playlists_switch else Res.string.info_smart_playlists_unavailable
-				))
-			},
-			checked = canSmart && preferenceManager.smartPlaylistsEnabled,
-			enabled = canSmart,
-			onCheckedChange = { preferenceManager.smartPlaylistsEnabled = it },
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 2, count = count)
-		)
-		SettingsNavItem(
-			onClick = dropUnlessResumed { backStack.add(Screen.Settings.AudioMuse) },
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = count - 1, count = count),
-			content = { Text(stringResource(Res.string.title_audiomuse)) },
-			supportingContent = {
-				Text(stringResource(
-					if (audioMuseInfo != null) Res.string.info_audiomuse_connected else Res.string.info_audiomuse_not_connected
-				))
-			}
-		)
-	}
-}
-
-/** Android-only: the new-albums notification toggle, asks for the permission on enable. */
-@Composable
-fun NewAlbumsNotificationsGroup() {
-	if (LocalPlatformContext.current.platformType != PlatformType.Android) return
-	val preferenceManager = koinInject<PreferenceManager>()
-	val permissionManager = koinInject<PermissionManager>()
-	val scope = rememberCoroutineScope()
-	val backStack = LocalNavStack.current
-	var denied by remember { mutableStateOf(false) }
-
-	SettingsGroup(title = { Text(stringResource(Res.string.title_notifications)) }) {
-		SettingsToggleItem(
-			content = { Text(stringResource(Res.string.option_new_album_notifications)) },
-			supportingContent = {
-				Text(stringResource(
-					if (denied) Res.string.info_notifications_disabled
-					else Res.string.subtitle_new_album_notifications
-				))
-			},
-			checked = preferenceManager.newAlbumsNotifications,
-			onCheckedChange = { on ->
-				if (on) {
-					scope.launch {
-						// asking here is the only place a prompt is ever shown for these
-						denied = !permissionManager.requestNotificationsPermission()
-						preferenceManager.newAlbumsNotifications = !denied
-					}
-				} else {
-					preferenceManager.newAlbumsNotifications = false
-					denied = false
-				}
-			},
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
-		)
-		// notification permission denied: this row reroutes to the system settings
-		if (denied) {
-			SettingsNavItem(
-				onClick = dropUnlessResumed { permissionManager.openPermissionsSettings() },
-				shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2),
-				content = { Text(stringResource(Res.string.action_notification_settings)) }
-			)
-		}
-	}
-}
-
-/** Lidarr, which gates the rest of Discover's sources. Also on the setup wizard; not on the web. */
-@Composable
-fun DiscoverGroup() {
-	if (LocalPlatformContext.current.platformType == PlatformType.Web) return
-	val lidarr = koinInject<LidarrManager>()
-	val preferenceManager = koinInject<PreferenceManager>()
-	val backStack = LocalNavStack.current
-	val connected = lidarr.isConfigured
-	val openLidarr = dropUnlessResumed { backStack.add(Screen.Settings.Lidarr) }
-	SettingsGroup(title = { Text(stringResource(Res.string.title_discover_settings)) }) {
-		SegmentedListItem(
-			onClick = openLidarr,
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 3),
-			content = { Text(stringResource(Res.string.title_lidarr)) },
-			supportingContent = {
-				Text(
-					if (connected) stringResource(
-						Res.string.info_lidarr_connected,
-						preferenceManager.lidarrUrl.substringAfter("://")
-					)
-					else stringResource(Res.string.info_lidarr_required)
-				)
-			},
-			trailingContent = {
-				if (connected) Icon(Icons.Outlined.ChevronForward, null)
-				else Button(onClick = openLidarr) { Text(stringResource(Res.string.action_set_up)) }
-			}
-		)
-		val listenBrainzUser = preferenceManager.listenBrainzUsername
-		val openListenBrainz = dropUnlessResumed { backStack.add(Screen.Settings.ListenBrainz) }
-		SegmentedListItem(
-			onClick = openListenBrainz,
-			enabled = connected,
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 1, count = 3),
-			content = { Text(stringResource(Res.string.title_listenbrainz)) },
-			supportingContent = {
-				Text(
-					if (listenBrainzUser.isNotBlank())
-						stringResource(Res.string.info_listenbrainz_connected, listenBrainzUser)
-					else stringResource(Res.string.info_listenbrainz_optional)
-				)
-			},
-			trailingContent = {
-				if (listenBrainzUser.isNotBlank()) Icon(Icons.Outlined.ChevronForward, null)
-				else FilledTonalButton(onClick = openListenBrainz, enabled = connected) {
-					Text(stringResource(Res.string.action_set_up))
-				}
-			}
-		)
-		SettingsNavItem(
-			onClick = dropUnlessResumed { backStack.add(Screen.Settings.DiscoverSearch) },
-			enabled = connected,
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 2, count = 3),
-			content = { Text(stringResource(Res.string.title_discover_sources)) },
-			supportingContent = {
-				Text(stringResource(
-					if (preferenceManager.deezerEnabled) Res.string.info_deezer_on else Res.string.info_deezer_off
-				))
-			}
-		)
-		if (!connected) {
-			Text(
-				stringResource(Res.string.info_connect_lidarr_first),
-				modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-				style = MaterialTheme.typography.bodySmall,
-				color = MaterialTheme.colorScheme.onSurfaceVariant
-			)
-		}
-	}
-}
-
-/**
- * Which scrobbler, if any, Lo'ak reads plays from beyond this device. Not on the web: the
- * sources are read straight from the browser, where neither Koito nor Last.fm sends the CORS
- * headers this needs.
- */
-@Composable
-fun ListeningHistoryGroup() {
-	if (LocalPlatformContext.current.platformType == PlatformType.Web) return
-	val preferenceManager = koinInject<PreferenceManager>()
-	val backStack = LocalNavStack.current
-	SettingsGroup(title = { Text(stringResource(Res.string.title_listening_history)) }) {
-		val source = preferenceManager.listeningHistorySource
-		SettingsNavItem(
-			onClick = dropUnlessResumed { backStack.add(Screen.Settings.ListeningHistory) },
-			shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1),
-			content = { Text(stringResource(historySourceLabel(source))) },
-			supportingContent = { Text(stringResource(historySourceInfo(source))) }
-		)
 	}
 }
 
@@ -424,10 +332,18 @@ fun ListeningHistoryGroup() {
 @Composable
 fun CustomHeadersItem() {
 	val backStack = LocalNavStack.current
+	val preferenceManager = koinInject<PreferenceManager>()
+	val headers = preferenceManager.customHeadersMap().size
 	SettingsNavItem(
 		onClick = dropUnlessResumed { backStack.add(Screen.Settings.CustomHeaders) },
+		leadingContent = { Icon(Icons.Outlined.Tune, null) },
 		content = { Text(stringResource(Res.string.option_custom_headers)) },
-		supportingContent = { Text(stringResource(Res.string.subtitle_custom_headers)) },
+		supportingContent = {
+			Text(
+				if (headers == 0) stringResource(Res.string.subtitle_custom_headers)
+				else preferenceManager.customHeadersMap().keys.joinToString(", ")
+			)
+		},
 		shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
 	)
 }

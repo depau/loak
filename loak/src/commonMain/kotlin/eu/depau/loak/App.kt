@@ -197,6 +197,8 @@ import eu.depau.loak.ui.screens.settings.SettingsLogsScreen
 import eu.depau.loak.ui.screens.settings.SettingsPlayerScreen
 import eu.depau.loak.ui.screens.settings.SettingsPlaybackScreen
 import eu.depau.loak.ui.screens.settings.SettingsServerScreen
+import eu.depau.loak.ui.screens.settings.SettingsChangeServerScreen
+import eu.depau.loak.ui.screens.settings.SettingsIntegrationsScreen
 import eu.depau.loak.ui.screens.settings.SettingsScreen
 import eu.depau.loak.ui.screens.settings.SettingsTranscodingScreen
 import eu.depau.loak.ui.screens.share.ShareListScreen
@@ -803,6 +805,12 @@ private fun entryProvider(
 		}
 		entry<Screen.Settings.Server>(metadata = detailPane("settings")) {
 			SettingsServerScreen()
+		}
+		entry<Screen.Settings.ChangeServer>(metadata = detailPane("settings")) {
+			SettingsChangeServerScreen()
+		}
+		entry<Screen.Settings.Integrations>(metadata = detailPane("settings")) {
+			SettingsIntegrationsScreen()
 		}
 		entry<Screen.Settings.AudioMuse>(metadata = detailPane("settings")) {
 			AudioMuseSettingsScreen()
