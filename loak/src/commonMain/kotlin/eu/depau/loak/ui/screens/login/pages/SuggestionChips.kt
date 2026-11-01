@@ -48,7 +48,7 @@ fun LoginScreenSuggestionChips(
 				text = stringResource(Res.string.notice_login_suggestion),
 				style = MaterialTheme.typography.labelMedium,
 				color = MaterialTheme.colorScheme.onSurfaceVariant,
-				modifier = Modifier.padding(horizontal = 16.dp)
+				modifier = Modifier.padding(horizontal = 4.dp)
 			)
 			Spacer(Modifier.height(4.dp))
 			Row(
@@ -58,7 +58,6 @@ fun LoginScreenSuggestionChips(
 				horizontalArrangement = Arrangement.spacedBy(8.dp)
 			) {
 				val url = instanceState.text.toString()
-				Spacer(Modifier.width(8.dp))
 				SuggestionChip(
 					onClick = {
 						instanceState.edit {
@@ -87,7 +86,6 @@ fun LoginScreenSuggestionChips(
 						)
 					}
 				)
-				Spacer(Modifier.width(8.dp))
 			}
 		}
 	}

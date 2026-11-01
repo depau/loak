@@ -1,6 +1,5 @@
 package eu.depau.loak.desktopapp
 
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
@@ -123,23 +122,22 @@ class LoginScreenUiTest {
 				LocalPlatformContext provides platformContext
 			) {
 				LoakTheme {
-					LoginScreenContent(PaddingValues(0.dp))
+					LoginScreenContent()
 				}
 			}
 		}
 
-		// the four login affordances are all present and interactive
-		// ("Log in" is both the headline and the submit button)
-		onNodeWithText("Instance URL").assertIsDisplayed().assertIsEnabled()
+		// the wizard's first step: the three fields and Next, all present and interactive
+		onNodeWithText("Connect your server").assertExists()
+		onNodeWithText("Server address").assertIsDisplayed().assertIsEnabled()
 		onNodeWithText("Username").assertIsDisplayed().assertIsEnabled()
 		onNodeWithText("Password").assertIsDisplayed().assertIsEnabled()
-		onAllNodesWithText("Log in")[0].assertExists() // headline
-		onAllNodesWithText("Log in")[1].assertIsDisplayed().assertIsEnabled() // submit
-		onAllNodesWithText("Log in")[1].performClick()
-		onNodeWithText("Instance URL").performTextInput("server.example")
+		onNodeWithText("Next").assertIsDisplayed().assertIsEnabled()
+		onNodeWithText("Next").performClick()
+		onNodeWithText("Server address").performTextInput("server.example")
 		onNodeWithText("Username").performTextInput("demo")
 		onNodeWithText("Password").performTextInput("wrong")
-		onAllNodesWithText("Log in")[1].performClick()
+		onNodeWithText("Next").performClick()
 		waitUntil(timeoutMillis = 5_000) {
 			onAllNodesWithText("Wrong username or password.").fetchSemanticsNodes().isNotEmpty()
 		}

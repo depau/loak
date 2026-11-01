@@ -120,7 +120,7 @@ class RecapHistoryUiTest {
 				setContent { App() }
 				// the session outlives one test: the next one finds the app already logged in
 				runCatching {
-					waitFor(text("Instance URL"), timeoutMillis = 2_000)
+					waitFor(text("Server address"), timeoutMillis = 2_000)
 					logIn()
 				}
 

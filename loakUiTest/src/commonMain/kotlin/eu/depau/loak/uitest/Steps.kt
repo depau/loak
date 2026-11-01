@@ -153,11 +153,10 @@ suspend fun ComposeUiTest.type(field: SemanticsMatcher, value: String) {
 
 /** Logs into the fixture server from the login screen and dismisses the setup page. */
 suspend fun ComposeUiTest.logIn() {
-	type(text("Instance URL"), TestServer.url)
+	type(text("Server address"), TestServer.url)
 	type(text("Username"), TestServer.USER)
 	type(text("Password"), TestServer.PASSWORD)
-	// "Log in" is both the headline and the button
-	click(text("Log in") and hasClickAction())
+	click(text("Next") and hasClickAction())
 	click("Start listening")
 }
 

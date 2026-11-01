@@ -2,7 +2,9 @@ package eu.depau.loak.ui.screens.login.pages
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.input.TextObfuscationMode
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -26,9 +28,17 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import eu.depau.loak.generated.resources.Res
+import eu.depau.loak.generated.resources.action_hide_password
+import eu.depau.loak.generated.resources.action_show_password
 import eu.depau.loak.generated.resources.option_account_instance
 import eu.depau.loak.generated.resources.option_account_password
 import eu.depau.loak.generated.resources.option_account_username
+import eu.depau.loak.icons.Icons
+import eu.depau.loak.icons.filled.Dns
+import eu.depau.loak.icons.outlined.AccountCircle
+import eu.depau.loak.icons.outlined.Password
+import eu.depau.loak.icons.outlined.Visibility
+import eu.depau.loak.icons.outlined.VisibilityOff
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -52,7 +62,6 @@ fun LoginScreenFields(
 	OutlinedTextField(
 		modifier = Modifier
 			.heightIn(min = 60.dp)
-			.padding(horizontal = 16.dp)
 			.fillMaxWidth()
 			.focusRequester(instanceFocusRequester)
 			.onFocusChanged { state ->
@@ -64,6 +73,7 @@ fun LoginScreenFields(
 		state = instanceState,
 		isError = instanceError,
 		label = { Text(stringResource(Res.string.option_account_instance)) },
+		leadingIcon = { Icon(Icons.Filled.Dns, null) },
 		lineLimits = TextFieldLineLimits.SingleLine,
 		enabled = !isBusy,
 		keyboardOptions = KeyboardOptions(
@@ -83,7 +93,6 @@ fun LoginScreenFields(
 	OutlinedTextField(
 		modifier = Modifier
 			.heightIn(min = 60.dp)
-			.padding(horizontal = 16.dp)
 			.fillMaxWidth()
 			.focusRequester(usernameFocusRequester)
 			.onFocusChanged { state ->
@@ -98,6 +107,7 @@ fun LoginScreenFields(
 		state = usernameState,
 		isError = usernameError,
 		label = { Text(stringResource(Res.string.option_account_username)) },
+		leadingIcon = { Icon(Icons.Outlined.AccountCircle, null) },
 		lineLimits = TextFieldLineLimits.SingleLine,
 		enabled = !isBusy,
 		keyboardOptions = KeyboardOptions(
@@ -111,10 +121,10 @@ fun LoginScreenFields(
 	)
 
 	var passwordWasFocused by remember { mutableStateOf(false) }
+	var passwordShown by remember { mutableStateOf(false) }
 	OutlinedSecureTextField(
 		modifier = Modifier
 			.heightIn(min = 60.dp)
-			.padding(horizontal = 16.dp)
 			.fillMaxWidth()
 			.focusRequester(passwordFocusRequester)
 			.onFocusChanged { state ->
@@ -129,6 +139,16 @@ fun LoginScreenFields(
 		state = passwordState,
 		isError = passwordError,
 		label = { Text(stringResource(Res.string.option_account_password)) },
+		leadingIcon = { Icon(Icons.Outlined.Password, null) },
+		trailingIcon = {
+			IconButton(onClick = { passwordShown = !passwordShown }) {
+				Icon(
+					if (passwordShown) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+					stringResource(if (passwordShown) Res.string.action_hide_password else Res.string.action_show_password)
+				)
+			}
+		},
+		textObfuscationMode = if (passwordShown) TextObfuscationMode.Visible else TextObfuscationMode.RevealLastTyped,
 		enabled = !isBusy,
 		keyboardOptions = KeyboardOptions(
 			autoCorrectEnabled = false,

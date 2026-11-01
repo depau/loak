@@ -265,8 +265,11 @@ class SyncManager(
 		result
 	}
 
-	/** null when the server doesn't support getScanStatus (or it failed). */
-	private suspend fun scanStatus(): ScanStatus? = try {
+	/**
+	 * What the server says about its library (song count, last scan); null when it doesn't
+	 * support getScanStatus (or it failed).
+	 */
+	suspend fun scanStatus(): ScanStatus? = try {
 		sessionManager.api.getScanStatus()
 	} catch (e: Exception) {
 		if (e is CancellationException) throw e

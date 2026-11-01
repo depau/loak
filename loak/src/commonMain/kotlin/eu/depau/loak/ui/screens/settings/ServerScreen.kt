@@ -420,7 +420,7 @@ fun ListeningHistoryGroup() {
 	}
 }
 
-/** Opens the custom HTTP headers sent to the server; shared with the login screen. */
+/** Opens the custom HTTP headers sent to the server. */
 @Composable
 fun CustomHeadersItem() {
 	val backStack = LocalNavStack.current
@@ -432,15 +432,7 @@ fun CustomHeadersItem() {
 	)
 }
 
-/** Crash reporting opt-out toggle; shared with the login screen. */
-@Composable
-fun CrashReportingGroup() {
-	SettingsGroup {
-		CrashReportingItem(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1))
-	}
-}
-
-/** The crash reporting toggle (About, the login screen). */
+/** The crash reporting toggle (About). */
 @Composable
 fun CrashReportingItem(shapes: ListItemShapes) {
 	val preferenceManager = koinInject<PreferenceManager>()
@@ -453,65 +445,59 @@ fun CrashReportingItem(shapes: ListItemShapes) {
 	)
 }
 
-/** The device name override; shared with the login screen. */
-@Composable
-fun ThisDeviceGroup() {
-	SettingsGroup(title = { Text(stringResource(Res.string.title_this_device)) }) {
-		DeviceNameItem(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1))
-	}
-}
-
-/** The device name override, as other devices see a queue shared from here (Playback, login). */
+/** The device name override, as other devices see a queue shared from here (Playback). */
 @Composable
 fun DeviceNameItem(shapes: ListItemShapes) {
 	val sessionManager = koinInject<SessionManager>()
-	val preferenceManager = koinInject<PreferenceManager>()
-	var deviceNameDialogOpen by rememberSaveable { mutableStateOf(false) }
+	var dialogOpen by rememberSaveable { mutableStateOf(false) }
 	// read after the dialog writes it (deviceName isn't observable)
 	var deviceName by remember { mutableStateOf(sessionManager.deviceName) }
 
 	SegmentedListItem(
-		onClick = { deviceNameDialogOpen = true },
+		onClick = { dialogOpen = true },
 		shapes = shapes,
 		supportingContent = { Text(deviceName) },
 		content = { Text(stringResource(Res.string.option_device_name)) }
 	)
+	if (dialogOpen) DeviceNameDialog(onDismiss = { dialogOpen = false }, onSaved = { deviceName = it })
+}
 
-	if (deviceNameDialogOpen) {
-		val name = rememberTextFieldState(preferenceManager.deviceName)
-		AlertDialog(
-			onDismissRequest = { deviceNameDialogOpen = false },
-			title = { Text(stringResource(Res.string.option_device_name)) },
-			text = {
-				Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-					Text(
-						stringResource(Res.string.info_device_name),
-						style = MaterialTheme.typography.bodyMedium
-					)
-					OutlinedTextField(
-						state = name,
-						lineLimits = TextFieldLineLimits.SingleLine,
-						placeholder = { Text(systemDeviceName()) },
-						supportingText = {
-							Text(stringResource(Res.string.info_device_name_default, systemDeviceName()))
-						}
-					)
-				}
-			},
-			confirmButton = {
-				TextButton(onClick = {
-					preferenceManager.deviceName = name.text.toString().trim()
-					// the client name carries the device name
-					sessionManager.refreshClient()
-					deviceName = sessionManager.deviceName
-					deviceNameDialogOpen = false
-				}) { Text(stringResource(Res.string.action_ok)) }
-			},
-			dismissButton = {
-				TextButton(onClick = { deviceNameDialogOpen = false }) {
-					Text(stringResource(Res.string.action_cancel))
-				}
+/** Renames this device; [onSaved] gets the name now in use (the system's, if left blank). */
+@Composable
+fun DeviceNameDialog(onDismiss: () -> Unit, onSaved: (String) -> Unit) {
+	val sessionManager = koinInject<SessionManager>()
+	val preferenceManager = koinInject<PreferenceManager>()
+	val name = rememberTextFieldState(preferenceManager.deviceName)
+	AlertDialog(
+		onDismissRequest = onDismiss,
+		title = { Text(stringResource(Res.string.option_device_name)) },
+		text = {
+			Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+				Text(
+					stringResource(Res.string.info_device_name),
+					style = MaterialTheme.typography.bodyMedium
+				)
+				OutlinedTextField(
+					state = name,
+					lineLimits = TextFieldLineLimits.SingleLine,
+					placeholder = { Text(systemDeviceName()) },
+					supportingText = {
+						Text(stringResource(Res.string.info_device_name_default, systemDeviceName()))
+					}
+				)
 			}
-		)
-	}
+		},
+		confirmButton = {
+			TextButton(onClick = {
+				preferenceManager.deviceName = name.text.toString().trim()
+				// the client name carries the device name
+				sessionManager.refreshClient()
+				onSaved(sessionManager.deviceName)
+				onDismiss()
+			}) { Text(stringResource(Res.string.action_ok)) }
+		},
+		dismissButton = {
+			TextButton(onClick = onDismiss) { Text(stringResource(Res.string.action_cancel)) }
+		}
+	)
 }

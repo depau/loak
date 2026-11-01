@@ -225,6 +225,6 @@ abstract class UserFlows {
 		openSettings()
 		click(text(TestServer.USER, substring = true))
 		click("Log out")
-		waitForText("Instance URL")
+		waitForText("Server address")
 	}
 }

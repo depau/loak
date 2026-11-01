@@ -76,7 +76,7 @@
 	<string name="option_lyrics_blur">Fade out at the edges</string>
 	<string name="option_lyrics_bright_inactive">Brighter past and upcoming lines</string>
 	<string name="option_share_expires">Expires</string>
-	<string name="option_account_instance">Instance URL</string>
+	<string name="option_account_instance">Server address</string>
 	<string name="option_account_username">Username</string>
 	<string name="option_account_password">Password</string>
 	<string name="option_lyrics_autoscroll">Scroll along with the song</string>
@@ -542,7 +542,17 @@
 	<string name="info_syncing_radios">Syncing internet radios...</string>
 	<string name="title_syncing_library">Syncing your library…</string>
 	<string name="info_library_still_syncing">Still syncing your library…</string>
-	<string name="info_login_description">Log into a Subsonic compatible music server.</string>
+	<string name="info_login_description">Lo'ak plays your own music from a Subsonic-compatible server, like Navidrome.</string>
+	<string name="title_connect_server">Connect your server</string>
+	<string name="action_next">Next</string>
+	<string name="action_show_password">Show password</string>
+	<string name="action_hide_password">Hide password</string>
+	<string name="info_advanced_login">Custom headers, for reverse proxies and Cloudflare Access</string>
+	<string name="label_this_device">This device: %1$s</string>
+	<string name="info_device_name_short">How your other devices see it when you hand off the queue</string>
+	<string name="action_rename">Rename</string>
+	<string name="title_youre_connected">You're connected</string>
+	<string name="info_connected_to">%1$s at %2$s</string>
 	<string name="info_streaming_quality">Higher quality presets will use more data. Transcoding can severely impact load times and cause lyrics to become unsynced. Select Lossless if you encounter any issues.</string>
 	<string name="info_repeat_off">Repeat off</string>
 	<string name="info_repeat_one">Repeat one</string>

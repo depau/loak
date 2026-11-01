@@ -29,8 +29,7 @@ fun LoginScreenError(
 	AnimatedContent(
 		(loginUiState as? LoginUiState.Error),
 		modifier = Modifier
-			.fillMaxWidth()
-			.padding(horizontal = 16.dp),
+			.fillMaxWidth(),
 		transitionSpec = {
 			(fadeIn(
 				animationSpec = effectSpec
