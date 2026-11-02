@@ -357,7 +357,19 @@ jobs:
         uses: LABSN/sound-ci-helpers@d08c889a7bba7d9b1b059f8f76dac4672ea3a9cf # v1.0.4
 
       - name: Run UI tests and user flows
-        run: ./gradlew :loakDesktop:desktopTest --stacktrace
+        shell: bash
+        run: |
+          # The windows-11-arm Gradle shutdown flake (see "Build desktop package") also hits
+          # here, after every test passed. Retry only that: the rerun finds desktopTest
+          # up-to-date. A test failure still fails the first attempt.
+          log="$RUNNER_TEMP/desktopTest.log"
+          for i in 1 2 3; do
+            if ./gradlew :loakDesktop:desktopTest --stacktrace 2>&1 | tee "$log"; then exit 0; fi
+            grep -q "Timeout waiting for concurrent jobs to complete" "$log" || exit 1
+            ! grep -q "desktopTest FAILED" "$log" || exit 1
+            echo "::warning::Gradle shutdown flake after desktopTest (attempt $i/3); retrying"
+          done
+          exit 1
 
       - name: Upload UI test failures
         if: failure()
