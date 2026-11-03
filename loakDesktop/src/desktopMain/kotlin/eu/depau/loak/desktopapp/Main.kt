@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import java.util.function.Consumer
+import java.awt.Toolkit
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.input.key.Key
@@ -77,11 +78,18 @@ fun main(args: Array<String>) {
 	if (System.getenv("WAYLAND_DISPLAY") != null && System.getProperty("sun.java2d.uiScale") == null) {
 		System.setProperty("sun.java2d.uiScale", "1")
 	}
-	initKoin()
-	// The packaged app's version (nucleus.app.properties); null under `./gradlew run`.
-	initializeSentry(release = NucleusApp.version ?: "desktop-dev")
-	addSentryBreadcrumb("startup", "koin_ready")
 	nucleusApplication(args) {
+		// AWT has to start on the main thread Tao runs the app on: started from another thread
+		// it waits for that thread while holding Toolkit's lock, which the main thread then wants
+		// too (Compose posts through Swing), and the app hangs before its window shows. Koin's
+		// eager singletons start the sync, whose strings reach AWT, so they come after.
+		remember {
+			Toolkit.getDefaultToolkit()
+			initKoin()
+			// The packaged app's version (nucleus.app.properties); null under `./gradlew run`.
+			initializeSentry(release = NucleusApp.version ?: "desktop-dev")
+			addSentryBreadcrumb("startup", "koin_ready")
+		}
 		DecoratedWindow(
 			onCloseRequest = ::exitApplication,
 			title = "Lo'ak",
