@@ -65,6 +65,7 @@ class QueueSyncManagerTest {
 		override suspend fun getAllSongIds(): List<String> = byId.keys.toList()
 		override suspend fun getSongsByIds(ids: List<String>): List<SongEntity> =
 			ids.mapNotNull { byId[it] }
+		override suspend fun getSongIdsIn(ids: List<String>): List<String> = ids.filter { it in byId }
 		override suspend fun getRandomSongs(count: Int): List<SongEntity> =
 			byId.values.take(count)
 		override suspend fun searchSongsList(query: String): List<SongEntity> = emptyList()

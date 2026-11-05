@@ -80,6 +80,9 @@ interface SongDao {
 	@Query("SELECT * FROM SongEntity WHERE songId IN (:ids)")
 	suspend fun getSongsByIds(ids: List<String>): List<SongEntity>
 
+	@Query("SELECT songId FROM SongEntity WHERE songId IN (:ids)")
+	suspend fun getSongIdsIn(ids: List<String>): List<String>
+
 	@Query("SELECT * FROM SongEntity ORDER BY RANDOM() LIMIT :count")
 	suspend fun getRandomSongs(count: Int): List<SongEntity>
 

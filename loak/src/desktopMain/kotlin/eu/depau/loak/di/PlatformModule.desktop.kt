@@ -52,7 +52,11 @@ actual val platformModule = module {
 			}
 		}
 		PropertiesSettings(properties) { props ->
-			runCatching { propertiesFile.outputStream().use { props.store(it, null) } }
+			// one writer at a time: the player state saves from a background thread, and two
+			// streams truncating the same file would interleave
+			synchronized(props) {
+				runCatching { propertiesFile.outputStream().use { props.store(it, null) } }
+			}
 		}
 	}
 	single<CacheDatabase> {

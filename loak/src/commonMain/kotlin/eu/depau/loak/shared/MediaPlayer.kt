@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -159,7 +160,19 @@ abstract class MediaPlayerViewModel(
 			// device's queue; offer or adopt it, but never while one of ours is fresh
 			foreignQueueJob?.cancel()
 			foreignQueueJob = viewModelScope.launch { checkForeignQueue() }
+		} else {
+			// going to the background, or away (the window closing): the app may be killed
+			// before the debounced save
+			flushState()
 		}
+	}
+
+	// declared before init, like syncedKey: until restored, there's nothing to save
+	private var restored = false
+
+	/** Saves the state right away, skipping the debounce: the app may be about to go. */
+	fun flushState() {
+		if (restored) stateRepository.flush(uiState.value)
 	}
 
 	// declared before init, like syncedKey
@@ -189,6 +202,7 @@ abstract class MediaPlayerViewModel(
 		viewModelScope.launch(Dispatchers.Default) {
 			withContext(Dispatchers.Main) {
 				restoreState()
+				restored = true
 				observeAndSaveState()
 				observeAutoFill()
 				observeAutoplay()
@@ -795,7 +809,7 @@ abstract class MediaPlayerViewModel(
 	/** The sync the device last kept: the server queue it adopted, or its own first sync. */
 	private var adoptedKey: Any? = null
 	private suspend fun restoreState() {
-		val savedState = queueSyncManager.startupState(stateRepository.state.value)
+		val savedState = queueSyncManager.startupState(stateRepository.load())
 			?.copy(isPaused = true, isLoading = false)
 		// what was loaded is what the server has, or nothing worth pushing yet
 		syncedKey = (savedState ?: _uiState.value).syncKey()
@@ -900,35 +914,38 @@ abstract class MediaPlayerViewModel(
 				}
 		}
 
-		viewModelScope.launch {
-			uiState
-				.distinctUntilChanged { old, new ->
-					// every queue mutation produces a new list (immutable songs),
-					// so identity is enough: deep-comparing queues on each 200 ms
-					// progress tick (which shares the list reference) is pure
-					// waste on long playlists
-					old.currentIndex == new.currentIndex &&
-						old.queue === new.queue &&
-						old.isPaused == new.isPaused &&
-						old.repeatMode == new.repeatMode &&
-						old.isShuffleEnabled == new.isShuffleEnabled
-				}
-				.collect { state ->
-					stateRepository.setState(state)
-				}
-		}
-
-		viewModelScope.launch {
-			uiState
-				.debounce(2.seconds)
-				.collect { state ->
-					stateRepository.setState(state)
-				}
+		// saved off the main thread, a second after the last change: writing a long queue takes
+		// a while. A save skipped by the app going away is flushState()'s; each state is stamped
+		// as it's taken, so a save still in flight never overwrites a later flush.
+		// ponytail: a flush landing between the flow reading a state and stamping it (a few
+		// instructions) can still lose to it; the next save puts the newest state back
+		val stamped = uiState.map { it to stateRepository.stamp() }
+		viewModelScope.launch(Dispatchers.Default) {
+			merge(
+				stamped
+					.distinctUntilChanged { (old), (new) ->
+						// every queue mutation produces a new list (immutable songs),
+						// so identity is enough: deep-comparing queues on each 200 ms
+						// progress tick (which shares the list reference) is pure
+						// waste on long playlists
+						old.currentIndex == new.currentIndex &&
+							old.queue === new.queue &&
+							old.isPaused == new.isPaused &&
+							old.repeatMode == new.repeatMode &&
+							old.isShuffleEnabled == new.isShuffleEnabled
+					}
+					.debounce(SAVE_DEBOUNCE),
+				// the rest (the position, seeking while paused) once it settles
+				stamped.debounce(2.seconds),
+			)
+				.distinctUntilChanged { old, new -> old.first == new.first }
+				.collect { (state, stamp) -> stateRepository.save(state, stamp) }
 		}
 	}
 
 	private companion object {
 		val QUEUE_PUSH_DEBOUNCE = 5.seconds
+		val SAVE_DEBOUNCE = 1.seconds
 		val AUTOPLAY_WAIT = 10.seconds
 
 		/** Fewer [autoplay] songs than this and it fetches more. */

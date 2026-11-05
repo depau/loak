@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.viewModelScope
 import kotlinx.browser.document
+import kotlinx.browser.window
 import kotlinx.coroutines.flow.update
 import org.w3c.dom.HTMLAudioElement
 import org.w3c.dom.events.Event
@@ -87,6 +88,8 @@ class WebMediaPlayerViewModel(
 		setupAudioListeners()
 		setupMediaSession()
 		startProgressObserver()
+		// closing or reloading the tab; the tab hiding comes through onUiVisibilityChanged
+		window.addEventListener("pagehide", onEvent { flushState() })
 	}
 
 	private fun onEvent(listener: (Event) -> Unit): (Event) -> Unit = listener

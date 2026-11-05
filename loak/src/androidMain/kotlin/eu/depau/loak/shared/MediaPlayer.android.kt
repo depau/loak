@@ -510,6 +510,8 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 	}
 
 	override fun onDestroy() {
+		// the process may go with the service, before the debounced save (car playback, no UI)
+		get<MediaPlayerViewModel>().flushState()
 		closeAudioEffectSession(audioEffectSessionId)
 		releaseEqualiser()
 		scrobbleManager?.release()
@@ -663,8 +665,8 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 	}
 
 	/** The queue the app last saved, for a media button press that finds the player empty. */
-	private fun savedQueue(): MediaSession.MediaItemsWithStartPosition? {
-		val state = stateRepository.state.value?.takeIf { it.queue.isNotEmpty() } ?: return null
+	private suspend fun savedQueue(): MediaSession.MediaItemsWithStartPosition? {
+		val state = stateRepository.load()?.takeIf { it.queue.isNotEmpty() } ?: return null
 		mediaSession?.player?.apply {
 			shuffleModeEnabled = state.isShuffleEnabled
 			repeatMode = state.repeatMode
@@ -688,7 +690,7 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 		private val stateRepository: PlayerStateRepository by inject()
 
 		override fun shouldStartForegroundService(context: Context, intent: Intent) =
-			stateRepository.state.value?.queue.isNullOrEmpty().not()
+			stateRepository.hasSavedQueue
 	}
 
 	/** Runs [block] in the service's scope, for the session callbacks that answer later. */
@@ -711,9 +713,9 @@ class PlaybackService : MediaLibraryService(), KoinComponent {
 			mediaSession: MediaSession,
 			controller: MediaSession.ControllerInfo,
 			isForPlayback: Boolean
-		): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
-			savedQueue()?.let { Futures.immediateFuture(it) }
-				?: Futures.immediateFailedFuture(UnsupportedOperationException("no saved queue"))
+		): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = future {
+			savedQueue() ?: throw UnsupportedOperationException("no saved queue")
+		}
 
 		override fun onConnect(
 			session: MediaSession,
