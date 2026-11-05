@@ -27,6 +27,7 @@ import eu.depau.loak.domain.repositories.SongRepository
 import eu.depau.loak.ui.core.PlayerUiState
 import eu.depau.loak.util.Logger
 import eu.depau.loak.web.BrowserMediaSession
+import eu.depau.loak.web.playAudio
 
 /**
  * Web (Kotlin/Wasm) implementation of [MediaPlayerViewModel], backed by a
@@ -202,7 +203,7 @@ class WebMediaPlayerViewModel(
 			stopAudio()
 			audio.src = url
 			audio.load()
-			audio.play()
+			playAudio(audio)
 
 			_uiState.update {
 				it.copy(
@@ -269,7 +270,7 @@ class WebMediaPlayerViewModel(
 			stopAudio()
 			audio.src = radio.streamUrl
 			audio.load()
-			audio.play()
+			playAudio(audio)
 		}
 
 		_uiState.update { state ->
@@ -317,7 +318,7 @@ class WebMediaPlayerViewModel(
 	}
 
 	override fun resume() {
-		audio.play()
+		playAudio(audio)
 		_uiState.update { it.copy(isPaused = false) }
 		scrobbleManager.onPlayStateChanged(true)
 	}

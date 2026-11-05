@@ -2,6 +2,7 @@
 
 package eu.depau.loak.web
 
+import org.w3c.dom.HTMLAudioElement
 import org.w3c.dom.Worker
 
 /**
@@ -14,6 +15,13 @@ import org.w3c.dom.Worker
  * where a clean build has nothing (the page then never gets a database).
  */
 fun createSqliteWorker(): Worker = Worker("sqlite-worker.js?sqlite3.dir=sqlite")
+
+/**
+ * Starts [audio]. A start cut short by a pause or a new source (an `AbortError`) is no
+ * error: unhandled, every skip and quick pause put one on the page (and in Sentry).
+ */
+@JsFun("(audio) => { audio.play().catch((e) => { if (e.name !== 'AbortError') throw e; }); }")
+external fun playAudio(audio: HTMLAudioElement)
 
 /**
  * Interop with the browser [MediaSession API](https://developer.mozilla.org/en-US/docs/Web/API/MediaSession)
