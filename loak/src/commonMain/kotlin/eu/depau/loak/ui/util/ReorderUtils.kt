@@ -84,12 +84,14 @@ fun rememberDraggableListState(
 	// Edge autoscroll runs per frame, not per pointer event: a mouse sends events at its own
 	// rate (or none while held still), and can be dragged far past the list's edge.
 	LaunchedEffect(state) {
-		snapshotFlow { state.draggingItemIndex != null }.collectLatest { dragging ->
-			if (!dragging) return@collectLatest
+		snapshotFlow { state.draggingItemIndex != null || state.holdsViewport }.collectLatest { active ->
+			if (!active) return@collectLatest
 			var last = withFrameNanos { it }
 			while (true) {
-				val now = withFrameNanos { it }
-				val step = state.autoScrollStep((now - last) / 1e9f)
+				// before this frame's recomposition, which may bring the moved list
+				var holding = false
+				val now = withFrameNanos { holding = state.holdViewport(); it }
+				val step = if (holding) 0f else state.autoScrollStep((now - last) / 1e9f)
 				last = now
 				if (step != 0f) {
 					lazyListState.scrollBy(step)
@@ -131,6 +133,15 @@ class DraggableListState internal constructor(
 
 	/** Found by key: until the list lays out a move, [draggingItemIndex] is another item's. */
 	private var draggingItemKey: Any? = null
+
+	private class HeldViewport(val index: Int, val offset: Int, val key: Any?, val at: Int) {
+		var frames = 0
+	}
+
+	/** The viewport to keep while a move of the first visible row reaches the list. */
+	private var heldViewport by mutableStateOf<HeldViewport?>(null)
+
+	internal val holdsViewport get() = heldViewport != null
 
 	private var draggingItemDraggedDelta by mutableFloatStateOf(0f)
 
@@ -220,8 +231,28 @@ class DraggableListState internal constructor(
 				// The move invalidates the current layout. Queue the override for its remeasure,
 				// or key anchoring follows the moved first row and jumps the viewport with it.
 				listState.requestScrollToItem(firstVisibleIndex, firstVisibleOffset)
+				heldViewport = HeldViewport(firstVisibleIndex, firstVisibleOffset, draggingItem.key, targetItem.index)
 			}
 		}
+	}
+
+	/**
+	 * Requests the held viewport again, once a frame, until the move is laid out. A list fed
+	 * through a flow (the player's queue) gets the move a frame or more later, and every remeasure
+	 * in between (one per pointer event, and a mouse sends several a frame) uses the request up on
+	 * the old order; the list that finally arrives would then follow the moved first row.
+	 * Returns whether it is still holding.
+	 */
+	internal fun holdViewport(): Boolean {
+		val held = heldViewport ?: return false
+		val landed = listState.layoutInfo.visibleItemsInfo.any { it.key == held.key && it.index == held.at }
+		// a move the list never takes (the player refused it) mustn't pin the viewport for good
+		if (landed || ++held.frames > HOLD_VIEWPORT_FRAMES) {
+			heldViewport = null
+			return false
+		}
+		listState.requestScrollToItem(held.index, held.offset)
+		return true
 	}
 
 	/**
@@ -260,6 +291,9 @@ class DraggableListState internal constructor(
 }
 
 private const val AUTO_SCROLL_ITEMS_PER_SECOND = 3f
+
+/** Frames a move gets to reach the list (see [DraggableListState.holdViewport]). */
+private const val HOLD_VIEWPORT_FRAMES = 30
 
 /**
  * Defines the area that will act as the handle for dragging operations.
@@ -300,7 +334,15 @@ private fun Modifier.dragHandle(
 			awaitFirstDown(requireUnconsumed = false)
 			state.isHandlePressed = true
 			try {
-				while (currentEvent.changes.any { it.pressed }) awaitPointerEvent()
+				do {
+					val event = awaitPointerEvent()
+					// Main pass, after the drag detector below (inner modifiers see it first). It
+					// skips events that don't move the pointer over the handle, as when the row
+					// moves along with it; those still move it for everything around, and a sheet's
+					// own drag could add them up into a drag of its own. Before the drag starts,
+					// leave events alone: the detector's touch slop watches for others consuming.
+					if (state.draggingItemIndex != null) event.changes.forEach { it.consume() }
+				} while (event.changes.any { it.pressed })
 			} finally {
 				state.isHandlePressed = false
 			}
