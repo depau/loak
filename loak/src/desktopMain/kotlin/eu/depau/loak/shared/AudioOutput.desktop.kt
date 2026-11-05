@@ -2,6 +2,9 @@ package eu.depau.loak.shared
 
 import dev.nucleusframework.rodio.PlaybackCallback
 import dev.nucleusframework.rodio.RodioPlayer
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +34,15 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal class AudioOutput(private val callback: PlaybackCallback) {
 	/** The engine is driven from here; [Dispatchers.IO] so one parked call can't starve the UI. */
 	private val dispatcher = Dispatchers.IO
+
+	/**
+	 * Creates and closes the players. rodio keeps a player's output stream in a thread-local of
+	 * the thread that created it: the stream plays only while that thread lives, and only that
+	 * thread can release it. Created on [dispatcher], whose idle threads exit after a minute, the
+	 * stream died with its thread — the sink was never pulled again, and the next source change
+	 * waited forever for it to drain, holding the lock every player shares.
+	 */
+	private val owner = Executors.newSingleThreadExecutor { Thread(it, "rodio-output").apply { isDaemon = true } }
 
 	/** Holds the calls that ran past their timeout, so abandoning one doesn't cancel the rest. */
 	private val calls = CoroutineScope(SupervisorJob() + dispatcher)
@@ -64,17 +76,18 @@ internal class AudioOutput(private val callback: PlaybackCallback) {
 	private fun open(): RodioPlayer {
 		player?.let { return it }
 		val created = try {
-			RodioPlayer()
-		} catch (e: LinkageError) {
+			owner.submit(Callable { RodioPlayer() }).get()
+		} catch (e: ExecutionException) {
 			// the native library itself can't load (libasound missing): not fatal either
-			throw IllegalStateException("No audio output", e)
+			val cause = e.cause ?: e
+			throw if (cause is LinkageError) IllegalStateException("No audio output", cause) else cause
 		}
 		created.setCallback(callback)
 		created.setVolume(volume)
 		synchronized(this) {
 			val existing = player
 			if (existing != null) {
-				created.close()
+				owner.execute { created.close() }
 				return existing
 			}
 			player = created
@@ -172,7 +185,7 @@ internal class AudioOutput(private val callback: PlaybackCallback) {
 	/** Drops the output. Doesn't wait for a wedged callback, so it is safe to call from anywhere. */
 	@Synchronized
 	fun close() {
-		player?.close()
+		player?.let { owner.execute { it.close() } }
 		player = null
 		startOffsetMs = 0L
 	}
