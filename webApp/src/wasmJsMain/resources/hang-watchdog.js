@@ -8,6 +8,7 @@ var HANG_MS = 5000;
 var MAX_CRUMBS = 30;
 
 var config = null;
+var env = {};
 var lastBeat = 0;
 var visible = true;
 var reported = false;
@@ -21,6 +22,7 @@ self.onmessage = function (event) {
 	} else if ('beat' in msg) {
 		lastBeat = Date.now();
 		visible = msg.beat;
+		env = msg.env;
 		reported = false;
 	} else {
 		crumbs.push(msg);
@@ -75,6 +77,9 @@ function report(blockedMs) {
 		tags: { 'hang.screen': screen },
 		fingerprint: ['web-app-hang', screen],
 		breadcrumbs: crumbs,
+		// user agent, screen and hardware, as the page's own events carry them
+		request: env.request,
+		contexts: env.contexts,
 		// no PII: never let Sentry derive the sender's IP address, nor the city
 		// it geolocates from it unless the event already has a location
 		user: { geo: {} },
