@@ -1741,8 +1741,16 @@ private class StreamStatsListener(private val stats: NetworkStatsManager) : Tran
 
 	override fun onTransferStart(source: DataSource, dataSpec: DataSpec, isNetwork: Boolean) {
 		if (!isNetwork) return
-		transfers[source] =
-			stats.AudioTransfer(TransferCategory.STREAM, dataSpec.uri.getQueryParameter("id"))
+		val uri = dataSpec.uri
+		val contentType = source.responseHeaders.entries
+			.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value?.firstOrNull()
+		transfers[source] = stats.AudioTransfer(
+			TransferCategory.STREAM,
+			uri.getQueryParameter("id"),
+			uri.getQueryParameter("format"),
+			uri.getQueryParameter("maxBitRate"),
+			contentType?.substringBefore(';')?.trim()
+		)
 	}
 
 	override fun onBytesTransferred(

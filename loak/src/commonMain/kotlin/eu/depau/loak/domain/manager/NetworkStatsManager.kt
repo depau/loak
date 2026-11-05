@@ -5,6 +5,7 @@ import eu.depau.loak.data.database.entities.SyncRunEntity
 import eu.depau.loak.data.database.entities.TransferCategory
 import eu.depau.loak.di.addTransferBreadcrumb
 import eu.depau.loak.di.finishSentrySpan
+import eu.depau.loak.domain.models.AudioQuality
 import eu.depau.loak.di.startSentrySpan
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
@@ -119,8 +120,19 @@ class NetworkStatsManager(
 		}
 	}
 
-	/** One audio transfer: counted as it goes, reported to Sentry (span, breadcrumb) at the end. */
-	inner class AudioTransfer(private val category: TransferCategory, private val songId: String?) {
+	/**
+	 * One audio transfer: counted as it goes, reported to Sentry (span, breadcrumb) at the end.
+	 * [format] and [maxBitRate] are the stream request's own parameters, [contentType] the
+	 * response's: what was asked for and what came, never which song.
+	 */
+	inner class AudioTransfer(
+		private val category: TransferCategory,
+		private val songId: String?,
+		format: String?,
+		maxBitRate: String?,
+		private val contentType: String?
+	) {
+		private val quality = AudioQuality.of(format, maxBitRate?.toIntOrNull()).key
 		private val started = TimeSource.Monotonic.markNow()
 		private val span = if (Sentry.isEnabled()) {
 			startSentrySpan(null, "transfer.${category.name.lowercase()}", "Audio transfer")
@@ -144,6 +156,8 @@ class NetworkStatsManager(
 				put("duration_ms", started.elapsedNow().inWholeMilliseconds)
 				put("metered", connectivityManager.isCellular.value)
 				songId?.let { put("song_id", it) }
+				put("quality", quality)
+				contentType?.let { put("content_type", it) }
 			}
 			addTransferBreadcrumb(data)
 			span?.let { finishSentrySpan(it, true, data) }
@@ -165,7 +179,13 @@ class NetworkStatsManager(
 			}
 			?: return response
 		val transfer = if (category == TransferCategory.DOWNLOAD) {
-			AudioTransfer(category, request.url.parameters["id"])
+			AudioTransfer(
+				category,
+				request.url.parameters["id"],
+				request.url.parameters["format"],
+				request.url.parameters["maxBitRate"],
+				response.contentType()?.withoutParameters()?.toString()
+			)
 		} else {
 			record(category, requests = 1)
 			null
