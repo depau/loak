@@ -112,9 +112,18 @@ private external fun webSentryEnv(): JsAny
 	// No PII (v11's replacement for sendDefaultPii): no IP address, cookies,
 	// headers or URL query params.
 	dataCollection: { userInfo: false, cookies: false, httpHeaders: false, urlQueryParams: false },
-	// Only addSentryBreadcrumb's crumbs: the automatic ones record console
-	// lines, fetch URLs (server address, signed auth params) and page URLs.
-	beforeBreadcrumb: (crumb, hint) => (hint && hint.loak ? crumb : null),
+	// The app's own crumbs, and the SDK's request ones with their URL censored down to
+	// its target (method, status and sizes stay): an error then shows what the page was
+	// talking to, the failed request included. Console and navigation crumbs never pass.
+	beforeBreadcrumb: (crumb, hint) => {
+		if (hint && hint.loak) return crumb;
+		if ((crumb.category !== 'fetch' && crumb.category !== 'xhr') || !crumb.data) return null;
+		const d = crumb.data;
+		// only these: other keys (http.query…) would carry what the censored URL drops
+		const data = { method: d.method, url: censor(String(d.url)), status_code: d.status_code,
+			request_body_size: d.request_body_size, response_body_size: d.response_body_size };
+		return Object.assign({}, crumb, { data });
+	},
 	beforeSend: (event) => {
 		// the user agent and client hints replace the request, which holds the page URL
 		const e = env();
