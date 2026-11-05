@@ -14,8 +14,9 @@ import org.w3c.dom.Worker
  *
  * A frozen page can't report itself and the browser SDK has no hang detection,
  * so `hang-watchdog.js` runs in a worker: the page sends it a heartbeat every
- * second plus every breadcrumb, and the worker reports an "App Hanging" event
- * when the heartbeats stop.
+ * second, and right away when the tab hides or shows, plus every breadcrumb; the
+ * worker reports an "App Hanging" event when the heartbeats stop for 2 s. Each
+ * heartbeat carries how busy the main thread was over the last minute.
  */
 
 private var watchdog: Worker? = null
@@ -162,12 +163,39 @@ private external fun webSentryOptions(
 @JsFun(
 	"""(worker, dsn, release, dist, env) => {
 	worker.postMessage({ config: { dsn, release, dist, environment: 'production' } });
-	worker.beat = setInterval(() => worker.postMessage({ beat: document.visibilityState === 'visible', env: env() }), 1000);
+	// the main thread's busy share of the last minute: the time a 50 ms timer ran over
+	// 50 ms late (a stall a user feels) while the tab was visible. Longer than a minute
+	// late is the machine sleeping, not a stall
+	const start = performance.now();
+	const stalls = [];
+	let last = start;
+	worker.tick = setInterval(() => {
+		const now = performance.now(), late = now - last - 50;
+		last = now;
+		if (late > 50 && late < 60000 && document.visibilityState === 'visible') stalls.push([now, late]);
+		while (stalls.length && stalls[0][0] < now - 60000) stalls.shift();
+	}, 50);
+	worker.heartbeat = () => {
+		const span = Math.max(1000, Math.min(60000, performance.now() - start));
+		const busy = stalls.reduce((sum, stall) => sum + stall[1], 0) / span;
+		worker.postMessage({ beat: document.visibilityState === 'visible', busy: Math.round(busy * 1000) / 1000, env: env() });
+	};
+	// a hidden tab's timers run late: that's no stall
+	worker.onVisibility = () => { last = performance.now(); worker.heartbeat(); };
+	worker.beat = setInterval(worker.heartbeat, 1000);
+	document.addEventListener('visibilitychange', worker.onVisibility);
 }"""
 )
 private external fun startWatchdog(worker: Worker, dsn: String, release: String, dist: String, env: JsAny)
 
-@JsFun("(worker) => { clearInterval(worker.beat); worker.terminate(); }")
+@JsFun(
+	"""(worker) => {
+	clearInterval(worker.beat);
+	clearInterval(worker.tick);
+	document.removeEventListener('visibilitychange', worker.onVisibility);
+	worker.terminate();
+}"""
+)
 private external fun stopWatchdog(worker: Worker)
 
 @JsFun("(name, message, stack) => { const e = new Error(message); e.name = name; e.stack = stack; return e; }")

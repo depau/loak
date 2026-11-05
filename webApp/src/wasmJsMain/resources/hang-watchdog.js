@@ -1,16 +1,21 @@
 // Reports a frozen page to Sentry (started by SentryWeb.kt). A blocked main
 // thread can't report itself and @sentry/browser has no hang detection, so the
-// page sends this worker a heartbeat every second plus each breadcrumb; when the
-// heartbeats stop, the worker posts an "App Hanging" event to Sentry itself.
+// page sends this worker a heartbeat every second (and as soon as the tab hides
+// or shows) plus each breadcrumb; when the heartbeats stop, the worker posts an
+// "App Hanging" event to Sentry itself.
 'use strict';
 
-var HANG_MS = 5000;
+var HANG_MS = 2000;
+// after the worker itself was suspended (machine asleep, tab frozen) the page
+// catches up on its timers for a moment: not a hang
+var RESUME_GRACE_MS = 5000;
 var MAX_CRUMBS = 30;
 
 var config = null;
 var env = {};
 var lastBeat = 0;
 var visible = true;
+var busy = 0;
 var reported = false;
 var crumbs = [];
 var lastTick = Date.now();
@@ -23,6 +28,7 @@ self.onmessage = function (event) {
 		lastBeat = Date.now();
 		visible = msg.beat;
 		env = msg.env;
+		busy = msg.busy;
 		reported = false;
 	} else {
 		crumbs.push(msg);
@@ -32,17 +38,16 @@ self.onmessage = function (event) {
 
 setInterval(function () {
 	var now = Date.now();
-	// the worker itself was suspended (machine asleep, tab frozen): not a hang
-	if (now - lastTick > 3000) lastBeat = now;
+	if (now - lastTick > 1000) lastBeat = now + RESUME_GRACE_MS;
 	lastTick = now;
-	// hidden tabs throttle the page's heartbeat timer to once a minute. A page
-	// that freezes while hidden goes unreported.
+	// a hidden tab's heartbeat timer runs once a minute at most: a page that
+	// freezes while hidden goes unreported
 	if (!config || !lastBeat || !visible || reported) return;
 	var blocked = now - lastBeat;
 	if (blocked < HANG_MS) return;
 	reported = true;
 	report(blocked);
-}, 1000);
+}, 250);
 
 function lastScreen() {
 	for (var i = crumbs.length - 1; i >= 0; i--) {
@@ -76,10 +81,12 @@ function report(blockedMs) {
 		// one issue per screen the hang happened on
 		tags: { 'hang.screen': screen },
 		fingerprint: ['web-app-hang', screen],
+		// how much of the last minute the main thread spent in stalls over 50 ms:
+		// a page that was already struggling, or one that froze out of the blue
+		contexts: Object.assign({}, env.contexts, { main_thread: { busy_last_minute: busy } }),
 		breadcrumbs: crumbs,
 		// user agent, screen and hardware, as the page's own events carry them
 		request: env.request,
-		contexts: env.contexts,
 		// no PII: never let Sentry derive the sender's IP address, nor the city
 		// it geolocates from it unless the event already has a location
 		user: { geo: {} },
