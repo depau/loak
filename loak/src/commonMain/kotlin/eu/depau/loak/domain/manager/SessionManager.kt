@@ -1,7 +1,7 @@
 package eu.depau.loak.domain.manager
 
 import eu.depau.loak.di.addSentryBreadcrumb
-import eu.depau.loak.di.recordPii
+import eu.depau.loak.di.recordPiiServer
 import eu.depau.loak.di.recordPiiIdentifier
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
@@ -110,7 +110,7 @@ class SessionManager(
 	).also {
 		// every session's client is made here: teach the Sentry censor its server address,
 		// credentials and the device name it reports, before any request can fail with them
-		recordPii(instanceUrl)
+		recordPiiServer("subsonic", instanceUrl)
 		recordPiiIdentifier(username)
 		recordPiiIdentifier(password)
 		recordPiiIdentifier(deviceName)

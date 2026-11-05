@@ -19,18 +19,21 @@ class SentryJvmSanitizerTest {
 
 	@Test
 	fun scrubsHostFromThreadNamesAndTags() {
+		recordPiiServer("subsonic", "https://music.home.example")
 		val event = SentryEvent().apply {
 			threads = listOf(
 				SentryThread().apply { name = "OkHttp starrs.depau.eu" },
+				SentryThread().apply { name = "OkHttp music.home.example" },
 				SentryThread().apply { name = "main" }
 			)
 			setTag("server_name", "192.168.3.130")
 			setTag("device.state", "clean")
 		}
 		sanitizeJvmEvent(event)
-		assertEquals("OkHttp [REDACTED_HOST]", event.threads?.get(0)?.name)
-		assertEquals("main", event.threads?.get(1)?.name)
-		assertEquals("[REDACTED_HOST]", event.tags?.get("server_name"))
+		assertEquals("OkHttp redacted", event.threads?.get(0)?.name)
+		assertEquals("OkHttp subsonic.redacted", event.threads?.get(1)?.name)
+		assertEquals("main", event.threads?.get(2)?.name)
+		assertEquals("redacted", event.tags?.get("server_name"))
 		assertEquals("clean", event.tags?.get("device.state"))
 	}
 

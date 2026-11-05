@@ -21,7 +21,7 @@ import eu.depau.loak.domain.models.settings.StreamingQuality
 import eu.depau.loak.domain.models.settings.Theme
 import eu.depau.loak.domain.models.settings.ThemeMode
 import com.russhwolf.settings.Settings as KmpSettings
-import eu.depau.loak.di.recordPii
+import eu.depau.loak.di.recordPiiServer
 import eu.depau.loak.di.recordPiiHeaders
 import eu.depau.loak.di.recordPiiIdentifier
 
@@ -125,7 +125,7 @@ class PreferenceManager(
 	val integrationsSeen by preference(0)
 
 	// AudioMuse-AI's own API; an empty address means not connected
-	var audioMuseUrl by piiPreference("", ::recordPii)
+	var audioMuseUrl by piiPreference("") { recordPiiServer("audiomuse", it) }
 	var audioMuseUsername by piiPreference("", ::recordPiiIdentifier)
 	var audioMusePassword by piiPreference("", ::recordPiiIdentifier)
 	var audioMuseToken by piiPreference("", ::recordPiiIdentifier)
@@ -135,7 +135,7 @@ class PreferenceManager(
 	var audioMuseInheritServerHeaders by preference(false)
 
 	// Lidarr's own API; an empty address means not connected
-	var lidarrUrl by piiPreference("", ::recordPii)
+	var lidarrUrl by piiPreference("") { recordPiiServer("lidarr", it) }
 	var lidarrApiKey by piiPreference("", ::recordPiiIdentifier)
 	/** Extra HTTP headers for Lidarr calls, one "Key:Value" per line. */
 	var lidarrCustomHeaders by piiPreference("", ::recordPiiHeaders)
@@ -166,7 +166,7 @@ class PreferenceManager(
 	var listeningHistorySource by preference("")
 
 	/** Koito instance base URL (e.g. `https://koito.example.org`) and its API key; "" = not set. */
-	var koitoUrl by piiPreference("", ::recordPii)
+	var koitoUrl by piiPreference("") { recordPiiServer("koito", it) }
 	var koitoApiKey by piiPreference("", ::recordPiiIdentifier)
 
 	/** Last.fm username to read scrobbles from; "" = not set. */

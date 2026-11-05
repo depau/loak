@@ -3,6 +3,9 @@
 package eu.depau.loak.di
 
 import kotlin.concurrent.atomics.AtomicReference
+import io.ktor.http.DEFAULT_PORT
+import io.ktor.http.decodeURLPart
+import io.ktor.http.parseUrl
 
 /**
  * Sentry censorship: two layers.
@@ -13,7 +16,7 @@ import kotlin.concurrent.atomics.AtomicReference
  * It runs on every string that leaves the app at the send boundary.
  *
  * Layer 2 — exact-match safety net on the user's *actual* identifiers. Every
- * server address, account, secret or header the user gave the app ([recordPii],
+ * server address, account, secret or header the user gave the app ([recordPiiServer],
  * [recordPiiIdentifier], seeded by the settings holding them — `piiPreference` —
  * and by the code using one before it's saved) that survives layer 1 is
  * redacted verbatim, the shipping event is tagged `sentry.censor-breach=1`,
@@ -27,12 +30,84 @@ import kotlin.concurrent.atomics.AtomicReference
 
 /**
  * Matches any URL (http/https). Stops at whitespace or an error-string
- * terminator (`,`, `)`, `"`, `'`, `]`) so the punctuation Ktor prints around
- * the URL stays intact: `[url=<URL>, connect_timeout=…]` becomes
- * `[url=[REDACTED_URL], …]`. The Subsonic API's signed query params (`u=`,
- * `t=`, `s=`) ride along inside the match and are gone with it.
+ * terminator (`,`, `)`, `"`, `'`) so the punctuation Ktor prints around
+ * the URL stays intact: `[url=<URL>, connect_timeout=…]`. [censorUrl] keeps
+ * what the request was for and drops whose it was.
  */
 private val URL_REGEX = Regex("""https?://[^\s,"'()]+""", RegexOption.IGNORE_CASE)
+
+/**
+ * Public services the app calls itself: their hosts carry no user data, so they stay readable.
+ * A host here with a number keeps only that many leading path segments (Last.fm's `/music/…`
+ * pages are named after artists and albums). Any other host the user didn't configure (a
+ * radio stream, an image CDN) shows as `redacted`.
+ */
+private val PUBLIC_HOSTS: Map<String, Int?> = mapOf(
+	"api.deezer.com" to null, "www.deezer.com" to null, "deezer.com" to null,
+	"musicbrainz.org" to null, "coverartarchive.org" to null,
+	"api.listenbrainz.org" to null, "labs.api.listenbrainz.org" to null, "listenbrainz.org" to null,
+	"ws.audioscrobbler.com" to null, "www.last.fm" to 1, "last.fm" to 1,
+	"lrclib.net" to null, "apic.musixmatch.com" to null,
+	"lyricsplus.atomix.one" to null, "lyricsplus.binimum.org" to null,
+	"lyricsplus.prjktla.my.id" to null, "lyrics-plus-backend.vercel.app" to null,
+	"lyricsplus-seven.vercel.app" to null, "lyricsplus.prjktla.workers.dev" to null,
+	"api.github.com" to null, "github.com" to null,
+)
+
+/** A server the user configured: [service] names it, [basePath] is its address's own path. */
+private class PiiServer(val service: String, val host: String, val basePath: String)
+
+private val piiServers = AtomicReference<List<PiiServer>>(emptyList())
+
+/**
+ * The host as reports may show it: `<service>.redacted` for the user's own servers, public
+ * services as they are, `redacted` for anything else (other hosts, IP addresses). Idempotent:
+ * censored text can pass through again unchanged.
+ */
+private fun shownHost(rawHost: String): String {
+	val host = rawHost.lowercase().removeSurrounding("[", "]")
+	if (host == "redacted" || host.endsWith(".redacted")) return host
+	piiServers.load().firstOrNull { it.host == host }?.let { return "${it.service}.redacted" }
+	return if (host in PUBLIC_HOSTS) host else "redacted"
+}
+
+/**
+ * What a request went to, without whose it was: scheme, host as [shownHost] shows it, port,
+ * and the API path the app built. The user's own path prefix (a server behind `/navidrome`),
+ * path segments the user typed (a ListenBrainz username), the query (Subsonic's signed
+ * credentials, search terms) and the fragment are dropped.
+ * `https://music.example.org:4533/navidrome/rest/getPlaylist.view?u=…&t=…` becomes
+ * `https://subsonic.redacted:4533/rest/getPlaylist.view`.
+ */
+private fun censorUrl(raw: String): String {
+	val url = parseUrl(raw) ?: return "[REDACTED_URL]"
+	val host = url.host.lowercase()
+	val server = piiServers.load()
+		.filter { it.host == host && (url.encodedPath == it.basePath || url.encodedPath.startsWith(it.basePath + "/")) }
+		.maxByOrNull { it.basePath.length }
+	val segments = (server?.let { url.encodedPath.removePrefix(it.basePath) } ?: url.encodedPath)
+		.split('/').filter { it.isNotEmpty() }
+		.let { all -> PUBLIC_HOSTS[host]?.let { all.take(it) } ?: all }
+	val known = piiSnapshot.load()
+	val path = segments.joinToString("") { segment ->
+		val decoded = runCatching { segment.decodeURLPart() }.getOrDefault(segment).lowercase()
+		"/" + if (decoded in known) "[REDACTED]" else segment
+	}
+	val port = if (url.specifiedPort == DEFAULT_PORT) "" else ":${url.specifiedPort}"
+	val shown = server?.let { "${it.service}.redacted" } ?: shownHost(host)
+	return "${url.protocol.name}://$shown$port$path"
+}
+
+/** A host:port's trailing port, as `:443` or Java's ` (port 443)`. */
+private val TRAILING_PORT = Regex("""(?::|\s*\(\s*port\s+)(\d{1,5})\s*\)?$""", RegexOption.IGNORE_CASE)
+
+/** A [HOST_PORT_REGEX] match as `<shown host>:<port>`. */
+private fun censorHostPort(text: String): String {
+	// compressed IPv6 has no port, its last group would read as one
+	val port = if (!text.startsWith("[") && text.count { it == ':' } > 1) null else TRAILING_PORT.find(text)
+	val host = (port?.let { text.substring(0, it.range.first) } ?: text).substringBefore('/')
+	return shownHost(host) + (port?.let { ":" + it.groupValues[1] } ?: "")
+}
 
 /**
  * Matches bare hostnames, host:port and InetSocketAddress-style `host/ip:port`
@@ -40,7 +115,7 @@ private val URL_REGEX = Regex("""https?://[^\s,"'()]+""", RegexOption.IGNORE_CAS
  * connect errors: `failed to connect to starrs.depau.eu/192.168.3.204 (port 443)`
  * or `Failed to connect to navikek.puntokek.com/172.67.183.168:443`. URLs are
  * handled first by [URL_REGEX]; this catches the host/IP when it leaks without
- * an `https?://` prefix.
+ * an `https?://` prefix. [censorHostPort] keeps the port.
  */
 private val HOST_PORT_REGEX = Regex(
 	"""[^\s(),]+/\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?""" +
@@ -75,10 +150,11 @@ private val FILE_PATH_REGEX = Regex(
  * Thread names carry the target as a bare label: OkHttp names its worker
  * threads after the connection (`OkHttp starrs.depau.eu`, `OkHttp dn7.ca.…`,
  * sometimes with a URL). Layer-1 host regexes require a port/IP, so a bare
- * hostname in a thread name would slip through; redact the whole `label` tail.
+ * hostname in a thread name would slip through; [sanitizeThreadName] shows the
+ * whole `label` tail as its [shownHost].
  */
 private val THREAD_HOST_REGEX =
-	Regex("""(?:^|[\s])(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?:[:/][^\s]*)?(?=\s*$)""")
+	Regex("""(?:^|[\s])((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})(?:[:/][^\s]*)?(?=\s*$)""")
 
 /**
  * Matches credential-style `key=value` / `key: value` assignments anywhere in
@@ -94,17 +170,17 @@ private val SENSITIVE_PARAM_REGEX =
  * message. Require a full dotted hostname so `Unable` (no dot) can't match.
  */
 private val UNKNOWN_HOST_REGEX =
-	Regex("""UnknownHostException[: ]{2}(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}""", RegexOption.IGNORE_CASE)
+	Regex("""UnknownHostException[: ]{2}((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})""", RegexOption.IGNORE_CASE)
 
 /**
  * Android prints DNS failures as `Unable to resolve host "starrs.depau.eu": No
  * address associated with hostname`. Layer 1 must catch the quoted name here;
  * it is the exact spelling LOAK-8 shipped unredacted. Group 1 is the quote char
- * (or none); the replacement re-emits the caught `resolve host` prefix and the
- * quote so the message stays readable.
+ * (or none), group 2 the host; the replacement re-emits the caught `resolve
+ * host` prefix and the quote so the message stays readable.
  */
 private val QUOTED_HOST_REGEX =
-	Regex("""\bresolve(?:d)?\s+host\s+(["'`]?)[^\s"'`()]+\1""", RegexOption.IGNORE_CASE)
+	Regex("""\bresolve(?:d)?\s+host\s+(["'`]?)([^\s"'`()]+)\1""", RegexOption.IGNORE_CASE)
 
 // The PII registry is written once per login (single writer), read on every
 // send (concurrent readers on Sentry's threads). An atomic reference to an
@@ -123,21 +199,34 @@ private fun addPii(values: Collection<String>) {
 	}
 }
 
+/** Registers [server] for [censorUrl]; a no-op when already known. */
+private fun addServer(server: PiiServer) {
+	while (true) {
+		val current = piiServers.load()
+		if (current.any { it.service == server.service && it.host == server.host && it.basePath == server.basePath }) return
+		if (piiServers.compareAndSet(current, current + server)) return
+	}
+}
+
 /**
- * Seeds layer 2 with a server address the user configured (Subsonic instance, AudioMuse…).
- * Parses the host out of URLs; blank or dot-less values are ignored. Cheap when already known:
+ * Teaches the censor a server address the user configured, [service] naming what it is
+ * ("subsonic", "audiomuse", "lidarr", "koito"): its URLs leave as
+ * `<scheme>://<service>.redacted[:port]/<API path>`, without the address's own path, and layer 2
+ * exact-matches the address. Blank or unparsable values are ignored. Cheap when already known:
  * settings call it on every value they hold (see `piiPreference`).
  */
-internal fun recordPii(value: String) {
+internal fun recordPiiServer(service: String, value: String) {
 	val url = value.trim().trimEnd('/')
-	if (url.isBlank() || url.length < 4 || !url.contains(".")) return
-	val host = url.substringAfter("://", url).substringBefore('/').substringBefore(':').lowercase()
-	addPii(listOfNotNull(url.lowercase(), host.takeIf { it.length >= 4 && it.contains(".") }))
+	if (url.isEmpty() || url.any { it.isWhitespace() }) return
+	val parsed = parseUrl(if ("://" in url) url else "https://$url")?.takeIf { it.host.isNotEmpty() } ?: return
+	val host = parsed.host.lowercase()
+	addServer(PiiServer(service, host, parsed.encodedPath.trimEnd('/')))
+	addPii(listOfNotNull(url.lowercase(), host).filter { it.length >= 4 && it.contains(".") })
 }
 
 /**
  * Seeds layer 2 with an arbitrary user identifier (username, account name, password, token…)
- * that must never leave in an event. Unlike [recordPii] (server addresses)
+ * that must never leave in an event. Unlike [recordPiiServer] (server addresses)
  * identifiers don't have to look like hosts, so the dot check is skipped —
  * a short, dot-less username shouldn't be sendable just because it has no
  * dot. The `>= 4` floor matches layer 2's own length gate below, which exists
@@ -155,6 +244,7 @@ internal fun recordPiiHeaders(lines: String) {
 
 internal fun clearPiiForTests() {
 	piiSnapshot.store(emptySet())
+	piiServers.store(emptyList())
 	reportedSnapshot.store(emptySet())
 }
 
@@ -171,12 +261,13 @@ internal data class Censored(val text: String, val breached: List<String>)
  * need a censored string short.
  */
 internal fun censorSentryText(raw: String): Censored {
-	val l1 = URL_REGEX.replace(raw, "[REDACTED_URL]")
-		.let { HOST_PORT_REGEX.replace(it, "[REDACTED_HOST]") }
+	val l1 = URL_REGEX.replace(raw) { censorUrl(it.value) }
+		.let { HOST_PORT_REGEX.replace(it) { m -> censorHostPort(m.value) } }
 		.let { FILE_PATH_REGEX.replace(it, "[REDACTED_PATH]") }
-		.let { UNKNOWN_HOST_REGEX.replace(it, "UnknownHostException: [REDACTED_HOST]") }
+		.let { UNKNOWN_HOST_REGEX.replace(it) { m -> "UnknownHostException: " + shownHost(m.groupValues[1]) } }
 		.let { QUOTED_HOST_REGEX.replace(it) { m ->
-			"resolve host " + m.groupValues[1] + "[REDACTED_HOST]" + m.groupValues[1]
+			val quote = m.groupValues[1]
+			"resolve host $quote${shownHost(m.groupValues[2])}$quote"
 		} }
 		.let { SENSITIVE_PARAM_REGEX.replace(it, "$1[REDACTED]") }
 	val breached = piiSnapshot.load().filter { p -> p.length >= 4 && l1.contains(p, ignoreCase = true) }
@@ -190,12 +281,12 @@ internal fun censorSentryText(raw: String): Censored {
 internal fun String.sanitizeSentryText(): String = censorSentryText(this).text
 
 /**
- * Redact the connection target from a thread name: the usual censor pass plus
- * the bare-hostname tail OkHttp prints (`OkHttp starrs.depau.eu`), which has no
- * port/IP to trigger [HOST_PORT_REGEX].
+ * Redact the connection target from a thread name: the bare-hostname tail OkHttp
+ * prints (`OkHttp starrs.depau.eu`, no port/IP to trigger [HOST_PORT_REGEX])
+ * becomes its [shownHost], then the usual censor pass.
  */
 internal fun String.sanitizeThreadName(): String =
-	THREAD_HOST_REGEX.replace(censorSentryText(this).text) { " [REDACTED_HOST]" }
+	censorSentryText(THREAD_HOST_REGEX.replace(this) { " " + shownHost(it.groupValues[1]) }).text
 
 /** Sentinel tag on any shipping event that layer 2 had to scrub. Alerts can key on it. */
 internal const val CENSOR_BREACH_TAG = "sentry.censor-breach"
