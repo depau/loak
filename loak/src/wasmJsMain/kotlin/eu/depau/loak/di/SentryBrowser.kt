@@ -16,3 +16,6 @@ internal external fun sentryBrowserCaptureMessage(message: String, context: JsAn
 
 @JsName("addBreadcrumb")
 internal external fun sentryBrowserAddBreadcrumb(breadcrumb: JsAny, hint: JsAny)
+
+@JsName("close")
+internal external fun sentryBrowserClose(): JsAny

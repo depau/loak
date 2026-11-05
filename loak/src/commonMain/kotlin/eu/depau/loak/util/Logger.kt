@@ -1,7 +1,6 @@
 package eu.depau.loak.util
 
 import eu.depau.loak.di.captureWebSentryError
-import eu.depau.loak.di.isSentryEnabled
 import eu.depau.loak.di.isNoiseException
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -12,7 +11,6 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 fun captureSentryError(throwable: Throwable?) {
 	if (throwable == null) return
-	if (!isSentryEnabled()) return
 	// cancellation is control flow, not a bug — never report it
 	if (throwable is CancellationException) return
 	// expected, already-handled failures (offline, cancelled, unsupported media…):

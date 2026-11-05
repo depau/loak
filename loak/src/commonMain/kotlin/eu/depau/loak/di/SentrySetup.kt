@@ -42,8 +42,20 @@ fun isSentryEnabled(): Boolean {
 	return settings.get(SENTRY_ENABLED_KEY, true)
 }
 
+private var sentryRelease: String? = null
+
 fun initializeSentry(release: String? = null) {
-	if (!isSentryEnabled()) return
+	sentryRelease = release
+	if (isSentryEnabled()) startSentry()
+}
+
+/** Starts or stops reporting right away, for the in-app switch: no restart needed. */
+internal fun setCrashReportingEnabled(enabled: Boolean) {
+	if (!enabled) Sentry.close() else if (!Sentry.isEnabled()) startSentry()
+	setWebSentryEnabled(enabled)
+}
+
+private fun startSentry() {
 	Sentry.init { options ->
 		options.dsn = SENTRY_DSN
 		options.environment = "production"
@@ -51,7 +63,7 @@ fun initializeSentry(release: String? = null) {
 		// already embed `…-nightly.<sha>`; release builds the tag), dist = the
 		// short git commit baked in at compile time. Every event, including
 		// nightlies and desktop dev builds, is traceable back to a commit.
-		options.release = release ?: "unknown"
+		options.release = sentryRelease ?: "unknown"
 		options.dist = SENTRY_BUILD_COMMIT
 		options.attachStackTrace = true
 		options.attachThreads = true
@@ -105,6 +117,9 @@ internal expect fun registerJvmSentrySanitizer()
 internal expect fun captureWebSentryError(throwable: Throwable)
 
 internal expect fun addWebSentryBreadcrumb(category: String, message: String?, data: Map<String, Any>)
+
+/** Web counterpart of [setCrashReportingEnabled]; no-op elsewhere. */
+internal expect fun setWebSentryEnabled(enabled: Boolean)
 
 /**
  * True for exceptions that are expected at runtime and pollute Sentry: offline /

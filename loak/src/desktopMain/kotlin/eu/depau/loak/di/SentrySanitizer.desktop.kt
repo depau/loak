@@ -122,3 +122,5 @@ internal fun sanitizeJvmBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
 internal actual fun captureWebSentryError(throwable: Throwable) {}
 
 internal actual fun addWebSentryBreadcrumb(category: String, message: String?, data: Map<String, Any>) {}
+
+internal actual fun setWebSentryEnabled(enabled: Boolean) {}

@@ -25,11 +25,21 @@ private var watchdog: Worker? = null
  * reporting toggle is read from the app's own settings.
  */
 fun initializeWebSentry() {
-	if (!isSentryEnabled()) return
-	val env = webSentryEnv()
-	sentryBrowserInit(webSentryOptions(SENTRY_DSN, WEB_RELEASE, SENTRY_BUILD_COMMIT, ::censorWebText, env))
-	watchdog = Worker("hang-watchdog.js").also {
-		startWatchdog(it, SENTRY_DSN, WEB_RELEASE, SENTRY_BUILD_COMMIT, env)
+	if (isSentryEnabled()) setWebSentryEnabled(true)
+}
+
+internal actual fun setWebSentryEnabled(enabled: Boolean) {
+	val running = watchdog
+	if (enabled && running == null) {
+		val env = webSentryEnv()
+		sentryBrowserInit(webSentryOptions(SENTRY_DSN, WEB_RELEASE, SENTRY_BUILD_COMMIT, ::censorWebText, env))
+		watchdog = Worker("hang-watchdog.js").also {
+			startWatchdog(it, SENTRY_DSN, WEB_RELEASE, SENTRY_BUILD_COMMIT, env)
+		}
+	} else if (!enabled && running != null) {
+		sentryBrowserClose()
+		stopWatchdog(running)
+		watchdog = null
 	}
 }
 
@@ -152,10 +162,13 @@ private external fun webSentryOptions(
 @JsFun(
 	"""(worker, dsn, release, dist, env) => {
 	worker.postMessage({ config: { dsn, release, dist, environment: 'production' } });
-	setInterval(() => worker.postMessage({ beat: document.visibilityState === 'visible', env: env() }), 1000);
+	worker.beat = setInterval(() => worker.postMessage({ beat: document.visibilityState === 'visible', env: env() }), 1000);
 }"""
 )
 private external fun startWatchdog(worker: Worker, dsn: String, release: String, dist: String, env: JsAny)
+
+@JsFun("(worker) => { clearInterval(worker.beat); worker.terminate(); }")
+private external fun stopWatchdog(worker: Worker)
 
 @JsFun("(name, message, stack) => { const e = new Error(message); e.name = name; e.stack = stack; return e; }")
 private external fun jsError(name: String, message: String, stack: String): JsAny

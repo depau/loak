@@ -2,6 +2,8 @@ package eu.depau.loak.domain.manager
 
 import com.materialkolor.PaletteStyle
 import eu.depau.loak.domain.manager.base.BasePreferenceManager
+import eu.depau.loak.di.SENTRY_ENABLED_KEY
+import eu.depau.loak.di.setCrashReportingEnabled
 import eu.depau.loak.domain.models.DomainArtistListType
 import eu.depau.loak.domain.models.DomainPlaylistListType
 import eu.depau.loak.domain.models.settings.BottomBarCollapseMode
@@ -85,8 +87,14 @@ class PreferenceManager(
 	var customHeaders by piiPreference("", ::recordPiiHeaders)
 	/** Shown on other devices as where a synced queue came from; blank = the system name. */
 	var deviceName by piiPreference("", ::recordPiiIdentifier)
-	/** Send crash reports to Sentry; default on (opt-out). Read at boot by SentrySetup. */
-	var crashReportingEnabled by preference(true)
+	private var crashReportingPref by preference(SENTRY_ENABLED_KEY, true)
+	/** Send crash reports to Sentry; default on (opt-out). Takes effect immediately. */
+	var crashReportingEnabled: Boolean
+		get() = crashReportingPref
+		set(value) {
+			crashReportingPref = value
+			setCrashReportingEnabled(value)
+		}
 	var checkForUpdates by preference(true)
 	var explicitContentPlayback by preference(ExplicitContentPlayback.Allowed)
 	var autoFillQueue by preference(true)
