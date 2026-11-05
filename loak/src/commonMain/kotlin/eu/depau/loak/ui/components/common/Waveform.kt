@@ -28,13 +28,15 @@ fun Waveform(
 	isPlaying: Boolean
 ) {
 	val transition = rememberInfiniteTransition()
+	val limit by animateFloatAsState(if (isPlaying) 1f else .2f)
 	Row(
 		modifier = modifier.height(18.dp),
 		horizontalArrangement = Arrangement.spacedBy(2.dp),
 		verticalAlignment = Alignment.CenterVertically
 	) {
 		repeat(5) { index ->
-			val fraction by transition.animateFloat(
+			// paused bars rest at their floor: no endless animation asking for frames
+			val fraction = if (limit > .2f) transition.animateFloat(
 				initialValue = 0.2f,
 				targetValue = 1f,
 				animationSpec = infiniteRepeatable(
@@ -44,10 +46,7 @@ fun Waveform(
 					),
 					repeatMode = RepeatMode.Reverse
 				)
-			)
-			val limit by animateFloatAsState(
-				if (isPlaying) 1f else .2f
-			)
+			).value else .2f
 			Box(
 				modifier = Modifier
 					.width(3.dp)

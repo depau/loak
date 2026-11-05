@@ -55,6 +55,9 @@ fun MarqueeText(
 
 private const val MARQUEE_SCROLL_MS = 6000
 
+/** Back and forth this many times, then rest, so a still list stops drawing (as basicMarquee does). */
+private const val MARQUEE_CYCLES = 3
+
 @Composable
 private fun Marquee(
 	modifier: Modifier = Modifier,
@@ -67,7 +70,7 @@ private fun Marquee(
 	LaunchedEffect(scrollState.maxValue) {
 		if (scrollState.maxValue == 0) return@LaunchedEffect
 
-		while (true) {
+		repeat(MARQUEE_CYCLES) {
 			delay(1.seconds)
 
 			scrollState.animateScrollTo(
