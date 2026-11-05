@@ -1,6 +1,7 @@
 package eu.depau.loak.shared
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -449,6 +450,7 @@ class DesktopMediaPlayerViewModel(
 			scrobbleManager.onPlayStateChanged(true)
 			return true
 		} catch (e: Exception) {
+			if (e is CancellationException) throw e
 			Logger.e("DesktopMediaPlayerViewModel", "Failed to stream ${song.id}", e)
 			streamFailed = true
 			_uiState.update { it.copy(isPaused = true, isLoading = false) }
@@ -470,6 +472,7 @@ class DesktopMediaPlayerViewModel(
 			scrobbleManager.onPlayStateChanged(true)
 			return true
 		} catch (e: Exception) {
+			if (e is CancellationException) throw e
 			Logger.e("DesktopMediaPlayerViewModel", "Failed to play file $path", e)
 			streamFailed = true
 			_uiState.update { it.copy(isPaused = true, isLoading = false) }
