@@ -25,7 +25,9 @@ class PlayerStateRepository(
 			_state.value = value
 		} catch (ex: SerializationException) {
 			Logger.e("PlayerStateRepository", "failed to serialise state", ex)
-		} catch (ex: Exception) {
+		} catch (ex: Throwable) {
+			// not just Exception: on web a queue too long for localStorage's quota throws a
+			// JsException, which would end the collector that keeps saving the state
 			Logger.e("PlayerStateRepository", "failed to save state", ex)
 		}
 	}
