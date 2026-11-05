@@ -6,7 +6,6 @@ import io.sentry.protocol.SentryThread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertSame
 
 /** JVM-side checks that thread names and tags (hosts/IPs) are scrubbed before send. */
 class SentryJvmSanitizerTest {
@@ -43,28 +42,5 @@ class SentryJvmSanitizerTest {
 		}
 
 		assertNull(sanitizeJvmEvent(event))
-	}
-
-	@Test
-	fun dropsHandledAudioTimeoutOnly() {
-		val timeout = SentryEvent().apply {
-			exceptions = mutableListOf(
-				SentryException().apply {
-					type = "java.lang.IllegalStateException"
-					value = "the audio output is not responding"
-				}
-			)
-		}
-		val unexpected = SentryEvent().apply {
-			exceptions = mutableListOf(
-				SentryException().apply {
-					type = "java.lang.IllegalStateException"
-					value = "database is corrupt"
-				}
-			)
-		}
-
-		assertNull(sanitizeJvmEvent(timeout))
-		assertSame(unexpected, sanitizeJvmEvent(unexpected))
 	}
 }

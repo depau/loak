@@ -108,7 +108,7 @@ internal expect fun addWebSentryBreadcrumb(category: String, message: String?, d
  * True for exceptions that are expected at runtime and pollute Sentry: offline /
  * transient network failures, cancelled coroutines, unsupported media the player
  * already handles, the desktop hot-reload stale-continuation NoClassDefFoundError,
- * a handled desktop audio-output timeout, and the artist-missing-in-DB sentinel.
+ * and the artist-missing-in-DB sentinel.
  * Each one is already handled or logged locally; there is nothing actionable in reporting it.
  *
  * [type] is the exception class name as Sentry records it (fully-qualified for
@@ -138,9 +138,7 @@ internal fun isNoiseEvent(type: String?, value: String?): Boolean {
 	val v = value ?: return false
 	return (type == "java.io.IOException" && v.contains("SETTINGS preface")) ||
 		// desktop dev hot-reload only: a stale $...$N continuation class, never a real one
-		(type == "java.lang.NoClassDefFoundError" && v.contains("\$")) ||
-		(type.substringAfterLast('.') == "IllegalStateException" &&
-			v == "the audio output is not responding")
+		(type == "java.lang.NoClassDefFoundError" && v.contains("\$"))
 }
 
 /** For raw [Throwable] sources: adapt the class name into [isNoiseEvent]. */
