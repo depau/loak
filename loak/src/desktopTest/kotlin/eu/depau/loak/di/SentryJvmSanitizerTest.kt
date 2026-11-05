@@ -8,9 +8,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.BeforeTest
 
 /** JVM-side checks that thread names and tags (hosts/IPs) are scrubbed before send. */
 class SentryJvmSanitizerTest {
+
+	// other tests fill the global censor registry (any SessionManager or PreferenceManager does)
+	@BeforeTest
+	fun resetPii() = clearPiiForTests()
 
 	@Test
 	fun scrubsHostFromThreadNamesAndTags() {

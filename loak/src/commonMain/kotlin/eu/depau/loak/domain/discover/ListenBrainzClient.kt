@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.discover
 
+import eu.depau.loak.di.recordPiiIdentifier
 import eu.depau.loak.domain.history.RemoteListen
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
@@ -194,6 +195,8 @@ class ListenBrainzClient(engine: HttpClientEngine? = null) {
 	 */
 	suspend fun checkUser(username: String): Boolean = withContext(IoDispatcher) {
 		if (username.isBlank()) return@withContext false
+		// not saved yet, so not known to the Sentry censor until now
+		recordPiiIdentifier(username)
 		try {
 			client.get("$baseUrl/user/$username/playlists/createdfor") {
 				parameter("count", 1)

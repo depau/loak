@@ -33,6 +33,22 @@ abstract class BasePreferenceManager(
 
 	protected fun preference(defaultValue: String) = preference(null, defaultValue)
 
+	/**
+	 * A string setting the user typed that could leak into an error report: a server address,
+	 * account name, password, token or header. [record] gets every value it holds (the stored
+	 * one at startup, then each new one) to teach the Sentry censor, so it never depends on the
+	 * code path that first uses the value.
+	 */
+	protected fun piiPreference(defaultValue: String, record: (String) -> Unit) = PreferenceProvider(
+		key = null,
+		defaultValue = defaultValue,
+		getter = { key, default -> settings.getString(key, default).also(record) },
+		setter = { key, value ->
+			record(value)
+			settings.putString(key, value)
+		}
+	)
+
 	protected fun preference(
 		key: String?,
 		defaultValue: Boolean

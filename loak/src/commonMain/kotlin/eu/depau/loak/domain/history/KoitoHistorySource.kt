@@ -1,5 +1,7 @@
 package eu.depau.loak.domain.history
 
+import eu.depau.loak.di.recordPii
+import eu.depau.loak.di.recordPiiIdentifier
 import eu.depau.loak.domain.discover.USER_AGENT
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.util.IoDispatcher
@@ -80,6 +82,9 @@ class KoitoHistorySource(
 	 * one listen's page, which also says the total.
 	 */
 	suspend fun check(url: String, key: String): HistoryCheck = withContext(IoDispatcher) {
+		// not saved yet, so not known to the Sentry censor until now
+		recordPii(url)
+		recordPiiIdentifier(key)
 		val response = try {
 			client.get("${url.trim().trimEnd('/')}/apis/web/v1/listens") {
 				header(HttpHeaders.Authorization, "Token ${key.trim()}")

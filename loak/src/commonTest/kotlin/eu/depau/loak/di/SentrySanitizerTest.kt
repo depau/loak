@@ -1,5 +1,8 @@
 package eu.depau.loak.di
 
+import eu.depau.loak.domain.history.InMemorySettings
+import com.russhwolf.settings.set
+import eu.depau.loak.domain.manager.PreferenceManager
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -123,7 +126,7 @@ class SentrySanitizerTest {
 
 	@Test
 	fun recordPiiIgnoresJunk() {
-		recordPii("", "no dots", "https://")
+		listOf("", "no dots", "https://").forEach(::recordPii)
 		assertTrue(sentryPiiSnapshot().isEmpty())
 	}
 
@@ -143,6 +146,17 @@ class SentrySanitizerTest {
 		// so it can't mangle unrelated words ("rob" vs "Robert")
 		recordPiiIdentifier("rob")
 		assertTrue(sentryPiiSnapshot().isEmpty())
+	}
+
+	@Test
+	fun piiSettingsTeachTheCensorTheirStoredAndNewValues() {
+		val settings = InMemorySettings()
+		settings["lastFmUsername"] = "scrobbler-jane"
+		val prefs = PreferenceManager(settings)
+		// a value saved in an earlier run is known from startup, before any code reads it
+		assertTrue("scrobbler-jane" in sentryPiiSnapshot())
+		prefs.koitoUrl = "https://koito.home.example"
+		assertTrue("koito.home.example" in sentryPiiSnapshot())
 	}
 
 	// endregion

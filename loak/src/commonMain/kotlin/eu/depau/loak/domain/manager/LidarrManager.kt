@@ -1,7 +1,6 @@
 package eu.depau.loak.domain.manager
 
 import eu.depau.loak.di.PlatformType
-import eu.depau.loak.di.recordPii
 import eu.depau.loak.domain.discover.DiscoverAlbum
 import eu.depau.loak.domain.discover.DiscoverArtist
 import eu.depau.loak.domain.discover.DiscoverSong
@@ -401,8 +400,6 @@ class LidarrManager(
 		val newUrl = url.trim().trimEnd('/')
 		preferenceManager.lidarrUrl = newUrl
 		preferenceManager.lidarrApiKey = apiKey.trim()
-		// its errors go to Sentry too; censor its server address up front
-		recordPii(newUrl)
 		return try {
 			val found = refresh() ?: throw LidarrException("No answer from Lidarr")
 			info.value = found

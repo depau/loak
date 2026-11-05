@@ -1,5 +1,6 @@
 package eu.depau.loak.domain.history
 
+import eu.depau.loak.di.recordPiiIdentifier
 import eu.depau.loak.domain.discover.USER_AGENT
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.util.IoDispatcher
@@ -84,6 +85,8 @@ class LastFmHistorySource(
 
 	/** Whether Last.fm knows [username], and how many scrobbles it has, before saving it. */
 	suspend fun check(username: String): HistoryCheck = withContext(IoDispatcher) {
+		// not saved yet, so not known to the Sentry censor until now
+		recordPiiIdentifier(username)
 		val response = try {
 			client.get(ENDPOINT) {
 				parameter("method", "user.getrecenttracks")

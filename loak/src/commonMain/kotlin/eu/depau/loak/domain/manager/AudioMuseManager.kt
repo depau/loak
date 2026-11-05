@@ -1,6 +1,5 @@
 package eu.depau.loak.domain.manager
 
-import eu.depau.loak.di.recordPii
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
 import eu.depau.loak.util.LoakHttpClient
@@ -106,8 +105,6 @@ class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 		preferenceManager.audioMuseUsername = username.trim()
 		preferenceManager.audioMusePassword = password
 		preferenceManager.audioMuseToken = token.trim()
-		// its errors go to Sentry too; censor its server address up front
-		recordPii(url.trim().trimEnd('/'))
 		signedIn = false
 		return try {
 			refresh() ?: throw AudioMuseException("No answer from AudioMuse-AI")

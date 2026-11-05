@@ -18,7 +18,7 @@ import kotlin.test.assertNull
  * An in-memory [Settings]: the no-arg one is a persistent store shared with every other test
  * (and with the machine's real one on the JVM).
  */
-private class InMemorySettings : Settings {
+internal class InMemorySettings : Settings {
 	private val values = mutableMapOf<String, Any>()
 
 	override val keys: Set<String> get() = values.keys

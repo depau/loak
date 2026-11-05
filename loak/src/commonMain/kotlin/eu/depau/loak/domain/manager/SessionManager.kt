@@ -107,7 +107,14 @@ class SessionManager(
 				}
 			}
 		}
-	)
+	).also {
+		// every session's client is made here: teach the Sentry censor its server address,
+		// credentials and the device name it reports, before any request can fail with them
+		recordPii(instanceUrl)
+		recordPiiIdentifier(username)
+		recordPiiIdentifier(password)
+		recordPiiIdentifier(deviceName)
+	}
 
 	suspend fun login(
 		instanceUrl: String,
@@ -135,13 +142,6 @@ class SessionManager(
 		settings["instanceUrl"] = instanceUrl
 		settings["username"] = username
 		settings["password"] = password
-
-		// teach the layer-2 censor this account's real server identifiers ahead
-		// of any error the session may produce
-		recordPii(instanceUrl)
-		// same for the account name: a login error / session loop must never
-		// leave the username in Sentry (the bucket exact-matches it, breach-flagged)
-		recordPiiIdentifier(username)
 
 		api = client
 		isLoggedIn.value = true
@@ -195,7 +195,6 @@ class SessionManager(
 	): User? {
 		mutex.withLock {
 			if (username.isNotBlank()) {
-				recordPii(instanceUrl)
 				currentUser = client.getUser(username)
 				return currentUser
 			}

@@ -12,9 +12,10 @@ import kotlin.concurrent.atomics.AtomicReference
  * `Unable to resolve host "…"` message, and credential-style key=value pairs.
  * It runs on every string that leaves the app at the send boundary.
  *
- * Layer 2 — exact-match safety net on the user's *actual* identifiers. Any
- * server URL/hostname the app talks to this session ([recordPii], seeded from
- * [eu.depau.loak.domain.manager.SessionManager]) that survives layer 1 is
+ * Layer 2 — exact-match safety net on the user's *actual* identifiers. Every
+ * server address, account, secret or header the user gave the app ([recordPii],
+ * [recordPiiIdentifier], seeded by the settings holding them — `piiPreference` —
+ * and by the code using one before it's saved) that survives layer 1 is
  * redacted verbatim, the shipping event is tagged `sentry.censor-breach=1`,
  * and a one-flight alert is fired so a censor bug can't leak silently again.
  * Layer 1's bare-IP regex already scrubs resolved addresses in every known
@@ -113,25 +114,29 @@ private val piiSnapshot = AtomicReference<Set<String>>(emptySet())
 
 private val reportedSnapshot = AtomicReference<Set<String>>(emptySet())
 
-/**
- * Seeds layer 2 with the server addresses the app talks to. Call once per
- * server/URL the app may print in an error (Subsonic instance, AudioMuse…).
- * Parses the host out of URLs; blank or dot-less values are ignored.
- */
-internal fun recordPii(vararg values: String) {
-	val next = piiSnapshot.load().toMutableSet()
-	for (value in values) {
-		val url = value.trim()
-		if (url.isBlank() || url.length < 4 || !url.contains(".")) continue
-		next += url.lowercase()
-		val host = url.substringAfter("://", url).substringBefore('/').substringBefore(':').lowercase()
-		if (host.length >= 4 && host.contains(".")) next += host
+/** Adds [values] to the PII snapshot; a no-op (no copy) when it already holds them all. */
+private fun addPii(values: Collection<String>) {
+	while (true) {
+		val current = piiSnapshot.load()
+		if (current.containsAll(values)) return
+		if (piiSnapshot.compareAndSet(current, current + values)) return
 	}
-	piiSnapshot.store(next)
 }
 
 /**
- * Seeds layer 2 with an arbitrary user identifier (username, account name…)
+ * Seeds layer 2 with a server address the user configured (Subsonic instance, AudioMuse…).
+ * Parses the host out of URLs; blank or dot-less values are ignored. Cheap when already known:
+ * settings call it on every value they hold (see `piiPreference`).
+ */
+internal fun recordPii(value: String) {
+	val url = value.trim().trimEnd('/')
+	if (url.isBlank() || url.length < 4 || !url.contains(".")) return
+	val host = url.substringAfter("://", url).substringBefore('/').substringBefore(':').lowercase()
+	addPii(listOfNotNull(url.lowercase(), host.takeIf { it.length >= 4 && it.contains(".") }))
+}
+
+/**
+ * Seeds layer 2 with an arbitrary user identifier (username, account name, password, token…)
  * that must never leave in an event. Unlike [recordPii] (server addresses)
  * identifiers don't have to look like hosts, so the dot check is skipped —
  * a short, dot-less username shouldn't be sendable just because it has no
@@ -140,10 +145,12 @@ internal fun recordPii(vararg values: String) {
  */
 internal fun recordPiiIdentifier(value: String) {
 	val trimmed = value.trim().lowercase()
-	if (trimmed.length < 4) return
-	val next = piiSnapshot.load().toMutableSet()
-	next += trimmed
-	piiSnapshot.store(next)
+	if (trimmed.length >= 4) addPii(listOf(trimmed))
+}
+
+/** Seeds layer 2 with the values of custom HTTP headers, one `Key:Value` per line (auth tokens…). */
+internal fun recordPiiHeaders(lines: String) {
+	lines.lineSequence().forEach { recordPiiIdentifier(it.substringAfter(':', "")) }
 }
 
 internal fun clearPiiForTests() {

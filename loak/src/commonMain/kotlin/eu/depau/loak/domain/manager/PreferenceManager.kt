@@ -21,6 +21,9 @@ import eu.depau.loak.domain.models.settings.StreamingQuality
 import eu.depau.loak.domain.models.settings.Theme
 import eu.depau.loak.domain.models.settings.ThemeMode
 import com.russhwolf.settings.Settings as KmpSettings
+import eu.depau.loak.di.recordPii
+import eu.depau.loak.di.recordPiiHeaders
+import eu.depau.loak.di.recordPiiIdentifier
 
 class PreferenceManager(
 	settings: KmpSettings
@@ -79,9 +82,9 @@ class PreferenceManager(
 	var nowPlayingSongInfo by preference(true)
 	var nowPlayingSliderStyle by preference(NowPlayingSliderStyle.Yoyo)
 	var nowPlayingCoverArtAction by preference(CoverArtTapAction.TogglePlayback)
-	var customHeaders by preference("")
+	var customHeaders by piiPreference("", ::recordPiiHeaders)
 	/** Shown on other devices as where a synced queue came from; blank = the system name. */
-	var deviceName by preference("")
+	var deviceName by piiPreference("", ::recordPiiIdentifier)
 	/** Send crash reports to Sentry; default on (opt-out). Read at boot by SentrySetup. */
 	var crashReportingEnabled by preference(true)
 	var checkForUpdates by preference(true)
@@ -122,20 +125,20 @@ class PreferenceManager(
 	val integrationsSeen by preference(0)
 
 	// AudioMuse-AI's own API; an empty address means not connected
-	var audioMuseUrl by preference("")
-	var audioMuseUsername by preference("")
-	var audioMusePassword by preference("")
-	var audioMuseToken by preference("")
+	var audioMuseUrl by piiPreference("", ::recordPii)
+	var audioMuseUsername by piiPreference("", ::recordPiiIdentifier)
+	var audioMusePassword by piiPreference("", ::recordPiiIdentifier)
+	var audioMuseToken by piiPreference("", ::recordPiiIdentifier)
 	/** Extra HTTP headers for AudioMuse-AI calls, one "Key:Value" per line. */
-	var audioMuseCustomHeaders by preference("")
+	var audioMuseCustomHeaders by piiPreference("", ::recordPiiHeaders)
 	/** Also send the server's customHeaders with AudioMuse-AI calls, on top of audioMuseCustomHeaders. */
 	var audioMuseInheritServerHeaders by preference(false)
 
 	// Lidarr's own API; an empty address means not connected
-	var lidarrUrl by preference("")
-	var lidarrApiKey by preference("")
+	var lidarrUrl by piiPreference("", ::recordPii)
+	var lidarrApiKey by piiPreference("", ::recordPiiIdentifier)
 	/** Extra HTTP headers for Lidarr calls, one "Key:Value" per line. */
-	var lidarrCustomHeaders by preference("")
+	var lidarrCustomHeaders by piiPreference("", ::recordPiiHeaders)
 	/** Also send the server's customHeaders with Lidarr calls, on top of lidarrCustomHeaders. */
 	var lidarrInheritServerHeaders by preference(false)
 	/** The Lidarr root folder and quality profile picked last time; ""/-1 = not chosen yet. */
@@ -154,7 +157,7 @@ class PreferenceManager(
 	var discoverChartCountry by preference("")
 
 	/** ListenBrainz username for "Made for you" playlists; "" = not set. */
-	var listenBrainzUsername by preference("")
+	var listenBrainzUsername by piiPreference("", ::recordPiiIdentifier)
 
 	/**
 	 * Where Lo'ak reads listening history from beyond this device: "listenbrainz", "koito",
@@ -163,11 +166,11 @@ class PreferenceManager(
 	var listeningHistorySource by preference("")
 
 	/** Koito instance base URL (e.g. `https://koito.example.org`) and its API key; "" = not set. */
-	var koitoUrl by preference("")
-	var koitoApiKey by preference("")
+	var koitoUrl by piiPreference("", ::recordPii)
+	var koitoApiKey by piiPreference("", ::recordPiiIdentifier)
 
 	/** Last.fm username to read scrobbles from; "" = not set. */
-	var lastFmUsername by preference("")
+	var lastFmUsername by piiPreference("", ::recordPiiIdentifier)
 
 	/**
 	 * How long it takes a song's weight in Quick picks to halve: the "cooling" knob. A long
