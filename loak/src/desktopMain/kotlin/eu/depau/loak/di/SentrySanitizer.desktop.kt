@@ -38,7 +38,7 @@ internal actual fun registerJvmSentrySanitizer() {
 	// never tag events with the host/LAN IP (see SentrySetup initializeSentry)
 	options.setAttachServerName(false)
 	options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, _ ->
-		sanitizeJvmEvent(event)
+		sanitizeJvmEvent(event)?.also(::addDesktopContext)
 	}
 	options.beforeBreadcrumb = io.sentry.SentryOptions.BeforeBreadcrumbCallback { breadcrumb, _ ->
 		sanitizeJvmBreadcrumb(breadcrumb)
