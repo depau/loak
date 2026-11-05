@@ -3,8 +3,10 @@ package eu.depau.loak.di
 import io.sentry.SentryEvent
 import io.sentry.protocol.SentryException
 import io.sentry.protocol.SentryThread
+import io.sentry.protocol.User
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /** JVM-side checks that thread names and tags (hosts/IPs) are scrubbed before send. */
@@ -25,6 +27,17 @@ class SentryJvmSanitizerTest {
 		assertEquals("main", event.threads?.get(1)?.name)
 		assertEquals("[REDACTED_HOST]", event.tags?.get("server_name"))
 		assertEquals("clean", event.tags?.get("device.state"))
+	}
+
+	@Test
+	fun blanksLocationSoSentryCantGeolocateTheSender() {
+		val event = SentryEvent().apply { user = User().apply { id = "install-id" } }
+		sanitizeJvmEvent(event)
+		// a non-null geo stops Sentry deriving the sender's city from its IP address
+		assertNotNull(event.user?.geo)
+		assertEquals("install-id", event.user?.id)
+		// events without a user get one just for the blank location
+		assertNotNull(SentryEvent().also(::sanitizeJvmEvent).user?.geo)
 	}
 
 	@Test

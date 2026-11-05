@@ -6,6 +6,8 @@ import io.sentry.Sentry
 import io.sentry.SentryEvent
 import io.sentry.SpanStatus
 import io.sentry.protocol.Message
+import io.sentry.protocol.Geo
+import io.sentry.protocol.User
 
 /**
  * Desktop (JVM) Sentry sanitizer.
@@ -91,6 +93,9 @@ internal fun sanitizeJvmEvent(event: SentryEvent): SentryEvent? {
 	event.tags?.forEach { (key, value) ->
 		if (value != null) event.setTag(key, scrub(value))
 	}
+	// Sentry geolocates every event from the sender's IP address, sendDefaultPii or
+	// not, unless the event already has a location: an empty one keeps the city out.
+	event.user = (event.user ?: User()).apply { geo = Geo() }
 	if (breached.isNotEmpty()) {
 		// layer 2 had to scrub a real identifier: flag the shipping event and alert
 		event.setTag(CENSOR_BREACH_TAG, "1")

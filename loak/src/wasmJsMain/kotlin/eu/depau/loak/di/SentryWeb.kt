@@ -69,14 +69,17 @@ private fun censorWebText(raw: String): String =
 	"""(dsn, release, dist, censor) => ({
 	dsn, release, dist,
 	environment: 'production',
-	// No PII (v11's replacement for sendDefaultPii): no IP address or the city
-	// derived from it, no cookies, headers or URL query params.
+	// No PII (v11's replacement for sendDefaultPii): no IP address, cookies,
+	// headers or URL query params.
 	dataCollection: { userInfo: false, cookies: false, httpHeaders: false, urlQueryParams: false },
 	// Only addSentryBreadcrumb's crumbs: the automatic ones record console
 	// lines, fetch URLs (server address, signed auth params) and page URLs.
 	beforeBreadcrumb: (crumb, hint) => (hint && hint.loak ? crumb : null),
 	beforeSend: (event) => {
 		delete event.request; // the page URL
+		// Sentry geolocates every event from the sender's IP address unless it
+		// already has a location: an empty one keeps the city out.
+		event.user = Object.assign(event.user || {}, { geo: {} });
 		if (typeof event.message === 'string') event.message = censor(event.message);
 		for (const e of (event.exception && event.exception.values) || []) {
 			if (e.value) e.value = censor(e.value);

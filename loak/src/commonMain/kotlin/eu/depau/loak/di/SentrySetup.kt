@@ -61,8 +61,10 @@ fun initializeSentry(release: String? = null) {
 		// Compose Multiplatform on Apple targets: unhandled Kotlin exceptions can
 		// otherwise surface as generic C++ crashes instead of useful stack traces.
 		options.enableUnhandledCppExceptionMonitoring = false
-		// No PII: with it on, Sentry stores each sender's IP address (and a city derived from
-		// it) on every event. Android still tags events with the SDK's random per-install id.
+		// No PII: with it on, Sentry stores each sender's IP address on every event. It still
+		// geolocates the sender's city from it; the native beforeSends blank that (see
+		// sanitizeJvmEvent, SentryWeb). Android still tags events with the SDK's random
+		// per-install id.
 		options.sendDefaultPii = false
 		// No HTTP client errors either: on Apple (since 0.29) they'd report the user's server
 		// answering 5xx, its full request URL (server, username, auth token) included.

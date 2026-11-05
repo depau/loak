@@ -75,7 +75,9 @@ function report(blockedMs) {
 		tags: { 'hang.screen': screen },
 		fingerprint: ['web-app-hang', screen],
 		breadcrumbs: crumbs,
-		// no PII: never let Sentry derive the sender's IP address
+		// no PII: never let Sentry derive the sender's IP address, nor the city
+		// it geolocates from it unless the event already has a location
+		user: { geo: {} },
 		sdk: { name: 'loak.web.hang-watchdog', version: '1', settings: { infer_ip: 'never' } }
 	};
 	var body = JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
