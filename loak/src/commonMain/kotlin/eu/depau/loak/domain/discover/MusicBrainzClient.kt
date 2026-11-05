@@ -1,7 +1,7 @@
 package eu.depau.loak.domain.discover
 
 import eu.depau.loak.util.IoDispatcher
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -41,7 +41,7 @@ internal const val USER_AGENT = "Lo'ak/1.0.0 ( https://github.com/depau/loak )"
  */
 class MusicBrainzClient {
 	private val json = Json { ignoreUnknownKeys = true }
-	private val client = HttpClient()
+	private val client = LoakHttpClient()
 	private val baseUrl = "https://musicbrainz.org/ws/2"
 
 	private val rateLimitMutex = Mutex()

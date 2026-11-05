@@ -3,7 +3,7 @@ package eu.depau.loak.domain.discover
 import eu.depau.loak.domain.history.RemoteListen
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.defaultRequest
@@ -156,8 +156,7 @@ fun createdForPlaylistOf(item: JsonObject): ListenBrainzPlaylist? {
  */
 class ListenBrainzClient(engine: HttpClientEngine? = null) {
 	private val json = Json { ignoreUnknownKeys = true }
-	private val client = engine?.let { HttpClient(it) { userAgentConfig() } }
-		?: HttpClient { userAgentConfig() }
+	private val client = LoakHttpClient(engine) { userAgentConfig() }
 	private val baseUrl = "https://api.listenbrainz.org/1"
 	private val labsBaseUrl = "https://labs.api.listenbrainz.org"
 

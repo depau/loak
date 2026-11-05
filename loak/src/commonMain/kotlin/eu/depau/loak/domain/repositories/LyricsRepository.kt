@@ -1,7 +1,7 @@
 package eu.depau.loak.domain.repositories
 
 import com.russhwolf.settings.Settings
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
@@ -61,8 +61,7 @@ class LyricsRepository(
 	engine: HttpClientEngine? = null
 ) {
 
-	private val client = engine?.let { HttpClient(it) { timeoutConfig() } }
-		?: HttpClient { timeoutConfig() }
+	private val client = LoakHttpClient(engine) { timeoutConfig() }
 
 	private fun HttpClientConfig<*>.timeoutConfig() {
 		install(HttpTimeout) {

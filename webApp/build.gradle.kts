@@ -34,6 +34,8 @@ kotlin {
 			implementation(project(":loakUiTest"))
 			implementation(libs.kotlinx.browser)
 			implementation(libs.bundles.androidx.lifecycle)
+			implementation(libs.ktor.client.mock)
+			implementation(libs.kotlinx.coroutines.test)
 		}
 	}
 }

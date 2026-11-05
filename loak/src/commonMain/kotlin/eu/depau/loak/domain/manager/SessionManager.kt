@@ -5,6 +5,7 @@ import eu.depau.loak.di.recordPii
 import eu.depau.loak.di.recordPiiIdentifier
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
+import eu.depau.loak.util.fetchErrorsAsExceptions
 import eu.depau.loak.util.systemDeviceName
 
 import io.ktor.client.engine.HttpClientEngine
@@ -93,6 +94,7 @@ class SessionManager(
 		// null HTTP engine resolves to Ktor's platform default; tests inject a MockEngine here
 		engine = httpEngine,
 		clientConfig = {
+			fetchErrorsAsExceptions()
 			install(UserAgent) {
 				agent = CLIENT_NAME
 			}

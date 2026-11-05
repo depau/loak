@@ -29,7 +29,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import eu.depau.loak.ui.theme.ContinuousCapsule
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
@@ -129,7 +129,7 @@ class ChangelogViewModel(
 	val release: StateFlow<Release?>
 		field = MutableStateFlow(null)
 
-	private val updateClient = HttpClient {
+	private val updateClient = LoakHttpClient {
 		install(ContentNegotiation) {
 			json(Json { ignoreUnknownKeys = true })
 		}

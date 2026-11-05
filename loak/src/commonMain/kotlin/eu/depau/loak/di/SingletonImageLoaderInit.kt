@@ -6,7 +6,7 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.serviceLoaderEnabled
 import eu.depau.loak.domain.manager.NetworkStatsManager
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import coil3.PlatformContext as CoilPlatformContext
 
 /**
@@ -27,7 +27,7 @@ fun initializeSingletonImageLoader(
 			add(coverArtInterceptor)
 			// ponytail: getStaticImageLoader's (blend background) traffic isn't counted
 			add(KtorNetworkFetcherFactory(httpClient = {
-				HttpClient { install(networkStatsManager.ktorPlugin) }
+				LoakHttpClient { install(networkStatsManager.ktorPlugin) }
 			}))
 		}
 		.crossfade(true)

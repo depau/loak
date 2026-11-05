@@ -4,7 +4,7 @@ import eu.depau.loak.domain.discover.USER_AGENT
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.defaultRequest
@@ -64,8 +64,7 @@ class KoitoHistorySource(
 ) : RemoteHistorySource {
 	private val json = Json { ignoreUnknownKeys = true }
 
-	private val client = engine?.let { HttpClient(it) { userAgentConfig() } }
-		?: HttpClient { userAgentConfig() }
+	private val client = LoakHttpClient(engine) { userAgentConfig() }
 
 	private fun HttpClientConfig<*>.userAgentConfig() {
 		defaultRequest { header("User-Agent", USER_AGENT) }

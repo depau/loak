@@ -279,6 +279,8 @@ For UI changes: **manually verify on different themes and form factors and inclu
 
 14. **Swift sees only the Kotlin listed in `loak/objc-entry-points.txt`.** The iOS framework exports just those declarations (and the types their signatures use) to ObjC, through the `objcExportEntryPointsPath` binary option, instead of every public declaration of `:loak`, which made a 57k-line header and kept all that code alive through the release link. Before calling another Kotlin declaration from `iosApp`'s Swift, add it there (`function <fully qualified name>`).
 
+15. **Make Ktor clients with `LoakHttpClient(...)`, never `HttpClient(...)`.** On web a request that can't reach the server fails with a `kotlin.Error`/`JsError`, which is not an `Exception`: it slips past every `catch (e: Exception)`, and a coroutine started from composition (`LaunchedEffect`, `produceState`) that dies of it shuts Compose's recomposer down, so the whole page freezes until reloaded (LOAK-2V). `LoakHttpClient` (`util/HttpClients.kt`) rethrows those as `FetchException` (an `IOException`); a client built elsewhere (the Subsonic one) installs `fetchErrorsAsExceptions()`. More generally, anything JS throws on web (e.g. a full `localStorage`) is a `JsException`, also not an `Exception`.
+
 ## Quick orientation questions
 
 - *Where do I add a new screen?* → create `ui/screens/<feature>/…`, add a `Screen` variant in `ui/navigation/Screen.kt`, then register it in the `entryProvider` in `App.kt` (+ ViewModel in `di/ViewModelModule.kt`).

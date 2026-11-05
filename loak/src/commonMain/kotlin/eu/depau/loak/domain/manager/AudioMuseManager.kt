@@ -3,7 +3,7 @@ package eu.depau.loak.domain.manager
 import eu.depau.loak.di.recordPii
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.HttpRequestBuilder
@@ -82,7 +82,7 @@ class AudioMuseException(message: String, val status: HttpStatusCode? = null) : 
 class AudioMuseManager(private val preferenceManager: PreferenceManager) {
 	private val json = Json { ignoreUnknownKeys = true }
 	private val mutex = Mutex()
-	private val client = HttpClient { install(HttpCookies) { storage = AcceptAllCookiesStorage() } }
+	private val client = LoakHttpClient { install(HttpCookies) { storage = AcceptAllCookiesStorage() } }
 
 	val info: StateFlow<AudioMuseInfo?>
 		field = MutableStateFlow<AudioMuseInfo?>(null)

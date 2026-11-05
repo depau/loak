@@ -1,7 +1,7 @@
 package eu.depau.loak.domain.discover
 
 import eu.depau.loak.util.IoDispatcher
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
@@ -182,7 +182,7 @@ internal fun previewMatch(
  */
 class DeezerClient {
 	private val json = Json { ignoreUnknownKeys = true }
-	private val client = HttpClient()
+	private val client = LoakHttpClient()
 	private val baseUrl = "https://api.deezer.com"
 
 	suspend fun search(query: String): List<DiscoverSong> =

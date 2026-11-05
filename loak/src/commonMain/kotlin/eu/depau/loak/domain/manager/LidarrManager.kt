@@ -13,7 +13,7 @@ import eu.depau.loak.domain.models.DomainArtist
 import eu.depau.loak.domain.models.DomainSong
 import eu.depau.loak.util.IoDispatcher
 import eu.depau.loak.util.Logger
-import io.ktor.client.HttpClient
+import eu.depau.loak.util.LoakHttpClient
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.prepareRequest
 import io.ktor.client.request.header
@@ -368,7 +368,7 @@ class LidarrManager(
 	private val libraryMatcher: LibraryMatcher
 ) {
 	private val json = Json { ignoreUnknownKeys = true }
-	private val client = HttpClient()
+	private val client = LoakHttpClient()
 
 	val info: StateFlow<LidarrInfo?>
 		field = MutableStateFlow<LidarrInfo?>(null)

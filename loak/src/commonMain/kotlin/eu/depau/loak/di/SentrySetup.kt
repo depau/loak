@@ -133,6 +133,7 @@ internal fun isNoiseEvent(type: String?, value: String?): Boolean {
 		"SocketTimeoutException",
 		"UnknownHostException",
 		"SocketException",
+		"FetchException",
 		"ClosedByteChannelException",
 		"UnsupportedAudioFileException",
 		"ArtistNotFoundException" -> return true
