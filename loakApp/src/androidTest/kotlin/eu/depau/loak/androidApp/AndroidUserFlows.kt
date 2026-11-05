@@ -14,6 +14,7 @@ import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.uitest.LargeLibraryFlows
 import eu.depau.loak.uitest.UserFlows
 import org.koin.mp.KoinPlatform
+import org.junit.Assume.assumeTrue
 import org.junit.runner.RunWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -40,6 +41,13 @@ class AndroidUserFlows : UserFlows() {
 class AndroidLargeLibraryFlows : LargeLibraryFlows() {
 	// the large library's first sync alone can take a minute on an emulator
 	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runAndroidApp(flow, 10.minutes)
+
+	// the app runs in the test's own process: a real restart would end the test with it
+	override suspend fun ComposeUiTest.restartApp() =
+		assumeTrue("restarting the app needs a new process", false)
+
+	override fun queue() = KoinPlatform.getKoin().get<MediaPlayerViewModel>().uiState.value
+		.let { it.queue.size to it.currentSong?.title }
 }
 
 @OptIn(ExperimentalTestApi::class)

@@ -23,6 +23,12 @@ abstract class LargeLibraryFlows {
 	/** Starts the real app as a fresh install, runs [flow] against it, then tears it down. */
 	abstract fun runApp(flow: suspend ComposeUiTest.() -> Unit): TestResult
 
+	/** Quits the app, keeping its data, and starts it again: what its next launch finds. */
+	protected abstract suspend fun ComposeUiTest.restartApp()
+
+	/** The player's queue: how many songs, and the current one's title. */
+	protected abstract fun queue(): Pair<Int, String?>
+
 	/** Logs in to the large library's server and waits for its first sync to bring it all in. */
 	private suspend fun ComposeUiTest.logInAndSync() {
 		logIn(TestServer.largeUrl)
@@ -65,5 +71,21 @@ abstract class LargeLibraryFlows {
 		openTab("Playlists")
 		click("Big Mix")
 		waitForText("5000 songs")
+	}
+
+	@Test
+	fun bigMixSurvivesARestart() = runApp {
+		logInAndSync()
+		openTab("Playlists")
+		click("Big Mix")
+		waitForText("5000 songs")
+		click(text("Play") and hasClickAction())
+		await({ "Big Mix never filled the queue: ${queue()}" }) { queue().first == 5000 }
+		// a fixture song is short: it mustn't end and move the queue on
+		pauseIfPlaying()
+		val saved = queue()
+		restartApp()
+		await({ "The queue came back as ${queue()}, not $saved" }) { queue() == saved }
+		waitFor(text(saved.second!!) and !hasAnyAncestor(hasScrollToNodeAction()))
 	}
 }

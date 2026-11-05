@@ -2,6 +2,11 @@
 
 package eu.depau.loak.desktopapp
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -9,6 +14,8 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import eu.depau.loak.App
 import eu.depau.loak.data.database.CacheDatabase
 import eu.depau.loak.data.database.DownloadDatabase
@@ -49,6 +56,15 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 		runDesktopApp(width, height, "${this::class.simpleName}.${name.methodName}", { player = it }, flow)
 }
 
+/** The running flow's [restartDesktopApp]. */
+private var restart: (suspend ComposeUiTest.() -> Unit)? = null
+
+/**
+ * Quits the app [runDesktopApp] runs, keeping its data, and starts it again: what the next
+ * launch finds. The window stays; the app inside it is a new one.
+ */
+suspend fun ComposeUiTest.restartDesktopApp() = restart!!()
+
 /**
  * Starts the real desktop app as a fresh install in a [width]×[height] window, muted, runs [flow]
  * against it and tears it down. A failed assertion leaves screenshots named [failureName].
@@ -65,12 +81,24 @@ fun runDesktopApp(
 	// it, from before the app starts until the test has disposed the composition
 	Dispatchers.setMain(Dispatchers.Swing)
 	stopKoin() // after a flow that timed out, its app is still around
-	val koin = initKoin()
-	val player = koin.koin.get<MediaPlayerViewModel>().also(onPlayer)
-	player.setVolume(0f) // flows play songs: keep them silent
+	var app = DesktopApp(onPlayer)
 	try {
 		runDesktopComposeUiTest(width, height) {
-			setContent { App() }
+			var screens by mutableStateOf<ViewModelStore?>(app.screens)
+			setContent {
+				// the screens' ViewModels in the app's own store, so a restarted app gets new ones
+				screens?.let { store ->
+					val owner = remember(store) { object : ViewModelStoreOwner { override val viewModelStore = store } }
+					CompositionLocalProvider(LocalViewModelStoreOwner provides owner) { App() }
+				}
+			}
+			restart = {
+				screens = null
+				waitForIdle() // the app leaves the window, as when it closes: it saves its state
+				app.stop()
+				app = DesktopApp(onPlayer)
+				screens = app.screens
+			}
 			try {
 				flow()
 			} catch (e: AssertionError) {
@@ -80,6 +108,25 @@ fun runDesktopApp(
 			}
 		}
 	} finally {
+		restart = null
+		app.stop()
+		Dispatchers.resetMain()
+		// a fresh install for the next flow
+		desktopDataDir.listFiles()?.forEach { it.deleteRecursively() }
+	}
+}
+
+/** The app's Koin graph, started (muted) on whatever data the last one left. */
+private class DesktopApp(onPlayer: (MediaPlayerViewModel) -> Unit) {
+	private val koin = initKoin()
+	private val player = koin.koin.get<MediaPlayerViewModel>().also(onPlayer)
+	val screens = ViewModelStore()
+
+	init {
+		player.setVolume(0f) // flows play songs: keep them silent
+	}
+
+	fun stop() {
 		// the player is a Koin singleton, never cleared outside tests: stop its
 		// coroutines first, and resolve the databases before Koin shuts down (they
 		// are plain `single`s, not closed by onClose). stopKoin() then runs every
@@ -89,6 +136,7 @@ fun runDesktopApp(
 		// uncaught handler
 		val cacheDatabase = runCatching { koin.koin.get<CacheDatabase>() }.getOrNull()
 		val downloadDatabase = runCatching { koin.koin.get<DownloadDatabase>() }.getOrNull()
+		screens.clear()
 		ViewModelStore().apply { put("player", player); clear() }
 		stopKoin()
 		// the screens' cancelled queries can still be running (a large library's take a while):
@@ -96,9 +144,6 @@ fun runDesktopApp(
 		awaitNoDatabaseWork()
 		runCatching { cacheDatabase?.close() }
 		runCatching { downloadDatabase?.close() }
-		Dispatchers.resetMain()
-		// a fresh install for the next flow
-		desktopDataDir.listFiles()?.forEach { it.deleteRecursively() }
 	}
 }
 
@@ -142,6 +187,12 @@ class DesktopLargeLibraryFlows : LargeLibraryFlows() {
 	@get:Rule
 	val timeout: Timeout = Timeout.seconds(600)
 
+	private var player: MediaPlayerViewModel? = null
+
 	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) =
-		runDesktopApp(1280, 800, "${this::class.simpleName}.${name.methodName}", flow = flow)
+		runDesktopApp(1280, 800, "${this::class.simpleName}.${name.methodName}", { player = it }, flow)
+
+	override suspend fun ComposeUiTest.restartApp() = restartDesktopApp()
+
+	override fun queue() = player!!.uiState.value.let { it.queue.size to it.currentSong?.title }
 }
