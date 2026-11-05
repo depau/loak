@@ -1,12 +1,15 @@
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URI
+import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
@@ -17,12 +20,18 @@ import java.util.zip.ZipInputStream
  * with one admin user. Started on first use by any test task that needs it
  * (Android emulators reach it as 10.0.2.2), stopped when the build ends.
  * Every build starts from an empty Navidrome database.
+ * A second instance, on the next port, serves a large library generated into the build
+ * dir on first use ([generateLargeLibrary]).
  */
 abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoCloseable {
 	interface Params : BuildServiceParameters {
 		val musicDir: DirectoryProperty
 		val workDir: DirectoryProperty
 		val port: Property<Int>
+		/** Where Navidrome itself is downloaded to, shared by both instances. */
+		val binDir: DirectoryProperty
+		/** Set for the large library: [musicDir] is generated from this MP3 on first use. */
+		val generateFrom: RegularFileProperty
 	}
 
 	companion object {
@@ -51,17 +60,20 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 	fun start() {
 		if (process != null) return
 		val work = parameters.workDir.get().asFile
+		val music = parameters.musicDir.get().asFile
 		val data = File(work, "data").apply { deleteRecursively(); mkdirs() }
 		check(runCatching { get("/ping") }.isFailure) {
 			"Port $port is already in use: is another build running UI tests? Pick another with -Ploak.uitest.port"
 		}
-		process = ProcessBuilder(binary(work).absolutePath)
+		val started = System.nanoTime()
+		parameters.generateFrom.orNull?.let { generateLargeLibrary(it.asFile, music) }
+		process = ProcessBuilder(binary().absolutePath)
 			.redirectErrorStream(true)
 			.redirectOutput(File(work, "navidrome.log"))
 			.apply {
 				environment().putAll(
 					mapOf(
-						"ND_MUSICFOLDER" to parameters.musicDir.get().asFile.absolutePath,
+						"ND_MUSICFOLDER" to music.absolutePath,
 						"ND_DATAFOLDER" to data.absolutePath,
 						"ND_PORT" to "$port",
 						"ND_LOGLEVEL" to "warn",
@@ -81,7 +93,16 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 		waitForScan()
 		get("/rest/startScan?fullScan=true&$auth")
 		waitForScan()
-		check(get("/rest/getPlaylists?$auth").contains("UI Test Mix")) { "fixture playlist not imported" }
+		val songs = music.walk().count { it.extension == "mp3" }
+		check(get("/rest/getScanStatus?$auth").contains("\"count\":$songs,")) {
+			"Navidrome didn't index all $songs songs"
+		}
+		val playlists = get("/rest/getPlaylists?$auth")
+		music.listFiles { it.extension == "m3u" }!!.forEach {
+			check(playlists.contains("\"${it.nameWithoutExtension}\"")) { "fixture playlist ${it.name} not imported" }
+		}
+		val seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - started)
+		println("Navidrome fixture on port $port: $songs songs, ready in $seconds s")
 	}
 
 	override fun close() {
@@ -93,10 +114,13 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 
 	private fun waitForScan() {
 		Thread.sleep(500) // let a just-requested scan start before polling it
-		waitFor("the library scan") { get("/rest/getScanStatus?$auth").contains("\"scanning\":false") }
+		waitFor("the library scan", 600) { get("/rest/getScanStatus?$auth").contains("\"scanning\":false") }
 	}
 
-	private fun binary(work: File): File {
+	// both instances may want it at once
+	private fun binary(): File = synchronized(NavidromeFixture::class) { download(parameters.binDir.get().asFile) }
+
+	private fun download(work: File): File {
 		val os = System.getProperty("os.name").lowercase()
 		val arch = if (System.getProperty("os.arch") in setOf("aarch64", "arm64")) "arm64" else "amd64"
 		val asset = when {
@@ -135,8 +159,8 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 		return exe
 	}
 
-	private fun waitFor(what: String, condition: () -> Boolean) {
-		val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60)
+	private fun waitFor(what: String, seconds: Long = 60, condition: () -> Boolean) {
+		val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds)
 		while (!runCatching(condition).getOrDefault(false)) {
 			check(process?.isAlive != false) { "Navidrome exited; see its navidrome.log" }
 			check(System.nanoTime() < deadline) { "Timed out waiting for $what" }
@@ -164,11 +188,27 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 }
 
 /** The shared [NavidromeFixture] of this build; test tasks pass it to [usesNavidrome]. */
-fun Project.navidromeFixture(): Provider<NavidromeFixture> =
-	gradle.sharedServices.registerIfAbsent("navidromeFixture", NavidromeFixture::class.java) {
-		parameters.musicDir.set(rootProject.layout.projectDirectory.dir("loakUiTest/fixture/music"))
-		parameters.workDir.set(rootProject.layout.buildDirectory.dir("navidrome-fixture"))
-		parameters.port.set(uiTestPort())
+private fun Project.navidromeFixture(): Provider<NavidromeFixture> = fixture("navidromeFixture", uiTestPort()) {
+	musicDir.set(rootProject.layout.projectDirectory.dir("loakUiTest/fixture/music"))
+	workDir.set(rootProject.layout.buildDirectory.dir("navidrome-fixture"))
+}
+
+/** The large-library instance, on the next port; test tasks pass it to [usesLargeNavidrome]. */
+private fun Project.largeNavidromeFixture(): Provider<NavidromeFixture> =
+	fixture("largeNavidromeFixture", uiTestPort() + 1) {
+		val work = rootProject.layout.buildDirectory.dir("navidrome-fixture/large")
+		musicDir.set(work.map { it.dir("music") })
+		workDir.set(work)
+		generateFrom.set(
+			rootProject.layout.projectDirectory.file("loakUiTest/fixture/music/Aurora Test/First Light/02 Low Tide.mp3")
+		)
+	}
+
+private fun Project.fixture(name: String, port: Int, configure: NavidromeFixture.Params.() -> Unit) =
+	gradle.sharedServices.registerIfAbsent(name, NavidromeFixture::class.java) {
+		parameters.port.set(port)
+		parameters.binDir.set(rootProject.layout.buildDirectory.dir("navidrome-fixture"))
+		parameters.configure()
 		// one test task at a time: flows change the server's state (a star, the saved
 		// queue) that another platform's flows, running alongside, would see
 		maxParallelUsages.set(1)
@@ -183,8 +223,80 @@ fun Project.uiTestPort(): Int =
  * tests its port; Android and browser tests get it from their modules' build files.
  */
 fun Project.usesNavidrome(task: org.gradle.api.Task) {
-	val fixture = navidromeFixture()
+	uses(task, navidromeFixture())
+	if (task is org.gradle.api.tasks.testing.Test) task.systemProperty("loak.uitest.port", uiTestPort())
+}
+
+/** Starts the large-library server before [task] runs; tests find it on the standard port + 1. */
+fun Project.usesLargeNavidrome(task: org.gradle.api.Task) = uses(task, largeNavidromeFixture())
+
+private fun uses(task: org.gradle.api.Task, fixture: Provider<NavidromeFixture>) {
 	task.usesService(fixture)
 	task.doFirst { fixture.get().start() }
-	if (task is org.gradle.api.tasks.testing.Test) task.systemProperty("loak.uitest.port", uiTestPort())
+}
+
+/**
+ * Writes the large library into [dir] once (a marker file keeps it between builds): 200
+ * artists × 5 albums × 10 songs, all [source]'s audio under their own ID3v2.3 tags, and two
+ * playlists, "Long Mix" (80 songs across artists, a typical queue) and "Big Mix" (5000).
+ */
+private fun generateLargeLibrary(source: File, dir: File) {
+	val marker = File(dir.parentFile, "music.generated")
+	if (marker.exists()) return
+	dir.deleteRecursively()
+	val audio = mpegFrames(source.readBytes())
+	val genres = listOf("Ambient", "Electronic", "Jazz", "Rock", "Soul")
+	val paths = mutableListOf<String>()
+	for (a in 1..200) for (b in 1..5) {
+		val artist = "Artist %03d".format(a)
+		val album = "Album %03d-%d".format(a, b)
+		File(dir, "$artist/$album").mkdirs()
+		for (t in 1..10) {
+			val title = "Song %03d-%d-%02d".format(a, b, t)
+			val path = "$artist/$album/%02d $title.mp3".format(t)
+			File(dir, path).outputStream().use {
+				it.write(
+					id3v23(
+						"TIT2" to title, "TPE1" to artist, "TPE2" to artist, "TALB" to album,
+						"TRCK" to "$t/10", "TYER" to "${2000 + a % 25}", "TCON" to genres[b - 1],
+					)
+				)
+				it.write(audio)
+			}
+			paths += path
+		}
+	}
+	// song i of the mix: artist 37·i mod 200 (all distinct), album and track cycling
+	val longMix = (0 until 80).map { paths[(it * 37 % 200) * 50 + it % 5 * 10 + it % 10] }
+	File(dir, "Long Mix.m3u").writeText((listOf("#EXTM3U") + longMix).joinToString("\n"))
+	val bigMix = paths.filterIndexed { i, _ -> i % 2 == 0 }
+	File(dir, "Big Mix.m3u").writeText((listOf("#EXTM3U") + bigMix).joinToString("\n"))
+	marker.createNewFile()
+}
+
+/** [mp3]'s MPEG frames, without its ID3v2 (header, footer) and ID3v1 tags. */
+private fun mpegFrames(mp3: ByteArray): ByteArray {
+	var start = 0
+	if (mp3.decodeToString(0, 3) == "ID3") {
+		val size = (6..9).fold(0) { size, i -> size shl 7 or (mp3[i].toInt() and 0x7f) }
+		start = 10 + size + if (mp3[5].toInt() and 0x10 != 0) 10 else 0
+	}
+	val v1 = mp3.decodeToString(mp3.size - 128, mp3.size - 125) == "TAG"
+	val end = if (v1) mp3.size - 128 else mp3.size
+	return mp3.copyOfRange(start, end)
+}
+
+/** A minimal ID3v2.3 tag of Latin-1 text [frames]. */
+private fun id3v23(vararg frames: Pair<String, String>): ByteArray {
+	val body = ByteArrayOutputStream()
+	for ((id, text) in frames) {
+		val value = text.toByteArray(Charsets.ISO_8859_1)
+		body.write(id.toByteArray())
+		body.write(ByteBuffer.allocate(4).putInt(value.size + 1).array())
+		body.write(byteArrayOf(0, 0, 0)) // no flags, Latin-1
+		body.write(value)
+	}
+	// "ID3", version 3.0, no flags, then the size in 7-bit bytes
+	val size = (3 downTo 0).map { (body.size() shr 7 * it and 0x7f).toByte() }
+	return "ID3".toByteArray() + byteArrayOf(3, 0, 0) + size + body.toByteArray()
 }

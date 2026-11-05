@@ -11,9 +11,12 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.AndroidJUnitRunner
 import eu.depau.loak.di.SENTRY_ENABLED_KEY
 import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.uitest.LargeLibraryFlows
 import eu.depau.loak.uitest.UserFlows
 import org.koin.mp.KoinPlatform
 import org.junit.runner.RunWith
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * The user flows on the real Android app: MainActivity in the debug build, with the
@@ -24,18 +27,30 @@ import org.junit.runner.RunWith
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 class AndroidUserFlows : UserFlows() {
-	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runAndroidComposeUiTest<MainActivity> {
+	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runAndroidApp(flow)
+
+	// the emulator has an audio output
+	override fun playbackProgress() =
+		KoinPlatform.getKoin().get<MediaPlayerViewModel>().uiState.value.progress
+}
+
+/** The large-library flows on the real Android app, like [AndroidUserFlows]. */
+@OptIn(ExperimentalTestApi::class)
+@RunWith(AndroidJUnit4::class)
+class AndroidLargeLibraryFlows : LargeLibraryFlows() {
+	// the large library's first sync alone can take a minute on an emulator
+	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runAndroidApp(flow, 10.minutes)
+}
+
+@OptIn(ExperimentalTestApi::class)
+private fun runAndroidApp(flow: suspend ComposeUiTest.() -> Unit, testTimeout: Duration = 1.minutes) =
+	runAndroidComposeUiTest<MainActivity>(testTimeout = testTimeout) {
 		// flows play songs: keep them silent
 		InstrumentationRegistry.getInstrumentation().targetContext
 			.getSystemService(AudioManager::class.java)
 			.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
 		flow()
 	}
-
-	// the emulator has an audio output
-	override fun playbackProgress() =
-		KoinPlatform.getKoin().get<MediaPlayerViewModel>().uiState.value.progress
-}
 
 /** Runs the flows with crash reporting off, so test crashes never reach the real Sentry project. */
 class UserFlowsRunner : AndroidJUnitRunner() {

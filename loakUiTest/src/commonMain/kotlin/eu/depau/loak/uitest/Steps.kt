@@ -40,6 +40,9 @@ object TestServer {
 	const val USER = "loak"
 	const val PASSWORD = "loak-ui-test"
 	val url get() = "http://$testServerHost:${testServerPort ?: DEFAULT_PORT}"
+
+	/** The large library's server (LargeLibraryFlows), on the next port. */
+	val largeUrl get() = "http://$testServerHost:${(testServerPort ?: DEFAULT_PORT) + 1}"
 }
 
 /** The port the build started the fixture server on (-Ploak.uitest.port), if not the default. */
@@ -151,9 +154,9 @@ suspend fun ComposeUiTest.type(field: SemanticsMatcher, value: String) {
 	waitFor(field and hasSetTextAction()).performTextInput(value)
 }
 
-/** Logs into the fixture server from the login screen and dismisses the setup page. */
-suspend fun ComposeUiTest.logIn() {
-	type(text("Server address"), TestServer.url)
+/** Logs into the fixture [server] from the login screen and dismisses the setup page. */
+suspend fun ComposeUiTest.logIn(server: String = TestServer.url) {
+	type(text("Server address"), server)
 	type(text("Username"), TestServer.USER)
 	type(text("Password"), TestServer.PASSWORD)
 	click(text("Next") and hasClickAction())

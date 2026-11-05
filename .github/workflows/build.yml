@@ -311,6 +311,7 @@ jobs:
             loakApp/build/reports/androidTests/
             loakApp/build/outputs/androidTest-results/
             build/navidrome-fixture/navidrome.log
+            build/navidrome-fixture/large/navidrome.log
           if-no-files-found: ignore
 
   build-desktop:
@@ -380,6 +381,7 @@ jobs:
             loakDesktop/build/ui-test-failures/
             loakDesktop/build/reports/tests/desktopTest/
             build/navidrome-fixture/navidrome.log
+            build/navidrome-fixture/large/navidrome.log
           if-no-files-found: ignore
 
       # Tagged packages use the tag version. Main builds get a monotonically increasing

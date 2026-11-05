@@ -204,7 +204,10 @@ dependencies {
 	androidTestUtil(libs.androidx.test.orchestrator)
 }
 
-// the user flows run against the Navidrome fixture on the host (10.0.2.2 from the emulator)
+// the user flows run against the Navidrome fixtures on the host (10.0.2.2 from the emulator)
 tasks.configureEach {
-	if (name.matches(Regex("(connected|uiFlowsPhone)\\w*AndroidTest"))) usesNavidrome(this)
+	if (name.matches(Regex("(connected|uiFlowsPhone)\\w*AndroidTest"))) {
+		usesNavidrome(this)
+		usesLargeNavidrome(this)
+	}
 }

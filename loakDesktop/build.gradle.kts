@@ -93,6 +93,7 @@ tasks.named<Test>("desktopTest") {
 	systemProperty("user.home", home.absolutePath)
 	systemProperty("loak.uitest.failures", layout.buildDirectory.dir("ui-test-failures").get().asFile.absolutePath)
 	usesNavidrome(this)
+	usesLargeNavidrome(this)
 }
 
 // Nucleus native libraries rebuilt with Lo'ak's patches (nucleus/), built on first use (needs

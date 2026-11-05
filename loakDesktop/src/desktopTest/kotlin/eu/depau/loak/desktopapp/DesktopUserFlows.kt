@@ -15,6 +15,7 @@ import eu.depau.loak.data.database.DownloadDatabase
 import eu.depau.loak.di.desktopDataDir
 import eu.depau.loak.di.initKoin
 import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.uitest.LargeLibraryFlows
 import eu.depau.loak.uitest.UserFlows
 import dev.nucleusframework.rodio.RodioPlayer
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,8 @@ import org.junit.rules.TestName
 import org.junit.rules.Timeout
 import java.io.File
 import javax.imageio.ImageIO
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /** The user flows on the desktop app, at a window size of [width]×[height]. */
 abstract class DesktopUserFlows(private val width: Int, private val height: Int) : UserFlows() {
@@ -88,11 +91,27 @@ fun runDesktopApp(
 		val downloadDatabase = runCatching { koin.koin.get<DownloadDatabase>() }.getOrNull()
 		ViewModelStore().apply { put("player", player); clear() }
 		stopKoin()
+		// the screens' cancelled queries can still be running (a large library's take a while):
+		// closing the databases under them fails them into the next test's uncaught handler too
+		awaitNoDatabaseWork()
 		runCatching { cacheDatabase?.close() }
 		runCatching { downloadDatabase?.close() }
 		Dispatchers.resetMain()
 		// a fresh install for the next flow
 		desktopDataDir.listFiles()?.forEach { it.deleteRecursively() }
+	}
+}
+
+/** Waits (10 s at most) until no thread has been in Room for a few polls in a row. */
+private fun awaitNoDatabaseWork() {
+	val deadline = TimeSource.Monotonic.markNow() + 10.seconds
+	var quietPolls = 0
+	while (quietPolls < 3 && deadline.hasNotPassedNow()) {
+		val busy = Thread.getAllStackTraces().values.any { trace ->
+			trace.any { it.className.startsWith("androidx.room3.") }
+		}
+		quietPolls = if (busy) 0 else quietPolls + 1
+		Thread.sleep(20)
 	}
 }
 
@@ -113,3 +132,16 @@ private val hasAudioOutput by lazy { runCatching { RodioPlayer().close() }.isSuc
 class DesktopUserFlowsWide : DesktopUserFlows(1280, 800)
 
 class DesktopUserFlowsPhone : DesktopUserFlows(412, 892)
+
+/** The large-library flows on the desktop app, in a wide window. */
+class DesktopLargeLibraryFlows : LargeLibraryFlows() {
+	@get:Rule
+	val name = TestName()
+
+	// the first sync of the large library takes a while
+	@get:Rule
+	val timeout: Timeout = Timeout.seconds(600)
+
+	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) =
+		runDesktopApp(1280, 800, "${this::class.simpleName}.${name.methodName}", flow = flow)
+}
