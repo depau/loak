@@ -204,10 +204,12 @@ dependencies {
 	androidTestUtil(libs.androidx.test.orchestrator)
 }
 
-// the user flows run against the Navidrome fixtures on the host (10.0.2.2 from the emulator)
+// the user flows run against the Navidrome fixtures on the host, forwarded into the emulator
+val adb = extensions.getByType<ApplicationAndroidComponentsExtension>().sdkComponents.adb
 tasks.configureEach {
 	if (name.matches(Regex("(connected|uiFlowsPhone)\\w*AndroidTest"))) {
 		usesNavidrome(this)
 		usesLargeNavidrome(this)
+		connectsDevicesToNavidrome(this, adb)
 	}
 }

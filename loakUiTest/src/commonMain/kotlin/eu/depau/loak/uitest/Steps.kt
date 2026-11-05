@@ -39,17 +39,15 @@ object TestServer {
 	const val DEFAULT_PORT = 45330
 	const val USER = "loak"
 	const val PASSWORD = "loak-ui-test"
-	val url get() = "http://$testServerHost:${testServerPort ?: DEFAULT_PORT}"
+	// on Android too: the test tasks forward it into the emulator (adb reverse)
+	val url get() = "http://127.0.0.1:${testServerPort ?: DEFAULT_PORT}"
 
 	/** The large library's server (LargeLibraryFlows), on the next port. */
-	val largeUrl get() = "http://$testServerHost:${(testServerPort ?: DEFAULT_PORT) + 1}"
+	val largeUrl get() = "http://127.0.0.1:${(testServerPort ?: DEFAULT_PORT) + 1}"
 }
 
 /** The port the build started the fixture server on (-Ploak.uitest.port), if not the default. */
 internal expect val testServerPort: Int?
-
-/** The host the app reaches the fixture server's machine at (10.0.2.2 from an Android emulator). */
-expect val testServerHost: String
 
 fun text(value: String, substring: Boolean = false) = hasText(value, substring = substring)
 

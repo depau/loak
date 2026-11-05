@@ -1,6 +1,9 @@
 import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.file.RegularFile
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
@@ -13,12 +16,14 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
+import kotlin.concurrent.thread
 
 /**
  * The real Subsonic server the UI flows run against: a pinned Navidrome on
  * 127.0.0.1 (port [DEFAULT_PORT], or -Ploak.uitest.port) serving the committed library in `loakUiTest/fixture/music`,
  * with one admin user. Started on first use by any test task that needs it
- * (Android emulators reach it as 10.0.2.2), stopped when the build ends.
+ * (Android test tasks forward it into the emulator, see [connectsDevicesToNavidrome]),
+ * stopped when the build ends.
  * Every build starts from an empty Navidrome database.
  * A second instance, on the next port, serves a large library generated into the build
  * dir on first use ([generateLargeLibrary]).
@@ -80,7 +85,7 @@ abstract class NavidromeFixture : BuildService<NavidromeFixture.Params>, AutoClo
 						// hermetic: no telemetry, no Last.fm/Spotify/Deezer lookups
 						"ND_ENABLEINSIGHTSCOLLECTOR" to "false",
 						"ND_ENABLEEXTERNALSERVICES" to "false",
-						// the Android emulator reaches the host's loopback as 10.0.2.2
+						// emulators reach it through adb reverse
 						"ND_ADDRESS" to "127.0.0.1",
 					)
 				)
@@ -233,6 +238,77 @@ fun Project.usesLargeNavidrome(task: org.gradle.api.Task) = uses(task, largeNavi
 private fun uses(task: org.gradle.api.Task, fixture: Provider<NavidromeFixture>) {
 	task.usesService(fixture)
 	task.doFirst { fixture.get().start() }
+}
+
+/**
+ * Lets the app on every device adb sees reach the fixtures from when [task] starts until the
+ * build ends: forwards both fixture ports (`adb reverse`), so the flows log in to 127.0.0.1,
+ * and gives emulators a network the app counts as online ([JOIN_WIFI]), which cold-booted
+ * ones started from a sandboxed shell lack (a managed device, restored from its snapshot, keeps
+ * dead Wi-Fi there: see AGENTS.md). Repeated every 2 s: a managed device only appears once the
+ * task boots it.
+ */
+fun Project.connectsDevicesToNavidrome(task: Task, adb: Provider<RegularFile>) {
+	val network = gradle.sharedServices.registerIfAbsent("deviceNetwork", DeviceNetwork::class.java) {
+		parameters.adb.set(adb)
+		parameters.ports.set(listOf(uiTestPort(), uiTestPort() + 1))
+	}
+	task.usesService(network)
+	task.doFirst { network.get().start() }
+}
+
+/**
+ * Joins the emulator's access point unless it's already connected, with validation off:
+ * without internet the network would never validate and the app would stay offline.
+ */
+private const val JOIN_WIFI = "settings put global captive_portal_mode 0; " +
+	"cmd wifi status | grep -q 'Wifi is connected' || cmd wifi connect-network AndroidWifi open"
+
+abstract class DeviceNetwork : BuildService<DeviceNetwork.Params>, AutoCloseable {
+	interface Params : BuildServiceParameters {
+		val adb: RegularFileProperty
+		val ports: ListProperty<Int>
+	}
+
+	@Volatile
+	private var stopped = false
+	private var loop: Thread? = null
+
+	@Synchronized
+	fun start() {
+		if (loop != null) return
+		val joinedWifi = mutableSetOf<String>()
+		loop = thread(isDaemon = true, name = "device network") {
+			while (!stopped) {
+				runCatching {
+					for (line in adb("devices").lines().filter { it.endsWith("\tdevice") }) {
+						val serial = line.substringBefore('\t')
+						for (port in parameters.ports.get()) adb("-s", serial, "reverse", "tcp:$port", "tcp:$port")
+						// once per booted emulator
+						if (serial.startsWith("emulator-") && serial !in joinedWifi &&
+							adb("-s", serial, "shell", "getprop", "sys.boot_completed").trim() == "1"
+						) {
+							adb("-s", serial, "shell", JOIN_WIFI)
+							joinedWifi += serial
+						}
+					}
+				}
+				runCatching { Thread.sleep(2000) }
+			}
+		}
+	}
+
+	override fun close() {
+		stopped = true
+		loop?.interrupt()
+	}
+
+	private fun adb(vararg args: String): String {
+		val process = ProcessBuilder(parameters.adb.get().asFile.absolutePath, *args)
+			.redirectErrorStream(true)
+			.start()
+		return process.inputStream.bufferedReader().readText().also { process.waitFor() }
+	}
 }
 
 /**
