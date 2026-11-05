@@ -110,13 +110,34 @@ class SentrySanitizerTest {
 	fun redactsFileUriAndLocalPath() {
 		// LOAK-10/Z regression: the desktop audio store's file path leaks the home dir + user.
 		val out = "URI is not absolute: file:/Users/ddepau/Library/Application Support/Loak/audio/ab12%40.mp3".sanitizeSentryText()
-		assertEquals("URI is not absolute: [REDACTED_PATH]", out)
+		assertEquals("URI is not absolute: [REDACTED_PATH].mp3", out)
 	}
 
 	@Test
 	fun redactsWindowsAndFileSlashVariants() {
 		val out = "found at file:C:\\Users\\ddepau\\AppData\\Loak\\x.mp3\nand file:///tmp/a 1.mp3".sanitizeSentryText()
-		assertEquals("found at [REDACTED_PATH]\nand [REDACTED_PATH]", out)
+		assertEquals("found at [REDACTED_PATH].mp3\nand [REDACTED_PATH].mp3", out)
+	}
+
+	@Test
+	fun songFileNamesGoTheirFormatStays() {
+		assertEquals(
+			"open failed: [REDACTED_PATH].flac (No such file or directory)",
+			"open failed: /storage/emulated/0/Music/Some Artist/Some Album/01 - Some Song.flac (No such file or directory)"
+				.sanitizeSentryText()
+		)
+		assertEquals(
+			"export to C: failed: [REDACTED_PATH].opus",
+			"export to C: failed: C:\\Users\\jane\\Music\\Some Song.opus".sanitizeSentryText()
+		)
+		assertEquals("can't decode \"[REDACTED_FILE].m4a\"", "can't decode \"Some Song (Live).m4a\"".sanitizeSentryText())
+		assertEquals("[REDACTED_FILE].mp3 is too short", "01_Some_Song.MP3 is too short".sanitizeSentryText())
+		assertEquals(
+			"GET https://redacted/media/[REDACTED_FILE].ogg failed",
+			"GET https://cdn.example.net/media/Some_Song.ogg failed".sanitizeSentryText()
+		)
+		// a home-dir path to anything else goes whole too
+		assertEquals("cache at [REDACTED_PATH] full", "cache at /home/jane/.cache/loak full".sanitizeSentryText())
 	}
 
 	// endregion

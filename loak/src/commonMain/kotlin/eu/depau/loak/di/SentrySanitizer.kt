@@ -134,17 +134,48 @@ private val HOST_PORT_REGEX = Regex(
 )
 
 /**
- * Matches `file:` URIs and bare POSIX/Windows absolute paths — the local
- * filesystem path of a downloaded/streamed file, which would leak the user's
- * home dir and username (LOAK-10/Z shipped `file:/Users/<user>/Library/…`).
+ * Matches `file:` URIs — the local filesystem path of a downloaded/streamed
+ * file, which would leak the user's home dir and username (LOAK-10/Z shipped
+ * `file:/Users/<user>/Library/…`) and, for a song, what they listen to.
  * `file:` alone is dropped as a bare scheme; require the scheme plus a path.
- * The path runs to the first whitespace or quote/angle/bracket/paren that
- * would end it in stack-trace and message text.
+ * The path runs to the end of the line: names have spaces.
  */
 private val FILE_PATH_REGEX = Regex(
 	"""file:(?:/{1,3})?(?:[A-Za-z]:)?[/\\][^\n"'<>]{0,512}\S""",
 	RegexOption.IGNORE_CASE
 )
+
+/** Audio and media file extensions: a song's format may leave, its name may not. */
+private const val AUDIO_EXTS =
+	"mp3|flac|ogg|oga|opus|m4a|m4b|mp4|aac|alac|wav|wave|aif|aiff|wma|ape|wv|dsf|dff|mka|mpc|webm"
+
+private val AUDIO_EXT_REGEX = Regex("""\.($AUDIO_EXTS)(?!\w)""", RegexOption.IGNORE_CASE)
+
+/**
+ * Bare absolute paths under the roots that hold user data (home dirs, Android storage, mounts)
+ * and Windows drive paths. One that reaches an audio file runs to its extension, spaces
+ * included; any other stops at the first space.
+ */
+private val ROOTED_PATH_REGEX = Regex(
+	"""(?<![^\s"'(\[=,])(?:/(?:home|Users|storage|sdcard|data|mnt|media|tmp|var|private|Volumes|run|root|opt|srv)/|[A-Za-z]:\\)""" +
+		"""(?:[^\n"'<>]*?\.($AUDIO_EXTS)(?!\w)|[^\s"'<>]*)""",
+	RegexOption.IGNORE_CASE
+)
+
+/** A quoted name of an audio file, whose spaces would otherwise cut the match short. */
+private val QUOTED_AUDIO_FILE_REGEX = Regex("""(["'])[^"'\n]*?\.($AUDIO_EXTS)\1""", RegexOption.IGNORE_CASE)
+
+/**
+ * A bare audio file name (`03-Some_Song.flac`), on its own or ending a relative path or a URL.
+ * ponytail: an unquoted, relative name with spaces only loses its last word; such names reach
+ * events through absolute paths (above) in every case seen so far.
+ */
+private val AUDIO_FILE_REGEX =
+	Regex("""(?<![^\s"'(\[=,/\\:])[^\s/\\"'<>()\[\]:]+\.($AUDIO_EXTS)(?!\w)""", RegexOption.IGNORE_CASE)
+
+/** [token], plus the audio format [path] ends in, if any: `[REDACTED_PATH].flac`. */
+private fun keepingFormat(token: String, path: String) =
+	token + AUDIO_EXT_REGEX.findAll(path).lastOrNull()?.let { "." + it.groupValues[1].lowercase() }.orEmpty()
 
 /**
  * Thread names carry the target as a bare label: OkHttp names its worker
@@ -263,7 +294,13 @@ internal data class Censored(val text: String, val breached: List<String>)
 internal fun censorSentryText(raw: String): Censored {
 	val l1 = URL_REGEX.replace(raw) { censorUrl(it.value) }
 		.let { HOST_PORT_REGEX.replace(it) { m -> censorHostPort(m.value) } }
-		.let { FILE_PATH_REGEX.replace(it, "[REDACTED_PATH]") }
+		.let { FILE_PATH_REGEX.replace(it) { m -> keepingFormat("[REDACTED_PATH]", m.value) } }
+		.let { ROOTED_PATH_REGEX.replace(it) { m -> keepingFormat("[REDACTED_PATH]", m.value) } }
+		.let { QUOTED_AUDIO_FILE_REGEX.replace(it) { m ->
+			val quote = m.groupValues[1]
+			quote + keepingFormat("[REDACTED_FILE]", m.value) + quote
+		} }
+		.let { AUDIO_FILE_REGEX.replace(it) { m -> keepingFormat("[REDACTED_FILE]", m.value) } }
 		.let { UNKNOWN_HOST_REGEX.replace(it) { m -> "UnknownHostException: " + shownHost(m.groupValues[1]) } }
 		.let { QUOTED_HOST_REGEX.replace(it) { m ->
 			val quote = m.groupValues[1]
