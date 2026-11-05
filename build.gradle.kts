@@ -7,3 +7,10 @@ plugins {
 	alias(libs.plugins.valkyrie) apply false
 	alias(libs.plugins.nucleus) apply false
 }
+
+subprojects {
+	tasks.withType<Test>().configureEach {
+		// Keep macOS test workers from registering as foreground applications.
+		systemProperty("apple.awt.UIElement", "true")
+	}
+}
