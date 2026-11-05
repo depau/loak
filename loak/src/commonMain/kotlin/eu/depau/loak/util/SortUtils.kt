@@ -15,10 +15,9 @@ fun ImmutableList<DomainSong>.sortedByListType(
 ): ImmutableList<DomainSong> {
 	return when (listType) {
 		DomainSongListType.FrequentlyPlayed -> sortedByDescending { it.playCount }
-		DomainSongListType.Newest -> sortedByDescending {
-			albums
-				.firstOrNull { album -> album.id == it.albumId }
-				?.createdAt
+		DomainSongListType.Newest -> {
+			val createdAt = albums.associate { it.id to it.createdAt }
+			sortedByDescending { createdAt[it.albumId] }
 		}
 
 		DomainSongListType.Random -> shuffled()

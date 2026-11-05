@@ -126,14 +126,13 @@ fun LibraryScreen() {
 
 	val counts by produceState(LibraryCounts()) {
 		value = withContext(IoDispatcher) {
-			val songs = songDao.getAllSongs()
 			LibraryCounts(
-				songs = songs.size,
+				songs = songDao.getSongCount(),
 				albums = albumDao.getAlbumCount(),
 				artists = artistDao.getAllArtistIds().size,
 				genres = genreDao.getAllGenreNames().size,
 				playlists = playlistDao.getPlaylistCount(),
-				starred = songs.count { it.starredAt != null }
+				starred = songDao.getStarredSongCount()
 			)
 		}
 	}

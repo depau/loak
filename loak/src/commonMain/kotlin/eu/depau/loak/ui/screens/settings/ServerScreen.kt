@@ -131,7 +131,7 @@ fun SettingsServerScreen() {
 	val ping by produceState<Pair<Duration?, Boolean>?>(null) { value = sessionManager.pingTime() to true }
 	val counts by produceState<List<Int>?>(null, sync.isSyncing) {
 		value = withContext(IoDispatcher) {
-			listOf(songDao.getAllSongIds().size, albumDao.getAlbumCount(), artistDao.getAllArtistIds().size)
+			listOf(songDao.getSongCount(), albumDao.getAlbumCount(), artistDao.getAllArtistIds().size)
 		}
 	}
 

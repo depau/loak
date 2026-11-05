@@ -53,6 +53,10 @@ class QueueSyncManagerTest {
 		override suspend fun insertSongsIgnoringConflicts(songs: List<SongEntity>) {}
 		override suspend fun updateSongs(songs: List<SongEntity>) {}
 		override suspend fun getAllSongs(): List<SongEntity> = byId.values.toList()
+		override suspend fun getSongsPage(limit: Int, offset: Int): List<SongEntity> =
+			byId.values.drop(offset).take(limit)
+		override suspend fun getSongCount(): Int = byId.size
+		override suspend fun getStarredSongCount(): Int = byId.values.count { it.starredAt != null }
 		override suspend fun getSongsByAlbumId(albumId: String): List<SongEntity> = emptyList()
 		override suspend fun getSongsByAlbumIds(albumIds: List<String>): List<SongEntity> =
 			emptyList()

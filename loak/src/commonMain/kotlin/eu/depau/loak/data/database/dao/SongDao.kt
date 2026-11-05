@@ -10,7 +10,27 @@ import androidx.room3.Update
 import eu.depau.loak.data.database.entities.SongEntity
 import eu.depau.loak.util.Logger
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.yield
 import kotlin.time.Instant
+
+private const val SONG_PAGE = 1000
+
+/**
+ * Every song, read and [map]ped a page at a time with a yield in between. The web runs all of
+ * this on the page's only thread, where one query for a whole library (its rows, then their
+ * JSON columns) held it for over a second; between pages the page gets to draw.
+ *
+ * ponytail: OFFSET pages, so a sync deleting songs mid-read can skip one; the lists reload after
+ * every sync anyway.
+ */
+suspend fun <T> SongDao.getAllSongsInPages(map: (SongEntity) -> T): List<T> = buildList {
+	while (true) {
+		val page = getSongsPage(SONG_PAGE, size)
+		page.mapTo(this, map)
+		if (page.size < SONG_PAGE) break
+		yield()
+	}
+}
 
 @Dao
 interface SongDao {
@@ -42,6 +62,16 @@ interface SongDao {
 
 	@Query("SELECT * FROM SongEntity")
 	suspend fun getAllSongs(): List<SongEntity>
+
+	/** A page of every song, in table order: see [getAllSongsInPages]. */
+	@Query("SELECT * FROM SongEntity ORDER BY rowid LIMIT :limit OFFSET :offset")
+	suspend fun getSongsPage(limit: Int, offset: Int): List<SongEntity>
+
+	@Query("SELECT COUNT(*) FROM SongEntity")
+	suspend fun getSongCount(): Int
+
+	@Query("SELECT COUNT(*) FROM SongEntity WHERE starredAt IS NOT NULL")
+	suspend fun getStarredSongCount(): Int
 
 	/**
 	 * Ids of the songs a shelf can act on: anything played, starred or rated. Reading only the

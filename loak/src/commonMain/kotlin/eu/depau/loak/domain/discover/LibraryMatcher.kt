@@ -3,6 +3,7 @@ package eu.depau.loak.domain.discover
 import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.dao.ArtistDao
 import eu.depau.loak.data.database.dao.SongDao
+import eu.depau.loak.data.database.dao.getAllSongsInPages
 import eu.depau.loak.data.database.entities.AlbumEntity
 import eu.depau.loak.data.database.entities.ArtistEntity
 import eu.depau.loak.data.database.entities.SongEntity
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.yield
 
 // ponytail: name matching misses heavily retitled releases; add MBID release-group matching if users report false negatives.
 
@@ -103,20 +105,30 @@ class LibraryMatcher(
 		index?.let { return it }
 		gate.withLock {
 			index?.let { return it }
-			val songs = songDao.getAllSongs()
+			val songs = songDao.getAllSongsInPages { it }
 			val albums = albumDao.getAllAlbumEntities()
 			val artists = artistDao.getAllArtistsList()
 			index = LibraryIndex(
 				songByIsrc = songs.flatMap { s -> s.isrc.map { it to s } }.toMap(),
 				songByMbid = songs.mapNotNull { s -> s.musicBrainzId?.let { it to s } }.toMap(),
-				songByName = songs.groupBy { normalizeTitle(it.title) },
+				songByName = songs.groupByYielding { normalizeTitle(it.title) },
 				albumByMbid = albums.mapNotNull { a -> a.musicBrainzId?.let { it to a } }.toMap(),
-				albumByName = albums.groupBy { normalizeTitle(it.name.orEmpty()) },
+				albumByName = albums.groupByYielding { normalizeTitle(it.name.orEmpty()) },
 				artistByMbid = artists.mapNotNull { a -> a.musicBrainzId?.let { it to a } }.toMap(),
-				artistByName = artists.groupBy { normalizeArtist(it.name) }
+				artistByName = artists.groupByYielding { normalizeArtist(it.name) }
 			)
 			return index!!
 		}
+	}
+
+	/** [groupBy], yielding now and then: on the web the normalising runs on the page's only thread. */
+	private suspend fun <T> List<T>.groupByYielding(key: (T) -> String): Map<String, List<T>> {
+		val groups = LinkedHashMap<String, MutableList<T>>()
+		forEachIndexed { i, item ->
+			groups.getOrPut(key(item)) { mutableListOf() }.add(item)
+			if (i % 500 == 499) yield()
+		}
+		return groups
 	}
 
 	private fun List<SongEntity>.byName(discoverTitle: String, discoverArtist: String): SongEntity? {

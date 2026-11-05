@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.data.database.dao.SongDao
+import eu.depau.loak.data.database.dao.getAllSongsInPages
 import eu.depau.loak.data.database.entities.SyncActionType
 import eu.depau.loak.data.database.mappers.toDomainModel
 import eu.depau.loak.data.database.mappers.toEntity
@@ -94,9 +95,7 @@ class SongRepository(
 		reversed: Boolean,
 		filters: Set<DomainFilter> = emptySet()
 	): ImmutableList<DomainSong> {
-		val songs = songDao
-			.getAllSongs()
-			.map { it.toDomainModel() }
+		val songs = songDao.getAllSongsInPages { it.toDomainModel() }
 
 		val downloadedIds = if (filters.contains(DomainFilter.Downloaded)) {
 			audioStore.downloadedIds()
@@ -115,7 +114,10 @@ class SongRepository(
 			.toImmutableList()
 			.sortedByListType(
 				listType,
-				albums = albumDao.getAllAlbumsList().map { it.toDomainModel() }
+				// only Newest reads them, and only their dates: not every album's songs again
+				albums = if (listType == DomainSongListType.Newest) {
+					albumDao.getAllAlbumEntities().map { it.toDomainModel() }
+				} else emptyList()
 			)
 
 		return if (reversed) {
