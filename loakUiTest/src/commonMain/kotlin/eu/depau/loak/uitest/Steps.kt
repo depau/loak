@@ -109,20 +109,27 @@ private fun ComposeUiTest.isShown(matcher: SemanticsMatcher) =
 	onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
 
 /**
+ * Runs the flows' own long work on the UI thread: scrolling a list to a node lays out every
+ * row on the way in one go (seconds through a large library). The web, which fails a flow on
+ * a main-thread stall, sets this to leave that time out.
+ */
+var harnessWork: (() -> Boolean) -> Boolean = { it() }
+
+/**
  * Lazy lists only compose what's on screen: search each one for [matcher], from its
  * top (scrolling to a node only searches forwards from where the list is).
  */
-private fun ComposeUiTest.reveal(matcher: SemanticsMatcher): Boolean {
+private fun ComposeUiTest.reveal(matcher: SemanticsMatcher): Boolean = harnessWork {
 	val lists = onAllNodes(hasScrollToNodeAction())
-	for (i in lists.fetchSemanticsNodes().indices) {
-		val found = runCatching {
+	lists.fetchSemanticsNodes().indices.any { i ->
+		runCatching {
 			lists[i].performScrollToIndex(0)
 			lists[i].performScrollToNode(matcher)
-		}.isSuccess
-		if (found) return true
-		runCatching { lists[i].performScrollToIndex(0) } // not there: leave the list as found
+		}.isSuccess.also { found ->
+			// not there: leave the list as found
+			if (!found) runCatching { lists[i].performScrollToIndex(0) }
+		}
 	}
-	return false
 }
 
 suspend fun ComposeUiTest.waitForText(value: String, substring: Boolean = false) = waitFor(text(value, substring))

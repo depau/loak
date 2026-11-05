@@ -50,8 +50,15 @@ jobs:
       - name: Set up a virtual audio output
         run: .github/scripts/setup-virtual-audio.sh
 
-      # The user flows in headless Chrome and Firefox (Karma), against the Navidrome fixture;
-      # a failure stops the deploy
+      # WebKit for the flows: Playwright's build of it and its system libraries, from the
+      # Playwright version the build pins (gradle/libs.versions.toml)
+      - name: Install WebKit
+        run: |
+          ./gradlew kotlinWasmNpmInstall --no-daemon
+          build/wasm/node_modules/.bin/playwright install --with-deps webkit
+
+      # The user flows in headless Chrome, Firefox and WebKit (Karma), against the Navidrome
+      # fixtures; a failure stops the deploy
       - name: Run user flows
         run: ./gradlew :webApp:wasmJsBrowserTest --no-daemon
 
@@ -63,6 +70,7 @@ jobs:
           path: |
             webApp/build/reports/tests/wasmJsBrowserTest/
             build/navidrome-fixture/navidrome.log
+            build/navidrome-fixture/large/navidrome.log
           if-no-files-found: ignore
 
       - name: Build web distribution

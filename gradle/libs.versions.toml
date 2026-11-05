@@ -61,6 +61,8 @@ jna = "5.19.1"
 sentry = "0.29.0"
 # @sentry/browser (npm) for the web target, where the KMP SDK is a no-op stub
 sentryBrowser = "11.7.0"
+# Playwright (npm): drives WebKit for the web user flows (webApp/karma.config.d)
+playwright = "1.64.1"
 
 [libraries]
 # Compose
