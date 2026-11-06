@@ -5,6 +5,7 @@ import androidx.compose.ui.window.ComposeViewport
 import eu.depau.loak.App
 import eu.depau.loak.di.initKoin
 import eu.depau.loak.di.initializeWebSentry
+import eu.depau.loak.ui.navigation.BrowserHistory
 
 /**
  * Web (Kotlin/Wasm) entry point. Boots Koin (context-free: no android context)
@@ -16,6 +17,6 @@ fun main() {
 	initKoin()
 	initializeWebSentry()
 	ComposeViewport(viewportContainerId = "root") {
-		App()
+		App { BrowserHistory(it) }
 	}
 }

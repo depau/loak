@@ -21,6 +21,14 @@ class AppActions(
 ) {
 	val playerState get() = player.uiState
 
+	/** Page stack for the browser's history; transient sheets are not history entries. */
+	val pages get() = backStack.filterNot(::isOverlay)
+
+	fun restorePages(pages: List<NavKey>) {
+		backStack.clear()
+		backStack.addAll(pages)
+	}
+
 	val canRefresh get() = refreshSlots.any { it.refresh != null }
 	fun refresh() {
 		refreshSlots.lastOrNull { it.refresh != null }?.refresh?.invoke()

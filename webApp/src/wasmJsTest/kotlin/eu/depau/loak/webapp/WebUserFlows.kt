@@ -16,15 +16,23 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import eu.depau.loak.App
 import eu.depau.loak.di.initKoin
 import eu.depau.loak.shared.MediaPlayerViewModel
+import eu.depau.loak.ui.navigation.BrowserHistory
 import eu.depau.loak.uitest.LargeLibraryFlows
 import eu.depau.loak.uitest.UserFlows
 import eu.depau.loak.uitest.harnessWork
+import eu.depau.loak.uitest.click
+import eu.depau.loak.uitest.logIn
+import eu.depau.loak.uitest.navigateUp
+import eu.depau.loak.uitest.openSettings
+import eu.depau.loak.uitest.openTab
+import eu.depau.loak.uitest.waitForText
 import kotlinx.browser.localStorage
 import kotlinx.coroutines.await
 import kotlinx.coroutines.test.TestResult
 import org.koin.core.context.stopKoin
 import org.koin.mp.KoinPlatform
 import kotlin.js.Promise
+import kotlin.test.Test
 import kotlin.test.fail
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -34,7 +42,7 @@ import kotlin.time.Duration.Companion.minutes
  * worker and the browser's HTTP client, against the fixture server.
  */
 class WebUserFlows : UserFlows() {
-	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runWebApp(5.minutes, flow)
+	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runWebApp(5.minutes, flow = flow)
 
 	// the browsers may autoplay (karma.config.d) and play without an audio device
 	override fun playbackProgress() = player().uiState.value.progress
@@ -42,6 +50,36 @@ class WebUserFlows : UserFlows() {
 	// no listening-history sources on the web build (see UserFlows)
 	override fun listeningHistorySourceReachable() = false
 }
+
+class WebHistoryFlow {
+	@Test
+	fun browserBackAndForwardFollowPages() = runWebApp(5.minutes, browserHistory = true) {
+		logIn()
+		waitForText("Quick picks")
+		openSettings()
+		click("Appearance")
+		waitForText("Accent color")
+		browserBack()
+		waitForText("Integrations")
+		browserForward()
+		waitForText("Accent color")
+		navigateUp()
+		waitForText("Integrations")
+		browserBack()
+		waitForText("Quick picks")
+		openSettings()
+		openTab("Home")
+		waitForText("Quick picks")
+		browserBack()
+		waitForText("Integrations")
+	}
+}
+
+@JsFun("() => history.back()")
+private external fun browserBack()
+
+@JsFun("() => history.forward()")
+private external fun browserForward()
 
 /**
  * The large-library flows on the web app, on demand only (-Ploak.webLargeLibrary): some of
@@ -79,7 +117,11 @@ private var restart: (suspend ComposeUiTest.() -> Unit)? = null
  * Starts the app as a fresh install, muted, runs [flow] against it, and fails it on an
  * uncaught page error or a main-thread stall over [MAX_GAP_MS].
  */
-private fun runWebApp(timeout: Duration, flow: suspend ComposeUiTest.() -> Unit): TestResult =
+private fun runWebApp(
+	timeout: Duration,
+	browserHistory: Boolean = false,
+	flow: suspend ComposeUiTest.() -> Unit
+): TestResult =
 	runComposeUiTest(testTimeout = timeout) {
 		trackWorkers()
 		// the previous flow's app stops here, not at its end: its composition is only
@@ -94,7 +136,9 @@ private fun runWebApp(timeout: Duration, flow: suspend ComposeUiTest.() -> Unit)
 			// the screens' ViewModels in the app's own store, so a restarted app gets new ones
 			screens?.let { store ->
 				val owner = remember(store) { object : ViewModelStoreOwner { override val viewModelStore = store } }
-				CompositionLocalProvider(LocalViewModelStoreOwner provides owner) { App() }
+				CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
+					App { if (browserHistory) BrowserHistory(it) }
+				}
 			}
 		}
 		restart = {
