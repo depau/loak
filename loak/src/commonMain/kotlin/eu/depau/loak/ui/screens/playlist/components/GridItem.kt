@@ -43,6 +43,7 @@ fun PlaylistListScreenGridItem(
 	onSelect: () -> Unit,
 	onDeselect: () -> Unit,
 	onSetShareId: (String) -> Unit,
+	onOpen: () -> Unit = {},
 	onSetDeletionId: (String) -> Unit
 ) {
 	val backStack = LocalNavStack.current
@@ -60,6 +61,7 @@ fun PlaylistListScreenGridItem(
 	Box(modifier) {
 		ArtGridItem(
 			onClick = dropUnlessResumed {
+				onOpen()
 				scope.launch {
 					backStack.add(Screen.CollectionDetail(playlist.id, tab))
 				}

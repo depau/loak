@@ -33,8 +33,6 @@ class SearchViewModel(
 	val searchState: StateFlow<UiState<List<Any>>>
 		field = MutableStateFlow<UiState<List<Any>>>(UiState.Success(emptyList()))
 
-	val searchHistory: StateFlow<List<String>>
-		field = MutableStateFlow<List<String>>(emptyList())
 
 	val searchQuery = TextFieldState()
 
@@ -100,19 +98,4 @@ class SearchViewModel(
 		}
 	}
 
-	fun addToSearchHistory(query: String) {
-		if (query.isBlank()) return
-		val current = searchHistory.value.toMutableList()
-		if (current.contains(query)) {
-			current.remove(query)
-		}
-		current.add(0, query)
-		searchHistory.value = current.take(10)
-	}
-
-	fun removeFromSearchHistory(query: String) {
-		val current = searchHistory.value.toMutableList()
-		current.remove(query)
-		searchHistory.value = current
-	}
 }

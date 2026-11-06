@@ -23,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +57,10 @@ import eu.depau.loak.domain.manager.LidarrManager
 import eu.depau.loak.domain.manager.PreferenceManager
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_add_to_lidarr
+import eu.depau.loak.generated.resources.action_clear_all
+import eu.depau.loak.generated.resources.action_remove_from_history
+import eu.depau.loak.generated.resources.action_search_history
+import eu.depau.loak.generated.resources.info_empty_search_history
 import eu.depau.loak.generated.resources.action_got_it
 import eu.depau.loak.generated.resources.action_preview
 import eu.depau.loak.generated.resources.action_search_discover
@@ -67,14 +72,13 @@ import eu.depau.loak.generated.resources.label_kind_song
 import eu.depau.loak.generated.resources.title_albums
 import eu.depau.loak.generated.resources.title_artists
 import eu.depau.loak.generated.resources.title_deezer_search_notice
-import eu.depau.loak.generated.resources.title_recent
+import eu.depau.loak.icons.outlined.Close
 import eu.depau.loak.generated.resources.title_settings
 import eu.depau.loak.generated.resources.title_songs
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.brand.Deezer
 import eu.depau.loak.icons.filled.Play
 import eu.depau.loak.icons.outlined.Add
-import eu.depau.loak.icons.outlined.ArrowOutward
 import eu.depau.loak.icons.filled.Pause
 import eu.depau.loak.icons.outlined.History
 import eu.depau.loak.icons.outlined.NoSearchResults
@@ -116,6 +120,7 @@ private val categories = listOf(
 @Composable
 fun DiscoverSearchScreen(initialQuery: String = "") {
 	val viewModel = koinViewModel<DiscoverSearchViewModel>()
+	val preferenceManager = koinInject<PreferenceManager>()
 	// seeded once: the field's own debounce runs the search
 	LaunchedEffect(Unit) {
 		if (initialQuery.isNotBlank() && viewModel.query.text.isEmpty()) viewModel.query.setTextAndPlaceCursorAtEnd(initialQuery)
@@ -166,7 +171,7 @@ fun DiscoverSearchScreen(initialQuery: String = "") {
 					icon = Icons.Outlined.NoSearchResults,
 					label = stringResource(Res.string.info_no_search_results)
 				)
-			else -> Results(results, resultQuery, category, padding)
+			else -> Results(results, resultQuery, category, padding, preferenceManager::addSearchHistory)
 		}
 	}
 }
@@ -177,7 +182,24 @@ private fun RecentSearches(viewModel: DiscoverSearchViewModel, padding: PaddingV
 	val backStack = LocalNavStack.current
 	LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
 		val recent = viewModel.recentSearches
-		if (recent.isNotEmpty()) item { SectionTitle(Res.string.title_recent) }
+		if (recent.isNotEmpty()) item {
+			Row(
+				Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp),
+				verticalAlignment = Alignment.CenterVertically
+			) {
+				Text(stringResource(Res.string.action_search_history), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+				TextButton(onClick = preferenceManager::clearSearchHistory) {
+					Text(stringResource(Res.string.action_clear_all))
+				}
+			}
+		} else item {
+			Text(
+				stringResource(Res.string.info_empty_search_history),
+				modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
+				color = MaterialTheme.colorScheme.onSurfaceVariant,
+				style = MaterialTheme.typography.bodyMedium
+			)
+		}
 		items(recent) { query ->
 			ListItem(
 				modifier = Modifier.clickable { viewModel.submit(query) },
@@ -186,7 +208,9 @@ private fun RecentSearches(viewModel: DiscoverSearchViewModel, padding: PaddingV
 				},
 				headlineContent = { Text(query, maxLines = 1, overflow = TextOverflow.Ellipsis) },
 				trailingContent = {
-					Icon(Icons.Outlined.ArrowOutward, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+					IconButton(onClick = { preferenceManager.removeSearchHistory(query) }) {
+						Icon(Icons.Outlined.Close, stringResource(Res.string.action_remove_from_history), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+					}
 				}
 			)
 		}
@@ -240,7 +264,8 @@ private fun Results(
 	results: DiscoverSearchResults,
 	query: String,
 	category: SearchCategory,
-	padding: PaddingValues
+	padding: PaddingValues,
+	onOpen: (String) -> Unit
 ) {
 	val all = category == SearchCategory.ALL
 	val limit = if (all) 5 else Int.MAX_VALUE
@@ -256,12 +281,14 @@ private fun Results(
 	val addFlow = rememberLidarrAddFlow()
 
 	LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-		if (top != null) item(key = "top") { TopResult(top, previewing, previewManager::toggle, addFlow) }
-		section(Res.string.title_songs, songs) {
-			SongItem(it, it.id == previewing, addFlow) { previewManager.toggle(it) }
+		if (top != null) item(key = "top") {
+			TopResult(top, previewing, { onOpen(query); previewManager.toggle(it) }, addFlow) { onOpen(query) }
 		}
-		section(Res.string.title_artists, artists) { ArtistItem(it, addFlow) }
-		section(Res.string.title_albums, albums) { AlbumItem(it, addFlow) }
+		section(Res.string.title_songs, songs) {
+			SongItem(it, it.id == previewing, addFlow) { onOpen(query); previewManager.toggle(it) }
+		}
+		section(Res.string.title_artists, artists) { ArtistItem(it, addFlow, onOpen = { onOpen(query) }) }
+		section(Res.string.title_albums, albums) { AlbumItem(it, addFlow, onOpen = { onOpen(query) }) }
 	}
 }
 
@@ -276,7 +303,7 @@ private fun <T> LazyListScope.section(
 }
 
 @Composable
-private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -> Unit, addFlow: LidarrAddFlow) {
+private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -> Unit, addFlow: LidarrAddFlow, onOpen: () -> Unit) {
 	val (art, title, subtitle) = when (top) {
 		is DiscoverSong -> Triple(top.coverUrl, top.title, dotted(stringResource(Res.string.label_kind_song), top.artist))
 		is DiscoverAlbum -> Triple(top.coverUrl, top.title, dotted(albumKind(top), top.artist, top.year?.toString()))
@@ -331,6 +358,7 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 						)
 					}
 					Button(onClick = {
+						onOpen()
 						when (top) {
 							is DiscoverSong -> addFlow.addSong(top)
 							is DiscoverAlbum -> addFlow.addAlbum(top)
@@ -346,7 +374,7 @@ private fun TopResult(top: Any, previewing: String?, onPreview: (DiscoverSong) -
 	}
 	when (top) {
 		is DiscoverSong -> SongGestures(top, onPreview, addFlow) { gestures, _ -> card(gestures) }
-		is DiscoverAlbum -> AlbumGestures(top, addFlow) { gestures, _ -> card(gestures) }
-		is DiscoverArtist -> ArtistGestures(top, addFlow) { gestures, _ -> card(gestures) }
+		is DiscoverAlbum -> AlbumGestures(top, addFlow, onOpen = onOpen) { gestures, _ -> card(gestures) }
+		is DiscoverArtist -> ArtistGestures(top, addFlow, onOpen = onOpen) { gestures, _ -> card(gestures) }
 	}
 }

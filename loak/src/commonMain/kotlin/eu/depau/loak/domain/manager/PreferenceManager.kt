@@ -159,8 +159,27 @@ class PreferenceManager(
 	var deezerEnabled by preference(true)
 	/** Whether the one-time "queries go to Deezer" notice has been dismissed. */
 	var deezerSearchNoticeDismissed by preference(false)
-	/** Discover's recent searches, newest first, one per line. */
-	var discoverRecentSearches by preference("")
+	/** Shared search history, newest first, stored under Discover's legacy key. */
+	private var storedSearchHistory by preference("discoverRecentSearches", "")
+
+	val searchHistory: List<String>
+		get() = storedSearchHistory.lines().filter { it.isNotBlank() }
+
+	fun addSearchHistory(query: String) {
+		val normalized = query.replace("\r\n", " ").replace('\r', ' ').replace('\n', ' ').trim()
+		if (normalized.isBlank()) return
+		storedSearchHistory = (listOf(normalized) +
+			searchHistory.filterNot { it.equals(normalized, ignoreCase = true) })
+			.take(10).joinToString("\n")
+	}
+
+	fun removeSearchHistory(query: String) {
+		storedSearchHistory = searchHistory.filterNot { it.equals(query, ignoreCase = true) }.joinToString("\n")
+	}
+
+	fun clearSearchHistory() {
+		storedSearchHistory = ""
+	}
 	/** Chart country chosen in the Discover country picker; "" = automatic (Deezer `/infos`). */
 	var discoverChartCountry by preference("")
 

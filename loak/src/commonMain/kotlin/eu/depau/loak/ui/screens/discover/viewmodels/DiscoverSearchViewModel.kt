@@ -20,9 +20,6 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
-/** [recent] with [query] moved (or added) to the top, at most 10 entries. */
-fun withRecentSearch(recent: List<String>, query: String): List<String> =
-	(listOf(query) + (recent - query)).take(10)
 
 @OptIn(FlowPreview::class)
 class DiscoverSearchViewModel(
@@ -43,7 +40,7 @@ class DiscoverSearchViewModel(
 
 	/** Newest first; backed by a preference, so Compose sees changes. */
 	val recentSearches: List<String>
-		get() = preferenceManager.discoverRecentSearches.lines().filter { it.isNotBlank() }
+		get() = preferenceManager.searchHistory
 
 	init {
 		viewModelScope.launch {
@@ -80,6 +77,6 @@ class DiscoverSearchViewModel(
 		val q = recent.trim()
 		if (q.isEmpty()) return
 		if (q != query.text.toString().trim()) query.setTextAndPlaceCursorAtEnd(q)
-		preferenceManager.discoverRecentSearches = withRecentSearch(recentSearches, q).joinToString("\n")
+		preferenceManager.addSearchHistory(q)
 	}
 }

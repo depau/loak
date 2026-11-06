@@ -381,6 +381,8 @@
 	<string name="action_clear_queue">Clear queue</string>
 	<string name="action_search_history">Recent searches</string>
 	<string name="action_remove_from_history">Remove from history</string>
+	<string name="action_clear_all">Clear all</string>
+	<string name="info_empty_search_history">Your recent searches will appear here.</string>
 	<string name="action_clear_image_cache">Clear cached images</string>
 	<string name="action_clear_pending_actions">Discard changes waiting to upload</string>
 	<string name="action_clear_downloads">Delete all downloads</string>

@@ -56,6 +56,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import eu.depau.loak.generated.resources.Res
 import eu.depau.loak.generated.resources.action_remove_from_history
+import eu.depau.loak.generated.resources.action_clear_all
+import eu.depau.loak.generated.resources.info_empty_search_history
 import eu.depau.loak.generated.resources.action_search_history
 import eu.depau.loak.generated.resources.info_no_search_results
 import eu.depau.loak.generated.resources.title_albums
@@ -159,7 +161,8 @@ fun SearchScreen(
 
 	val query = viewModel.searchQuery
 	val state by viewModel.searchState.collectAsState()
-	val searchHistory by viewModel.searchHistory.collectAsState(initial = emptyList())
+	val preferenceManager = koinInject<PreferenceManager>()
+	val searchHistory = preferenceManager.searchHistory
 
 	val player = koinInject<MediaPlayerViewModel>()
 	val backStack = LocalNavStack.current
@@ -199,7 +202,7 @@ fun SearchScreen(
 				query = query,
 				nested = nested,
 				onSearch = { submittedQuery ->
-					viewModel.addToSearchHistory(submittedQuery)
+					preferenceManager.addSearchHistory(submittedQuery)
 					viewModel.searchBySound(submittedQuery)
 				},
 				focusRequester = searchFocusRequester
@@ -279,7 +282,7 @@ fun SearchScreen(
 									val song = songs[index]
 									SongRow(
 										song = song,
-										onClick = { player.playNow(song) },
+										onClick = { preferenceManager.addSearchHistory(query.text.toString()); player.playNow(song) },
 										modifier = Modifier.fillMaxWidth()
 									)
 								}
@@ -297,6 +300,7 @@ fun SearchScreen(
 										.width(150.dp),
 									tab = "search",
 									playlist = playlist,
+									onOpen = { preferenceManager.addSearchHistory(query.text.toString()) },
 									selected = playlist == playlistListSelection,
 									onSelect = { playlistListViewModel.selectPlaylist(playlist) },
 									onDeselect = { playlistListViewModel.clearSelection() },
@@ -319,6 +323,7 @@ fun SearchScreen(
 										.width(150.dp),
 									tab = "search",
 									artist = artist,
+									onOpen = { preferenceManager.addSearchHistory(query.text.toString()) },
 									selected = artist == artistListSelection,
 									selectedArtistAlbums = artistListSelectionAlbums,
 									starred = artistListStarred,
@@ -345,6 +350,7 @@ fun SearchScreen(
 										.width(150.dp),
 									tab = "search",
 									album = album,
+									onOpen = { preferenceManager.addSearchHistory(query.text.toString()) },
 									selected = album == albumListSelection,
 									starred = albumListStarred,
 									onSelect = { albumListViewModel.selectAlbum(album) },
@@ -387,7 +393,7 @@ fun SearchScreen(
 									val song = shown[index]
 									SongRow(
 										song = song,
-										onClick = { player.playNow(soundSongs, index) },
+										onClick = { preferenceManager.addSearchHistory(query.text.toString()); player.playNow(soundSongs, index) },
 										modifier = Modifier.fillMaxWidth()
 									)
 								}
@@ -429,15 +435,19 @@ fun SearchScreen(
 						} else {
 							if (searchHistory.isNotEmpty()) {
 								item(span = { GridItemSpan(maxLineSpan) }) {
-									Text(
-										text = stringResource(Res.string.action_search_history),
-										style = MaterialTheme.typography.titleMedium,
-										color = MaterialTheme.colorScheme.primary,
-										modifier = Modifier.padding(
-											horizontal = 20.dp,
-											vertical = 12.dp
+									Row(
+										modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp),
+										verticalAlignment = Alignment.CenterVertically
+									) {
+										Text(
+											text = stringResource(Res.string.action_search_history),
+											style = MaterialTheme.typography.titleMedium,
+											modifier = Modifier.weight(1f)
 										)
-									)
+										TextButton(onClick = preferenceManager::clearSearchHistory) {
+											Text(stringResource(Res.string.action_clear_all))
+										}
+									}
 								}
 								items(
 									searchHistory.size,
@@ -447,6 +457,7 @@ fun SearchScreen(
 										modifier = Modifier.clickable {
 											query.clearText()
 											query.edit { insert(0, historyItem) }
+											preferenceManager.addSearchHistory(historyItem)
 										},
 										headlineContent = { Text(historyItem) },
 										leadingContent = {
@@ -458,7 +469,7 @@ fun SearchScreen(
 										},
 										trailingContent = {
 											IconButton(onClick = {
-												viewModel.removeFromSearchHistory(historyItem)
+												preferenceManager.removeSearchHistory(historyItem)
 											}) {
 												Icon(
 													imageVector = Icons.Outlined.Close,
@@ -467,6 +478,15 @@ fun SearchScreen(
 												)
 											}
 										}
+									)
+								}
+							} else {
+								item(span = { GridItemSpan(maxLineSpan) }) {
+									Text(
+										stringResource(Res.string.info_empty_search_history),
+										modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
+										color = MaterialTheme.colorScheme.onSurfaceVariant,
+										style = MaterialTheme.typography.bodyMedium
 									)
 								}
 							}

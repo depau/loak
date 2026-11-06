@@ -188,13 +188,17 @@ fun SongGestures(
 fun AlbumGestures(
 	album: DiscoverAlbum,
 	addFlow: LidarrAddFlow,
+	onOpen: () -> Unit = {},
 	content: @Composable (gestures: Modifier, openSheet: () -> Unit) -> Unit
 ) {
 	val opener = rememberDiscoverOpener()
 	var sheetOpen by rememberSaveable { mutableStateOf(false) }
 	if (sheetOpen) DiscoverAlbumSheet(album, onDismissRequest = { sheetOpen = false }, addFlow = addFlow)
 	val openSheet = { sheetOpen = true }
-	content(Modifier.onSecondaryClick(openSheet).combinedClickable(onLongClick = openSheet) { opener.album(album) }, openSheet)
+	content(Modifier.onSecondaryClick(openSheet).combinedClickable(onLongClick = openSheet) {
+		onOpen()
+		opener.album(album)
+	}, openSheet)
 }
 
 /** A Discover artist's gestures: opens it on tap, its options sheet on long-press or right-click. */
@@ -202,13 +206,17 @@ fun AlbumGestures(
 fun ArtistGestures(
 	artist: DiscoverArtist,
 	addFlow: LidarrAddFlow,
+	onOpen: () -> Unit = {},
 	content: @Composable (gestures: Modifier, openSheet: () -> Unit) -> Unit
 ) {
 	val opener = rememberDiscoverOpener()
 	var sheetOpen by rememberSaveable { mutableStateOf(false) }
 	if (sheetOpen) DiscoverArtistSheet(artist, onDismissRequest = { sheetOpen = false }, addFlow = addFlow)
 	val openSheet = { sheetOpen = true }
-	content(Modifier.onSecondaryClick(openSheet).combinedClickable(onLongClick = openSheet) { opener.artist(artist) }, openSheet)
+	content(Modifier.onSecondaryClick(openSheet).combinedClickable(onLongClick = openSheet) {
+		onOpen()
+		opener.artist(artist)
+	}, openSheet)
 }
 
 /** One Discover list row: art, title, subtitle with the status badge, preview and overflow buttons. */
@@ -282,7 +290,7 @@ fun SongItem(
 }
 
 @Composable
-fun AlbumItem(album: DiscoverAlbum, addFlow: LidarrAddFlow) = AlbumGestures(album, addFlow) { gestures, openSheet ->
+fun AlbumItem(album: DiscoverAlbum, addFlow: LidarrAddFlow, onOpen: () -> Unit = {}) = AlbumGestures(album, addFlow, onOpen) { gestures, openSheet ->
 	ResultItem(
 		album.coverUrl, album.title, dotted(albumKind(album), album.artist, album.year?.toString()),
 		rememberDiscoverStatus(album), gestures, onMore = openSheet
@@ -290,7 +298,7 @@ fun AlbumItem(album: DiscoverAlbum, addFlow: LidarrAddFlow) = AlbumGestures(albu
 }
 
 @Composable
-fun ArtistItem(artist: DiscoverArtist, addFlow: LidarrAddFlow) = ArtistGestures(artist, addFlow) { gestures, openSheet ->
+fun ArtistItem(artist: DiscoverArtist, addFlow: LidarrAddFlow, onOpen: () -> Unit = {}) = ArtistGestures(artist, addFlow, onOpen) { gestures, openSheet ->
 	ResultItem(
 		artist.pictureUrl, artist.name, stringResource(Res.string.label_kind_artist),
 		rememberDiscoverStatus(artist), gestures, artShape = CircleShape, onMore = openSheet
