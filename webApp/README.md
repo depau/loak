@@ -33,7 +33,8 @@ breaking remote playback.
 
 - Full shared Compose UI (login, browse, playback queue, settings…).
 - Browser and mouse back/forward navigate visited pages in the current session;
-  transient sheets are not history entries.
+  tab and history titles show page and local library names. Transient sheets are not
+  history entries.
 - Playback via `WebMediaPlayerViewModel` over `HTMLAudioElement`
   (subsonic stream URLs + estimateContentLength), with MediaSession metadata.
 - Room 3 (`CacheDatabase` / `DownloadDatabase`) through a custom sqlite worker

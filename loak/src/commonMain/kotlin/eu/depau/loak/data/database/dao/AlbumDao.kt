@@ -41,6 +41,9 @@ interface AlbumDao {
 	@Query("SELECT * FROM AlbumEntity WHERE albumId = :albumId LIMIT 1")
 	suspend fun getAlbumById(albumId: String): AlbumWithSongs?
 
+	@Query("SELECT * FROM AlbumEntity WHERE albumId = :albumId LIMIT 1")
+	fun getAlbumEntityById(albumId: String): Flow<AlbumEntity?>
+
 	@Query("SELECT EXISTS(SELECT 1 FROM AlbumEntity WHERE albumId = :albumId AND starredAt IS NOT NULL)")
 	suspend fun isAlbumStarred(albumId: String): Boolean
 

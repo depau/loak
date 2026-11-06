@@ -202,7 +202,7 @@ fun DiscoverListScreen(key: Screen.DiscoverList) {
 	val backStack = LocalNavStack.current
 	val open = { next: DiscoverListType -> backStack.add(Screen.DiscoverList(next)) }
 	Scaffold(
-		topBar = { NestedTopBar(title = { Text(listTitle(type), maxLines = 1) }) },
+		topBar = { NestedTopBar(title = { Text(discoverListTitle(type), maxLines = 1) }) },
 		bottomBar = { RootBottomBar(scrolled = LocalBottomBarScrollManager.current.isTriggered) }
 	) { padding ->
 		// "Hide songs I have" only ever filters a made-for-you playlist; elsewhere it stays off
@@ -376,7 +376,7 @@ private fun MoodsGrid(
 }
 
 @Composable
-private fun listTitle(type: DiscoverListType) = when (type) {
+internal fun discoverListTitle(type: DiscoverListType) = when (type) {
 	DiscoverListType.TopSongs -> stringResource(Res.string.title_top_songs)
 	DiscoverListType.NewReleases -> stringResource(Res.string.title_new_releases)
 	DiscoverListType.TopAlbums -> stringResource(Res.string.title_top_albums)

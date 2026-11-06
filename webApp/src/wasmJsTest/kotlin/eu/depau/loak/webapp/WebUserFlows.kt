@@ -20,6 +20,7 @@ import eu.depau.loak.ui.navigation.BrowserHistory
 import eu.depau.loak.uitest.LargeLibraryFlows
 import eu.depau.loak.uitest.UserFlows
 import eu.depau.loak.uitest.harnessWork
+import eu.depau.loak.uitest.await
 import eu.depau.loak.uitest.click
 import eu.depau.loak.uitest.logIn
 import eu.depau.loak.uitest.navigateUp
@@ -56,24 +57,56 @@ class WebHistoryFlow {
 	fun browserBackAndForwardFollowPages() = runWebApp(5.minutes, browserHistory = true) {
 		logIn()
 		waitForText("Quick picks")
+		awaitTitle("Home · Lo'ak")
 		openSettings()
+		awaitTitle("Settings · Lo'ak")
 		click("Appearance")
 		waitForText("Accent color")
+		awaitTitle("Appearance · Lo'ak")
 		browserBack()
 		waitForText("Integrations")
+		awaitTitle("Settings · Lo'ak")
 		browserForward()
 		waitForText("Accent color")
+		awaitTitle("Appearance · Lo'ak")
 		navigateUp()
 		waitForText("Integrations")
+		awaitTitle("Settings · Lo'ak")
 		browserBack()
 		waitForText("Quick picks")
+		awaitTitle("Home · Lo'ak")
 		openSettings()
 		openTab("Home")
 		waitForText("Quick picks")
 		browserBack()
 		waitForText("Integrations")
+		openTab("Library")
+		awaitTitle("Library · Lo'ak")
+		click("Albums")
+		awaitTitle("Albums · Lo'ak")
+		click("First Light")
+		awaitTitle("First Light · Lo'ak")
+		openTab("Library")
+		awaitTitle("Library · Lo'ak")
+		click("Artists")
+		awaitTitle("Artists · Lo'ak")
+		click("Aurora Test")
+		awaitTitle("Aurora Test · Lo'ak")
+		openTab("Playlists")
+		awaitTitle("Playlists · Lo'ak")
+		click("UI Test Mix")
+		awaitTitle("UI Test Mix · Lo'ak")
 	}
 }
+
+private suspend fun ComposeUiTest.awaitTitle(title: String) =
+	await({ "Expected page title $title, got ${documentTitle()}" }) {
+		waitForIdle()
+		documentTitle() == title
+	}
+
+@JsFun("() => document.title")
+private external fun documentTitle(): String
 
 @JsFun("() => history.back()")
 private external fun browserBack()
