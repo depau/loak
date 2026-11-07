@@ -110,5 +110,3 @@ internal fun browserPageTitle(screen: Screen?, onTitle: (String) -> Unit) {
 	val title = if (name.isBlank()) "Lo'ak" else "$name · Lo'ak"
 	SideEffect { onTitle(title) }
 }
-
-
