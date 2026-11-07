@@ -35,6 +35,7 @@ import org.junit.rules.TestName
 import org.junit.rules.Timeout
 import java.io.File
 import javax.imageio.ImageIO
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
@@ -53,7 +54,7 @@ abstract class DesktopUserFlows(private val width: Int, private val height: Int)
 	val timeout: Timeout = Timeout.seconds(180)
 
 	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) =
-		runDesktopApp(width, height, "${this::class.simpleName}.${name.methodName}", { player = it }, flow)
+		runDesktopApp(width, height, "${this::class.simpleName}.${name.methodName}", { player = it }, flow = flow)
 }
 
 /** The running flow's [restartDesktopApp]. */
@@ -74,6 +75,8 @@ fun runDesktopApp(
 	height: Int,
 	failureName: String,
 	onPlayer: (MediaPlayerViewModel) -> Unit = {},
+	/** The compose test harness' own wall-clock ceiling for the body; it runs before the JUnit [Timeout] rule. */
+	testTimeout: Duration = 60.seconds,
 	flow: suspend ComposeUiTest.() -> Unit,
 ) {
 	// Nucleus registers its own Main dispatcher (the Tao main thread, or a fallback
@@ -83,7 +86,7 @@ fun runDesktopApp(
 	stopKoin() // after a flow that timed out, its app is still around
 	var app = DesktopApp(onPlayer)
 	try {
-		runDesktopComposeUiTest(width, height) {
+		runDesktopComposeUiTest(width, height, testTimeout = testTimeout) {
 			var screens by mutableStateOf<ViewModelStore?>(app.screens)
 			setContent {
 				// the screens' ViewModels in the app's own store, so a restarted app gets new ones
@@ -190,7 +193,10 @@ class DesktopLargeLibraryFlows : LargeLibraryFlows() {
 	private var player: MediaPlayerViewModel? = null
 
 	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) =
-		runDesktopApp(1280, 800, "${this::class.simpleName}.${name.methodName}", { player = it }, flow)
+		// the first sync of the large library, plus scrolling to its middle, runs well past
+		// the compose harness' 60 s wall-clock ceiling on a slow runner; let the 600 s JUnit
+		// rule govern instead
+		runDesktopApp(1280, 800, "${this::class.simpleName}.${name.methodName}", { player = it }, testTimeout = 600.seconds, flow = flow)
 
 	override suspend fun ComposeUiTest.restartApp() = restartDesktopApp()
 
