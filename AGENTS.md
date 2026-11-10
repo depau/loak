@@ -70,6 +70,7 @@ Lo'ak repo root/
 │   ├── Configuration/Config.xcconfig
 │   └── iosApp/          # AppDelegate.swift, Info.plist, entitlements, assets
 ├── gradle/libs.versions.toml          # single source of dependency truth
+├── packaging/flatpak/   # Flatpak bundle + OCI index feed (manifest data lives here)
 ├── fastlane/            # iOS resign + TestFlight upload (release tooling)
 ├── app-repo.json        # AltStore/sideloading source manifest (auto-updated by CI)
 └── .github/workflows/   # build, checks, web
@@ -188,6 +189,28 @@ A **free** developer team works for the device recipe above, with iOS' own limit
 
 **Icons only (no full build):** `./gradlew :loak:generateValkyrieImageVector`
 
+**Flatpak (Linux):** a package task builds the jpackage app image, then the bundle script
+repackages it (needs `flatpak`, `ostree` and `python3`, no runtime or SDK):
+```bash
+./gradlew :loakDesktop:packageDeb
+packaging/flatpak/build-bundle.sh --version 1.0.58
+# -> dist/loak-1.0.58-linux-x86_64.flatpak
+```
+The script wraps the metainfo into the AppStream catalog layout the bundle builder reads
+(`share/app-info/xmls`, plus 64/128 px icons in `packaging/flatpak/icons`), so both the
+`.flatpak` and the OCI images carry the app's name, summary and icons without needing
+`appstreamcli compose` (Ubuntu 24.04's AppStream 1.0 has no compose action). The bundle
+requires the freedesktop runtime from Flathub.
+
+Releases are published as an OCI feed, not an OSTree repository: `publish-oci.sh` turns the
+two `.flatpak` bundles into single-image OCI layouts, pushes them to GHCR and writes the
+flatpak static index; `update-index-branch.sh` commits the index and `loak.flatpakrepo` to
+the `flatpak-index` branch. Users add
+`https://raw.githubusercontent.com/depau/loak/flatpak-index/loak.flatpakrepo`. The GHCR
+package must be public (a private package makes every client 401); the index's
+`Registry`/`Name`/`Digest` indirect the images, so a GHCR move only needs a new index.
+`publish-oci.sh --skip-push` builds and indexes locally for testing.
+
 Debug realm: the Android `debug` build has **no ABIs excluded** (`x86_64` is added) for emulator use; release builds `arm64-v8a` + `armeabi-v7a`.
 
 ## Testing on devices and emulators
@@ -256,6 +279,7 @@ For UI changes: **manually verify on different themes and form factors and inclu
 - **`build.yml`** — on push/PR/tags: builds Android (signed release on push/tags via `SIGNING_*` env vars, debug on PRs, plus a `.nightly` variant on `main`), desktop installers for Ubuntu (x64 and arm64)/macOS/Windows (x64 and arm64), and the iOS IPA (`Loak-nightly.ipa` on `main`, `Loak.ipa` on a v-tag). The `macos-26` iOS job was the long pole (~45 min) because of the release framework link (`:loak:linkReleaseFrameworkIosArm64`; the klib compile, `:loak:compileKotlinIosArm64`, takes ~1 min): its whole-program optimisation needs a 5+ GB heap, and the runner has 7.5 GB and 3 vCPUs, so it swapped. So every build but a v-tag release links against Kotlin/Native release binary caches (`enableReleaseBinaryCache`, which the job appends to `gradle.properties`): the dependencies compiled once, the link compiles only the app (~1 min and ~4 GB locally, against ~7 min). Releases keep the full optimisation and use no cache. `~/.konan` is cached per Kotlin version (the toolchain); the release binary caches under it are cached apart, per ref (see Caching). Publishes a `nightly` GitHub Release on every `main` push and a v-tag GitHub Release with desktop update manifests.
   The update manifests list only installers that can self-update, and every URL in them must resolve: the portable archives (`.tar.gz`/`.zip`) are *renamed* into per-build tokens (`Loak-nightly-<date>-<sha>-…`) after the manifests are generated, so the workflow moves them out of the per-platform artifact directories (into `release-assets-portable`, which the generator skips) before generating. Leaving them in makes `path:` point at a name that no longer exists on the release.
   - **Tests gate the nightly and releases**: the `test` job runs the unit tests (`:loak:desktopTest`), and every desktop matrix OS runs the desktop UI tests and user flows (`:loakDesktop:desktopTest`) before packaging, and `ui-flows-android` runs the Android user flows on the `minified` build in a managed emulator; failures upload their screenshots, reports and the Navidrome log.
+  - **Flatpak**: the two Linux desktop jobs build a `.flatpak` bundle from the app image. A v-tag's `create-release` pushes the x86_64/aarch64 bundles as OCI images to GHCR (`packages: write`) and commits the static index and `loak.flatpakrepo` to the `flatpak-index` branch (`packaging/flatpak/publish-oci.sh`, `update-index-branch.sh`). The branch is the feed's stable address; the index's `Registry`/`Name`/`Digest` point at the images, so a GHCR move only needs a new index. Nightlies keep the bundle as a release asset but stay out of the feed.
 - **`checks.yml`** — Gradle wrapper integrity validation.
 - **`web.yml`** — installs Playwright's WebKit, runs the web user flows (`:webApp:wasmJsBrowserTest`), then builds the Kotlin/Wasm web bundle and deploys the web demo; failing flows stop the deploy.
 - **Caching**: every Gradle job sets up through `.github/actions/setup-gradle` (JDK 21 + `gradle/actions/setup-gradle`), which keeps Gradle's dependencies, build cache and configuration cache in the Actions cache. Only `main` writes it; other branches and pull requests only read it, so they can't plant outputs `main` would reuse or evict its entries. The configuration cache is encrypted with the `GRADLE_ENCRYPTION_KEY` secret (fork PRs don't get it and skip that cache). Don't add `cache: gradle` to `setup-java`: setup-gradle restores nothing into a Gradle User Home that already exists.
@@ -295,6 +319,9 @@ For UI changes: **manually verify on different themes and form factors and inclu
 15. **Make Ktor clients with `LoakHttpClient(...)`, never `HttpClient(...)`.** On web a request that can't reach the server fails with a `kotlin.Error`/`JsError`, which is not an `Exception`: it slips past every `catch (e: Exception)`, and a coroutine started from composition (`LaunchedEffect`, `produceState`) that dies of it shuts Compose's recomposer down, so the whole page freezes until reloaded (LOAK-2V). `LoakHttpClient` (`util/HttpClients.kt`) rethrows those as `FetchException` (an `IOException`); a client built elsewhere (the Subsonic one) installs `fetchErrorsAsExceptions()`. More generally, anything JS throws on web (e.g. a full `localStorage`) is a `JsException`, also not an `Exception`.
 
 16. **Teach the Sentry censor every value the user gives the app.** Server addresses, usernames, passwords, tokens, API keys, custom headers and the device name can reach error reports through request URLs, exception messages and thread names; the censor only catches the ones it was told about (`recordPiiServer(service, url)` for addresses — which also gives their URLs a `<service>.redacted` host and drops their path prefix —, `recordPiiIdentifier` for everything else, `recordPiiHeaders` for `Key:Value` lines, in `di/SentrySanitizer.kt`). Declare such a setting with `piiPreference(default) { recordPii…(…) }` in `PreferenceManager`, not `preference(...)`: it registers the stored value at startup and every new one, whichever code path uses it first. A value used before it's saved (a login form, a "check connection" call) registers itself first, as `SessionManager.createClient`, `KoitoHistorySource.check` and `ListenBrainzClient.checkUser` do. A new public service the app calls goes in `PUBLIC_HOSTS` (with a path-segment cap if its paths carry user data). Adding a setting, an integration or a request built from user input without this is a privacy bug.
+
+17. **Flatpak repackages the packaged app image, it does not compile in flatpak-builder.** `packaging/flatpak/build-bundle.sh` commits the jpackage tree with `flatpak build-export`, so no runtime or SDK is needed and the bundle carries the same binaries as the AppImage/deb. It also writes the AppStream catalog (`share/app-info/xmls/<id>.xml.gz`, the metainfo wrapped in `<components>`) and the 64/128 px icons the bundle builder reads; skip that and the feed lists the app without its name, summary or icon. `appstreamcli compose` is deliberately not used: Ubuntu 24.04's AppStream 1.0 doesn't have it. The self-updater is disabled when `FLATPAK_ID` is set (the sandbox's `/app` is read-only; `flatpak update` owns upgrades), and Linux settings/databases live under `XDG_DATA_HOME` (`~/.local/share` normally, `~/.var/app/eu.depau.loak/data` in the sandbox) — don't hardcode `~/.local/share`.
+    The feed is OCI: a static index plus `loak.flatpakrepo` on the `flatpak-index` branch, images in GHCR (`publish-oci.sh` pushes them; `update-index-branch.sh` commits). Two things break it silently: a **private GHCR package** (every client's pull is a 401 — flip it public once) and **GitHub raw redirects** (the branch URL is the index base; raw redirects aren't a documented guarantee, so a repo rename/move strands existing remotes on the old URL — the `.flatpakrepo` link only brings new installs, though the images themselves can move by updating the index's `Registry`/`Name`/`Digest`). For a planned repo move, put the index behind a stable custom domain or a separate index repo. The `.flatpak` bundle's `runtime-repo` (Flathub) isn't in the OCI ref, so OCI users need Flathub configured for the runtime.
 
 ## Quick orientation questions
 

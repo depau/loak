@@ -58,9 +58,13 @@ class DesktopUpdaterManager : UpdateController {
 	/**
 	 * Installers are only self-updatable in the packaged formats the plugin injects the
 	 * executable type for; under `./gradlew run` this is false and the UI never offers to update.
+	 * A Flatpak installs from its repository instead: the sandbox's /app is read-only, so
+	 * `flatpak update` owns the upgrade.
 	 */
 	override val supported: Boolean
-		get() = updater.isUpdateSupported() && updater.currentVersion.isNotBlank()
+		get() = !isFlatpak && updater.isUpdateSupported() && updater.currentVersion.isNotBlank()
+
+	private val isFlatpak = System.getenv("FLATPAK_ID") != null
 
 	override fun check() {
 		if (!supported || _state.value.phase in BUSY_STATES) return

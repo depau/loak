@@ -83,8 +83,8 @@ $title
 <tbody>
 <tr>
 <td><strong>Linux</strong></td>
-<td>$(dl "${dp}linux-x86_64.AppImage" "AppImage") · $(dl "${dp}linux-amd64.deb" "DEB") · $(dl "${dp}linux-x86_64.rpm" "RPM") · $(dl "${pp}X64-Linux.tar.gz" "tar.gz")</td>
-<td>$(dl "${dp}linux-arm64.AppImage" "AppImage") · $(dl "${dp}linux-arm64.deb" "DEB") · $(dl "${dp}linux-aarch64.rpm" "RPM") · $(dl "${pp}ARM64-Linux.tar.gz" "tar.gz")</td>
+<td>$(dl "${dp}linux-x86_64.AppImage" "AppImage") · $(dl "${dp}linux-amd64.deb" "DEB") · $(dl "${dp}linux-x86_64.rpm" "RPM") · $(dl "${dp}linux-x86_64.flatpak" "Flatpak") · $(dl "${pp}X64-Linux.tar.gz" "tar.gz")</td>
+<td>$(dl "${dp}linux-arm64.AppImage" "AppImage") · $(dl "${dp}linux-arm64.deb" "DEB") · $(dl "${dp}linux-aarch64.rpm" "RPM") · $(dl "${dp}linux-aarch64.flatpak" "Flatpak") · $(dl "${pp}ARM64-Linux.tar.gz" "tar.gz")</td>
 </tr>
 <tr>
 <td><strong>macOS</strong></td>
@@ -107,5 +107,23 @@ $title
 </tbody>
 </table>
 
-Installers auto-update; portable builds (tar.gz/zip) don't. \`.blockmap\` and channel \`.yml\` files are auto-update metadata, not downloads.
+Nucleus installers auto-update; the .flatpak bundle is a one-file install; portable
+builds (tar.gz/zip) don't. \`.blockmap\` and channel \`.yml\` files are auto-update
+metadata, not downloads.
 EOF
+
+# Nightly builds also carry a .flatpak bundle, but the feed's one branch is what
+# `flatpak update` offers, so only releases are added to it. The branch is the
+# OCI index `create-release` publishes; the images live in GHCR.
+if [[ "$channel" == "stable" ]]; then
+	cat <<'EOF'
+
+**Flatpak repository** (updates with releases; Flathub provides the runtime):
+
+```
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak remote-add --user --if-not-exists loak https://raw.githubusercontent.com/depau/loak/flatpak-index/loak.flatpakrepo
+flatpak install --user loak eu.depau.loak
+```
+EOF
+fi

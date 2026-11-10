@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+	<id>eu.depau.loak</id>
+	<name>Lo'ak</name>
+	<summary>Stream your Subsonic music library</summary>
+	<metadata_license>CC0-1.0</metadata_license>
+	<project_license>GPL-3.0-or-later</project_license>
+	<description>
+		<p>
+			Lo'ak is a modern music streaming client for (Open)Subsonic servers such as
+			Navidrome, gonic and LMS. It plays your library, radio and downloaded music, with
+			lyrics, an equaliser, ReplayGain, transcoding and offline support.
+		</p>
+		<p>Desktop features:</p>
+		<ul>
+			<li>Stream and download from your server</li>
+			<li>Queue, lyrics, radio and search</li>
+			<li>Automatic updates through the Flatpak repository</li>
+		</ul>
+	</description>
+	<launchable type="desktop-id">eu.depau.loak.desktop</launchable>
+	<url type="homepage">https://github.com/depau/loak</url>
+	<url type="bugtracker">https://github.com/depau/loak/issues</url>
+	<developer id="eu.depau">
+		<name>Davide Depau</name>
+	</developer>
+	<categories>
+		<category>AudioVideo</category>
+		<category>Audio</category>
+		<category>Player</category>
+	</categories>
+	<content_rating type="oars-1.1"/>
+	<releases>
+		<release version="@VERSION@" date="@DATE@"/>
+	</releases>
+</component>

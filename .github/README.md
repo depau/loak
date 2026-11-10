@@ -83,6 +83,27 @@ Apps installed this way are re-signed with your own free Apple ID and expire
 after 7 days (refresh from the store keeps them alive). AltStore PAL is not
 supported: it requires Apple notarization.
 
+## Desktop
+
+Installers for Linux, macOS and Windows are attached to the [latest release][LATEST_RELEASE].
+The packaged desktop app updates itself; the portable tar.gz/zip archives don't.
+
+On Linux, Lo'ak also has a Flatpak repository. It is an OCI index: the index and
+its `.flatpakrepo` live on the `flatpak-index` branch, the images in the GitHub
+Container Registry, and Flathub provides the runtime:
+
+```bash
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak remote-add --user --if-not-exists loak https://raw.githubusercontent.com/depau/loak/flatpak-index/loak.flatpakrepo
+flatpak install --user loak eu.depau.loak
+flatpak run eu.depau.loak
+```
+
+Every release also attaches a one-file `.flatpak` bundle, which adds Flathub for
+the runtime by itself; it is a single install, so add the repository above to
+update it. Flatpak updates arrive with `flatpak update`; the in-app updater stays
+off inside the sandbox.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) to see how you can help out!

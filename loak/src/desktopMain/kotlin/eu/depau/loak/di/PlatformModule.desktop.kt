@@ -29,14 +29,22 @@ import java.nio.file.Files
 import java.util.Properties
 
 val desktopDataDir: File by lazy {
-	val dir = File(
-		System.getProperty("user.home"),
-		when {
-			Os.isWindows -> "AppData/Local/Loak"
-			Os.isMac -> "Library/Application Support/Loak"
-			else -> ".local/share/Loak"
+	val home = System.getProperty("user.home")
+	val dir = when {
+		Os.isWindows -> File(home, "AppData/Local/Loak")
+		Os.isMac -> File(home, "Library/Application Support/Loak")
+		else -> {
+			val legacy = File(home, ".local/share/Loak")
+			// Flatpak redirects XDG_DATA_HOME into the app's sandbox; ~/.local/share is a
+			// throwaway tmpfs there. Keep an existing pre-XDG install where it is.
+			val target = File(
+				System.getenv("XDG_DATA_HOME")?.takeIf { it.isNotBlank() }
+					?: File(home, ".local/share").path,
+				"Loak",
+			)
+			if (!target.exists() && legacy.exists()) legacy else target
 		}
-	)
+	}
 	Files.createDirectories(dir.toPath())
 	dir
 }

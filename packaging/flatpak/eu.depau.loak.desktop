@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Lo'ak
+GenericName=Music Player
+Comment=Stream your Subsonic music library
+Exec=Loak
+Icon=eu.depau.loak
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;streaming;subsonic;navidrome;opensubsonic;
+StartupWMClass=Loak
