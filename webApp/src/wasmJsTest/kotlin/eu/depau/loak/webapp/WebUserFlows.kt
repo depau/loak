@@ -14,7 +14,9 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import eu.depau.loak.App
+import eu.depau.loak.data.database.dao.AlbumDao
 import eu.depau.loak.di.initKoin
+import eu.depau.loak.domain.manager.SyncManager
 import eu.depau.loak.shared.MediaPlayerViewModel
 import eu.depau.loak.ui.navigation.BrowserHistory
 import eu.depau.loak.uitest.LargeLibraryFlows
@@ -28,8 +30,11 @@ import eu.depau.loak.uitest.openSettings
 import eu.depau.loak.uitest.openTab
 import eu.depau.loak.uitest.waitForText
 import kotlinx.browser.localStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.await
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestResult
+import kotlinx.coroutines.withContext
 import org.koin.core.context.stopKoin
 import org.koin.mp.KoinPlatform
 import kotlin.js.Promise
@@ -37,6 +42,8 @@ import kotlin.test.Test
 import kotlin.test.fail
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * The user flows on the real web app in a real browser: the wasm build, its sqlite
@@ -57,6 +64,7 @@ class WebHistoryFlow {
 	fun browserBackAndForwardFollowPages() = runWebApp(5.minutes, browserHistory = true) {
 		logIn()
 		waitForText("Quick picks")
+		awaitLibrarySync()
 		awaitTitle("Home · Lo'ak")
 		openSettings()
 		awaitTitle("Settings · Lo'ak")
@@ -104,6 +112,25 @@ private suspend fun ComposeUiTest.awaitTitle(title: String) =
 		waitForIdle()
 		documentTitle() == title
 	}
+
+/**
+ * Waits until the full library pull has landed, without navigating: a screen opened meanwhile
+ * would add a browser history entry, and the flow checks those. The Album list opens on the
+ * sync's progress bar for as long as the pull runs, which on CI's slower machines can outlast
+ * the flow's own waits.
+ */
+private suspend fun awaitLibrarySync() {
+	val albums = KoinPlatform.getKoin().get<AlbumDao>()
+	val sync = KoinPlatform.getKoin().get<SyncManager>()
+	val deadline = TimeSource.Monotonic.markNow() + 120.seconds
+	while (
+		sync.syncState.value.isSyncing ||
+		albums.getAllAlbumEntities().none { it.name == "First Light" }
+	) {
+		if (deadline.hasPassedNow()) throw AssertionError("The library did not sync within 120 s")
+		withContext(Dispatchers.Default) { delay(100) }
+	}
+}
 
 @JsFun("() => document.title")
 private external fun documentTitle(): String
