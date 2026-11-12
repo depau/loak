@@ -7,12 +7,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.isRoot
-import androidx.compose.ui.test.runDesktopComposeUiTest
+import androidx.compose.ui.test.runSkikoComposeUiTest
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -75,7 +76,11 @@ fun runDesktopApp(
 	height: Int,
 	failureName: String,
 	onPlayer: (MediaPlayerViewModel) -> Unit = {},
-	/** The compose test harness' own wall-clock ceiling for the body; it runs before the JUnit [Timeout] rule. */
+	/**
+	 * The Compose test harness' own wall-clock ceiling for the body; it runs before the JUnit
+	 * [Timeout] rule. The Skiko harness takes it; the desktop wrapper runs the body inside a
+	 * `runTest` with the 60 s default, so a longer flow still dies there.
+	 */
 	testTimeout: Duration = 60.seconds,
 	flow: suspend ComposeUiTest.() -> Unit,
 ) {
@@ -86,7 +91,10 @@ fun runDesktopApp(
 	stopKoin() // after a flow that timed out, its app is still around
 	var app = DesktopApp(onPlayer)
 	try {
-		runDesktopComposeUiTest(width, height, testTimeout = testTimeout) {
+		runSkikoComposeUiTest(
+			size = Size(width.toFloat(), height.toFloat()),
+			testTimeout = testTimeout,
+		) {
 			var screens by mutableStateOf<ViewModelStore?>(app.screens)
 			setContent {
 				// the screens' ViewModels in the app's own store, so a restarted app gets new ones
