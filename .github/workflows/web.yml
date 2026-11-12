@@ -58,9 +58,16 @@ jobs:
           build/wasm/node_modules/.bin/playwright install --with-deps webkit
 
       # The user flows in headless Chrome, Firefox and WebKit (Karma), against the Navidrome
-      # fixtures; a failure stops the deploy
+      # fixtures; a failure stops the deploy. One browser at a time: all three at once on a CI
+      # runner press the flows' main-thread stall check past its 2 s (the hang watchdog's
+      # threshold), failing flows that stall only because the host is busy.
       - name: Run user flows
-        run: ./gradlew :webApp:wasmJsBrowserTest --no-daemon
+        run: |
+          for browser in chrome firefox webkit; do
+            echo "::group::$browser"
+            ./gradlew :webApp:wasmJsBrowserTest -Ploak.webBrowsers=$browser --no-daemon
+            echo "::endgroup::"
+          done
 
       - name: Upload user flow failures
         if: failure()
