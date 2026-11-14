@@ -141,24 +141,15 @@ private external fun browserBack()
 @JsFun("() => history.forward()")
 private external fun browserForward()
 
-/**
- * The large-library flows on the web app, on demand only (-Ploak.webLargeLibrary): some of
- * them still hang on the web with no library sync ever starting (the cache database never
- * opens), so they would make the default suite flaky.
- */
+/** The large-library flows on the web app. */
 class WebLargeLibraryFlows : LargeLibraryFlows() {
 	// the first sync of the large library takes a while
-	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) =
-		runWebApp(10.minutes) { if (largeLibraryEnabled()) flow() else println("[loak] skipped") }
+	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runWebApp(10.minutes, flow = flow)
 
 	override suspend fun ComposeUiTest.restartApp() = restart!!()
 
 	override fun queue() = player().uiState.value.let { it.queue.size to it.currentSong?.title }
 }
-
-// set by webApp/karma.config.d from -Ploak.webLargeLibrary
-@JsFun("() => globalThis.__karma__?.config?.loakLargeLibrary === true")
-private external fun largeLibraryEnabled(): Boolean
 
 /**
  * The longest the page's main thread may go without running a timer or drawing a frame
