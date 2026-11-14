@@ -162,11 +162,12 @@ private external fun largeLibraryEnabled(): Boolean
 
 /**
  * The longest the page's main thread may go without running a timer or drawing a frame
- * during a flow: the web hang watchdog's threshold. The flows' longest stalls on an idle
- * Apple-silicon Mac are 0.7 s (Chrome) and 0.9 s (Firefox), at app start and opening
- * Library; CI's runners draw on the CPU and are slower, so a second would fail them.
+ * during a flow. The flows' longest stalls on an idle Apple-silicon Mac are 0.7 s (Chrome)
+ * and 0.9 s (Firefox), at app start and opening Library; CI's runners draw on the CPU and
+ * are about 3× slower: they reach 2.1 s there even one browser at a time, so the web hang
+ * watchdog's own 2 s threshold would fail them.
  */
-private const val MAX_GAP_MS = 2000
+private const val MAX_GAP_MS = 3000
 
 private fun player() = KoinPlatform.getKoin().get<MediaPlayerViewModel>()
 
