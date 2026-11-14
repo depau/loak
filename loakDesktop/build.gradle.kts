@@ -92,6 +92,9 @@ tasks.named<Test>("desktopTest") {
 	doFirst { home.deleteRecursively(); home.mkdirs() }
 	systemProperty("user.home", home.absolutePath)
 	systemProperty("loak.uitest.failures", layout.buildDirectory.dir("ui-test-failures").get().asFile.absolutePath)
+	// runDesktopComposeUiTest wraps each flow in a runTest that takes no timeout, so the 60 s
+	// default would cut the large-library flows short; the JUnit Timeout rules govern instead
+	systemProperty("kotlinx.coroutines.test.default_timeout", "600s")
 	usesNavidrome(this)
 	usesLargeNavidrome(this)
 }
