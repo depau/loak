@@ -286,6 +286,26 @@ internal fun sentryPiiSnapshot(): Set<String> = piiSnapshot.load()
 internal data class Censored(val text: String, val breached: List<String>)
 
 /**
+ * The app's own package path, a compile-time constant of this app. A user identifier that also
+ * forms a segment of it (e.g. "depau" in "eu.depau.loak") collides with the app's own resource
+ * paths on every boot; layer 2 then "finds" the identifier in those paths and fires a false
+ * breach alert (LOAK-35). A value whose only appearance is inside the namespace is coincidental,
+ * not a leak: the app's own package path ships publicly and the identifier is scrubbed nowhere
+ * because it wasn't there to begin with.
+ */
+private const val APP_NAMESPACE = "eu.depau.loak"
+
+private fun onlyInAppNamespace(value: String, text: String): Boolean {
+	// Not part of the app's own package path (not a substring of it) -> can't be
+	// solely inside the namespace; any occurrence is a real leak candidate.
+	if (APP_NAMESPACE.indexOf(value, ignoreCase = true) < 0) return false
+	// If dropping every occurrence of the namespace leaves the value nowhere, then
+	// every match was only inside the app's own path -> coincidental, not a breach.
+	return text.replace(APP_NAMESPACE, "", ignoreCase = true)
+		.indexOf(value, ignoreCase = true) < 0
+}
+
+/**
  * Full censorship pass: layer 1 regex redaction, then layer 2 exact-match on
  * the known server identifiers. Use this when a breach flag matters (event
  * sanitizers); the plain [sanitizeSentryText] wrapper keeps callers that only
@@ -307,7 +327,9 @@ internal fun censorSentryText(raw: String): Censored {
 			"resolve host $quote${shownHost(m.groupValues[2])}$quote"
 		} }
 		.let { SENSITIVE_PARAM_REGEX.replace(it, "$1[REDACTED]") }
-	val breached = piiSnapshot.load().filter { p -> p.length >= 4 && l1.contains(p, ignoreCase = true) }
+	val breached = piiSnapshot.load().filter { p ->
+		p.length >= 4 && l1.contains(p, ignoreCase = true) && !onlyInAppNamespace(p, l1)
+	}
 	if (breached.isEmpty()) return Censored(l1, emptyList())
 	var censored = l1
 	for (p in breached) censored = censored.replace(p, "[REDACTED_HOST]", ignoreCase = true)

@@ -208,5 +208,21 @@ class SentrySanitizerTest {
 		assertTrue("koito.home.example" in sentryPiiSnapshot())
 	}
 
+	@Test
+	fun appNamespaceCollisionsAreNotBreaches() {
+		// LOAK-35 regression: a seeded identifier that equals a segment of the app's own
+		// package (e.g. a "depau" handle colliding with eu.depau.loak) shows up inside the
+		// app's own resource paths on every boot — that is coincidental, not a leak.
+		recordPiiIdentifier("depau")
+		val c = censorSentryText(
+			"./composeResources/eu.depau.loak.generated.resources/values/strings.commonMain.cvr"
+		)
+		assertTrue(c.breached.isEmpty())
+		// …but the same identifier appearing outside the app namespace still breaches.
+		val d = censorSentryText("auth failed for depau in the log")
+		assertEquals("auth failed for [REDACTED_HOST] in the log", d.text)
+		assertEquals(listOf("depau"), d.breached.distinct())
+	}
+
 	// endregion
 }
