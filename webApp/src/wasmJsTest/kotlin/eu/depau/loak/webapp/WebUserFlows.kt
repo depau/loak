@@ -233,7 +233,7 @@ private class WebApp {
 		player().setVolume(0f) // flows play songs: keep them silent
 	}
 
-	fun stop() {
+	suspend fun stop() {
 		screens.clear()
 		ViewModelStore().apply { put("player", player()); clear() }
 		stopApp()
@@ -241,31 +241,56 @@ private class WebApp {
 }
 
 /** Stops Koin and the app's workers (its databases), so their OPFS files can be freed. */
-private fun stopApp() {
+private suspend fun stopApp() {
 	stopKoin()
-	terminateWorkers()
+	terminateWorkers().await<JsAny?>()
 }
 
+// counts each worker's requests still waiting for an answer (the sqlite worker's {id, data})
 @JsFun(
 	"""() => {
 	if (globalThis.loakWorkers) return;
 	const workers = globalThis.loakWorkers = [];
 	const Base = globalThis.Worker;
-	globalThis.Worker = class extends Base { constructor(...args) { super(...args); workers.push(this); } };
+	globalThis.Worker = class extends Base {
+		constructor(...args) {
+			super(...args);
+			this.pending = new Set();
+			this.addEventListener('message', (e) => this.pending.delete(e.data?.id));
+			workers.push(this);
+		}
+		postMessage(message, ...rest) {
+			if (message?.id !== undefined) this.pending.add(message.id);
+			super.postMessage(message, ...rest);
+		}
+	};
 }"""
 )
 private external fun trackWorkers()
 
-// a worker stopped mid-load reports its interrupted script load to the page: not an app error
+/**
+ * Terminates the stopped app's workers once none has had a request in flight for a few polls
+ * (10 s at most). Room opens a database under a lock shared by every Room instance in the
+ * page, keyed by file name, across several requests: a worker terminated mid-open never
+ * answers, the lock is never released, and every later app's database waits on it forever.
+ * A worker stopped mid-load reports its interrupted script load to the page: not an app error.
+ */
 @JsFun(
-	"""() => {
-	for (const worker of globalThis.loakWorkers.splice(0)) {
+	"""async () => {
+	const workers = globalThis.loakWorkers.splice(0);
+	const deadline = performance.now() + 10000;
+	for (let quiet = 0; quiet < 5 && performance.now() < deadline; ) {
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		quiet = workers.some((worker) => worker.pending.size) ? 0 : quiet + 1;
+	}
+	for (const worker of workers) {
 		worker.onerror = (e) => e.preventDefault();
 		worker.terminate();
 	}
+	return null;
 }"""
 )
-private external fun terminateWorkers()
+private external fun terminateWorkers(): Promise<JsAny?>
 
 /**
  * Waits until the stopped app's sqlite workers have let go of the OPFS files (a terminated
