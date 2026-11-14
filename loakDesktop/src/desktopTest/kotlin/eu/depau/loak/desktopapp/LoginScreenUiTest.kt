@@ -36,6 +36,7 @@ import eu.depau.loak.domain.manager.SessionManager
 import eu.depau.loak.ui.navigation.Screen
 import eu.depau.loak.ui.screens.login.pages.LoginScreenContent
 import eu.depau.loak.ui.theme.LoakTheme
+import eu.depau.loak.uitest.SCREEN_TIMEOUT_MS
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -138,7 +139,8 @@ class LoginScreenUiTest {
 		onNodeWithText("Username").performTextInput("demo")
 		onNodeWithText("Password").performTextInput("wrong")
 		onNodeWithText("Next").performClick()
-		waitUntil(timeoutMillis = 5_000) {
+		// a slow runner (macos-15-intel) took over 5 s to show it
+		waitUntil(timeoutMillis = SCREEN_TIMEOUT_MS) {
 			onAllNodesWithText("Wrong username or password.").fetchSemanticsNodes().isNotEmpty()
 		}
 		onNodeWithText("Wrong username or password.").assertIsDisplayed()
