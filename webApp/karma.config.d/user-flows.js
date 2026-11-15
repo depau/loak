@@ -22,6 +22,8 @@ config.concurrency = 1;
 
 // The fixture server's port (-Ploak.uitest.port), read by the tests (TestServer)
 config.client.loakUitestPort = process.env.LOAK_UITEST_PORT;
+// Whether to run the large-library flows (-Ploak.webLargeLibrary), read by WebLargeLibraryFlows
+config.client.loakLargeLibrary = process.env.LOAK_WEB_LARGE_LIBRARY === "true";
 
 // Muted browsers (test runs are silent), and the flows start playback from test clicks,
 // which browsers don't count as user gestures: let them autoplay

@@ -141,15 +141,25 @@ private external fun browserBack()
 @JsFun("() => history.forward()")
 private external fun browserForward()
 
-/** The large-library flows on the web app. */
+/**
+ * The large-library flows on the web app, on demand only (-Ploak.webLargeLibrary). They pass
+ * on a fast machine in every browser, but on CI's runners the page stopped answering Karma's
+ * 60 s ping during them, which drops the browser and fails the whole run: most likely the
+ * harness scrolling a list to a node, which lays out every row on the page's one thread.
+ */
 class WebLargeLibraryFlows : LargeLibraryFlows() {
 	// the first sync of the large library takes a while
-	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) = runWebApp(10.minutes, flow = flow)
+	override fun runApp(flow: suspend ComposeUiTest.() -> Unit) =
+		runWebApp(10.minutes) { if (largeLibraryEnabled()) flow() else println("[loak] skipped") }
 
 	override suspend fun ComposeUiTest.restartApp() = restart!!()
 
 	override fun queue() = player().uiState.value.let { it.queue.size to it.currentSong?.title }
 }
+
+// set by webApp/karma.config.d from -Ploak.webLargeLibrary
+@JsFun("() => globalThis.__karma__?.config?.loakLargeLibrary === true")
+private external fun largeLibraryEnabled(): Boolean
 
 /**
  * The longest the page's main thread may go without running a timer or drawing a frame

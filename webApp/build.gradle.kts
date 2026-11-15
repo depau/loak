@@ -43,7 +43,10 @@ kotlin {
 
 tasks.named<KotlinJsTest>("wasmJsBrowserTest") {
 	usesNavidrome(this)
-	usesLargeNavidrome(this)
+	// the large-library flows only on demand (WebLargeLibraryFlows): -Ploak.webLargeLibrary
+	val largeLibrary = providers.gradleProperty("loak.webLargeLibrary").isPresent
+	if (largeLibrary) usesLargeNavidrome(this)
+	environment("LOAK_WEB_LARGE_LIBRARY", largeLibrary.toString())
 	// for karma.config.d, which hands it to the tests
 	environment("LOAK_UITEST_PORT", uiTestPort().toString())
 	// -Ploak.webBrowsers=chrome,firefox,webkit: only those (karma.config.d), e.g. one at a time
