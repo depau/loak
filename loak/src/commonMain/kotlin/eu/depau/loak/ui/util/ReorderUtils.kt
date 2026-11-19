@@ -421,7 +421,9 @@ inline fun <T> LazyListScope.draggableItemsIndexed(
 	} else if (state.draggingItemIndex == null) {
 		// Placement animation during a drag lets rows moving into their new slots repeatedly
 		// cross the held row's midpoint, advancing it again without any pointer movement.
-		loakAnimateItem()
+		// No fade-out: it keeps a whole replaced list (a new mix's queue) drawn at full size
+		// under the new rows while they fade in, i.e. both lists on top of each other.
+		loakAnimateItem(fadeOutSpec = null)
 	} else {
 		Modifier
 	}
