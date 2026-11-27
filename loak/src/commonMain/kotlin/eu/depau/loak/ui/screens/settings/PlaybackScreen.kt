@@ -145,9 +145,8 @@ fun SettingsPlaybackScreen() {
 						onCheckedChange = { preferenceManager.queueSyncEnabled = it },
 						content = { Text(stringResource(Res.string.option_queue_sync)) },
 						supportingContent = { Text(stringResource(Res.string.subtitle_queue_sync)) },
-						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2)
+						shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
 					)
-					DeviceNameItem(SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2))
 				}
 
 				SettingsGroup(title = { Text(stringResource(Res.string.title_listening_history)) }) {

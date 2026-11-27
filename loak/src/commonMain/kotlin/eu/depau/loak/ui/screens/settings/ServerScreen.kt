@@ -88,6 +88,7 @@ import eu.depau.loak.icons.filled.Dns
 import eu.depau.loak.icons.outlined.Edit
 import eu.depau.loak.icons.outlined.Logout
 import eu.depau.loak.icons.outlined.SyncAlt
+import eu.depau.loak.icons.outlined.Smartphone
 import eu.depau.loak.icons.outlined.Tune
 import eu.depau.loak.ui.components.common.SegmentedListItem
 import eu.depau.loak.ui.components.common.SegmentedListItemDefaults
@@ -204,7 +205,8 @@ fun SettingsServerScreen() {
 		}
 
 		SettingsGroup(title = { Text(stringResource(Res.string.title_connection)) }) {
-			CustomHeadersItem()
+			DeviceNameItem(SegmentedListItemDefaults.segmentedShapes(index = 0, count = 2))
+			CustomHeadersItem(SegmentedListItemDefaults.segmentedShapes(index = 1, count = 2))
 		}
 
 		SettingsGroup {
@@ -330,7 +332,7 @@ fun SettingsChangeServerScreen() {
 
 /** Opens the custom HTTP headers sent to the server. */
 @Composable
-fun CustomHeadersItem() {
+fun CustomHeadersItem(shapes: ListItemShapes) {
 	val backStack = LocalNavStack.current
 	val preferenceManager = koinInject<PreferenceManager>()
 	val headers = preferenceManager.customHeadersMap().size
@@ -344,7 +346,7 @@ fun CustomHeadersItem() {
 				else preferenceManager.customHeadersMap().keys.joinToString(", ")
 			)
 		},
-		shapes = SegmentedListItemDefaults.segmentedShapes(index = 0, count = 1)
+		shapes = shapes
 	)
 }
 
@@ -361,7 +363,7 @@ fun CrashReportingItem(shapes: ListItemShapes) {
 	)
 }
 
-/** The device name override, as other devices see a queue shared from here (Playback). */
+/** The device name override: the client name the server sees, and other devices a queue by. */
 @Composable
 fun DeviceNameItem(shapes: ListItemShapes) {
 	val sessionManager = koinInject<SessionManager>()
@@ -372,6 +374,7 @@ fun DeviceNameItem(shapes: ListItemShapes) {
 	SegmentedListItem(
 		onClick = { dialogOpen = true },
 		shapes = shapes,
+		leadingContent = { Icon(Icons.Outlined.Smartphone, null) },
 		supportingContent = { Text(deviceName) },
 		content = { Text(stringResource(Res.string.option_device_name)) }
 	)
