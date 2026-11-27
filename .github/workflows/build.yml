@@ -64,6 +64,13 @@ jobs:
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
+      # gradle.properties gives Gradle and the Kotlin daemon 8 GB each: on a full rebuild
+      # they reach 16 GB together, all the runner has, and it swaps until it loses contact
+      - name: Fit the build in the runner's memory
+        run: |
+          sed -i 's/-Xmx8g -Xms8g$/-Xmx4g/' gradle.properties
+          test "$(grep -c -- '-Xmx4g$' gradle.properties)" = 2
+
       - name: Build with Gradle (release)
         id: build_release
         if: github.event_name == 'push' && env.SIGNING_KEY_ALIAS
@@ -279,6 +286,13 @@ jobs:
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
+      # gradle.properties gives Gradle and the Kotlin daemon 8 GB each: on a full rebuild
+      # they reach 16 GB together, all the runner has, and it swaps until it loses contact
+      - name: Fit the build in the runner's memory
+        run: |
+          sed -i 's/-Xmx8g -Xms8g$/-Xmx4g/' gradle.properties
+          test "$(grep -c -- '-Xmx4g$' gradle.properties)" = 2
+
       # the emulator needs hardware acceleration
       - name: Enable KVM
         run: |
@@ -286,9 +300,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # Build first, then free the build's memory before the emulator boots: Gradle (8 GB
-      # heap), the Kotlin daemon and R8 next to the emulator exhaust the runner, which
-      # then shuts down mid-run
+      # Build first, then free the build's memory before the emulator boots: Gradle, the
+      # Kotlin daemon and R8 next to the emulator exhaust the runner, which then shuts down
+      # mid-run
       - name: Build the app and its user flows
         run: |
           ./gradlew :loakApp:assembleMinified :loakApp:assembleMinifiedAndroidTest --stacktrace \
