@@ -8,9 +8,11 @@ import eu.depau.loak.util.Logger
 import io.ktor.client.request.header
 import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentLength
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
@@ -147,6 +149,12 @@ class AudioFetcher(
 						if (!response.status.isSuccess()) {
 							throw IOException("HTTP ${response.status.value}")
 						}
+						// Subsonic reports errors (a transcode that failed…) as 200s with a JSON
+						// or XML body: stored, it'd be a download that never plays
+						response.contentType()?.takeIf {
+							it.match(ContentType.Application.Json) ||
+								it.match(ContentType.Application.Xml) || it.match(ContentType.Text.Any)
+						}?.let { throw IOException("got $it instead of audio") }
 						if (response.status != HttpStatusCode.PartialContent) writer.truncate()
 						val total = response.contentLength()?.plus(writer.offset)
 						fetch.progress.value = Progress(writer.offset, total, started = true)

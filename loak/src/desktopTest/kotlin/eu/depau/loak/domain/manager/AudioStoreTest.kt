@@ -61,17 +61,25 @@ class AudioStoreTest {
 		assertNull(write("s4", AudioQuality.Raw, n = 10, expected = 1000))
 		assertNull(store.bestComplete("s4"))
 
-		// a restart drops strays and unpinned partials, keeps pinned partials to resume
+		// a restart drops strays and unpinned partials, keeps pinned partials to resume, and
+		// queues a damaged download to be fetched again
 		File(dir, "stray").writeText("x")
 		store.openWrite("s5", AudioQuality.Raw, "opus")!!.run { write(bytes); close() }
 		store.openWrite("s6", AudioQuality.Raw, "opus", pinned = true)!!.run { write(bytes); close() }
+		File(store.pathOf(raw)).writeBytes(bytes.copyOf(10))
 		val restarted = AudioStore(dir.path, db.audioFileDao(), prefs, MutableStateFlow(""))
 		repeat(100) { if (File(dir, "stray").exists()) delay(20) }
 		assertEquals(
-			setOf(File(store.pathOf(raw)).name, File(store.pathOf(s3)).name, "s6.raw.opus.partial"),
+			setOf(File(store.pathOf(s3)).name, "s6.raw.opus.partial"),
 			dir.list()!!.toSet()
 		)
+		assertNull(store.bestComplete("s1"))
+		assertTrue("s1" in store.pendingDownloads().map { it.songId })
 		assertEquals(1000, store.openWrite("s6", AudioQuality.Raw, "opus", resume = true)!!.offset)
+
+		// a stored file gone meanwhile doesn't play
+		File(store.pathOf(s3)).delete()
+		assertNull(store.bestComplete("s3"))
 		restarted.close()
 		store.close()
 		db.close()

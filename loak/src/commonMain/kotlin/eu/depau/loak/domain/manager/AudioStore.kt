@@ -121,17 +121,34 @@ class AudioStore(
 	/** The highest-quality complete file for [songId], to play or share instead of streaming. */
 	suspend fun bestComplete(songId: String): AudioFileEntity? {
 		if (dir == null) return null
-		return dao.getForSong(server.value, songId).filter { it.complete }
-			.maxByOrNull { AudioQuality.parse(it.quality) }
+		return completeCopies(songId).maxByOrNull { AudioQuality.parse(it.quality) }
 	}
 
 	/** [bestComplete] if it may play instead of streaming at [wanted]: downloads always may. */
 	suspend fun playable(songId: String, wanted: AudioQuality, online: Boolean): AudioFileEntity? {
 		if (dir == null) return null
-		val copies = dao.getForSong(server.value, songId).filter { it.complete }
+		val copies = completeCopies(songId)
 		return copies.maxByOrNull { AudioQuality.parse(it.quality) }?.takeIf { best ->
 			copies.any { it.pinned } || AudioQuality.parse(best.quality).canReplace(wanted, online)
 		}
+	}
+
+	/**
+	 * [songId]'s complete copies whose file is intact. The others are [discard]ed meanwhile
+	 * (async: callers may hold [mutex]).
+	 */
+	private suspend fun completeCopies(songId: String): List<AudioFileEntity> {
+		val (intact, damaged) = dao.getForSong(server.value, songId)
+			.filter { it.complete }
+			.partition { intact(dir!!, it) }
+		if (damaged.isNotEmpty()) scope.launch {
+			mutex.withLock {
+				// still as found: not re-fetched meanwhile
+				discard(dir!!, damaged.mapNotNull { dao.get(it.server, it.songId, it.quality) }
+					.filter { it.complete && !intact(dir, it) })
+			}
+		}
+		return intact
 	}
 
 	fun pathOf(entry: AudioFileEntity): String = Path(dir!!, entry.fileName).toString()
@@ -382,19 +399,46 @@ class AudioStore(
 
 	/**
 	 * Drops what a crash or a wiped database left behind: rows without a file, unpinned partials
-	 * (nobody resumes them), and files the index doesn't know.
+	 * (nobody resumes them), and files the index doesn't know. Damaged files are [discard]ed.
 	 */
 	private suspend fun sweep(dir: String) = mutex.withLock {
 		server.value.takeIf { it.isNotEmpty() }?.let { dao.claimUnscoped(it) }
 		SystemFileSystem.createDirectories(Path(dir))
 		val inUse = inUse.load()
 		val names = SystemFileSystem.list(Path(dir)).map { it.name }.toSet()
-		val (keep, drop) = dao.getAll().partition { e ->
-			e.songId in inUse || if (e.complete) e.fileName in names else e.pinned
+		val all = dao.getAll()
+		val damaged = all.filter { it.complete && it.songId !in inUse && !intact(dir, it) }
+		discard(dir, damaged)
+		val (keep, drop) = (all - damaged.toSet()).partition { e ->
+			e.songId in inUse || e.complete || e.pinned
 		}
 		delete(dir, drop)
-		val known = keep.flatMap { listOf(it.fileName, it.fileName + PARTIAL) }.toSet()
+		val known = (keep + damaged).flatMap { listOf(it.fileName, it.fileName + PARTIAL) }.toSet()
 		(names - known).forEach { SystemFileSystem.delete(Path(dir, it), mustExist = false) }
+	}
+
+	/**
+	 * Whether [e]'s file is on disk at the size it was stored at: a missing, emptied or cut short
+	 * file isn't.
+	 */
+	private fun intact(dir: String, e: AudioFileEntity): Boolean {
+		val size = SystemFileSystem.metadataOrNull(Path(dir, e.fileName))?.size
+		return size != null && size > 0 && size == e.bytes
+	}
+
+	/**
+	 * Deletes [damaged] complete files: a download goes back to the queue to be fetched again,
+	 * a cached copy just goes. Call holding [mutex].
+	 */
+	private suspend fun discard(dir: String, damaged: List<AudioFileEntity>) {
+		if (damaged.isEmpty()) return
+		Logger.w(TAG, "${damaged.size} stored audio files damaged or missing")
+		val (pinned, cached) = damaged.partition { it.pinned }
+		delete(dir, cached)
+		for (e in pinned) {
+			SystemFileSystem.delete(Path(dir, e.fileName), mustExist = false)
+			dao.upsert(e.copy(complete = false, bytes = 0))
+		}
 	}
 
 	private suspend fun delete(dir: String, entries: List<AudioFileEntity>) {
