@@ -20,7 +20,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -43,6 +51,7 @@ import eu.depau.loak.util.calculateWordProgress
 import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun LyricsScreenContent(
@@ -83,11 +92,27 @@ fun LyricsScreenContent(
 		}
 	} else -1
 
+	// the user scrolling (drag, fling, wheel) and a few seconds after: autoscroll waits, every
+	// line is sharp, and only the list's edges fade
+	var autoscrolling by remember { mutableStateOf(false) }
+	var browsing by remember { mutableStateOf(false) }
+	val userScrolling = listState.isScrollInProgress && !autoscrolling
+	LaunchedEffect(userScrolling) {
+		if (userScrolling) browsing = true
+		else {
+			delay(3.seconds)
+			browsing = false
+		}
+	}
+	val blur = preferenceManager.lyricsBlur
+	val edgeFade by animateFloatAsState(if (browsing && blur) 1f else 0f)
+
 	val lyricsAutoscroll = preferenceManager.lyricsAutoscroll
 		&& !isSelecting
 		&& isSynced
+		&& !browsing
 
-	LaunchedEffect(activeIndex, isSelecting) {
+	LaunchedEffect(activeIndex, isSelecting, browsing) {
 		if (!lyricsAutoscroll) return@LaunchedEffect
 
 		val layoutInfo = listState.layoutInfo
@@ -102,13 +127,18 @@ fun LyricsScreenContent(
 			val thresholdPx = with(density) { 24.dp.toPx() }
 
 			if (abs(distance) > thresholdPx) {
-				listState.animateScrollBy(
-					value = distance.toFloat(),
-					animationSpec = spring(
-						stiffness = Spring.StiffnessLow,
-						dampingRatio = Spring.DampingRatioNoBouncy
+				autoscrolling = true
+				try {
+					listState.animateScrollBy(
+						value = distance.toFloat(),
+						animationSpec = spring(
+							stiffness = Spring.StiffnessLow,
+							dampingRatio = Spring.DampingRatioNoBouncy
+						)
 					)
-				)
+				} finally {
+					autoscrolling = false
+				}
 			}
 		} else if (activeIndex >= 0) {
 			launch {
@@ -117,16 +147,42 @@ fun LyricsScreenContent(
 					(layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
 				val scrollOffset = -(viewportCenter / 2)
 
-				listState.animateScrollToItem(
-					index = activeIndex,
-					scrollOffset = scrollOffset
-				)
+				autoscrolling = true
+				try {
+					listState.animateScrollToItem(
+						index = activeIndex,
+						scrollOffset = scrollOffset
+					)
+				} finally {
+					autoscrolling = false
+				}
 			}
 		}
 	}
 
 	LazyColumn(
-		Modifier.fillMaxSize(),
+		Modifier
+			.fillMaxSize()
+			.graphicsLayer {
+				compositingStrategy =
+					if (edgeFade > 0f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+			}
+			.drawWithContent {
+				drawContent()
+				if (edgeFade > 0f) {
+					val edge = (96.dp.toPx() / size.height).coerceAtMost(.5f)
+					val faded = Color.Black.copy(alpha = 1f - edgeFade)
+					drawRect(
+						Brush.verticalGradient(
+							0f to faded,
+							edge to Color.Black,
+							1f - edge to Color.Black,
+							1f to faded
+						),
+						blendMode = BlendMode.DstIn
+					)
+				}
+			},
 		state = listState,
 		contentPadding = contentPadding + PaddingValues(top = 16.dp)
 	) {
@@ -180,7 +236,7 @@ fun LyricsScreenContent(
 			)
 			val lineBlurRadius by animateDpAsState(
 				targetValue = when {
-					isSelecting || !isSynced || distance < 3 -> 0.dp
+					isSelecting || browsing || !isSynced || distance < 3 -> 0.dp
 					else -> 4.5.dp
 				},
 				animationSpec = spring(stiffness = Spring.StiffnessLow)
@@ -267,7 +323,7 @@ fun LyricsScreenContent(
 						translationY = lineOffsetY.toPx()
 					}
 					.then(
-						if (lineBlurRadius > 0.dp && !isSelecting && preferenceManager.lyricsBlur) {
+						if (lineBlurRadius > 0.dp && !isSelecting && blur) {
 							Modifier.blur(lineBlurRadius)
 						} else Modifier
 					)
