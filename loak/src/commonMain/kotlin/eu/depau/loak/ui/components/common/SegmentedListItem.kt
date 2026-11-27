@@ -248,8 +248,9 @@ object SegmentedListItemDefaults {
 	}
 }
 
+/** Long-press (and right click) that works over the links a row's text holds. */
 @Composable
-private fun Modifier.withLongClick(
+internal fun Modifier.withLongClick(
 	enabled: Boolean,
 	onLongClick: (() -> Unit)?,
 	label: String?

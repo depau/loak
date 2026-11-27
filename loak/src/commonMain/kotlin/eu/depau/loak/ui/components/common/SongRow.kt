@@ -1,7 +1,6 @@
 package eu.depau.loak.ui.components.common
 
-import eu.depau.loak.ui.util.onSecondaryClick
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -146,12 +145,9 @@ private fun SongRowContent(
 			.width(400.dp)
 			.alpha(if (isExplicit) .5f else 1f)
 			.unavailable(maybeUnavailable)
-			.onSecondaryClick(onLongClick)
-			.combinedClickable(
-				onClick = playOrExplain(song.id, onClick),
-				onLongClick = onLongClick,
-				enabled = !isExplicit
-			),
+			// over the artist links too, which take the press before the row's own detectors
+			.withLongClick(!isExplicit, onLongClick, null)
+			.clickable(enabled = !isExplicit, onClick = playOrExplain(song.id, onClick)),
 		headlineContent = {
 			Text(
 				text = buildAnnotatedString {
