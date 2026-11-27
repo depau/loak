@@ -521,7 +521,7 @@ class HomeRepository(
 		private const val TAG = "HomeRepository"
 		private const val PINS_KEY = "speedDialPins"
 		private const val PICKS_KEY = "quickPicks"
-		const val SPEED_DIAL_SIZE = 26 // 3 pages of 9, less the dice
+		const val SPEED_DIAL_SIZE = 30 // 5 pages of 6
 		/** Songs besides the played/starred/rated ones [HomeLibrary] carries; see [library]. */
 		private const val SAMPLED_SONGS = 1500
 		/** Room binds one parameter per id, so long id lists are asked for in batches. */

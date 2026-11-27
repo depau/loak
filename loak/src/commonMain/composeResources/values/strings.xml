@@ -338,7 +338,8 @@
 	<string name="title_quick_picks">Quick picks</string>
 	<string name="title_top_songs">Top songs</string>
 	<string name="action_play_all">Play all</string>
-	<string name="action_feeling_lucky">Feeling lucky: play a random song's radio</string>
+	<string name="title_feeling_lucky">Feeling lucky</string>
+	<string name="subtitle_feeling_lucky">Play a random song's radio</string>
 	<string name="title_mixed_for_you">Mixed for you</string>
 	<string name="title_artist_mix">%1$s Mix</string>
 	<string name="label_mix">Mix</string>

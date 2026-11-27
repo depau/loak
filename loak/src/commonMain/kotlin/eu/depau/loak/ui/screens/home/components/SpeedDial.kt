@@ -12,6 +12,7 @@ import eu.depau.loak.ui.util.HorizontalScrollArrows
 import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,8 +43,7 @@ import androidx.compose.ui.draw.clip
 import eu.depau.loak.ui.util.shimmerLoading
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import eu.depau.loak.icons.filled.Play
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -52,7 +52,8 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import eu.depau.loak.di.LocalNavStack
 import eu.depau.loak.domain.repositories.SpeedDialItem
 import eu.depau.loak.generated.resources.Res
-import eu.depau.loak.generated.resources.action_feeling_lucky
+import eu.depau.loak.generated.resources.subtitle_feeling_lucky
+import eu.depau.loak.generated.resources.title_feeling_lucky
 import eu.depau.loak.icons.Icons
 import eu.depau.loak.icons.filled.Keep
 import eu.depau.loak.icons.outlined.Casino
@@ -65,42 +66,40 @@ import eu.depau.loak.ui.navigation.Screen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-/** How Speed dial lays out its pages of 9. */
-enum class SpeedDialLayout {
-	/** Phones: a 3×3 page across the width. */
-	Grid,
+/** How Speed dial lays out its pages of [PAGE_SIZE]. */
+enum class SpeedDialLayout(val columns: Int) {
+	/** Phones: a 2×3 page across the width. */
+	Grid(3),
 
-	/** Medium windows: a 3×3 page with the next one peeking in. */
-	GridPeek,
+	/** Medium windows: a 2×3 page with the next one peeking in. */
+	GridPeek(3),
 
-	/** Expanded windows: each page is one row of 9. */
-	Row
+	/** Expanded windows: each page is one row of 6, with the next one peeking in. */
+	Row(PAGE_SIZE);
+
+	/** A tile's side in [width]: phones fill it, wider windows keep tiles at most 140 dp. */
+	fun tile(width: Dp, gap: Dp): Dp {
+		val fit = (width - gap * (columns - 1)) / columns
+		return if (this == Grid) fit else minOf(140.dp, fit)
+	}
 }
 
-/**
- * Speed dial: pages of 9 tiles; the first starts with the dice, which plays a random song's
- * radio.
- */
+private const val PAGE_SIZE = 6
+
+/** Speed dial: pages of [PAGE_SIZE] tiles. */
 @Composable
 fun SpeedDial(
 	items: List<SpeedDialItem>,
 	layout: SpeedDialLayout,
-	onPlayRadio: (SpeedDialItem.Song) -> Unit,
-	onFeelingLucky: () -> Unit
+	onPlayRadio: (SpeedDialItem.Song) -> Unit
 ) {
-	// the dice takes the first page's first slot
-	val pages = (listOf<SpeedDialItem?>(null) + items).chunked(9)
+	val pages = items.chunked(PAGE_SIZE)
 	val pagerState = rememberPagerState { pages.size }
 	val gap = 8.dp
 
 	BoxWithConstraints(Modifier.fillMaxWidth()) {
-		val width = maxWidth - 32.dp
-		val tile = when (layout) {
-			SpeedDialLayout.Grid -> (width - gap * 2) / 3
-			SpeedDialLayout.GridPeek -> minOf(140.dp, (width - gap * 2) / 3)
-			SpeedDialLayout.Row -> (width - gap * 8) / 9
-		}
-		val pageWidth = if (layout == SpeedDialLayout.Row) tile * 9 + gap * 8 else tile * 3 + gap * 2
+		val tile = layout.tile(maxWidth - 32.dp, gap)
+		val pageWidth = tile * layout.columns + gap * (layout.columns - 1)
 		Column {
 			HorizontalScrollArrows(
 				canScrollBackward = pagerState.canScrollBackward,
@@ -116,15 +115,10 @@ fun SpeedDial(
 					contentPadding = PaddingValues(horizontal = 16.dp),
 					verticalAlignment = Alignment.Top
 				) { page ->
-					val cells = pages[page]
-					val rows = if (layout == SpeedDialLayout.Row) listOf(cells) else cells.chunked(3)
 					Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-						rows.forEach { row ->
+						pages[page].chunked(layout.columns).forEach { row ->
 							Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-								row.forEach { item ->
-									if (item == null) DiceTile(tile, onFeelingLucky)
-									else SpeedDialTile(item, tile, onPlayRadio)
-								}
+								row.forEach { SpeedDialTile(it, tile, onPlayRadio) }
 							}
 						}
 					}
@@ -140,21 +134,60 @@ fun SpeedDial(
 fun SpeedDialPlaceholder(layout: SpeedDialLayout) {
 	val gap = 8.dp
 	BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-		val tile = when (layout) {
-			SpeedDialLayout.Grid -> (maxWidth - gap * 2) / 3
-			SpeedDialLayout.GridPeek -> minOf(140.dp, (maxWidth - gap * 2) / 3)
-			SpeedDialLayout.Row -> (maxWidth - gap * 8) / 9
-		}
-		val (rows, columns) = if (layout == SpeedDialLayout.Row) 1 to 9 else 3 to 3
+		val tile = layout.tile(maxWidth, gap)
 		Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-			repeat(rows) {
+			repeat(PAGE_SIZE / layout.columns) {
 				Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-					repeat(columns) {
+					repeat(layout.columns) {
 						Box(Modifier.size(tile).clip(RoundedCornerShape(12.dp)).shimmerLoading())
 					}
 				}
 			}
 		}
+	}
+}
+
+/** Feeling lucky, under Speed dial: plays a random song's radio. */
+@Composable
+fun FeelingLuckyCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
+	Row(
+		modifier
+			.fillMaxWidth()
+			.height(56.dp)
+			.clip(RoundedCornerShape(12.dp))
+			.background(MaterialTheme.colorScheme.surfaceContainer)
+			.clickable(onClick = onClick)
+			.padding(start = 10.dp, end = 12.dp),
+		horizontalArrangement = Arrangement.spacedBy(12.dp),
+		verticalAlignment = Alignment.CenterVertically
+	) {
+		Box(
+			Modifier.size(36.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+			contentAlignment = Alignment.Center
+		) {
+			Icon(
+				Icons.Outlined.Casino,
+				null,
+				Modifier.size(22.dp),
+				tint = MaterialTheme.colorScheme.onPrimaryContainer
+			)
+		}
+		Column(Modifier.weight(1f)) {
+			Text(
+				stringResource(Res.string.title_feeling_lucky),
+				style = MaterialTheme.typography.titleSmall,
+				maxLines = 1,
+				overflow = TextOverflow.Ellipsis
+			)
+			Text(
+				stringResource(Res.string.subtitle_feeling_lucky),
+				style = MaterialTheme.typography.bodySmall,
+				color = MaterialTheme.colorScheme.onSurfaceVariant,
+				maxLines = 1,
+				overflow = TextOverflow.Ellipsis
+			)
+		}
+		Icon(Icons.Filled.Play, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
 	}
 }
 
@@ -271,27 +304,6 @@ private fun SpeedDialTile(
 				onAddToQueue = { player.addToQueue(collection) }
 			)
 		}
-	}
-}
-
-@Composable
-private fun DiceTile(size: Dp, onClick: () -> Unit) {
-	val label = stringResource(Res.string.action_feeling_lucky)
-	Box(
-		Modifier
-			.size(size)
-			.clip(RoundedCornerShape(12.dp))
-			.background(MaterialTheme.colorScheme.primaryContainer)
-			.combinedClickable(onClick = onClick)
-			.semantics { contentDescription = label },
-		contentAlignment = Alignment.Center
-	) {
-		Icon(
-			Icons.Outlined.Casino,
-			null,
-			Modifier.size(minOf(48.dp, size / 2)),
-			tint = MaterialTheme.colorScheme.onPrimaryContainer
-		)
 	}
 }
 

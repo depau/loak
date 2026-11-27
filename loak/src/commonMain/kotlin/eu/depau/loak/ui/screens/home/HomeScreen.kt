@@ -95,6 +95,7 @@ import eu.depau.loak.ui.screens.home.components.SmallOutlinedButton
 import eu.depau.loak.ui.screens.home.components.SonicJourneyCard
 import eu.depau.loak.ui.screens.home.components.SongColumns
 import eu.depau.loak.ui.screens.home.components.SongColumnsPlaceholder
+import eu.depau.loak.ui.screens.home.components.FeelingLuckyCard
 import eu.depau.loak.ui.screens.home.components.SpeedDial
 import eu.depau.loak.ui.screens.home.components.SpeedDialLayout
 import eu.depau.loak.ui.screens.home.components.SpeedDialPlaceholder
@@ -280,8 +281,13 @@ fun HomeFeed(
 				SpeedDial(
 					items = state.speedDial,
 					layout = speedDialLayout,
-					onPlayRadio = { viewModel.playRadio(it.song) },
-					onFeelingLucky = viewModel::feelingLucky
+					onPlayRadio = { viewModel.playRadio(it.song) }
+				)
+			}
+			item(key = "feeling lucky", span = full) {
+				FeelingLuckyCard(
+					onClick = viewModel::feelingLucky,
+					modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp)
 				)
 			}
 		}
