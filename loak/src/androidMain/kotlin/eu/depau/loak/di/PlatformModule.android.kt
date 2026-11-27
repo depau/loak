@@ -64,7 +64,7 @@ actual val platformModule = module {
 			snackBarManager = get(),
 			audioGainManager = get(),
 			audioFetcher = get(),
-		)
+		).also { it.start() }
 	}
 
 	single<PreviewPlayer> { AndroidPreviewPlayer(androidApplication()) }

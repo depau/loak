@@ -195,10 +195,17 @@ abstract class MediaPlayerViewModel(
 	init {
 		observeVolumeMuted()
 		observeCurrentSongDelivery()
-		// Restoring calls syncPlayerWithState, which must not run in this constructor, before the
-		// platform subclass is built (a local queue restores without suspending). Main can't
-		// defer it: Nucleus' runs inline on its own thread. Coming back from Default, it waits
-		// for the main thread's current task, the one constructing this, to finish.
+	}
+
+	/**
+	 * Restores the saved queue and starts what depends on it. Its platform module calls it once
+	 * the platform subclass is built: restoring calls [syncPlayerWithState], which reads the
+	 * subclass' fields, and the constructor's thread can't tell when they're set (a test builds
+	 * the player off the main thread, so a restore hopping to Main raced the constructor).
+	 */
+	fun start() {
+		// off the calling thread, so it runs after Koin has stored this player (Nucleus' Main
+		// runs inline on its own thread)
 		viewModelScope.launch(Dispatchers.Default) {
 			withContext(Dispatchers.Main) {
 				restoreState()

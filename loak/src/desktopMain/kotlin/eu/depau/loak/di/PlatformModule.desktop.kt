@@ -95,7 +95,7 @@ actual val platformModule = module {
 			sessionManager = get(),
 			mediaControlManager = get(),
 			snackBarManager = get()
-		)
+		).also { it.start() }
 	}
 
 	single<CoilPlatformContext> { CoilPlatformContext.INSTANCE }

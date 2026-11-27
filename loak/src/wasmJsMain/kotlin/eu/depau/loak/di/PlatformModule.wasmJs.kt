@@ -46,7 +46,7 @@ actual val platformModule = module {
 			syncManager = get(),
 			sessionManager = get(),
 			snackBarManager = get()
-		)
+		).also { it.start() }
 	}
 
 	single<PreviewPlayer> { WasmPreviewPlayer() }

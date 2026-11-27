@@ -57,7 +57,7 @@ actual val platformModule = module {
 			preferenceManager = get(),
 			queueSyncManager = get(),
 			snackBarManager = get()
-		)
+		).also { it.start() }
 	}
 
 	single<PreviewPlayer> { IosPreviewPlayer() }
