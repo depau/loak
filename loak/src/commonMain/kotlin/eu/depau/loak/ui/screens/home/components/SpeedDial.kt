@@ -12,7 +12,7 @@ import eu.depau.loak.ui.util.HorizontalScrollArrows
 import eu.depau.loak.ui.util.onSecondaryClick
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -147,48 +147,56 @@ fun SpeedDialPlaceholder(layout: SpeedDialLayout) {
 	}
 }
 
-/** Feeling lucky, under Speed dial: plays a random song's radio. */
+/** Feeling lucky, under Speed dial: plays a random song's radio. Texts sized as song rows'. */
 @Composable
 fun FeelingLuckyCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
-	Row(
-		modifier
-			.fillMaxWidth()
-			.height(56.dp)
-			.clip(RoundedCornerShape(12.dp))
-			.background(MaterialTheme.colorScheme.surfaceContainer)
-			.clickable(onClick = onClick)
-			.padding(start = 10.dp, end = 12.dp),
-		horizontalArrangement = Arrangement.spacedBy(12.dp),
-		verticalAlignment = Alignment.CenterVertically
+	// a Surface, as Sonic journey's card: it sets the content color the title is drawn in
+	Surface(
+		onClick = onClick,
+		shape = RoundedCornerShape(12.dp),
+		color = MaterialTheme.colorScheme.surfaceContainer,
+		modifier = modifier.fillMaxWidth()
 	) {
-		Box(
-			Modifier.size(36.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-			contentAlignment = Alignment.Center
+		Row(
+			Modifier.height(56.dp).padding(start = 10.dp, end = 12.dp),
+			horizontalArrangement = Arrangement.spacedBy(12.dp),
+			verticalAlignment = Alignment.CenterVertically
 		) {
-			Icon(
-				Icons.Outlined.Casino,
-				null,
-				Modifier.size(22.dp),
-				tint = MaterialTheme.colorScheme.onPrimaryContainer
-			)
+			Box(
+				Modifier.size(36.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+				contentAlignment = Alignment.Center
+			) {
+				Icon(
+					Icons.Outlined.Casino,
+					null,
+					Modifier.size(22.dp),
+					tint = MaterialTheme.colorScheme.onPrimaryContainer
+				)
+			}
+			Column(Modifier.weight(1f)) {
+				Text(
+					stringResource(Res.string.title_feeling_lucky),
+					style = MaterialTheme.typography.bodyLarge,
+					maxLines = 1,
+					overflow = TextOverflow.Ellipsis
+				)
+				Text(
+					stringResource(Res.string.subtitle_feeling_lucky),
+					style = MaterialTheme.typography.bodyMedium,
+					color = MaterialTheme.colorScheme.onSurfaceVariant,
+					maxLines = 1,
+					overflow = TextOverflow.Ellipsis
+				)
+			}
+			Icon(Icons.Filled.Play, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
 		}
-		Column(Modifier.weight(1f)) {
-			Text(
-				stringResource(Res.string.title_feeling_lucky),
-				style = MaterialTheme.typography.titleSmall,
-				maxLines = 1,
-				overflow = TextOverflow.Ellipsis
-			)
-			Text(
-				stringResource(Res.string.subtitle_feeling_lucky),
-				style = MaterialTheme.typography.bodySmall,
-				color = MaterialTheme.colorScheme.onSurfaceVariant,
-				maxLines = 1,
-				overflow = TextOverflow.Ellipsis
-			)
-		}
-		Icon(Icons.Filled.Play, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
 	}
+}
+
+/** [FeelingLuckyCard]'s skeleton, while Home loads. */
+@Composable
+fun FeelingLuckyCardPlaceholder(modifier: Modifier = Modifier) {
+	Box(modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(12.dp)).shimmerLoading())
 }
 
 @OptIn(ExperimentalFoundationApi::class)
